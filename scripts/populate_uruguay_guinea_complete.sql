@@ -1,0 +1,188 @@
+-- URUGUAY
+DROP TABLE IF EXISTS price_master_uruguay;
+
+CREATE TABLE price_master_uruguay (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code TEXT NOT NULL UNIQUE,
+  category_id TEXT NOT NULL REFERENCES price_categories(id),
+  subcategory TEXT NOT NULL,
+  description TEXT NOT NULL,
+  unit TEXT NOT NULL,
+  labor_cost DECIMAL(10,2) DEFAULT 0,
+  material_cost DECIMAL(10,2) DEFAULT 0,
+  equipment_cost DECIMAL(10,2) DEFAULT 0,
+  other_cost DECIMAL(10,2) DEFAULT 0,
+  base_price DECIMAL(10,2) NOT NULL,
+  profit_margin DECIMAL(5,2) DEFAULT 15.00,
+  final_price DECIMAL(10,2) NOT NULL,
+  is_custom BOOLEAN DEFAULT false,
+  is_active BOOLEAN DEFAULT true,
+  long_description TEXT,
+  notes TEXT,
+  user_id UUID REFERENCES auth.users(id),
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- URUGUAY - Precios en Pesos Uruguayos (UYU)
+INSERT INTO price_master_uruguay (code, category_id, subcategory, description, unit, labor_cost, material_cost, base_price, profit_margin, final_price, is_custom, is_active) VALUES
+-- DERRIBOS
+('01-D-01', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'TABIQUES DRYWALL DEMOLICIÓN', 'Demoler tabique existente de drywall, incluyendo mano de obra y retiro de escombros', 'm²', 320, 120, 440, 15.00, 506, false, true),
+('01-D-02', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'PISOS CERÁMICA DEMOLICIÓN', 'Picar piso existente de cerámica con maquinaria, incluye retiro', 'm²', 400, 150, 550, 15.00, 632.50, false, true),
+('01-D-03', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'SANITARIOS DEMOLICIÓN', 'Desmontar y retirar sanitarios existentes (inodoro, lavamanos)', 'ud', 1000, 300, 1300, 15.00, 1495, false, true),
+('01-D-04', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'PUERTAS DEMOLICIÓN', 'Desmontar puerta existente con marco, incluye retiro', 'ud', 800, 200, 1000, 15.00, 1150, false, true),
+('01-D-05', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'VENTANAS DEMOLICIÓN', 'Desmontar ventana existente con marco de aluminio', 'ud', 880, 240, 1120, 15.00, 1288, false, true),
+('01-D-06', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'AZULEJOS PARED DEMOLICIÓN', 'Picar azulejos de pared existentes, incluye retiro', 'm²', 440, 160, 600, 15.00, 690, false, true),
+('01-D-07', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'CIELORRASO DEMOLICIÓN', 'Desmontar cielorraso existente de fibra mineral', 'm²', 360, 90, 450, 15.00, 517.50, false, true),
+('01-D-08', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'INSTALACIÓN ELÉCTRICA DEMOLICIÓN', 'Retirar instalación eléctrica existente (cables, cajas)', 'm', 150, 40, 190, 15.00, 218.50, false, true),
+('01-D-09', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'TUBERÍA PLOMERÍA DEMOLICIÓN', 'Retirar tubería de plomería existente (PVC o cobre)', 'm', 190, 50, 240, 15.00, 276, false, true),
+('01-D-10', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'ZÓCALO DEMOLICIÓN', 'Retirar zócalo existente de madera o cerámica', 'm', 100, 25, 125, 15.00, 143.75, false, true),
+('01-D-11', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'MUEBLES COCINA DEMOLICIÓN', 'Desmontar muebles de cocina existentes', 'm', 580, 130, 710, 15.00, 816.50, false, true),
+('01-D-12', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'ESCOMBROS TRANSPORTE', 'Carga y transporte de escombros a vertedero autorizado', 'm³', 1000, 1600, 2600, 15.00, 2990, false, true),
+-- ALBAÑILERÍA
+('02-A-01', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'TABIQUE BLOQUE CONCRETO', 'Construcción de tabique con bloque de concreto 15cm, incluye mortero', 'm²', 1520, 1080, 2600, 15.00, 2990, false, true),
+('02-A-02', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'TABIQUE DURLOCK', 'Instalación de tabique de durlock con estructura metálica', 'm²', 1200, 880, 2080, 15.00, 2392, false, true),
+('02-A-03', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'REVOQUE PAREDES', 'Revoque de paredes con mortero cemento-arena, acabado fino', 'm²', 680, 360, 1040, 15.00, 1196, false, true),
+('02-A-04', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'CONTRAPISO CONCRETO', 'Contrapiso de concreto 8cm de espesor, incluye malla electrosoldada', 'm²', 1000, 800, 1800, 15.00, 2070, false, true),
+('02-A-05', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'CERÁMICA PISO', 'Instalación de cerámica para piso, incluye material de pega', 'm²', 960, 1200, 2160, 15.00, 2484, false, true),
+('02-A-06', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'CERÁMICA PARED', 'Instalación de cerámica para pared de baño o cocina', 'm²', 1000, 1280, 2280, 15.00, 2622, false, true),
+('02-A-07', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'ZÓCALO CERÁMICA', 'Instalación de zócalo de cerámica h=10cm', 'm', 220, 140, 360, 15.00, 414, false, true),
+('02-A-08', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'CIELORRASO FIBRA MINERAL', 'Instalación de cielorraso con placas de fibra mineral', 'm²', 800, 680, 1480, 15.00, 1702, false, true),
+('02-A-09', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'PINTURA PAREDES', 'Pintura látex para paredes interiores, 2 manos', 'm²', 320, 200, 520, 15.00, 598, false, true),
+('02-A-10', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'IMPERMEABILIZACIÓN', 'Impermeabilización de superficie con membrana asfáltica', 'm²', 680, 880, 1560, 15.00, 1794, false, true),
+-- PLOMERÍA
+('03-P-01', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'INODORO INSTALACIÓN', 'Suministro e instalación de inodoro de porcelana blanco', 'ud', 1800, 5600, 7400, 15.00, 8510, false, true),
+('03-P-02', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'LAVAMANOS INSTALACIÓN', 'Suministro e instalación de lavamanos con pedestal', 'ud', 1520, 4400, 5920, 15.00, 6808, false, true),
+('03-P-03', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'DUCHA INSTALACIÓN', 'Instalación de ducha con grifería cromada', 'ud', 1280, 3520, 4800, 15.00, 5520, false, true),
+('03-P-04', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'FREGADERO COCINA', 'Suministro e instalación de fregadero de acero inoxidable', 'ud', 1400, 4000, 5400, 15.00, 6210, false, true),
+('03-P-05', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'GRIFERÍA LAVAMANOS', 'Suministro e instalación de grifería cromada para lavamanos', 'ud', 1000, 2800, 3800, 15.00, 4370, false, true),
+('03-P-06', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'TUBERÍA PVC AGUA', 'Instalación de tubería PVC para agua potable 1/2"', 'm', 320, 220, 540, 15.00, 621, false, true),
+('03-P-07', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'TUBERÍA PVC DESAGÜE', 'Instalación de tubería PVC para desagüe 4"', 'm', 380, 280, 660, 15.00, 759, false, true),
+('03-P-08', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'CALENTADOR ELÉCTRICO', 'Suministro e instalación de calentador eléctrico 50 litros', 'ud', 2200, 10600, 12800, 15.00, 14720, false, true),
+('03-P-09', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'CALENTADOR GAS', 'Suministro e instalación de calentador de gas instantáneo', 'ud', 2480, 11800, 14280, 15.00, 16422, false, true),
+('03-P-10', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'VÁLVULA PASO', 'Instalación de válvula de paso de bronce 1/2"', 'ud', 440, 560, 1000, 15.00, 1150, false, true),
+-- CARPINTERÍA
+('04-C-01', 'e4967edd-53b5-459a-bb68-b1fd88ee6836', 'PUERTA MADERA', 'Suministro e instalación de puerta de madera maciza con marco', 'ud', 3120, 8200, 11320, 15.00, 13018, false, true),
+('04-C-02', 'e4967edd-53b5-459a-bb68-b1fd88ee6836', 'PUERTA TAMBOR', 'Suministro e instalación de puerta tipo tambor con marco', 'ud', 2240, 5680, 7920, 15.00, 9108, false, true),
+('04-C-03', 'e4967edd-53b5-459a-bb68-b1fd88ee6836', 'VENTANA ALUMINIO', 'Suministro e instalación de ventana de aluminio con vidrio', 'm²', 4400, 5680, 10080, 15.00, 11592, false, true),
+('04-C-04', 'e4967edd-53b5-459a-bb68-b1fd88ee6836', 'CLOSET MELAMINA', 'Fabricación e instalación de closet en melamina', 'm', 3520, 5280, 8800, 15.00, 10120, false, true),
+('04-C-05', 'e4967edd-53b5-459a-bb68-b1fd88ee6836', 'MUEBLES COCINA', 'Fabricación e instalación de muebles de cocina en melamina', 'm', 4000, 6000, 10000, 15.00, 11500, false, true),
+('04-C-06', 'e4967edd-53b5-459a-bb68-b1fd88ee6836', 'ZÓCALO MADERA', 'Instalación de zócalo de madera h=10cm', 'm', 280, 220, 500, 15.00, 575, false, true),
+('04-C-07', 'e4967edd-53b5-459a-bb68-b1fd88ee6836', 'PISO LAMINADO', 'Instalación de piso laminado con espuma niveladora', 'm²', 800, 1520, 2320, 15.00, 2668, false, true),
+('04-C-08', 'e4967edd-53b5-459a-bb68-b1fd88ee6836', 'CERRADURA PUERTA', 'Suministro e instalación de cerradura de pomo', 'ud', 560, 1520, 2080, 15.00, 2392, false, true),
+-- ELECTRICIDAD
+('05-E-01', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'TOMACORRIENTE DOBLE', 'Instalación de tomacorriente doble con placa', 'ud', 560, 440, 1000, 15.00, 1150, false, true),
+('05-E-02', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'INTERRUPTOR SIMPLE', 'Instalación de interruptor simple con placa', 'ud', 480, 360, 840, 15.00, 966, false, true),
+('05-E-03', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'LUMINARIA LED', 'Suministro e instalación de luminaria LED empotrable', 'ud', 680, 1880, 2560, 15.00, 2944, false, true),
+('05-E-04', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'CABLEADO ELÉCTRICO', 'Instalación de cable eléctrico calibre 12 en tubería', 'm', 220, 150, 370, 15.00, 425.50, false, true),
+('05-E-05', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'TABLERO ELÉCTRICO', 'Suministro e instalación de tablero eléctrico 12 circuitos', 'ud', 4400, 10600, 15000, 15.00, 17250, false, true),
+('05-E-06', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'BREAKER TERMOMAGNÉTICO', 'Instalación de breaker termomagnético 20A', 'ud', 440, 800, 1240, 15.00, 1426, false, true),
+('05-E-07', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'TUBERÍA CONDUIT', 'Instalación de tubería conduit PVC 3/4"', 'm', 190, 130, 320, 15.00, 368, false, true),
+('05-E-08', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'CAJA ELÉCTRICA', 'Instalación de caja eléctrica rectangular', 'ud', 250, 100, 350, 15.00, 402.50, false, true),
+('05-E-09', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'VENTILADOR TECHO', 'Suministro e instalación de ventilador de techo', 'ud', 1000, 4400, 5400, 15.00, 6210, false, true),
+('05-E-10', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'TIMBRE PUERTA', 'Suministro e instalación de timbre inalámbrico', 'ud', 480, 1000, 1480, 15.00, 1702, false, true),
+-- CALEFACCIÓN
+('06-H-01', '5090928c-9b72-4d83-8667-9d01ddbfca47', 'AIRE ACONDICIONADO SPLIT', 'Suministro e instalación de aire acondicionado split 12000 BTU', 'ud', 5600, 22600, 28200, 15.00, 32430, false, true),
+('06-H-02', '5090928c-9b72-4d83-8667-9d01ddbfca47', 'EXTRACTOR BAÑO', 'Suministro e instalación de extractor de aire para baño', 'ud', 1000, 2240, 3240, 15.00, 3726, false, true),
+('06-H-03', '5090928c-9b72-4d83-8667-9d01ddbfca47', 'CAMPANA EXTRACTORA', 'Suministro e instalación de campana extractora para cocina', 'ud', 1520, 6880, 8400, 15.00, 9660, false, true),
+('06-H-04', '5090928c-9b72-4d83-8667-9d01ddbfca47', 'REJILLA VENTILACIÓN', 'Instalación de rejilla de ventilación de aluminio', 'ud', 440, 560, 1000, 15.00, 1150, false, true),
+('06-H-05', '5090928c-9b72-4d83-8667-9d01ddbfca47', 'DUCTO VENTILACIÓN', 'Instalación de ducto flexible para ventilación', 'm', 380, 310, 690, 15.00, 793.50, false, true),
+-- LIMPIEZA
+('07-L-01', '0f95a55f-12ba-4e0e-ba0d-d01229d05c4c', 'LIMPIEZA FINAL OBRA', 'Limpieza final de obra, incluye retiro de polvo y residuos', 'm²', 190, 100, 290, 15.00, 333.50, false, true),
+('07-L-02', '0f95a55f-12ba-4e0e-ba0d-d01229d05c4c', 'LIMPIEZA VENTANAS', 'Limpieza de ventanas y marcos por ambos lados', 'm²', 250, 60, 310, 15.00, 356.50, false, true);
+
+-- GUINEA ECUATORIAL
+DROP TABLE IF EXISTS price_master_guineaecuatorial;
+
+CREATE TABLE price_master_guineaecuatorial (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code TEXT NOT NULL UNIQUE,
+  category_id TEXT NOT NULL REFERENCES price_categories(id),
+  subcategory TEXT NOT NULL,
+  description TEXT NOT NULL,
+  unit TEXT NOT NULL,
+  labor_cost DECIMAL(10,2) DEFAULT 0,
+  material_cost DECIMAL(10,2) DEFAULT 0,
+  equipment_cost DECIMAL(10,2) DEFAULT 0,
+  other_cost DECIMAL(10,2) DEFAULT 0,
+  base_price DECIMAL(10,2) NOT NULL,
+  profit_margin DECIMAL(5,2) DEFAULT 15.00,
+  final_price DECIMAL(10,2) NOT NULL,
+  is_custom BOOLEAN DEFAULT false,
+  is_active BOOLEAN DEFAULT true,
+  long_description TEXT,
+  notes TEXT,
+  user_id UUID REFERENCES auth.users(id),
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- GUINEA ECUATORIAL - Precios en Francos CFA (XAF)
+-- Terminología similar a España
+INSERT INTO price_master_guineaecuatorial (code, category_id, subcategory, description, unit, labor_cost, material_cost, base_price, profit_margin, final_price, is_custom, is_active) VALUES
+-- DERRIBOS
+('01-D-01', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'TABIQUES PLADUR DEMOLICIÓN', 'Demoler tabique existente de pladur, incluyendo mano de obra y retiro de escombros', 'm²', 3500, 1200, 4700, 15.00, 5405, false, true),
+('01-D-02', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'PISOS CERÁMICA DEMOLICIÓN', 'Picar piso existente de cerámica con maquinaria, incluye retiro', 'm²', 4400, 1600, 6000, 15.00, 6900, false, true),
+('01-D-03', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'SANITARIOS DEMOLICIÓN', 'Desmontar y retirar sanitarios existentes (inodoro, lavabo)', 'ud', 11000, 3300, 14300, 15.00, 16445, false, true),
+('01-D-04', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'PUERTAS DEMOLICIÓN', 'Desmontar puerta existente con marco, incluye retiro', 'ud', 8800, 2200, 11000, 15.00, 12650, false, true),
+('01-D-05', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'VENTANAS DEMOLICIÓN', 'Desmontar ventana existente con marco de aluminio', 'ud', 9700, 2600, 12300, 15.00, 14145, false, true),
+('01-D-06', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'AZULEJOS PARED DEMOLICIÓN', 'Picar azulejos de pared existentes, incluye retiro', 'm²', 4800, 1800, 6600, 15.00, 7590, false, true),
+('01-D-07', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'FALSO TECHO DEMOLICIÓN', 'Desmontar falso techo existente de fibra mineral', 'm²', 3900, 1000, 4900, 15.00, 5635, false, true),
+('01-D-08', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'INSTALACIÓN ELÉCTRICA DEMOLICIÓN', 'Retirar instalación eléctrica existente (cables, cajas)', 'm', 1600, 400, 2000, 15.00, 2300, false, true),
+('01-D-09', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'TUBERÍA FONTANERÍA DEMOLICIÓN', 'Retirar tubería de fontanería existente (PVC o cobre)', 'm', 2100, 550, 2650, 15.00, 3047.50, false, true),
+('01-D-10', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'RODAPIÉ DEMOLICIÓN', 'Retirar rodapié existente de madera o cerámica', 'm', 1100, 280, 1380, 15.00, 1587, false, true),
+('01-D-11', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'MUEBLES COCINA DEMOLICIÓN', 'Desmontar muebles de cocina existentes', 'm', 6400, 1400, 7800, 15.00, 8970, false, true),
+('01-D-12', '5b38410c-4b7b-412a-9f57-6e74db0cc237', 'ESCOMBROS TRANSPORTE', 'Carga y transporte de escombros a vertedero autorizado', 'm³', 11000, 17600, 28600, 15.00, 32890, false, true),
+-- ALBAÑILERÍA
+('02-A-01', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'TABIQUE BLOQUE HORMIGÓN', 'Construcción de tabique con bloque de hormigón 15cm, incluye mortero', 'm²', 16700, 11900, 28600, 15.00, 32890, false, true),
+('02-A-02', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'TABIQUE PLADUR', 'Instalación de tabique de pladur con estructura metálica', 'm²', 13200, 9700, 22900, 15.00, 26335, false, true),
+('02-A-03', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'ENLUCIDO PAREDES', 'Enlucido de paredes con mortero cemento-arena, acabado fino', 'm²', 7500, 4000, 11500, 15.00, 13225, false, true),
+('02-A-04', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'SOLERA HORMIGÓN', 'Solera de hormigón 8cm de espesor, incluye malla electrosoldada', 'm²', 11000, 8800, 19800, 15.00, 22770, false, true),
+('02-A-05', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'CERÁMICA PISO', 'Instalación de cerámica para piso, incluye material de agarre', 'm²', 10600, 13200, 23800, 15.00, 27370, false, true),
+('02-A-06', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'AZULEJO PARED', 'Instalación de azulejo para pared de baño o cocina', 'm²', 11000, 14100, 25100, 15.00, 28865, false, true),
+('02-A-07', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'RODAPIÉ CERÁMICA', 'Instalación de rodapié de cerámica h=10cm', 'm', 2400, 1500, 3900, 15.00, 4485, false, true),
+('02-A-08', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'FALSO TECHO FIBRA MINERAL', 'Instalación de falso techo con placas de fibra mineral', 'm²', 8800, 7500, 16300, 15.00, 18745, false, true),
+('02-A-09', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'PINTURA PAREDES', 'Pintura plástica para paredes interiores, 2 manos', 'm²', 3500, 2200, 5700, 15.00, 6555, false, true),
+('02-A-10', 'd6e90b3f-3bc5-4f15-8530-19da496abc5e', 'IMPERMEABILIZACIÓN', 'Impermeabilización de superficie con lámina asfáltica', 'm²', 7500, 9700, 17200, 15.00, 19780, false, true),
+-- FONTANERÍA
+('03-P-01', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'INODORO INSTALACIÓN', 'Suministro e instalación de inodoro de porcelana blanco', 'ud', 19800, 61600, 81400, 15.00, 93610, false, true),
+('03-P-02', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'LAVABO INSTALACIÓN', 'Suministro e instalación de lavabo con pedestal', 'ud', 16700, 48400, 65100, 15.00, 74865, false, true),
+('03-P-03', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'DUCHA INSTALACIÓN', 'Instalación de ducha con grifería cromada', 'ud', 14100, 38700, 52800, 15.00, 60720, false, true),
+('03-P-04', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'FREGADERO COCINA', 'Suministro e instalación de fregadero de acero inoxidable', 'ud', 15400, 44000, 59400, 15.00, 68310, false, true),
+('03-P-05', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'GRIFERÍA LAVABO', 'Suministro e instalación de grifería cromada para lavabo', 'ud', 11000, 30800, 41800, 15.00, 48070, false, true),
+('03-P-06', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'TUBERÍA PVC AGUA', 'Instalación de tubería PVC para agua potable 1/2"', 'm', 3500, 2400, 5900, 15.00, 6785, false, true),
+('03-P-07', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'TUBERÍA PVC DESAGÜE', 'Instalación de tubería PVC para desagüe 4"', 'm', 4200, 3100, 7300, 15.00, 8395, false, true),
+('03-P-08', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'CALENTADOR ELÉCTRICO', 'Suministro e instalación de calentador eléctrico 50 litros', 'ud', 24200, 116600, 140800, 15.00, 161920, false, true),
+('03-P-09', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'CALENTADOR GAS', 'Suministro e instalación de calentador de gas instantáneo', 'ud', 27300, 130900, 158200, 15.00, 181930, false, true),
+('03-P-10', '3d93ed2f-bfec-4f36-834e-2d3c4d7d7260', 'VÁLVULA PASO', 'Instalación de válvula de paso de latón 1/2"', 'ud', 4800, 6200, 11000, 15.00, 12650, false, true),
+-- CARPINTERÍA
+('04-C-01', 'e4967edd-53b5-459a-bb68-b1fd88ee6836', 'PUERTA MADERA', 'Suministro e instalación de puerta de madera maciza con marco', 'ud', 34300, 90200, 124500, 15.00, 143175, false, true),
+('04-C-02', 'e4967edd-53b5-459a-bb68-b1fd88ee6836', 'PUERTA HUECA', 'Suministro e instalación de puerta hueca con marco', 'ud', 24600, 62500, 87100, 15.00, 100165, false, true),
+('04-C-03', 'e4967edd-53b5-459a-bb68-b1fd88ee6836', 'VENTANA ALUMINIO', 'Suministro e instalación de ventana de aluminio con vidrio', 'm²', 48400, 62500, 110900, 15.00, 127535, false, true),
+('04-C-04', 'e4967edd-53b5-459a-bb68-b1fd88ee6836', 'ARMARIO MELAMINA', 'Fabricación e instalación de armario en melamina', 'm', 38700, 58100, 96800, 15.00, 111320, false, true),
+('04-C-05', 'e4967edd-53b5-459a-bb68-b1fd88ee6836', 'MUEBLES COCINA', 'Fabricación e instalación de muebles de cocina en melamina', 'm', 44000, 66000, 110000, 15.00, 126500, false, true),
+('04-C-06', 'e4967edd-53b5-459a-bb68-b1fd88ee6836', 'RODAPIÉ MADERA', 'Instalación de rodapié de madera h=10cm', 'm', 3100, 2400, 5500, 15.00, 6325, false, true),
+('04-C-07', 'e4967edd-53b5-459a-bb68-b1fd88ee6836', 'SUELO LAMINADO', 'Instalación de suelo laminado con espuma niveladora', 'm²', 8800, 16700, 25500, 15.00, 29325, false, true),
+('04-C-08', 'e4967edd-53b5-459a-bb68-b1fd88ee6836', 'CERRADURA PUERTA', 'Suministro e instalación de cerradura de pomo', 'ud', 6200, 16700, 22900, 15.00, 26335, false, true),
+-- ELECTRICIDAD
+('05-E-01', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'ENCHUFE DOBLE', 'Instalación de enchufe doble con tapa', 'ud', 6200, 4800, 11000, 15.00, 12650, false, true),
+('05-E-02', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'INTERRUPTOR SIMPLE', 'Instalación de interruptor simple con tapa', 'ud', 5300, 4000, 9300, 15.00, 10695, false, true),
+('05-E-03', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'LUMINARIA LED', 'Suministro e instalación de luminaria LED empotrable', 'ud', 7500, 20700, 28200, 15.00, 32430, false, true),
+('05-E-04', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'CABLEADO ELÉCTRICO', 'Instalación de cable eléctrico calibre 12 en tubo', 'm', 2400, 1700, 4100, 15.00, 4715, false, true),
+('05-E-05', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'CUADRO ELÉCTRICO', 'Suministro e instalación de cuadro eléctrico 12 circuitos', 'ud', 48400, 116600, 165000, 15.00, 189750, false, true),
+('05-E-06', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'MAGNETOTÉRMICO', 'Instalación de interruptor magnetotérmico 20A', 'ud', 4800, 8800, 13600, 15.00, 15640, false, true),
+('05-E-07', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'TUBO CORRUGADO', 'Instalación de tubo corrugado PVC 3/4"', 'm', 2100, 1400, 3500, 15.00, 4025, false, true),
+('05-E-08', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'CAJA EMPOTRAR', 'Instalación de caja de empotrar universal', 'ud', 2800, 1100, 3900, 15.00, 4485, false, true),
+('05-E-09', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'VENTILADOR TECHO', 'Suministro e instalación de ventilador de techo', 'ud', 11000, 48400, 59400, 15.00, 68310, false, true),
+('05-E-10', '243dee0d-edba-4de9-94a4-2a4c17ff607d', 'TIMBRE PUERTA', 'Suministro e instalación de timbre inalámbrico', 'ud', 5300, 11000, 16300, 15.00, 18745, false, true),
+-- CALEFACCIÓN
+('06-H-01', '5090928c-9b72-4d83-8667-9d01ddbfca47', 'AIRE ACONDICIONADO SPLIT', 'Suministro e instalación de aire acondicionado split 12000 BTU', 'ud', 61600, 248600, 310200, 15.00, 356730, false, true),
+('06-H-02', '5090928c-9b72-4d83-8667-9d01ddbfca47', 'EXTRACTOR BAÑO', 'Suministro e instalación de extractor de aire para baño', 'ud', 11000, 24600, 35600, 15.00, 40940, false, true),
+('06-H-03', '5090928c-9b72-4d83-8667-9d01ddbfca47', 'CAMPANA EXTRACTORA', 'Suministro e instalación de campana extractora para cocina', 'ud', 16700, 75700, 92400, 15.00, 106260, false, true),
+('06-H-04', '5090928c-9b72-4d83-8667-9d01ddbfca47', 'REJILLA VENTILACIÓN', 'Instalación de rejilla de ventilación de aluminio', 'ud', 4800, 6200, 11000, 15.00, 12650, false, true),
+('06-H-05', '5090928c-9b72-4d83-8667-9d01ddbfca47', 'CONDUCTO VENTILACIÓN', 'Instalación de conducto flexible para ventilación', 'm', 4200, 3400, 7600, 15.00, 8740, false, true),
+-- LIMPIEZA
+('07-L-01', '0f95a55f-12ba-4e0e-ba0d-d01229d05c4c', 'LIMPIEZA FINAL OBRA', 'Limpieza final de obra, incluye retiro de polvo y residuos', 'm²', 2100, 1100, 3200, 15.00, 3680, false, true),
+('07-L-02', '0f95a55f-12ba-4e0e-ba0d-d01229d05c4c', 'LIMPIEZA VENTANAS', 'Limpieza de ventanas y marcos por ambos lados', 'm²', 2800, 700, 3500, 15.00, 4025, false, true);

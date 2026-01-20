@@ -1,0 +1,61 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { createBrowserClient } from "@supabase/ssr"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { toast } from "react-toastify"
+import {
+  MapPin,
+  Euro,
+  Clock,
+  Phone,
+  User,
+  Coins,
+  FileText,
+  CreditCard,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Mail,
+  Calendar,
+  Star,
+  Briefcase,
+  AlertTriangle,
+  Building2,
+} from "lucide-react"
+import Link from "next/link"
+import { AccessOfferDialog } from "@/components/leads/access-offer-dialog"
+import { calculateCreditCost, type SubscriptionPlan } from "@/lib/utils/credit-calculator"
+import { useSearchParams, useRouter } from "next/navigation"
+
+interface Lead {
+  id: string
+  homeowner_id: string
+  client_name: string | null
+  client_name_partial: string | null
+  client_email: string | null
+  client_phone: string | null
+  client_phone_partial: string | null
+  city: string
+  province: string
+  reform_types: string[]
+  estimated_budget: number
+  description: string
+  status: string
+  companies_accessed_count: number
+  max_companies: number
+  created_at: string
+  expires_at: string
+  has_accessed: boolean
+  proposals_count: number
+  selected_company: string | null // añadido para detectar adjudicación
+  source: string
+  budget_snapshot?: {
+    line_items?: any[]
+    lineItems?: any[]
+  } | null
+}

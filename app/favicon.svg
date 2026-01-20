@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+  <!-- Added color-scheme to prevent browser color inversion -->
+  <style>
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: light only;
+      }
+    }
+  </style>
+  
+  <!-- Fondo naranja -->
+  <rect width="32" height="32" rx="6" fill="#EA580C"/>
+  
+  <!-- Calculadora blanca -->
+  <rect x="8" y="6" width="16" height="20" rx="2" fill="none" stroke="white" stroke-width="1.5"/>
+  
+  <!-- Pantalla superior -->
+  <line x1="10" y1="9" x2="22" y2="9" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  
+  <!-- Teclas -->
+  <!-- Fila 1 -->
+  <circle cx="11" cy="13" r="0.8" fill="white"/>
+  <circle cx="16" cy="13" r="0.8" fill="white"/>
+  <circle cx="21" cy="13" r="0.8" fill="white"/>
+  
+  <!-- Fila 2 -->
+  <circle cx="11" cy="17" r="0.8" fill="white"/>
+  <circle cx="16" cy="17" r="0.8" fill="white"/>
+  <circle cx="21" cy="17" r="0.8" fill="white"/>
+  
+  <!-- Fila 3 -->
+  <circle cx="11" cy="21" r="0.8" fill="white"/>
+  <circle cx="16" cy="21" r="0.8" fill="white"/>
+  
+  <!-- Tecla grande derecha (igual/enter) -->
+  <line x1="21" y1="17" x2="21" y2="21" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
