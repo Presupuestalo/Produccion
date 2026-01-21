@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { createClient as createAdminClient } from "@supabase/supabase-js"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 import { Resend } from "resend"
 
-const supabaseAdmin = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+export const dynamic = "force-dynamic"
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(req: Request) {
   try {
     console.log("[v0] POST /api/leads/accept - Starting")
     const supabase = await createClient()
+    if (!supabase) {
+      return NextResponse.json({ error: "Fallo al inicializar Supabase" }, { status: 500 })
+    }
 
     const {
       data: { user },

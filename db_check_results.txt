@@ -1,9 +1,0 @@
-﻿Checking tables via direct query...
-Ô£à Table 'profiles': EXISTS (31 rows)
-Ô£à Table 'email_verification_codes': EXISTS (13 rows)
-Ô£à Table 'projects': EXISTS (18 rows)
-Ô£à Table 'budgets': EXISTS (9 rows)
-Ô£à Table 'price_master': EXISTS (113 rows)
-Ô£à Table 'room_photos': EXISTS (4 rows)
-Ô£à Table 'professional_works': EXISTS (0 rows)
-Ô£à Table 'calculator_data': EXISTS (14 rows)

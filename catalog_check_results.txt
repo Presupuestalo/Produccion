@@ -1,5 +1,0 @@
-﻿Checking catalog tables...
-Ô£à Table 'price_master': EXISTS (113 rows)
-Columns in price_master: id, code, category_id, subcategory, description, long_description, unit, labor_cost, material_cost, equipment_cost, other_cost, margin_percentage, is_active, is_custom, user_id, notes, created_at, updated_at, created_by, updated_by, base_price, final_price, color, brand, model, profit_margin
-Ô£à Table 'price_categories': EXISTS (10 rows)
-Ô£à Table 'user_prices': EXISTS (11 rows)

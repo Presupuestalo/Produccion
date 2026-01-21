@@ -1,1 +1,0 @@
-﻿Columns in user_prices: id, user_id, base_price_id, code, category_id, subcategory, description, long_description, unit, labor_cost, material_cost, equipment_cost, other_cost, base_price, margin_percentage, final_price, is_active, is_imported, notes, color, brand, model, created_at, updated_at, is_custom

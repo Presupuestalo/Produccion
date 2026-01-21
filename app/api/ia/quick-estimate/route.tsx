@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { generateObject, generateText } from "ai"
 import { z } from "zod"
-import { createClient } from "@supabase/supabase-js"
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin"
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+export const dynamic = "force-dynamic"
 
 function getCurrencyForCountry(countryInput: string): { code: string; symbol: string } {
   const normalized = countryInput.toLowerCase().trim()
@@ -318,22 +318,21 @@ Proporciona:
    - Pintura: XX.XXX ${currency.symbol}
 3. 4-5 recomendaciones específicas para ${city}, ${country}
 
-${
-  hasValidBudget
-    ? `
+${hasValidBudget
+          ? `
 4. ANÁLISIS DE PRESUPUESTO (en ${currency.symbol}):
    - Si ${availableBudget} ${currency.symbol} < estimación mínima:
      * "budgetWarning": Explica la diferencia en ${currency.symbol}
      * "budgetAdvice": 5-7 consejos prácticos para ${country}
    - Si el presupuesto es suficiente: deja vacíos budgetWarning y budgetAdvice
 `
-    : `
+          : `
 4. IMPORTANTE: El usuario NO proporcionó un presupuesto disponible.
    - NO generes "budgetWarning"
    - NO generes "budgetAdvice"
    - Deja estos campos vacíos o undefined
 `
-}
+        }
 
 VERIFICACIÓN FINAL ANTES DE RESPONDER:
 - ¿Todos los precios usan ${currency.symbol}?

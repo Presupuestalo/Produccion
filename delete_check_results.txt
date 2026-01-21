@@ -1,8 +1,0 @@
-﻿Checking tables related to deletion...
-Ô£à Table 'projects': EXISTS (11 rows)
-Ô£à Table 'quote_requests': EXISTS (0 rows)
-Ô£à Table 'quote_offers': EXISTS (0 rows)
-Ô£à Table 'project_floor_plans': EXISTS (0 rows)
-Ô£à Table 'calculator_data': EXISTS (15 rows)
-Ô£à Table 'project_activities': EXISTS (null rows)
-Ô£à Table 'demolition_settings': EXISTS (1 rows)

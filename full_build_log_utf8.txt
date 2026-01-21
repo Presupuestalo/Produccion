@@ -1,0 +1,241 @@
+﻿
+> my-v0-project@0.1.0 build
+> next build
+
+   Ôû▓ Next.js 16.0.10 (Turbopack)
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ Ô£ô Compiled successfully in 24.2s
+   Skipping validation of types
+   Collecting page data using 7 workers ...
+   Generating static pages using 7 workers (0/166) ...
+   Generating static pages using 7 workers (41/166) 
+   Generating static pages using 7 workers (82/166) 
+   Generating static pages using 7 workers (124/166) 
+ Ô£ô Generating static pages using 7 workers (166/166) in 3.4s
+   Finalizing page optimization ...
+
+Route (app)
+Ôöî Ôùï /
+Ôö£ Ôùï /_not-found
+Ôö£ Ôùï /admin/update-stripe-prices
+Ôö£ ãÆ /api/add-calculator-columns
+Ôö£ ãÆ /api/add-electrical-column
+Ôö£ ãÆ /api/add-is-imported-column
+Ôö£ ãÆ /api/admin/claims
+Ôö£ ãÆ /api/admin/plans
+Ôö£ ãÆ /api/admin/users
+Ôö£ ãÆ /api/admin/users/list
+Ôö£ ãÆ /api/admin/users/update-plan
+Ôö£ ãÆ /api/analyze-floor-plan
+Ôö£ ãÆ /api/appointments/send-invitation
+Ôö£ ãÆ /api/auth/notify-registration
+Ôö£ ãÆ /api/auth/send-verification-code
+Ôö£ ãÆ /api/auth/session
+Ôö£ ãÆ /api/auth/verify-code
+Ôö£ ãÆ /api/budget-snapshot
+Ôö£ ãÆ /api/compare-floor-plans
+Ôö£ ãÆ /api/contact
+Ôö£ ãÆ /api/coordinator/budget-pdf
+Ôö£ ãÆ /api/copy-master-prices
+Ôö£ ãÆ /api/create-exec-sql-function
+Ôö£ ãÆ /api/create-user-type-column
+Ôö£ ãÆ /api/credits/balance
+Ôö£ ãÆ /api/credits/purchase
+Ôö£ ãÆ /api/credits/transactions
+Ôö£ ãÆ /api/cron/appointment-reminders
+Ôö£ ãÆ /api/cron/appointment-reminders/test
+Ôö£ ãÆ /api/cron/expire-leads
+Ôö£ ãÆ /api/cron/status
+Ôö£ ãÆ /api/debug/credits
+Ôö£ ãÆ /api/debug/leads-status
+Ôö£ ãÆ /api/delete-account
+Ôö£ ãÆ /api/delete-floor-plan
+Ôö£ ãÆ /api/editor-planos/detect-rooms
+Ôö£ ãÆ /api/editor-planos/plans
+Ôö£ ãÆ /api/editor-planos/save
+Ôö£ ãÆ /api/email/lead-published
+Ôö£ ãÆ /api/email/send
+Ôö£ ãÆ /api/email/welcome-account
+Ôö£ ãÆ /api/emergency-save
+Ôö£ ãÆ /api/fix-calculator-table
+Ôö£ ãÆ /api/generate-price
+Ôö£ ãÆ /api/geo
+Ôö£ ãÆ /api/ia/compare-budgets
+Ôö£ ãÆ /api/ia/compare-budgets/[id]
+Ôö£ ãÆ /api/ia/convert-to-3d
+Ôö£ ãÆ /api/ia/create-landing-lead
+Ôö£ ãÆ /api/ia/create-lead-logged-in
+Ôö£ ãÆ /api/ia/extract-prices
+Ôö£ ãÆ /api/ia/furnish-plan
+Ôö£ ãÆ /api/ia/generate-designs
+Ôö£ ãÆ /api/ia/generate-distributions
+Ôö£ ãÆ /api/ia/generate-line-item
+Ôö£ ãÆ /api/ia/generate-render
+Ôö£ ãÆ /api/ia/import-prices
+Ôö£ ãÆ /api/ia/notify-new-offer
+Ôö£ ãÆ /api/ia/optimize-distribution
+Ôö£ ãÆ /api/ia/quick-estimate
+Ôö£ ãÆ /api/ia/request-quotes
+Ôö£ ãÆ /api/ia/save-prices
+Ôö£ ãÆ /api/ia/upload-budgets
+Ôö£ ãÆ /api/leads/accept
+Ôö£ ãÆ /api/leads/access
+Ôö£ ãÆ /api/leads/available
+Ôö£ ãÆ /api/leads/claim
+Ôö£ ãÆ /api/leads/claims
+Ôö£ ãÆ /api/leads/claims/[id]/resolve
+Ôö£ ãÆ /api/leads/contact-status
+Ôö£ ãÆ /api/leads/import-budget
+Ôö£ ãÆ /api/leads/my-interactions
+Ôö£ ãÆ /api/leads/preferences
+Ôö£ ãÆ /api/leads/publish
+Ôö£ ãÆ /api/migrate-country-support
+Ôö£ ãÆ /api/normalize-prices
+Ôö£ ãÆ /api/notifications/project-limit-reached
+Ôö£ ãÆ /api/offers/access
+Ôö£ ãÆ /api/offers/available
+Ôö£ ãÆ /api/professional/works/sync-project
+Ôö£ ãÆ /api/professional/works/upload-photo
+Ôö£ ãÆ /api/profile/upload-avatar
+Ôö£ ãÆ /api/projects/[projectId]/budget-snapshot
+Ôö£ ãÆ /api/proposals/send
+Ôö£ ãÆ /api/proposals/update-status
+Ôö£ ãÆ /api/referrals/get-code
+Ôö£ ãÆ /api/referrals/register-referred
+Ôö£ ãÆ /api/referrals/stats
+Ôö£ ãÆ /api/referrals/validate-code
+Ôö£ ãÆ /api/referrals/verify-phone
+Ôö£ ãÆ /api/room-photos/delete
+Ôö£ ãÆ /api/room-photos/list
+Ôö£ ãÆ /api/room-photos/upload
+Ôö£ ãÆ /api/save-floor-plan
+Ôö£ ãÆ /api/save-floor-plan-analysis
+Ôö£ ãÆ /api/send-referral-reward-email
+Ôö£ ãÆ /api/send-welcome-email
+Ôö£ ãÆ /api/setup-appointments-table
+Ôö£ ãÆ /api/setup-calculator-table
+Ôö£ ãÆ /api/setup-demolition-settings-table
+Ôö£ ãÆ /api/setup-email-templates
+Ôö£ ãÆ /api/setup-floor-plan-analysis-table
+Ôö£ ãÆ /api/setup-marketplace
+Ôö£ ãÆ /api/setup-profile-columns
+Ôö£ ãÆ /api/setup-rpc-functions
+Ôö£ ãÆ /api/setup-subscription-plan-column
+Ôö£ ãÆ /api/setup-user-type-column
+Ôö£ ãÆ /api/sms/send-verification
+Ôö£ ãÆ /api/sms/send-verification-public
+Ôö£ ãÆ /api/sms/verify-code
+Ôö£ ãÆ /api/sms/verify-code-public
+Ôö£ ãÆ /api/stripe/create-products
+Ôö£ ãÆ /api/stripe/get-products
+Ôö£ ãÆ /api/stripe/update-prices
+Ôö£ ãÆ /api/subscription/check-feature
+Ôö£ ãÆ /api/subscription/create-checkout
+Ôö£ ãÆ /api/subscription/debug
+Ôö£ ãÆ /api/subscription/invoices
+Ôö£ ãÆ /api/subscription/plan
+Ôö£ ãÆ /api/subscription/portal
+Ôö£ ãÆ /api/subscription/status
+Ôö£ ãÆ /api/subscription/sync
+Ôö£ ãÆ /api/supabase-config
+Ôö£ ãÆ /api/test-user-type-column
+Ôö£ ãÆ /api/tienda/categories
+Ôö£ ãÆ /api/tienda/products
+Ôö£ ãÆ /api/upload-floor-plan
+Ôö£ ãÆ /api/upload-logo
+Ôö£ ãÆ /api/upload-pdf
+Ôö£ ãÆ /api/upload/pdf
+Ôö£ ãÆ /api/user/profile
+Ôö£ ãÆ /api/validate-email
+Ôö£ ãÆ /api/verify-image
+Ôö£ ãÆ /api/webhooks/stripe
+Ôö£ ãÆ /api/webhooks/stripe-credits
+Ôö£ ãÆ /api/webhooks/stripe-subscriptions
+Ôö£ ãÆ /api/webhooks/stripe/debug
+Ôö£ ãÆ /api/webhooks/stripe/test
+Ôö£ ãÆ /api/webhooks/stripe/test-config
+Ôö£ ãÆ /api/window-photos/delete
+Ôö£ ãÆ /api/window-photos/list
+Ôö£ ãÆ /api/window-photos/upload
+Ôö£ ãÆ /api/windows/request-quote
+Ôö£ ãÆ /api/windows/send-report
+Ôö£ ãÆ /auth/callback
+Ôö£ Ôùï /auth/login
+Ôö£ Ôùï /auth/register
+Ôö£ Ôùï /auth/reset
+Ôö£ Ôùï /auth/reset-password
+Ôö£ Ôùï /auth/reset-simple
+Ôö£ Ôùï /auth/select-user-type
+Ôö£ Ôùï /auth/update-password
+Ôö£ Ôùï /auth/user-type
+Ôö£ Ôùï /auth/verification
+Ôö£ Ôùï /aviso-legal
+Ôö£ Ôùï /contacto
+Ôö£ ãÆ /dashboard
+Ôö£ Ôùï /dashboard/admin
+Ôö£ Ôùï /dashboard/admin/reclamaciones
+Ôö£ Ôùï /dashboard/admin/stripe-setup
+Ôö£ Ôùï /dashboard/admin/usuarios
+Ôö£ Ôùï /dashboard/agenda
+Ôö£ ãÆ /dashboard/ajustes
+Ôö£ Ôùï /dashboard/calculator
+Ôö£ Ôùï /dashboard/calculo-orientativo
+Ôö£ ãÆ /dashboard/citas
+Ôö£ ãÆ /dashboard/clients
+Ôö£ Ôùï /dashboard/contabilidad
+Ôö£ Ôùï /dashboard/contacto
+Ôö£ Ôùï /dashboard/coordinacion
+Ôö£ ãÆ /dashboard/coordinacion/[id]
+Ôö£ Ôùï /dashboard/creditos
+Ôö£ Ôùï /dashboard/editor-planos
+Ôö£ Ôùï /dashboard/editor-planos/nuevo
+Ôö£ ãÆ /dashboard/empresa
+Ôö£ Ôùï /dashboard/ia
+Ôö£ Ôùï /dashboard/ia/comparador
+Ôö£ ãÆ /dashboard/ia/comparador/resultados/[id]
+Ôö£ Ôùï /dashboard/ia/estimacion-rapida
+Ôö£ Ôùï /dashboard/ia/generador-disenos
+Ôö£ Ôùï /dashboard/ia/plano-3d
+Ôö£ Ôùï /dashboard/ia/visualizador-pro
+Ôö£ Ôùï /dashboard/marketplace
+Ôö£ Ôùï /dashboard/mis-leads
+Ôö£ Ôùï /dashboard/mis-peticiones
+Ôö£ Ôùï /dashboard/mis-solicitudes
+Ôö£ ãÆ /dashboard/ofertas/[id]/propuesta
+Ôö£ Ôùï /dashboard/planes
+Ôö£ Ôùï /dashboard/precios
+Ôö£ Ôùï /dashboard/precios/importador
+Ôö£ Ôùï /dashboard/professional/leads
+Ôö£ ãÆ /dashboard/professional/leads/[id]
+Ôö£ Ôùï /dashboard/professional/works
+Ôö£ ãÆ /dashboard/profile
+Ôö£ ãÆ /dashboard/projects
+Ôö£ ãÆ /dashboard/projects/[id]
+Ôö£ ãÆ /dashboard/projects/[id]/cobros
+Ôö£ ãÆ /dashboard/projects/[id]/edit
+Ôö£ ãÆ /dashboard/projects/[id]/plano
+Ôö£ Ôùï /dashboard/referidos
+Ôö£ Ôùï /dashboard/solicitudes-disponibles
+Ôö£ ãÆ /dashboard/suscripcion
+Ôö£ Ôùï /dashboard/tienda
+Ôö£ Ôùï /dashboard/tienda/carrito
+Ôö£ Ôùï /debug
+Ôö£ Ôùï /despedida
+Ôö£ Ôùï /en-construccion
+Ôö£ Ôùï /estimacion-rapida
+Ôö£ Ôùï /icon.svg
+Ôö£ Ôùï /login
+Ôö£ Ôùï /politica-cookies
+Ôö£ Ôùï /politica-privacidad
+Ôö£ ãÆ /portafolio/[userId]
+Ôöö Ôùï /test-auth
+
+
+ãÆ Proxy (Middleware)
+
+Ôùï  (Static)   prerendered as static content
+ãÆ  (Dynamic)  server-rendered on demand
+
+

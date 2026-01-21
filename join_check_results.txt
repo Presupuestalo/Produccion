@@ -1,7 +1,0 @@
-﻿Checking Join...
-Join failed with error: {
-  "code": "PGRST200",
-  "details": "Searched for a foreign key relationship between 'price_master' and 'price_categories' in the schema 'public', but no matches were found.",
-  "hint": null,
-  "message": "Could not find a relationship between 'price_master' and 'price_categories' in the schema cache"
-}
