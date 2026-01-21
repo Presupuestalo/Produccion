@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { createClient as createAdminClient } from "@supabase/supabase-js"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 export const dynamic = "force-dynamic"
 
@@ -66,6 +66,9 @@ export async function POST(request: NextRequest) {
   try {
     // Verificar que el usuario está autenticado
     const supabase = await createClient()
+    if (!supabase) {
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
+    }
     const {
       data: { user },
       error: authError,
@@ -88,10 +91,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Datos de estimación inválidos" }, { status: 400 })
     }
 
-    const supabaseAdmin = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
+
 
     // Obtener datos del perfil
     const { data: profile } = await supabaseAdmin

@@ -5,7 +5,11 @@ import { generateText } from "ai"
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
+
+    if (!supabase) {
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
+    }
 
     const {
       data: { session },
@@ -39,24 +43,24 @@ export async function POST(request: NextRequest) {
 
     let prompt = `Convierte este plano 2D en un RENDER FOTORREALISTA VISTO DESDE ARRIBA (VISTA CENITAL/BIRD'S EYE VIEW) de alta calidad profesional.
 
-REQUISITOS CRÃTICOS DEL RENDER:
-- Vista COMPLETAMENTE DESDE ARRIBA (top-down, cenital, bird's eye view) - NO isomÃ©trica, NO en Ã¡ngulo
-- La cÃ¡mara debe estar perpendicular al suelo mirando directamente hacia abajo
-- Calidad fotorrealista 8K con iluminaciÃ³n natural realista
-- AÃ±adir TODOS los muebles y elementos apropiados para cada estancia vistos desde arriba:
-  * Cocina: muebles de cocina, electrodomÃ©sticos, encimera, mesa comedor, sillas
-  * Dormitorios: camas con ropa de cama, mesitas, armarios, alfombras, decoraciÃ³n
-  * BaÃ±os: sanitarios, lavabo, ducha/baÃ±era, muebles, toallas
-  * SalÃ³n: sofÃ¡s, mesas, TV, estanterÃ­as, alfombras, plantas, decoraciÃ³n
+REQUISITOS CRÍTICOS DEL RENDER:
+- Vista COMPLETAMENTE DESDE ARRIBA (top-down, cenital, bird's eye view) - NO isométrica, NO en ángulo
+- La cámara debe estar perpendicular al suelo mirando directamente hacia abajo
+- Calidad fotorrealista 8K con iluminación natural realista
+- Añadir TODOS los muebles y elementos apropiados para cada estancia vistos desde arriba:
+  * Cocina: muebles de cocina, electrodomésticos, encimera, mesa comedor, sillas
+  * Dormitorios: camas con ropa de cama, mesitas, armarios, alfombras, decoración
+  * Baños: sanitarios, lavabo, ducha/bañera, muebles, toallas
+  * Salón: sofás, mesas, TV, estanterías, alfombras, plantas, decoración
   * Pasillos: elementos decorativos, plantas, cuadros en paredes
 - Mostrar las paredes con grosor realista y en color gris/blanco
 - Texturas realistas y detalladas en todos los materiales (suelos, muebles, textiles)
-- IluminaciÃ³n natural con sombras suaves proyectadas por los muebles
-- Perspectiva que muestre claramente la distribuciÃ³n completa del espacio desde arriba
-- Acabados de alta calidad en suelos, paredes y carpinterÃ­a
+- Iluminación natural con sombras suaves proyectadas por los muebles
+- Perspectiva que muestre claramente la distribución completa del espacio desde arriba
+- Acabados de alta calidad en suelos, paredes y carpintería
 - Ambiente acogedor, habitable y profesional
-- Mantener EXACTAMENTE la distribuciÃ³n y medidas del plano original
-- El resultado debe parecer una fotografÃ­a aÃ©rea profesional del interior amueblado`
+- Mantener EXACTAMENTE la distribución y medidas del plano original
+- El resultado debe parecer una fotografía aérea profesional del interior amueblado`
 
     // Add materials if selected
     if (materials.length > 0) {
@@ -64,14 +68,14 @@ REQUISITOS CRÃTICOS DEL RENDER:
       const materialNames = materials.map((id: string) => {
         const materialMap: Record<string, string> = {
           parquet: "Suelo de parquet",
-          porcelanico: "Suelo porcelÃ¡nico",
-          marmol: "Suelo de mÃ¡rmol",
+          porcelanico: "Suelo porcelánico",
+          marmol: "Suelo de mármol",
           microcemento: "Suelo de microcemento",
           "pintura-lisa": "Paredes con pintura lisa",
-          gotelÃ©: "Paredes con gotelÃ©",
+          gotele: "Paredes con gotele",
           "papel-pintado": "Paredes con papel pintado",
-          madera: "CarpinterÃ­a de madera",
-          lacado: "CarpinterÃ­a lacada",
+          madera: "Carpintería de madera",
+          lacado: "Carpintería lacada",
         }
         return materialMap[id] || id
       })
@@ -81,11 +85,11 @@ REQUISITOS CRÃTICOS DEL RENDER:
     // Add style if selected
     if (style) {
       const styleMap: Record<string, string> = {
-        modern: "Estilo moderno con lÃ­neas limpias y minimalistas",
+        modern: "Estilo moderno con líneas limpias y minimalistas",
         industrial: "Estilo industrial urbano con materiales expuestos",
         scandinavian: "Estilo escandinavo luminoso y acogedor",
-        rustic: "Estilo rÃºstico cÃ¡lido y natural",
-        contemporary: "Estilo contemporÃ¡neo elegante y sofisticado",
+        rustic: "Estilo rústico cálido y natural",
+        contemporary: "Estilo contemporáneo elegante y sofisticado",
         minimalist: "Estilo minimalista con simplicidad y funcionalidad",
       }
       prompt += `\n\nESTILO: ${styleMap[style] || style}`
@@ -96,7 +100,7 @@ REQUISITOS CRÃTICOS DEL RENDER:
       prompt += `\n\nDETALLES ADICIONALES:\n${details}`
     }
 
-    prompt += `\n\nIMPORTANTE: El resultado debe ser un render fotorrealista VISTO DESDE ARRIBA (como una fotografÃ­a aÃ©rea del interior) perfecto para presentar al cliente, mostrando exactamente cÃ³mo quedarÃ¡ el espacio reformado con todos los muebles, materiales y acabados colocados. La vista debe ser completamente cenital, perpendicular al suelo, como una visualizaciÃ³n arquitectÃ³nica profesional de planta amueblada.`
+    prompt += `\n\nIMPORTANTE: El resultado debe ser un render fotorrealista VISTO DESDE ARRIBA (como una fotografía aérea del interior) perfecto para presentar al cliente, mostrando exactamente cómo quedará el espacio reformado con todos los muebles, materiales y acabados colocados. La vista debe ser completamente cenital, perpendicular al suelo, como una visualización arquitectónica profesional de planta amueblada.`
 
     const result = await generateText({
       model: "google/gemini-2.5-flash-image-preview",
@@ -126,7 +130,7 @@ REQUISITOS CRÃTICOS DEL RENDER:
 
     if (!imageFiles || imageFiles.length === 0) {
       console.error("[v0] No image generated")
-      throw new Error("No se generÃ³ ninguna imagen")
+      throw new Error("No se generó ninguna imagen")
     }
 
     const generatedImage = imageFiles[0]

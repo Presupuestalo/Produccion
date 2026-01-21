@@ -1,5 +1,6 @@
-import { createClient } from "@supabase/supabase-js"
 import { NextResponse } from "next/server"
+import { supabaseAdmin } from "@/lib/supabase-admin"
+import { createClient } from "@/lib/supabase/server"
 
 export const dynamic = "force-dynamic"
 
@@ -8,71 +9,36 @@ const ADMIN_EMAILS = ["mikelfedz@gmail.com", "mikelfedzmcc@gmail.com"]
 
 export async function GET(request: Request) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const supabase = await createClient()
 
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("[v0 API] Faltan variables de entorno de Supabase")
-      return NextResponse.json(
-        {
-          error: "Configuración de Supabase incompleta",
-        },
-        { status: 500 },
-      )
+    if (!supabase) {
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    })
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
 
-    console.log("[v0 API] Iniciando carga de usuarios...")
-
-    const authHeader = request.headers.get("cookie")
-    const token = authHeader?.match(/sb-[^=]+-auth-token=([^;]+)/)?.[1]
-
-    if (!token) {
-      console.log("[v0 API] No se encontró token de autenticación")
+    if (!session) {
       return NextResponse.json({ error: "No autenticado" }, { status: 401 })
     }
 
-    let tokenData
-    let userEmail
-    try {
-      tokenData = JSON.parse(decodeURIComponent(token))
-      userEmail = tokenData?.user?.email
-    } catch (error) {
-      console.error("[v0 API] Error al parsear token de autenticación:", error)
-      return NextResponse.json(
-        {
-          error: "Token de autenticación inválido",
-        },
-        { status: 401 },
-      )
-    }
-
-    console.log("[v0 API] Usuario autenticado:", userEmail)
+    const userEmail = session.user.email
+    const userId = session.user.id
 
     const isAdminEmail = userEmail && ADMIN_EMAILS.includes(userEmail)
-    console.log("[v0 API] Es admin por email?:", isAdminEmail)
 
     if (!isAdminEmail) {
-      const userId = tokenData?.user?.id
-      const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", userId).single()
-
-      console.log("[v0 API] Profile is_admin:", profile?.is_admin)
+      const { data: profile } = await supabaseAdmin.from("profiles").select("is_admin").eq("id", userId).single()
 
       if (!profile?.is_admin) {
-        console.log("[v0 API] Usuario no autorizado")
         return NextResponse.json({ error: "No autorizado" }, { status: 403 })
       }
     }
 
     console.log("[v0 API] Usuario autorizado, obteniendo perfiles...")
 
-    const { data: profiles, error } = await supabase
+    const { data: profiles, error } = await supabaseAdmin
       .from("profiles")
       .select("id, user_type, full_name, stripe_customer_id, stripe_subscription_id, created_at")
       .order("created_at", { ascending: false })
@@ -92,7 +58,7 @@ export async function GET(request: Request) {
           const {
             data: { user },
             error,
-          } = await supabase.auth.admin.getUserById(profile.id)
+          } = await supabaseAdmin.auth.admin.getUserById(profile.id)
           if (!error && user?.email) {
             email = user.email
           }

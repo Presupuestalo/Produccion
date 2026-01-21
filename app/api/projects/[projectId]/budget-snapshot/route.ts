@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
@@ -10,6 +11,11 @@ export async function GET(req: Request, context: RouteContext) {
     console.log("[v0] Budget snapshot API called")
 
     const supabase = await createClient()
+
+    if (!supabase) {
+      console.error("[v0] Supabase client initialization failed")
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
+    }
 
     const {
       data: { user },

@@ -7,6 +7,9 @@ export async function POST(req: Request) {
   try {
     console.log("[v0] POST /api/leads/publish - Starting")
     const supabase = await createClient()
+    if (!supabase) {
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
+    }
 
     const {
       data: { user },

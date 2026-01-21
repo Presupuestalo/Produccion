@@ -1,10 +1,13 @@
 ﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 
 export async function GET() {
   try {
-    const supabase = await createServerClient()
+    const supabase = await createClient()
+    if (!supabase) {
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
+    }
 
     // Check if webhook secret is configured
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET

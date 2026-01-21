@@ -6,6 +6,10 @@ export async function POST(req: Request) {
   try {
     const supabase = await createClient()
 
+    if (!supabase) {
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
+    }
+
     const {
       data: { user },
       error: authError,
@@ -57,7 +61,7 @@ export async function POST(req: Request) {
     // Obtener el lead y el proyecto
     const { data: leadRequest, error: leadError } = await supabase
       .from("lead_requests")
-      .select("project_id, homeowner_id")
+      .select("project_id, homeowner_id, client_name, client_email, client_phone")
       .eq("id", leadRequestId)
       .single()
 
@@ -138,8 +142,8 @@ export async function POST(req: Request) {
 
     console.log("[v0] Project imported successfully:", importedProject.id)
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       projectId: importedProject.id,
       message: "Presupuesto importado correctamente"
     })
