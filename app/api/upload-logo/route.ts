@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File
 
     if (!file) {
-      return NextResponse.json({ error: "No se proporcionó ningún archivo" }, { status: 400 })
+      return NextResponse.json({ error: "No se proporcionÃ³ ningÃºn archivo" }, { status: 400 })
     }
 
     const fileExt = file.name.split(".").pop()
@@ -43,3 +44,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Error al subir el archivo" }, { status: 500 })
   }
 }
+

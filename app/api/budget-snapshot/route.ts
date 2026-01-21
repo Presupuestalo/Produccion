@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
@@ -85,3 +86,4 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
   }
 }
+

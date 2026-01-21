@@ -1,18 +1,17 @@
+﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
-const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-
-// POST /api/referrals/validate-code - Validar código de referido
+// POST /api/referrals/validate-code - Validar cÃ³digo de referido
 export async function POST(req: Request) {
   try {
     const { code } = await req.json()
 
     if (!code) {
-      return NextResponse.json({ error: "Código requerido" }, { status: 400 })
+      return NextResponse.json({ error: "CÃ³digo requerido" }, { status: 400 })
     }
 
-    // Buscar código
+    // Buscar cÃ³digo
     const { data: referralCode, error } = await supabaseAdmin
       .from("referral_codes")
       .select(`
@@ -30,18 +29,18 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           valid: false,
-          error: "Código de referido no válido o expirado",
+          error: "CÃ³digo de referido no vÃ¡lido o expirado",
         },
         { status: 404 },
       )
     }
 
-    // Verificar límite de usos
+    // Verificar lÃ­mite de usos
     if (referralCode.uses_count >= referralCode.max_uses) {
       return NextResponse.json(
         {
           valid: false,
-          error: "Este código ha alcanzado el límite máximo de usos",
+          error: "Este cÃ³digo ha alcanzado el lÃ­mite mÃ¡ximo de usos",
         },
         { status: 400 },
       )
@@ -57,3 +56,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
   }
 }
+

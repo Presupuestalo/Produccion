@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { type NextRequest, NextResponse } from "next/server"
 import { generateObject } from "ai"
 import { createClient } from "@/lib/supabase/server"
@@ -6,7 +7,7 @@ import { extractText } from "unpdf"
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("[v0] === INICIO DE ANÁLISIS DE PRESUPUESTOS ===")
+    console.log("[v0] === INICIO DE ANÃLISIS DE PRESUPUESTOS ===")
 
     const supabase = await createClient()
     const {
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
     const { fileUrls } = await request.json()
 
     if (!fileUrls || fileUrls.length < 2 || fileUrls.length > 3) {
-      console.log(`[v0] Error: Número incorrecto de archivos: ${fileUrls?.length}`)
+      console.log(`[v0] Error: NÃºmero incorrecto de archivos: ${fileUrls?.length}`)
       return NextResponse.json({ error: "Debes proporcionar entre 2 y 3 presupuestos" }, { status: 400 })
     }
 
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
 
         const { text } = await extractText(buffer, { mergePages: true })
 
-        console.log(`[v0] Texto extraído del PDF ${index + 1}: ${text.length} caracteres`)
+        console.log(`[v0] Texto extraÃ­do del PDF ${index + 1}: ${text.length} caracteres`)
 
         const filename = url.split("/").pop() || `presupuesto_${index + 1}.pdf`
 
@@ -167,43 +168,43 @@ export async function POST(request: NextRequest) {
           questionsToAsk: z.array(z.string()),
         }),
       }),
-      prompt: `Eres un experto detective de fraudes en presupuestos de reformas y construcción. Tu misión es proteger al cliente identificando TODAS las trampas, discrepancias y posibles estafas.
+      prompt: `Eres un experto detective de fraudes en presupuestos de reformas y construcciÃ³n. Tu misiÃ³n es proteger al cliente identificando TODAS las trampas, discrepancias y posibles estafas.
 
-**🚨 OBJETIVO PRINCIPAL: DETECTAR TRAMPAS Y FRAUDES 🚨**
+**ðŸš¨ OBJETIVO PRINCIPAL: DETECTAR TRAMPAS Y FRAUDES ðŸš¨**
 
-**ANÁLISIS EXHAUSTIVO REQUERIDO:**
+**ANÃLISIS EXHAUSTIVO REQUERIDO:**
 
-**1. EXTRACCIÓN DE CANTIDADES Y MEDICIONES:**
-   - Para CADA partida, extrae la cantidad exacta y su unidad (m², ml, ud, etc.)
+**1. EXTRACCIÃ“N DE CANTIDADES Y MEDICIONES:**
+   - Para CADA partida, extrae la cantidad exacta y su unidad (mÂ², ml, ud, etc.)
    - Compara las cantidades entre presupuestos
-   - ALERTA si hay diferencias significativas (ej: 100m² vs 200m² de pintura)
+   - ALERTA si hay diferencias significativas (ej: 100mÂ² vs 200mÂ² de pintura)
    - Identifica si las mediciones son coherentes con el proyecto
 
-**2. DETECCIÓN DE PARTIDAS FANTASMA:**
+**2. DETECCIÃ“N DE PARTIDAS FANTASMA:**
    - Lista partidas que aparecen en UN presupuesto pero NO en otros
-   - Evalúa si son necesarias o son "relleno" para inflar precio
-   - Marca como CRÍTICO si falta algo esencial (ej: impermeabilización)
+   - EvalÃºa si son necesarias o son "relleno" para inflar precio
+   - Marca como CRÃTICO si falta algo esencial (ej: impermeabilizaciÃ³n)
 
-**3. ANÁLISIS DE DISCREPANCIAS DE CANTIDAD:**
+**3. ANÃLISIS DE DISCREPANCIAS DE CANTIDAD:**
    - Compara cantidades de la MISMA partida entre presupuestos
-   - Ejemplo: Si uno dice "2 puertas" y otro "5 puertas" → TRAMPA POTENCIAL
-   - Calcula % de variación y marca como sospechoso si >30%
-   - Explica por qué la diferencia podría ser fraudulenta
+   - Ejemplo: Si uno dice "2 puertas" y otro "5 puertas" â†’ TRAMPA POTENCIAL
+   - Calcula % de variaciÃ³n y marca como sospechoso si >30%
+   - Explica por quÃ© la diferencia podrÃ­a ser fraudulenta
 
-**4. DETECCIÓN DE PRECIOS INFLADOS:**
+**4. DETECCIÃ“N DE PRECIOS INFLADOS:**
    - Compara precios unitarios de partidas similares
-   - Marca precios que sean >50% más caros que la media
+   - Marca precios que sean >50% mÃ¡s caros que la media
    - Identifica "partidas escondidas" con precios excesivos
 
-**5. ANÁLISIS DE OMISIONES CRÍTICAS:**
-   - Identifica trabajos que DEBERÍAN estar pero faltan
+**5. ANÃLISIS DE OMISIONES CRÃTICAS:**
+   - Identifica trabajos que DEBERÃAN estar pero faltan
    - Ejemplo: Lucido de paredes en un presupuesto pero no en otro
-   - Evalúa el impacto económico de lo que falta
+   - EvalÃºa el impacto econÃ³mico de lo que falta
 
 **6. ADVERTENCIAS DE FRAUDE:**
-   - Genera alertas específicas sobre posibles estafas
-   - Clasifica por severidad: CRÍTICO, ALTO, MEDIO, BAJO
-   - Explica QUÉ verificar con cada empresa
+   - Genera alertas especÃ­ficas sobre posibles estafas
+   - Clasifica por severidad: CRÃTICO, ALTO, MEDIO, BAJO
+   - Explica QUÃ‰ verificar con cada empresa
 
 **7. COMPARATIVA DETALLADA:**
    - Crea tabla comparativa con TODAS las partidas
@@ -214,35 +215,35 @@ export async function POST(request: NextRequest) {
 
 Para cada partida en lineItemsComparison:
 - Muestra cantidad de CADA presupuesto (null si no aparece)
-- Calcula variación de cantidad entre presupuestos
+- Calcula variaciÃ³n de cantidad entre presupuestos
 - Marca si hay discrepancia sospechosa
 
 Para quantityTraps:
 - Lista TODAS las diferencias de cantidad sospechosas
-- Explica por qué es una posible trampa
-- Da recomendación específica
+- Explica por quÃ© es una posible trampa
+- Da recomendaciÃ³n especÃ­fica
 
 Para fraudWarnings:
 - Genera alertas claras y accionables
-- Explica qué preguntar a la empresa
+- Explica quÃ© preguntar a la empresa
 - Prioriza por severidad
 
 **EJEMPLOS DE TRAMPAS A DETECTAR:**
-- "Presupuesto A: 50m² de alicatado | Presupuesto B: 100m² → ¿Por qué el doble?"
-- "Presupuesto A incluye impermeabilización | Presupuesto B NO → FALTA CRÍTICA"
-- "Presupuesto A: 2 puertas a 300€/ud | Presupuesto B: 5 puertas a 150€/ud → Verificar cantidad real"
-- "Presupuesto A: Lucido de paredes incluido | Presupuesto B: NO incluido → Coste oculto"
+- "Presupuesto A: 50mÂ² de alicatado | Presupuesto B: 100mÂ² â†’ Â¿Por quÃ© el doble?"
+- "Presupuesto A incluye impermeabilizaciÃ³n | Presupuesto B NO â†’ FALTA CRÃTICA"
+- "Presupuesto A: 2 puertas a 300â‚¬/ud | Presupuesto B: 5 puertas a 150â‚¬/ud â†’ Verificar cantidad real"
+- "Presupuesto A: Lucido de paredes incluido | Presupuesto B: NO incluido â†’ Coste oculto"
 
 ---
 
 ${pdfTexts.map((pdf, index) => `**PRESUPUESTO ${index + 1}: ${pdf.filename}**\n\n${pdf.text}\n\n---\n\n`).join("")}
 
-**RECUERDA:** Tu trabajo es proteger al cliente. Sé exhaustivo, desconfía de todo, y marca TODAS las discrepancias sospechosas.`,
+**RECUERDA:** Tu trabajo es proteger al cliente. SÃ© exhaustivo, desconfÃ­a de todo, y marca TODAS las discrepancias sospechosas.`,
     })
 
-    console.log("[v0] Análisis recibido exitosamente")
+    console.log("[v0] AnÃ¡lisis recibido exitosamente")
 
-    // Guardar análisis en la base de datos
+    // Guardar anÃ¡lisis en la base de datos
     const analysisId = Math.random().toString(36).substring(7)
     const { error } = await supabase.from("budget_comparisons").insert({
       id: analysisId,
@@ -252,10 +253,10 @@ ${pdfTexts.map((pdf, index) => `**PRESUPUESTO ${index + 1}: ${pdf.filename}**\n\
     })
 
     if (error) {
-      console.error("[v0] Error guardando análisis:", error)
+      console.error("[v0] Error guardando anÃ¡lisis:", error)
     }
 
-    console.log("[v0] === ANÁLISIS COMPLETADO EXITOSAMENTE ===")
+    console.log("[v0] === ANÃLISIS COMPLETADO EXITOSAMENTE ===")
     return NextResponse.json({ analysisId, analysis })
   } catch (error) {
     console.error("[v0] ERROR FATAL:", error)
@@ -266,3 +267,4 @@ ${pdfTexts.map((pdf, index) => `**PRESUPUESTO ${index + 1}: ${pdf.filename}**\n\
     )
   }
 }
+

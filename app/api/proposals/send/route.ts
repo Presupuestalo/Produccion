@@ -1,7 +1,6 @@
+﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-
-const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 export async function POST(request: Request) {
   try {
@@ -106,7 +105,7 @@ export async function POST(request: Request) {
             Authorization: `Bearer ${resendApiKey}`,
           },
           body: JSON.stringify({
-            from: process.env.RESEND_FROM_EMAIL || "Presupuéstalo <onboarding@resend.dev>",
+            from: process.env.RESEND_FROM_EMAIL || "PresupuÃ©stalo <onboarding@resend.dev>",
             to: homeownerData.email,
             subject: `Nueva propuesta recibida para tu proyecto de ${leadData?.reform_types?.[0] || "reforma"}`,
             html: `
@@ -138,24 +137,23 @@ export async function POST(request: Request) {
                       <p><strong>Empresa:</strong> ${professionalData?.company_name || professionalData?.full_name || "No especificado"}</p>
                       <p><strong>Contacto:</strong> ${professionalData?.full_name || "No especificado"}</p>
                       <p><strong>Email:</strong> ${professionalData?.email || "No especificado"}</p>
-                      <p><strong>Teléfono:</strong> ${professionalData?.phone || "No especificado"}</p>
+                      <p><strong>TelÃ©fono:</strong> ${professionalData?.phone || "No especificado"}</p>
                     </div>
                     
                     <div class="highlight">
                       <h3 style="margin-top: 0;">Presupuesto propuesto</h3>
-                      <p class="price">${Number(proposed_budget).toLocaleString("es-ES", { minimumFractionDigits: 2 })} € (sin IVA)</p>
+                      <p class="price">${Number(proposed_budget).toLocaleString("es-ES", { minimumFractionDigits: 2 })} â‚¬ (sin IVA)</p>
                     </div>
 
-                    ${
-                      message
-                        ? `
+                    ${message
+                ? `
                     <div class="highlight">
                       <h3 style="margin-top: 0;">Mensaje del profesional</h3>
                       <p>${message.replace(/\n/g, "<br>")}</p>
                     </div>
                     `
-                        : ""
-                    }
+                : ""
+              }
 
                     <p>Puedes ver todos los detalles de la propuesta y contactar con el profesional desde tu panel de control.</p>
                     
@@ -166,7 +164,7 @@ export async function POST(request: Request) {
                     </center>
                   </div>
                   <div class="footer">
-                    <p>Este email fue enviado automáticamente por Presupuéstalo.</p>
+                    <p>Este email fue enviado automÃ¡ticamente por PresupuÃ©stalo.</p>
                     <p>Si no solicitaste este presupuesto, puedes ignorar este mensaje.</p>
                   </div>
                 </div>
@@ -200,3 +198,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message || "Error al enviar propuesta" }, { status: 500 })
   }
 }
+

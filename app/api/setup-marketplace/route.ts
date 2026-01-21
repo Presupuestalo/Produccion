@@ -1,10 +1,11 @@
+﻿export const dynamic = "force-dynamic"
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
 const MARKETPLACE_TABLES_SQL = `
 -- Crear todas las tablas necesarias para el sistema de marketplace de leads
 
--- 1. Tabla de créditos de empresa
+-- 1. Tabla de crÃ©ditos de empresa
 CREATE TABLE IF NOT EXISTS company_credits (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   company_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -17,7 +18,7 @@ CREATE TABLE IF NOT EXISTS company_credits (
   UNIQUE(company_id)
 );
 
--- 2. Tabla de transacciones de créditos
+-- 2. Tabla de transacciones de crÃ©ditos
 CREATE TABLE IF NOT EXISTS credit_transactions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   company_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -30,7 +31,7 @@ CREATE TABLE IF NOT EXISTS credit_transactions (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Tabla de configuración de preferencias de empresa
+-- 3. Tabla de configuraciÃ³n de preferencias de empresa
 CREATE TABLE IF NOT EXISTS company_lead_preferences (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   company_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -91,7 +92,7 @@ CREATE TABLE IF NOT EXISTS lead_interactions (
   UNIQUE(lead_request_id, company_id)
 );
 
--- 6. Índices para mejorar rendimiento
+-- 6. Ãndices para mejorar rendimiento
 CREATE INDEX IF NOT EXISTS idx_company_credits_company_id ON company_credits(company_id);
 CREATE INDEX IF NOT EXISTS idx_credit_transactions_company_id ON credit_transactions(company_id);
 CREATE INDEX IF NOT EXISTS idx_credit_transactions_lead_request ON credit_transactions(lead_request_id);
@@ -101,7 +102,7 @@ CREATE INDEX IF NOT EXISTS idx_lead_requests_location ON lead_requests(location_
 CREATE INDEX IF NOT EXISTS idx_lead_interactions_lead ON lead_interactions(lead_request_id);
 CREATE INDEX IF NOT EXISTS idx_lead_interactions_company ON lead_interactions(company_id);
 
--- 7. Función para calcular coste en créditos según presupuesto
+-- 7. FunciÃ³n para calcular coste en crÃ©ditos segÃºn presupuesto
 CREATE OR REPLACE FUNCTION calculate_lead_credits_cost(budget DECIMAL)
 RETURNS INTEGER AS $$
 BEGIN
@@ -119,7 +120,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
--- 8. Añadir columna para rastrear proyectos importados desde leads
+-- 8. AÃ±adir columna para rastrear proyectos importados desde leads
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS created_from_lead_id UUID;
 `;
 
@@ -165,3 +166,4 @@ export async function POST() {
     )
   }
 }
+

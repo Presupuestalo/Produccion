@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { type NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
 import { supabase } from "@/lib/supabase"
@@ -14,21 +15,21 @@ export async function POST(request: NextRequest) {
 
     const { walls, doors, windows } = await request.json()
 
-    // Usar IA para detectar habitaciones basándose en las paredes
+    // Usar IA para detectar habitaciones basÃ¡ndose en las paredes
     const { text } = await generateText({
       model: "openai/gpt-4o",
-      prompt: `Analiza las siguientes paredes, puertas y ventanas de un plano arquitectónico y detecta las habitaciones.
+      prompt: `Analiza las siguientes paredes, puertas y ventanas de un plano arquitectÃ³nico y detecta las habitaciones.
 
 Paredes: ${JSON.stringify(walls)}
 Puertas: ${JSON.stringify(doors)}
 Ventanas: ${JSON.stringify(windows)}
 
-Proporciona la información en formato JSON:
+Proporciona la informaciÃ³n en formato JSON:
 {
   "rooms": [
     {
       "id": "room-1",
-      "name": "Salón",
+      "name": "SalÃ³n",
       "walls": ["wall-id-1", "wall-id-2"],
       "area": 25.5
     }
@@ -43,3 +44,4 @@ Proporciona la información en formato JSON:
     return NextResponse.json({ error: "Error al detectar habitaciones" }, { status: 500 })
   }
 }
+

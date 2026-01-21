@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import Stripe from "stripe"
 import { CREDIT_PACKAGES, SUBSCRIPTION_PLANS } from "@/lib/credit-packages"
@@ -20,7 +21,7 @@ export async function POST() {
     for (const pkg of CREDIT_PACKAGES) {
       const product = await stripe.products.create({
         name: pkg.name,
-        description: `${pkg.credits} créditos para acceder a leads de clientes${pkg.bonus ? ` - ${pkg.bonus}` : ""}`,
+        description: `${pkg.credits} crÃ©ditos para acceder a leads de clientes${pkg.bonus ? ` - ${pkg.bonus}` : ""}`,
         metadata: {
           package_id: pkg.id,
           credits: pkg.credits.toString(),
@@ -61,7 +62,7 @@ export async function POST() {
     for (const plan of SUBSCRIPTION_PLANS) {
       const product = await stripe.products.create({
         name: plan.name,
-        description: `Suscripción ${plan.name} - Acceso completo a la plataforma`,
+        description: `SuscripciÃ³n ${plan.name} - Acceso completo a la plataforma`,
         metadata: {
           plan_id: plan.id,
           type: "subscription",
@@ -107,12 +108,12 @@ export async function POST() {
       })
     }
 
-    // Generar el código actualizado
+    // Generar el cÃ³digo actualizado
     const updatedCode = `
-// === BONOS DE CRÉDITOS ===
+// === BONOS DE CRÃ‰DITOS ===
 ${createdProducts.map((p) => `// ${p.name}: stripePriceId: "${p.priceId}"`).join("\n")}
 
-// === PLANES DE SUSCRIPCIÓN ===
+// === PLANES DE SUSCRIPCIÃ“N ===
 ${createdSubscriptions.map((s) => `// ${s.name}: monthly: "${s.monthlyPriceId}", yearly: "${s.yearlyPriceId}"`).join("\n")}
 `
 
@@ -179,3 +180,4 @@ export async function GET() {
     )
   }
 }
+

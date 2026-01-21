@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
     if (!bucketName || !filePath) {
       return NextResponse.json(
         {
-          error: "No se pudo extraer la información del bucket o ruta del archivo",
+          error: "No se pudo extraer la informaciÃ³n del bucket o ruta del archivo",
           details: { url: imageUrl, pathParts },
         },
         { status: 400 },
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
 
     const supabase = createClient()
 
-    // Verificar si el usuario está autenticado
+    // Verificar si el usuario estÃ¡ autenticado
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
             NULL;
           END $$;
 
-          -- Eliminar políticas existentes para el bucket
+          -- Eliminar polÃ­ticas existentes para el bucket
           DO $$
           BEGIN
             PERFORM storage.delete_policy('${bucketName}', 'INSERT');
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
             NULL;
           END $$;
 
-          -- Crear nuevas políticas más permisivas para el bucket
+          -- Crear nuevas polÃ­ticas mÃ¡s permisivas para el bucket
           SELECT storage.create_policy('${bucketName}', 'INSERT', 'authenticated', true);
           SELECT storage.create_policy('${bucketName}', 'SELECT', 'authenticated', true);
           SELECT storage.create_policy('${bucketName}', 'UPDATE', 'authenticated', true);
@@ -87,7 +88,7 @@ export async function POST(request: Request) {
         `,
       })
 
-      // Intentar hacer el bucket público directamente
+      // Intentar hacer el bucket pÃºblico directamente
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/bucket/${bucketName}`, {
           method: "PUT",
@@ -133,3 +134,4 @@ export async function POST(request: Request) {
     )
   }
 }
+

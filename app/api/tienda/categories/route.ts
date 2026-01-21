@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
@@ -5,15 +6,15 @@ export async function GET() {
   try {
     const supabase = createClient()
 
-    // Obtener categorías únicas con conteo de productos
+    // Obtener categorÃ­as Ãºnicas con conteo de productos
     const { data: categories, error } = await supabase.from("amazon_products").select("category").eq("in_stock", true)
 
     if (error) {
       console.error("[v0] Error fetching categories:", error)
-      return NextResponse.json({ error: "Error al obtener categorías" }, { status: 500 })
+      return NextResponse.json({ error: "Error al obtener categorÃ­as" }, { status: 500 })
     }
 
-    // Contar productos por categoría
+    // Contar productos por categorÃ­a
     const categoryCounts: Record<string, number> = {}
     categories?.forEach((item) => {
       categoryCounts[item.category] = (categoryCounts[item.category] || 0) + 1
@@ -35,14 +36,15 @@ export async function GET() {
 function getCategoryDisplayName(category: string): string {
   const displayNames: Record<string, string> = {
     herramientas: "Herramientas",
-    materiales: "Materiales de Construcción",
-    pintura: "Pintura y Decoración",
-    fontaneria: "Fontanería",
+    materiales: "Materiales de ConstrucciÃ³n",
+    pintura: "Pintura y DecoraciÃ³n",
+    fontaneria: "FontanerÃ­a",
     electricidad: "Electricidad",
-    carpinteria: "Carpintería",
-    hogar: "Hogar y Decoración",
+    carpinteria: "CarpinterÃ­a",
+    hogar: "Hogar y DecoraciÃ³n",
     seguridad: "Seguridad",
-    jardin: "Jardín y Exterior",
+    jardin: "JardÃ­n y Exterior",
   }
   return displayNames[category] || category
 }
+

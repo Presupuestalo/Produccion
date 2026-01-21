@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
@@ -17,23 +18,23 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File | null
 
     if (!file) {
-      return NextResponse.json({ error: "No se ha proporcionado ningún archivo" }, { status: 400 })
+      return NextResponse.json({ error: "No se ha proporcionado ningÃºn archivo" }, { status: 400 })
     }
 
-    console.log("[v0] Subiendo archivo:", file.name, "Tipo:", file.type, "Tamaño:", file.size)
+    console.log("[v0] Subiendo archivo:", file.name, "Tipo:", file.type, "TamaÃ±o:", file.size)
 
     // Validar que sea un PDF
     if (file.type !== "application/pdf") {
       return NextResponse.json({ error: "El archivo debe ser un PDF" }, { status: 400 })
     }
 
-    // Validar tamaño (máximo 10MB)
+    // Validar tamaÃ±o (mÃ¡ximo 10MB)
     const maxSize = 10 * 1024 * 1024
     if (file.size > maxSize) {
       return NextResponse.json({ error: "El archivo no puede superar los 10MB" }, { status: 400 })
     }
 
-    // Generar nombre único para el archivo
+    // Generar nombre Ãºnico para el archivo
     const timestamp = Date.now()
     const randomId = Math.random().toString(36).substring(2, 8)
     const fileName = `${session.user.id}/${timestamp}-${randomId}.pdf`
@@ -68,3 +69,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error?.message || "Error al subir el archivo" }, { status: 500 })
   }
 }
+

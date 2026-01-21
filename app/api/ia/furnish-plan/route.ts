@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { type NextRequest, NextResponse } from "next/server"
 import * as fal from "@fal-ai/serverless-client"
 
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
     const base64 = buffer.toString("base64")
     const imageUrl = `data:${floorPlan.type};base64,${base64}`
 
-    // Prompts según el estilo seleccionado
+    // Prompts segÃºn el estilo seleccionado
     const stylePrompts: Record<string, string> = {
       moderno:
         "modern minimalist interior design, clean lines, neutral colors, contemporary furniture, top-down view, architectural floor plan with realistic furniture placement",
@@ -69,3 +70,4 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+

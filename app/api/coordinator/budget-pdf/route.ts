@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { generateBudgetHTML } from "@/lib/utils/generate-budget-pdf"
@@ -97,8 +98,8 @@ export async function GET(request: NextRequest) {
         coordination_fee: coordinationFee,
         coordination_fee_label:
           project.coordination_fee_type === "percentage"
-            ? `Coordinación y gestión (${project.coordination_fee}%)`
-            : "Coordinación y gestión",
+            ? `CoordinaciÃ³n y gestiÃ³n (${project.coordination_fee}%)`
+            : "CoordinaciÃ³n y gestiÃ³n",
         total,
       },
     }
@@ -116,3 +117,4 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
+

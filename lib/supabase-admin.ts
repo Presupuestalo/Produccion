@@ -8,7 +8,7 @@ const supabaseUrl =
 const supabaseServiceRoleKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_SECRET_KEY ||
-    ""
+    "build-placeholder-key"
 
 export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
     auth: {

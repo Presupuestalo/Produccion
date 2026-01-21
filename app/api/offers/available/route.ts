@@ -1,11 +1,9 @@
-import { createClient } from "@supabase/supabase-js"
+﻿import { supabaseAdmin } from "@/lib/supabase-admin"
 import { NextResponse, type NextRequest } from "next/server"
 
 export const dynamic = "force-dynamic"
 
-// Usar service role para bypasear RLS
-const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-
+// POST /api/offers/available - Obtener ofertas disponibles
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams

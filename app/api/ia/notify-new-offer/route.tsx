@@ -1,14 +1,15 @@
+﻿export const dynamic = "force-dynamic"
 import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
   try {
     const { requestId, offeredPrice, currencySymbol, companyName } = await request.json()
 
-    // Enviar email de notificación al admin
+    // Enviar email de notificaciÃ³n al admin
     const resendApiKey = process.env.RESEND_API_KEY
 
     if (!resendApiKey) {
-      console.error("RESEND_API_KEY no está configurada")
+      console.error("RESEND_API_KEY no estÃ¡ configurada")
       return NextResponse.json({ error: "Email service not configured" }, { status: 500 })
     }
 
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         from: "onboarding@resend.dev",
         to: ["presupuestaloficial@gmail.com"],
-        subject: "Nueva Oferta de Presupuesto Recibida - Presupuéstalo",
+        subject: "Nueva Oferta de Presupuesto Recibida - PresupuÃ©stalo",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #ea580c;">Nueva Oferta de Presupuesto</h2>
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
             </div>
             
             <p style="color: #6b7280; font-size: 14px;">
-              El cliente recibirá una notificación y podrá ver la oferta en su panel.
+              El cliente recibirÃ¡ una notificaciÃ³n y podrÃ¡ ver la oferta en su panel.
             </p>
           </div>
         `,
@@ -52,3 +53,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
+

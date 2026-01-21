@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import { generateText } from "ai"
 import { createServerClient } from "@supabase/ssr"
@@ -41,29 +42,29 @@ export async function POST(request: Request) {
       try {
         const { text } = await generateText({
           model: "openai/gpt-4o-mini",
-          prompt: `Eres un experto en reformas y construcción. Un cliente quiere hacer una reforma de tipo "${reformType}" y ha descrito su proyecto así:
+          prompt: `Eres un experto en reformas y construcciÃ³n. Un cliente quiere hacer una reforma de tipo "${reformType}" y ha descrito su proyecto asÃ­:
 
 "${description}"
 
 Datos adicionales del proyecto:
-- Ubicación: ${estimationData.city}, ${estimationData.country}
-- Metros cuadrados: ${estimationData.squareMeters}m²
+- UbicaciÃ³n: ${estimationData.city}, ${estimationData.country}
+- Metros cuadrados: ${estimationData.squareMeters}mÂ²
 - Habitaciones: ${estimationData.rooms}
-- Baños: ${estimationData.bathrooms}
-- Estimación de coste: ${estimationResult.priceRange}
+- BaÃ±os: ${estimationData.bathrooms}
+- EstimaciÃ³n de coste: ${estimationResult.priceRange}
 
-Proporciona una explicación breve (máximo 150 palabras) que incluya:
+Proporciona una explicaciÃ³n breve (mÃ¡ximo 150 palabras) que incluya:
 1. Posibles gastos adicionales que debe considerar
 2. Tiempo estimado de la reforma
-3. 2-3 consejos prácticos específicos para su tipo de reforma
+3. 2-3 consejos prÃ¡cticos especÃ­ficos para su tipo de reforma
 
-Sé conciso, práctico y útil. Escribe en español de forma natural y profesional.`,
+SÃ© conciso, prÃ¡ctico y Ãºtil. Escribe en espaÃ±ol de forma natural y profesional.`,
         })
 
         aiExplanation = text
-        console.log("[v0] Explicación generada con IA")
+        console.log("[v0] ExplicaciÃ³n generada con IA")
       } catch (aiError) {
-        console.error("[v0] Error generando explicación con IA:", aiError)
+        console.error("[v0] Error generando explicaciÃ³n con IA:", aiError)
       }
     }
 
@@ -85,7 +86,7 @@ Sé conciso, práctico y útil. Escribe en español de forma natural y profesion
           description,
           price_range: estimationResult.priceRange,
           currency_code: estimationResult.currency?.code || "EUR",
-          currency_symbol: estimationResult.currency?.symbol || "€",
+          currency_symbol: estimationResult.currency?.symbol || "â‚¬",
           ai_explanation: aiExplanation || null,
           status: "pending",
         })
@@ -100,7 +101,7 @@ Sé conciso, práctico y útil. Escribe en español de forma natural y profesion
       }
     }
 
-    // Enviar email de notificación usando Resend
+    // Enviar email de notificaciÃ³n usando Resend
     try {
       const emailResponse = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -109,7 +110,7 @@ Sé conciso, práctico y útil. Escribe en español de forma natural y profesion
           Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: "Presupuéstalo <onboarding@resend.dev>",
+          from: "PresupuÃ©stalo <onboarding@resend.dev>",
           to: ["presupuestaloficial@gmail.com"],
           subject: `Nueva Solicitud de Presupuestos - ${reformType}`,
           html: `
@@ -118,44 +119,44 @@ Sé conciso, práctico y útil. Escribe en español de forma natural y profesion
             <h3>Datos de Contacto</h3>
             <ul>
               <li><strong>Email:</strong> ${email}</li>
-              <li><strong>Teléfono:</strong> ${phone}</li>
+              <li><strong>TelÃ©fono:</strong> ${phone}</li>
               <li><strong>Tipo de Reforma:</strong> ${reformType}</li>
             </ul>
 
-            <h3>Ubicación</h3>
+            <h3>UbicaciÃ³n</h3>
             <ul>
-              <li><strong>País:</strong> ${estimationData.country}</li>
+              <li><strong>PaÃ­s:</strong> ${estimationData.country}</li>
               <li><strong>Ciudad:</strong> ${estimationData.city}</li>
             </ul>
 
             <h3>Detalles del Proyecto</h3>
             <ul>
-              <li><strong>Metros Cuadrados:</strong> ${estimationData.squareMeters}m²</li>
+              <li><strong>Metros Cuadrados:</strong> ${estimationData.squareMeters}mÂ²</li>
               <li><strong>Habitaciones:</strong> ${estimationData.rooms}</li>
-              <li><strong>Baños:</strong> ${estimationData.bathrooms}</li>
-              <li><strong>Calefacción:</strong> ${estimationData.heatingType}</li>
+              <li><strong>BaÃ±os:</strong> ${estimationData.bathrooms}</li>
+              <li><strong>CalefacciÃ³n:</strong> ${estimationData.heatingType}</li>
               ${estimationData.availableBudget ? `<li><strong>Presupuesto Disponible:</strong> ${estimationData.availableBudget}</li>` : ""}
             </ul>
 
-            <h3>Descripción del Cliente</h3>
+            <h3>DescripciÃ³n del Cliente</h3>
             <p>${description}</p>
 
             ${
               estimationData.features
                 ? `
-              <h3>Características Adicionales</h3>
+              <h3>CaracterÃ­sticas Adicionales</h3>
               <p>${estimationData.features}</p>
             `
                 : ""
             }
 
-            <h3>Estimación Generada</h3>
+            <h3>EstimaciÃ³n Generada</h3>
             <p><strong>Rango de Precio:</strong> ${estimationResult.priceRange}</p>
 
             ${
               aiExplanation
                 ? `
-              <h3>Análisis y Recomendaciones</h3>
+              <h3>AnÃ¡lisis y Recomendaciones</h3>
               <p>${aiExplanation.replace(/\n/g, "<br>")}</p>
             `
                 : ""
@@ -179,3 +180,4 @@ Sé conciso, práctico y útil. Escribe en español de forma natural y profesion
     return NextResponse.json({ error: "Error procesando solicitud" }, { status: 500 })
   }
 }
+

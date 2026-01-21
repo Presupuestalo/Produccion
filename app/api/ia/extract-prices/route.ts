@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { type NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
 import { createGroq } from "@ai-sdk/groq"
@@ -40,20 +41,20 @@ export async function POST(request: NextRequest) {
 
     const { text: aiResponse } = await generateText({
       model: groq("llama-3.3-70b-versatile"),
-      prompt: `Eres un experto en análisis de presupuestos de reformas españoles. Extrae TODOS los precios de este presupuesto.
+      prompt: `Eres un experto en anÃ¡lisis de presupuestos de reformas espaÃ±oles. Extrae TODOS los precios de este presupuesto.
 
-**IMPORTANTE: Debes responder ÚNICAMENTE con un objeto JSON válido, sin texto adicional antes o después.**
+**IMPORTANTE: Debes responder ÃšNICAMENTE con un objeto JSON vÃ¡lido, sin texto adicional antes o despuÃ©s.**
 
 **FORMATO DE RESPUESTA (copia exactamente esta estructura):**
 {
   "prices": [
     {
       "code": null,
-      "category": "CATEGORÍA",
-      "subcategory": "SUBCATEGORÍA O CONCEPTO",
-      "description": "Descripción detallada del trabajo",
+      "category": "CATEGORÃA",
+      "subcategory": "SUBCATEGORÃA O CONCEPTO",
+      "description": "DescripciÃ³n detallada del trabajo",
       "notes": null,
-      "unit": "m²",
+      "unit": "mÂ²",
       "labor_cost": 0,
       "material_cost": 0,
       "equipment_cost": 0,
@@ -65,10 +66,10 @@ export async function POST(request: NextRequest) {
 
 **REGLAS:**
 1. Responde SOLO con el JSON, sin explicaciones
-2. Todos los números deben ser numéricos, no strings
+2. Todos los nÃºmeros deben ser numÃ©ricos, no strings
 3. Si no hay valor, usa null o 0
-4. La categoría debe ser el título de la sección (ej: DEMOLICIONES, ALBAÑILERÍA)
-5. El subcategory es el concepto específico
+4. La categorÃ­a debe ser el tÃ­tulo de la secciÃ³n (ej: DEMOLICIONES, ALBAÃ‘ILERÃA)
+5. El subcategory es el concepto especÃ­fico
 6. El final_price es el precio unitario de la columna PRECIO
 
 Analiza este presupuesto:
@@ -137,7 +138,7 @@ ${text.slice(0, 15000)}`,
         return NextResponse.json(
           {
             error:
-              "Has alcanzado el límite de uso de la IA. Por favor, espera unos minutos e inténtalo de nuevo, o actualiza tu plan en https://console.groq.com/settings/billing",
+              "Has alcanzado el lÃ­mite de uso de la IA. Por favor, espera unos minutos e intÃ©ntalo de nuevo, o actualiza tu plan en https://console.groq.com/settings/billing",
           },
           { status: 429 },
         )
@@ -150,3 +151,4 @@ ${text.slice(0, 15000)}`,
     )
   }
 }
+

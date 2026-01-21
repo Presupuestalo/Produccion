@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import { generateText } from "ai"
 
@@ -11,24 +12,24 @@ export async function POST(request: Request) {
 
     const { text } = await generateText({
       model: "openai/gpt-4o-mini",
-      prompt: `Eres un experto en construcción y reformas. Genera una partida de presupuesto basada en esta descripción: "${prompt}"
+      prompt: `Eres un experto en construcciÃ³n y reformas. Genera una partida de presupuesto basada en esta descripciÃ³n: "${prompt}"
 
-Responde SOLO con un objeto JSON válido con esta estructura exacta:
+Responde SOLO con un objeto JSON vÃ¡lido con esta estructura exacta:
 {
-  "category": "01. DERRIBOS" | "02. ALBAÑILERÍA" | "03. FONTANERÍA" | "04. CARPINTERÍA" | "05. ELECTRICIDAD" | "06. CALEFACCIÓN" | "07. LIMPIEZA" | "08. MATERIALES" | "09. OTROS",
-  "code": "código alfanumérico corto (ej: ELE-001)",
-  "concept": "NOMBRE CORTO DE LA PARTIDA EN MAYÚSCULAS (máximo 80 caracteres)",
-  "description": "descripción detallada de la partida incluyendo materiales y mano de obra",
-  "unit": "Ud" | "m²" | "ml" | "m³" | "H" | "PA",
-  "quantity": número (cantidad estimada razonable),
-  "unit_price": número (precio unitario estimado en euros, realista para España)
+  "category": "01. DERRIBOS" | "02. ALBAÃ‘ILERÃA" | "03. FONTANERÃA" | "04. CARPINTERÃA" | "05. ELECTRICIDAD" | "06. CALEFACCIÃ“N" | "07. LIMPIEZA" | "08. MATERIALES" | "09. OTROS",
+  "code": "cÃ³digo alfanumÃ©rico corto (ej: ELE-001)",
+  "concept": "NOMBRE CORTO DE LA PARTIDA EN MAYÃšSCULAS (mÃ¡ximo 80 caracteres)",
+  "description": "descripciÃ³n detallada de la partida incluyendo materiales y mano de obra",
+  "unit": "Ud" | "mÂ²" | "ml" | "mÂ³" | "H" | "PA",
+  "quantity": nÃºmero (cantidad estimada razonable),
+  "unit_price": nÃºmero (precio unitario estimado en euros, realista para EspaÃ±a)
 }
 
 Importante:
-- El concepto DEBE estar completamente en MAYÚSCULAS
-- El precio debe ser realista para el mercado español de reformas
-- La descripción debe ser técnica y completa
-- Elige la categoría más apropiada
+- El concepto DEBE estar completamente en MAYÃšSCULAS
+- El precio debe ser realista para el mercado espaÃ±ol de reformas
+- La descripciÃ³n debe ser tÃ©cnica y completa
+- Elige la categorÃ­a mÃ¡s apropiada
 - NO incluyas explicaciones adicionales, SOLO el JSON`,
     })
 
@@ -53,3 +54,4 @@ Importante:
     return NextResponse.json({ error: "Error al generar la partida" }, { status: 500 })
   }
 }
+

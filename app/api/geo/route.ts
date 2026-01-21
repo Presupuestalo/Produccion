@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 
 export async function GET(request: Request) {
@@ -6,7 +7,7 @@ export async function GET(request: Request) {
     const forwardedFor = request.headers.get("x-forwarded-for")
     const ip = forwardedFor?.split(",")[0]?.trim() || "unknown"
 
-    // Si es localhost o IP privada, devolver España por defecto
+    // Si es localhost o IP privada, devolver EspaÃ±a por defecto
     if (ip === "unknown" || ip === "127.0.0.1" || ip.startsWith("192.168.") || ip.startsWith("10.")) {
       return NextResponse.json({ country: "ES", ip })
     }
@@ -28,3 +29,4 @@ export async function GET(request: Request) {
     return NextResponse.json({ country: "ES", ip: "unknown" })
   }
 }
+

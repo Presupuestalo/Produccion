@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 export const dynamic = "force-dynamic"
 
@@ -87,8 +87,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Datos de estimación inválidos" }, { status: 400 })
     }
 
-    const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-
     // Verificar si el teléfono ya tiene un lead activo
     const { data: existingPhone } = await supabaseAdmin
       .from("phone_verifications")
@@ -140,7 +138,7 @@ export async function POST(request: NextRequest) {
     const userId = authData.user.id
     console.log("[v0] User created:", userId)
 
-    // Actualizar perfil (el trigger ya lo crea, solo actualizamos)
+    // Actualizar perfil (el trigger ya lo crea)
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
       .update({
@@ -169,8 +167,6 @@ export async function POST(request: NextRequest) {
         await supabaseAdmin.auth.admin.deleteUser(userId)
         return NextResponse.json({ error: "Error al actualizar el perfil: " + retryError.message }, { status: 500 })
       }
-
-      console.warn("[v0] Could not set user_type, profile created without it")
     }
 
     // Enviar email de bienvenida con credenciales
@@ -192,7 +188,6 @@ export async function POST(request: NextRequest) {
     const { data: leadRequest, error: leadError } = await supabaseAdmin
       .from("lead_requests")
       .insert({
-        // project_id: null - no incluimos project_id
         homeowner_id: userId,
         status: "open",
         estimated_budget: middlePrice,
@@ -200,7 +195,7 @@ export async function POST(request: NextRequest) {
         reform_types: ["reforma_integral"],
         project_description: reformSummary,
         surface_m2: Number.parseInt(estimationData.squareMeters) || null,
-        postal_code: null, // No tenemos código postal desde la landing
+        postal_code: null,
         city: estimationData.city || "",
         province: estimationData.province || estimationData.city || "",
         country_code: "ES",
@@ -218,8 +213,6 @@ export async function POST(request: NextRequest) {
       console.error("[v0] Error creating lead request:", leadError)
       return NextResponse.json({ error: "Error al crear la solicitud: " + leadError?.message }, { status: 500 })
     }
-
-    console.log("[v0] Lead request created:", leadRequest.id)
 
     // Registrar verificación de teléfono
     await supabaseAdmin.from("phone_verifications").insert({
@@ -250,8 +243,6 @@ export async function POST(request: NextRequest) {
     } catch (emailError) {
       console.error("[v0] Error sending lead published email:", emailError)
     }
-
-    console.log("[v0] Landing lead created successfully:", leadRequest.id)
 
     return NextResponse.json({
       success: true,

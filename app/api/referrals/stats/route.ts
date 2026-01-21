@@ -1,7 +1,8 @@
+﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-// GET /api/referrals/stats - Obtener estadísticas de referidos del usuario
+// GET /api/referrals/stats - Obtener estadÃ­sticas de referidos del usuario
 export async function GET() {
   try {
     const supabase = await createClient()
@@ -15,7 +16,7 @@ export async function GET() {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    // Obtener código del usuario
+    // Obtener cÃ³digo del usuario
     const { data: referralCode } = await supabase
       .from("referral_codes")
       .select("*")
@@ -47,7 +48,7 @@ export async function GET() {
 
     const totalCreditsEarned = rewards?.reduce((sum, r) => sum + r.credits_amount, 0) || 0
 
-    // Calcular estadísticas
+    // Calcular estadÃ­sticas
     const stats = {
       code: referralCode?.code || null,
       maxUses: referralCode?.max_uses || 5,
@@ -77,3 +78,4 @@ export async function GET() {
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
   }
 }
+

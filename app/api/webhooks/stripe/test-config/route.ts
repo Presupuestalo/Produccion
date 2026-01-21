@@ -1,5 +1,7 @@
+﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { supabaseAdmin } from "@/lib/supabase-admin"
+import Stripe from "stripe"
 
 export async function GET() {
   const diagnostics = {
@@ -15,14 +17,7 @@ export async function GET() {
 
   // Test Supabase connection
   try {
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    })
-
-    const { data, error } = await supabase.from("subscription_plans").select("id, name, display_name").limit(1)
+    const { data, error } = await supabaseAdmin.from("subscription_plans").select("id, name, display_name").limit(1)
 
     diagnostics.tests.supabase = {
       status: error ? "✗ Failed" : "✓ Connected",
@@ -38,7 +33,6 @@ export async function GET() {
 
   // Test Stripe connection
   try {
-    const Stripe = require("stripe")
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
       apiVersion: "2024-11-20.acacia",
     })
@@ -55,5 +49,5 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json(diagnostics, { status: 200 })
+  return NextResponse.json(diagnostics)
 }

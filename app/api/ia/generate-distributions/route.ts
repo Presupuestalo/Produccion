@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { type NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
 import { createClient } from "@/lib/supabase/server"
@@ -16,7 +17,7 @@ async function generateWithRetry(prompt: string, retries = 3): Promise<string> {
       const imageFiles = result.files?.filter((f) => f.mediaType?.startsWith("image/"))
 
       if (!imageFiles || imageFiles.length === 0) {
-        throw new Error("No se generó ninguna imagen")
+        throw new Error("No se generÃ³ ninguna imagen")
       }
 
       const imageBase64 = Buffer.from(imageFiles[0].uint8Array).toString("base64")
@@ -58,27 +59,27 @@ export async function POST(request: NextRequest) {
     const distributions: string[] = []
 
     const layouts = [
-      "distribución tradicional con pasillos",
-      "distribución abierta tipo loft",
-      "distribución con zonas bien definidas",
+      "distribuciÃ³n tradicional con pasillos",
+      "distribuciÃ³n abierta tipo loft",
+      "distribuciÃ³n con zonas bien definidas",
     ]
 
     for (let i = 0; i < 3; i++) {
-      const prompt = `Genera un plano arquitectónico profesional visto desde arriba con las siguientes características:
-- Área total: ${area}m²
+      const prompt = `Genera un plano arquitectÃ³nico profesional visto desde arriba con las siguientes caracterÃ­sticas:
+- Ãrea total: ${area}mÂ²
 - ${habitaciones} dormitorios
-- ${banos} baños
-- Estilo de distribución: ${layouts[i]}
+- ${banos} baÃ±os
+- Estilo de distribuciÃ³n: ${layouts[i]}
 - ${preferencias || "Estilo moderno"}
 
 El plano debe incluir:
 1. Paredes, puertas y ventanas claramente definidas
-2. Mobiliario apropiado en cada habitación (camas, sofás, mesas, etc.)
+2. Mobiliario apropiado en cada habitaciÃ³n (camas, sofÃ¡s, mesas, etc.)
 3. Etiquetas de habitaciones
-4. Diseño limpio y profesional
+4. DiseÃ±o limpio y profesional
 5. Vista desde arriba (planta)
 
-Genera un plano arquitectónico detallado y realista.`
+Genera un plano arquitectÃ³nico detallado y realista.`
 
       console.log(`[v0] Generating distribution ${i + 1} with Nano Banana`)
 
@@ -107,3 +108,4 @@ Genera un plano arquitectónico detallado y realista.`
     )
   }
 }
+

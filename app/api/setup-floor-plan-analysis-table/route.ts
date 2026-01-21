@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
@@ -5,7 +6,7 @@ export async function POST(request: Request) {
   try {
     const supabase = createClient()
 
-    // Verificar si el usuario está autenticado
+    // Verificar si el usuario estÃ¡ autenticado
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
 
     // Crear la tabla usando SQL directo
     const createTableSQL = `
-      -- Asegurarse de que la extensión uuid-ossp está habilitada
+      -- Asegurarse de que la extensiÃ³n uuid-ossp estÃ¡ habilitada
       CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
       CREATE TABLE IF NOT EXISTS public.floor_plan_analysis (
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
       -- Configurar seguridad RLS
       ALTER TABLE public.floor_plan_analysis ENABLE ROW LEVEL SECURITY;
 
-      -- Crear política para que los usuarios solo puedan ver sus propios análisis
+      -- Crear polÃ­tica para que los usuarios solo puedan ver sus propios anÃ¡lisis
       CREATE POLICY "Users can view their own floor plan analysis" 
         ON public.floor_plan_analysis 
         FOR SELECT 
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
           )
         );
 
-      -- Crear política para que los usuarios solo puedan insertar sus propios análisis
+      -- Crear polÃ­tica para que los usuarios solo puedan insertar sus propios anÃ¡lisis
       CREATE POLICY "Users can insert their own floor plan analysis" 
         ON public.floor_plan_analysis 
         FOR INSERT 
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
           )
         );
 
-      -- Crear política para que los usuarios solo puedan actualizar sus propios análisis
+      -- Crear polÃ­tica para que los usuarios solo puedan actualizar sus propios anÃ¡lisis
       CREATE POLICY "Users can update their own floor plan analysis" 
         ON public.floor_plan_analysis 
         FOR UPDATE 
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
           )
         );
 
-      -- Crear política para que los usuarios solo puedan eliminar sus propios análisis
+      -- Crear polÃ­tica para que los usuarios solo puedan eliminar sus propios anÃ¡lisis
       CREATE POLICY "Users can delete their own floor plan analysis" 
         ON public.floor_plan_analysis 
         FOR DELETE 
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
     if (error && error.message.includes("Could not find the function")) {
       return NextResponse.json(
         {
-          error: "La función exec_sql no existe en la base de datos",
+          error: "La funciÃ³n exec_sql no existe en la base de datos",
           needsManualCreation: true,
           instructions: `
           Para crear la tabla floor_plan_analysis, ejecuta el siguiente SQL en el Editor SQL de Supabase:
@@ -102,3 +103,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message || "Error inesperado" }, { status: 500 })
   }
 }
+

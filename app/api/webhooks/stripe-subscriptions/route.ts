@@ -1,13 +1,10 @@
+﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import Stripe from "stripe"
-import { createClient } from "@supabase/supabase-js"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2024-11-20.acacia",
-})
-
-const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-  auth: { autoRefreshToken: false, persistSession: false },
 })
 
 const PLAN_CREDITS: Record<string, number> = {
@@ -218,7 +215,8 @@ async function grantReferralRewards(
       })
       .eq("id", relationship.id)
 
-    // ... existing notification code ...
+    // Notificar al referente
+    await notifyReferrer(relationship.referrer_id, referredName, planType, credits)
 
     return {
       found: true,
@@ -241,47 +239,37 @@ export async function GET() {
   })
 }
 
-let processingResult: any = { received: true }
-
 export async function POST(req: Request) {
   console.log("[v0] ===== SUBSCRIPTION WEBHOOK RECEIVED =====")
-
-  processingResult = { received: true, timestamp: new Date().toISOString() }
 
   let body: string
   try {
     body = await req.text()
-    console.log("[v0] Body length:", body.length)
   } catch (e) {
     console.error("[v0] Error reading body:", e)
     return NextResponse.json({ error: "Error reading body" }, { status: 400 })
   }
 
   const signature = req.headers.get("stripe-signature")
-  console.log("[v0] Signature present:", !!signature)
 
   if (!signature) {
     console.error("[v0] Missing stripe-signature header")
     return NextResponse.json({ error: "Missing signature" }, { status: 400 })
   }
 
-  const webhookSecret = process.env.STRIPE_SUBSCRIPTIONS_WEBHOOK_SECRET || "whsec_pTW6689INav32wyNeYaKyK1pnXf3ZEK8"
-  console.log("[v0] Using webhook secret prefix:", webhookSecret.substring(0, 15))
+  const webhookSecret = process.env.STRIPE_SUBSCRIPTIONS_WEBHOOK_SECRET || ""
 
   let event: Stripe.Event
 
   try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
-    console.log("[v0] Webhook verified successfully!")
-    console.log("[v0] Event type:", event.type)
-    console.log("[v0] Event ID:", event.id)
+    console.log("[v0] Webhook verified successfully! Event type:", event.type)
   } catch (err: any) {
     console.error("[v0] Webhook signature verification failed:", err.message)
     return NextResponse.json(
       {
         error: "Invalid signature",
         details: err.message,
-        signaturePrefix: signature?.substring(0, 20),
       },
       { status: 400 },
     )
@@ -291,17 +279,9 @@ export async function POST(req: Request) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session
-        console.log("[v0] ====== CHECKOUT SESSION COMPLETED ======")
-        console.log("[v0] Session ID:", session.id)
-        console.log("[v0] Session mode:", session.mode)
-        console.log("[v0] Session metadata:", JSON.stringify(session.metadata))
-        console.log("[v0] Customer:", session.customer)
-        console.log("[v0] Subscription:", session.subscription)
 
-        // Solo procesar suscripciones, no pagos únicos
         if (session.mode !== "subscription") {
           console.log("[v0] Not a subscription checkout, skipping")
-          processingResult.skipped = "not_subscription_mode"
           break
         }
 
@@ -310,20 +290,9 @@ export async function POST(req: Request) {
         const customerId = session.customer as string
         const planName = session.metadata?.plan_name || "basic"
 
-        console.log("[v0] Extracted - User ID:", userId)
-        console.log("[v0] Extracted - Plan name:", planName)
-
-        processingResult.event = "checkout.session.completed"
-        processingResult.userId = userId
-        processingResult.planName = planName
-        processingResult.customerId = customerId
-
         if (!userId) {
           console.error("[v0] ERROR: Missing user_id in metadata!")
-          processingResult.error = "missing_user_id_in_metadata"
-
           if (session.customer_email) {
-            console.log("[v0] Trying to find user by email:", session.customer_email)
             const { data: userByEmail } = await supabaseAdmin
               .from("profiles")
               .select("id")
@@ -331,31 +300,19 @@ export async function POST(req: Request) {
               .single()
 
             if (userByEmail) {
-              console.log("[v0] Found user by email:", userByEmail.id)
-              processingResult.foundByEmail = true
-              processingResult.userId = userByEmail.id
-              const subResult = await processSubscription(userByEmail.id, subscriptionId, customerId, planName)
-              processingResult.subscriptionResult = subResult
-            } else {
-              console.error("[v0] User not found by email either")
-              processingResult.error = "user_not_found"
+              await processSubscription(userByEmail.id, subscriptionId, customerId, planName)
             }
           }
           break
         }
 
-        const subResult = await processSubscription(userId, subscriptionId, customerId, planName)
-        processingResult.subscriptionResult = subResult
+        await processSubscription(userId, subscriptionId, customerId, planName)
         break
       }
 
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice
-        console.log("[v0] Invoice payment succeeded:", invoice.id)
-        console.log("[v0] Billing reason:", invoice.billing_reason)
-        console.log("[v0] Customer email:", invoice.customer_email)
 
-        // Procesar tanto primera suscripción como renovaciones
         if (!invoice.subscription) {
           console.log("[v0] No subscription in invoice, skipping")
           break
@@ -366,12 +323,8 @@ export async function POST(req: Request) {
         const planInfo = await getPlanInfoFromPrice(priceId)
         const customerId = invoice.customer as string
 
-        console.log("[v0] Plan info from invoice:", planInfo)
-        console.log("[v0] Customer ID:", customerId)
-
         let userProfile = null
 
-        // Intentar por stripe_customer_id
         const { data: userByCustomerId } = await supabaseAdmin
           .from("profiles")
           .select("id, credits, email")
@@ -380,9 +333,7 @@ export async function POST(req: Request) {
 
         if (userByCustomerId) {
           userProfile = userByCustomerId
-          console.log("[v0] Found user by stripe_customer_id:", userProfile.id)
         } else if (invoice.customer_email) {
-          // Intentar por email
           const { data: userByEmail } = await supabaseAdmin
             .from("profiles")
             .select("id, credits, email")
@@ -391,16 +342,12 @@ export async function POST(req: Request) {
 
           if (userByEmail) {
             userProfile = userByEmail
-            console.log("[v0] Found user by email:", userProfile.id)
-
-            // Actualizar stripe_customer_id para futuras búsquedas
             await supabaseAdmin.from("profiles").update({ stripe_customer_id: customerId }).eq("id", userProfile.id)
-            console.log("[v0] Updated stripe_customer_id for user")
           }
         }
 
         if (!userProfile) {
-          console.log("[v0] ERROR: User not found for customer:", customerId, "or email:", invoice.customer_email)
+          console.log("[v0] ERROR: User not found for customer:", customerId)
           break
         }
 
@@ -408,31 +355,16 @@ export async function POST(req: Request) {
         const minCredits = PLAN_CREDITS[planInfo.plan] || 300
         const newCredits = currentCredits < minCredits ? minCredits : currentCredits
 
-        console.log("[v0] User:", userProfile.id)
-        console.log("[v0] Current credits:", currentCredits)
-        console.log("[v0] Min credits for plan:", minCredits)
-        console.log("[v0] New credits:", newCredits)
-
-        // Actualizar créditos si están por debajo del mínimo
         if (currentCredits < minCredits) {
-          const { error: updateError } = await supabaseAdmin
+          await supabaseAdmin
             .from("profiles")
             .update({
               credits: newCredits,
               subscription_plan: planInfo.plan,
             })
             .eq("id", userProfile.id)
-
-          if (updateError) {
-            console.error("[v0] Error updating credits:", updateError)
-          } else {
-            console.log("[v0] SUCCESS: Credits recharged to", newCredits)
-          }
-        } else {
-          console.log("[v0] Credits already above minimum, not updating")
         }
 
-        // Actualizar período de suscripción
         await supabaseAdmin
           .from("user_subscriptions")
           .update({
@@ -443,14 +375,11 @@ export async function POST(req: Request) {
           })
           .eq("stripe_subscription_id", subscription.id)
 
-        console.log("[v0] SUCCESS: Subscription period updated")
         break
       }
 
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription
-        console.log("[v0] Subscription updated:", subscription.id)
-
         const priceId = subscription.items.data[0]?.price.id
         const planInfo = await getPlanInfoFromPrice(priceId)
 
@@ -476,20 +405,16 @@ export async function POST(req: Request) {
             })
             .eq("stripe_subscription_id", subscription.id)
 
-          // Actualizar plan en perfil
           await supabaseAdmin
             .from("profiles")
             .update({ subscription_plan: planInfo.plan })
             .eq("id", existingSub.user_id)
-
-          console.log("[v0] SUCCESS: Subscription updated")
         }
         break
       }
 
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription
-        console.log("[v0] Subscription deleted:", subscription.id)
 
         const { data: existingSub } = await supabaseAdmin
           .from("user_subscriptions")
@@ -507,96 +432,29 @@ export async function POST(req: Request) {
             })
             .eq("stripe_subscription_id", subscription.id)
 
-          // Volver al plan free
           await supabaseAdmin.from("profiles").update({ subscription_plan: "free" }).eq("id", existingSub.user_id)
-
-          console.log("[v0] SUCCESS: Subscription canceled, user reverted to free plan")
-        }
-        break
-      }
-
-      case "invoice.paid": {
-        const invoice = event.data.object as Stripe.Invoice
-        console.log("[v0] Invoice paid:", invoice.id)
-
-        // Renovación exitosa - actualizar período
-        if (invoice.subscription) {
-          const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string)
-
-          await supabaseAdmin
-            .from("user_subscriptions")
-            .update({
-              status: "active",
-              current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-              current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq("stripe_subscription_id", subscription.id)
-
-          console.log("[v0] SUCCESS: Subscription renewed")
-        }
-        break
-      }
-
-      case "invoice.payment_failed": {
-        const invoice = event.data.object as Stripe.Invoice
-        console.log("[v0] Invoice payment failed:", invoice.id)
-
-        if (invoice.subscription) {
-          await supabaseAdmin
-            .from("user_subscriptions")
-            .update({
-              status: "past_due",
-              updated_at: new Date().toISOString(),
-            })
-            .eq("stripe_subscription_id", invoice.subscription as string)
-
-          console.log("[v0] Subscription marked as past_due")
         }
         break
       }
 
       default:
         console.log("[v0] Unhandled event type:", event.type)
-        processingResult.unhandledEvent = event.type
     }
 
-    return NextResponse.json(processingResult)
+    return NextResponse.json({ success: true })
   } catch (error: any) {
     console.error("[v0] Webhook processing error:", error)
-    return NextResponse.json({ error: error.message, stack: error.stack }, { status: 500 })
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
 
 async function processSubscription(userId: string, subscriptionId: string, customerId: string, planName: string) {
-  console.log("[v0] Processing subscription for user:", userId)
-
-  const result: any = {
-    userId,
-    subscriptionId,
-    customerId,
-    planName,
-    steps: [],
-  }
-
-  // Obtener detalles de la suscripción
   const subscription = await stripe.subscriptions.retrieve(subscriptionId)
   const priceId = subscription.items.data[0]?.price.id
-
   const planInfo = await getPlanInfoFromPrice(priceId)
-  // Usar planName del metadata si está disponible
   const finalPlan = planName || planInfo.plan
 
-  console.log("[v0] Price ID:", priceId)
-  console.log("[v0] Plan info:", planInfo)
-  console.log("[v0] Final plan:", finalPlan)
-
-  result.priceId = priceId
-  result.planInfo = planInfo
-  result.finalPlan = finalPlan
-
-  // Guardar/actualizar suscripción en user_subscriptions
-  const { error: subError } = await supabaseAdmin.from("user_subscriptions").upsert(
+  await supabaseAdmin.from("user_subscriptions").upsert(
     {
       user_id: userId,
       stripe_customer_id: customerId,
@@ -613,78 +471,36 @@ async function processSubscription(userId: string, subscriptionId: string, custo
     { onConflict: "user_id" },
   )
 
-  if (subError) {
-    console.error("[v0] Error saving subscription:", subError)
-    result.steps.push({ step: "save_subscription", error: subError.message })
-  } else {
-    console.log("[v0] SUCCESS: Subscription saved")
-    result.steps.push({ step: "save_subscription", success: true })
-  }
-
-  const { data: companyCredits, error: creditsGetError } = await supabaseAdmin
+  const { data: companyCredits } = await supabaseAdmin
     .from("company_credits")
-    .select("credits_balance, credits_purchased_total")
+    .select("credits_balance")
     .eq("company_id", userId)
     .single()
-
-  if (creditsGetError && creditsGetError.code !== "PGRST116") {
-    console.error("[v0] Error getting company_credits:", creditsGetError)
-    result.steps.push({ step: "get_credits", error: creditsGetError.message })
-  }
 
   const currentCredits = companyCredits?.credits_balance || 0
   const minCredits = PLAN_CREDITS[finalPlan] || 300
   const newCredits = currentCredits < minCredits ? minCredits : currentCredits
 
-  console.log("[v0] Current credits:", currentCredits)
-  console.log("[v0] Min credits for plan:", minCredits)
-  console.log("[v0] New credits to set:", newCredits)
-
-  result.currentCredits = currentCredits
-  result.minCredits = minCredits
-  result.newCredits = newCredits
-
   if (currentCredits < minCredits) {
     if (companyCredits) {
-      // Actualizar créditos existentes
-      const { error: creditsUpdateError } = await supabaseAdmin
+      await supabaseAdmin
         .from("company_credits")
         .update({
           credits_balance: newCredits,
           updated_at: new Date().toISOString(),
         })
         .eq("company_id", userId)
-
-      if (creditsUpdateError) {
-        console.error("[v0] Error updating company_credits:", creditsUpdateError)
-        result.steps.push({ step: "update_credits", error: creditsUpdateError.message })
-      } else {
-        console.log("[v0] SUCCESS: Credits updated to", newCredits)
-        result.steps.push({ step: "update_credits", success: true, credits: newCredits })
-      }
     } else {
-      // Crear registro de créditos si no existe
-      const { error: creditsInsertError } = await supabaseAdmin.from("company_credits").insert({
+      await supabaseAdmin.from("company_credits").insert({
         company_id: userId,
         credits_balance: newCredits,
         credits_purchased_total: 0,
         credits_spent_total: 0,
       })
-
-      if (creditsInsertError) {
-        console.error("[v0] Error inserting company_credits:", creditsInsertError)
-        result.steps.push({ step: "insert_credits", error: creditsInsertError.message })
-      } else {
-        console.log("[v0] SUCCESS: Credits created with", newCredits)
-        result.steps.push({ step: "insert_credits", success: true, credits: newCredits })
-      }
     }
-  } else {
-    console.log("[v0] Credits already at or above minimum, not changing")
-    result.steps.push({ step: "credits_check", skipped: "already_above_minimum", currentCredits })
   }
 
-  const { error: profileError } = await supabaseAdmin
+  await supabaseAdmin
     .from("profiles")
     .update({
       subscription_plan: finalPlan,
@@ -693,19 +509,7 @@ async function processSubscription(userId: string, subscriptionId: string, custo
     })
     .eq("id", userId)
 
-  if (profileError) {
-    console.error("[v0] Error updating profile:", profileError)
-    result.steps.push({ step: "update_profile", error: profileError.message })
-  } else {
-    console.log("[v0] SUCCESS: Profile updated - plan:", finalPlan)
-    result.steps.push({ step: "update_profile", success: true, plan: finalPlan })
-  }
-
-  // Procesar referral si existe
-  const referralResult = await grantReferralRewards(userId, finalPlan)
-  result.referralResult = referralResult
-
-  return result
+  await grantReferralRewards(userId, finalPlan)
 }
 
 async function getPlanInfoFromPrice(priceId: string): Promise<{ plan: string; billing: string }> {
@@ -713,7 +517,6 @@ async function getPlanInfoFromPrice(priceId: string): Promise<{ plan: string; bi
     const price = await stripe.prices.retrieve(priceId, { expand: ["product"] })
     const product = price.product as Stripe.Product
 
-    // Intentar obtener de metadata del precio primero
     if (price.metadata?.plan_key) {
       return {
         plan: price.metadata.plan_key,
@@ -721,7 +524,6 @@ async function getPlanInfoFromPrice(priceId: string): Promise<{ plan: string; bi
       }
     }
 
-    // Si no, intentar de metadata del producto
     if (product.metadata?.plan_key) {
       return {
         plan: product.metadata.plan_key,
@@ -729,11 +531,9 @@ async function getPlanInfoFromPrice(priceId: string): Promise<{ plan: string; bi
       }
     }
 
-    // Fallback: intentar detectar por nombre del producto
     const productName = product.name?.toLowerCase() || ""
     let plan = "basic"
     if (productName.includes("pro")) plan = "pro"
-    else if (productName.includes("business") || productName.includes("empresa")) plan = "business"
 
     return {
       plan,

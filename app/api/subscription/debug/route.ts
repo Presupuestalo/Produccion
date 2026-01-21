@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import Stripe from "stripe"
@@ -86,7 +87,7 @@ export async function GET() {
   }
 }
 
-// POST para forzar actualización
+// POST para forzar actualizaciÃ³n
 export async function POST() {
   try {
     const supabase = await createClient()
@@ -135,7 +136,7 @@ export async function POST() {
 
     const billing = price.recurring?.interval === "year" ? "annual" : "monthly"
 
-    // Forzar actualización con SQL directo para evitar problemas de RLS
+    // Forzar actualizaciÃ³n con SQL directo para evitar problemas de RLS
     const { error: updateError } = await supabaseAdmin.rpc("exec_sql", {
       sql: `
         UPDATE profiles 
@@ -148,7 +149,7 @@ export async function POST() {
       `,
     })
 
-    // Si no hay función RPC, intentar update normal
+    // Si no hay funciÃ³n RPC, intentar update normal
     if (updateError) {
       console.log("RPC failed, trying direct update:", updateError.message)
 
@@ -172,7 +173,7 @@ export async function POST() {
       }
     }
 
-    // Verificar que se actualizó
+    // Verificar que se actualizÃ³
     const { data: updatedProfile } = await supabaseAdmin
       .from("profiles")
       .select("subscription_plan, stripe_customer_id, stripe_subscription_id")
@@ -194,3 +195,4 @@ export async function POST() {
     return NextResponse.json({ error: error.message, stack: error.stack }, { status: 500 })
   }
 }
+

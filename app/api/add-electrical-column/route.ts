@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
@@ -15,7 +16,7 @@ export async function POST() {
       })
     }
 
-    // Intentar crear un registro de prueba para forzar la creación de la columna
+    // Intentar crear un registro de prueba para forzar la creaciÃ³n de la columna
     const { error: insertError } = await supabase
       .from("calculator_data")
       .insert({
@@ -61,3 +62,4 @@ ALTER TABLE public.calculator_data ADD COLUMN IF NOT EXISTS electrical_config JS
     )
   }
 }
+

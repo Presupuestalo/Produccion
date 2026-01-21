@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
 
     const supabase = createClient()
 
-    // Verificar si el usuario está autenticado
+    // Verificar si el usuario estÃ¡ autenticado
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
         const url = new URL(planData.image_url)
         const pathParts = url.pathname.split("/")
 
-        // Encontrar el índice donde comienza el bucket (normalmente después de /storage/v1/object/public/)
+        // Encontrar el Ã­ndice donde comienza el bucket (normalmente despuÃ©s de /storage/v1/object/public/)
         let bucketIndex = -1
         for (let i = 0; i < pathParts.length; i++) {
           if (pathParts[i] === "public") {
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
 
             if (storageError) {
               console.error("Error al eliminar archivo del storage:", storageError)
-              // No fallamos la operación si no se puede eliminar el archivo
+              // No fallamos la operaciÃ³n si no se puede eliminar el archivo
             } else {
               console.log("Archivo eliminado correctamente del storage:", deleteData)
             }
@@ -94,7 +95,7 @@ export async function POST(request: Request) {
           const storagePathMatch = planData.image_url.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)/)
           if (storagePathMatch) {
             const bucketName = storagePathMatch[1]
-            const filePath = storagePathMatch[2].split("?")[0] // Eliminar parámetros de consulta
+            const filePath = storagePathMatch[2].split("?")[0] // Eliminar parÃ¡metros de consulta
 
             console.log(`Intentando eliminar archivo (formato antiguo): bucket=${bucketName}, path=${filePath}`)
 
@@ -111,7 +112,7 @@ export async function POST(request: Request) {
         }
       } catch (error) {
         console.error("Error al procesar la URL para eliminar el archivo:", error)
-        // No fallamos la operación si hay un error al procesar la URL
+        // No fallamos la operaciÃ³n si hay un error al procesar la URL
       }
     }
 
@@ -121,3 +122,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message || "Error inesperado" }, { status: 500 })
   }
 }
+

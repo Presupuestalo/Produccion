@@ -1,5 +1,6 @@
+﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 export async function POST(request: Request) {
   try {
@@ -9,12 +10,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Email es requerido" }, { status: 400 })
     }
 
-    console.log("[v0] 🔐 Generando código OTP para:", email)
+    console.log("[v0] 🔍 Generando código OTP para:", email)
 
-    // Crear cliente de Supabase con service role para insertar sin autenticación
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-
-    const { data: existingUsers, error: checkError } = await supabase.auth.admin.listUsers()
+    const { data: existingUsers, error: checkError } = await supabaseAdmin.auth.admin.listUsers()
 
     if (!checkError && existingUsers) {
       const userExists = existingUsers.users.some((user) => user.email === email)
@@ -37,12 +35,12 @@ export async function POST(request: Request) {
     console.log("[v0] ✅ Código generado:", code)
 
     // Eliminar códigos antiguos del mismo email
-    await supabase.from("email_verification_codes").delete().eq("email", email)
+    await supabaseAdmin.from("email_verification_codes").delete().eq("email", email)
 
     // Guardar código en la base de datos (expira en 10 minutos)
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString()
 
-    const { error: insertError } = await supabase.from("email_verification_codes").insert({
+    const { error: insertError } = await supabaseAdmin.from("email_verification_codes").insert({
       email,
       code,
       expires_at: expiresAt,
@@ -54,19 +52,12 @@ export async function POST(request: Request) {
       throw new Error("Error al guardar código de verificación")
     }
 
-    console.log("[v0] ✅ Código guardado en BD, expira en 10 minutos")
-
     const isDevelopment = process.env.NODE_ENV === "development"
-    let emailSent = false
-    const devCode: string | null = null
-
-    // Enviar email con el código
     const resendApiKey = process.env.RESEND_API_KEY
 
     if (!resendApiKey) {
       console.error("[v0] ❌ RESEND_API_KEY no configurada")
       if (isDevelopment) {
-        console.log("[v0] 🔧 Modo desarrollo: retornando código directamente")
         return NextResponse.json({
           success: true,
           message: "Código de verificación generado (modo desarrollo)",
@@ -76,8 +67,6 @@ export async function POST(request: Request) {
       }
       return NextResponse.json({ error: "Servicio de email no configurado" }, { status: 500 })
     }
-
-    console.log("[v0] 📧 Enviando código por email...")
 
     const emailPayload = {
       from: "Presupuéstalo <noreply@presupuestalo.com>",
@@ -117,19 +106,6 @@ export async function POST(request: Request) {
           </div>
         </div>
       `,
-      text: `
-Hola${name ? ` ${name}` : ""},
-
-Gracias por registrarte en Presupuéstalo. Para verificar tu dirección de email, introduce el siguiente código de 6 dígitos:
-
-${code}
-
-Este código expirará en 10 minutos por seguridad.
-
-Si no solicitaste este código, puedes ignorar este mensaje.
-
-© ${new Date().getFullYear()} Presupuéstalo
-      `.trim(),
     }
 
     try {
@@ -142,40 +118,24 @@ Si no solicitaste este código, puedes ignorar este mensaje.
         body: JSON.stringify(emailPayload),
       })
 
-      const resendData = await resendResponse.json()
-
       if (!resendResponse.ok) {
-        console.error("[v0] ❌ Error enviando email:", resendData)
-
         if (isDevelopment) {
-          console.log("[v0] 🔧 Modo desarrollo: email falló pero retornando código directamente")
           return NextResponse.json({
             success: true,
-            message: "Código generado (email no enviado - modo desarrollo)",
-            devMode: true,
             code: code,
-            emailError: resendData.message || "Error al enviar email",
+            devMode: true,
           })
         }
-
         throw new Error("Error al enviar email de verificación")
       }
-
-      console.log("[v0] ✅ Email enviado exitosamente, ID:", resendData.id)
-      emailSent = true
     } catch (emailError: any) {
-      console.error("[v0] ❌ Excepción al enviar email:", emailError)
-
       if (isDevelopment) {
-        console.log("[v0] 🔧 Modo desarrollo: excepción en email pero retornando código")
         return NextResponse.json({
           success: true,
-          message: "Código generado (email no disponible - modo desarrollo)",
-          devMode: true,
           code: code,
+          devMode: true,
         })
       }
-
       throw emailError
     }
 

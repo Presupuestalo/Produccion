@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
@@ -6,10 +7,10 @@ export async function POST(request: Request) {
     const supabase = await createClient()
 
     if (!supabase) {
-      return NextResponse.json({ error: "Error de configuración del servidor" }, { status: 500 })
+      return NextResponse.json({ error: "Error de configuraciÃ³n del servidor" }, { status: 500 })
     }
 
-    // Verificar autenticación
+    // Verificar autenticaciÃ³n
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
     const file = formData.get("file") as File
 
     if (!file) {
-      return NextResponse.json({ error: "No se proporcionó archivo" }, { status: 400 })
+      return NextResponse.json({ error: "No se proporcionÃ³ archivo" }, { status: 400 })
     }
 
     const fileExt = file.name.split(".").pop()?.toLowerCase()
@@ -48,3 +49,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message || "Error al subir el archivo" }, { status: 500 })
   }
 }
+

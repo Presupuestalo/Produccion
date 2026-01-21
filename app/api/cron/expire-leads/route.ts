@@ -1,10 +1,9 @@
-import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+﻿import { NextResponse } from "next/server"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 export const dynamic = "force-dynamic"
 
-const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-
+// GET /api/cron/expire-leads - Expirar leads antiguos y reclamaciones
 export async function GET(request: Request) {
   // Verificar autorización
   const authHeader = request.headers.get("authorization")
@@ -53,7 +52,7 @@ export async function GET(request: Request) {
           .update({
             status: "approved",
             resolved_at: now.toISOString(),
-            resolution_notes: "Auto-aprobada por timeout de 7 días sin revisión",
+            resolution_notes: "Auto-abrobada por timeout de 7 días sin revisión",
           })
           .eq("id", claim.id)
 

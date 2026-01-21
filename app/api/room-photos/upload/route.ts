@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
     console.log("[v0] API /room-photos/upload - Datos recibidos:", {
       tieneArchivo: !!file,
       nombreArchivo: file?.name,
-      tamañoArchivo: file?.size,
+      tamaÃ±oArchivo: file?.size,
       projectId,
       phase,
       roomName,
@@ -27,12 +28,12 @@ export async function POST(request: Request) {
 
     const supabase = await createClient()
 
-    // Verificar autenticación
+    // Verificar autenticaciÃ³n
     const {
       data: { session },
     } = await supabase.auth.getSession()
 
-    console.log("[v0] API /room-photos/upload - Sesión:", {
+    console.log("[v0] API /room-photos/upload - SesiÃ³n:", {
       tieneSession: !!session,
       userId: session?.user?.id,
     })
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
 
     console.log("[v0] API /room-photos/upload - Proyecto verificado")
 
-    // Generar nombre único para el archivo
+    // Generar nombre Ãºnico para el archivo
     const fileExt = file.name.split(".").pop()
     const fileName = `${projectId}/${phase}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
 
@@ -77,12 +78,12 @@ export async function POST(request: Request) {
 
     console.log("[v0] API /room-photos/upload - Archivo subido exitosamente:", uploadData)
 
-    // Obtener URL pública
+    // Obtener URL pÃºblica
     const {
       data: { publicUrl },
     } = supabase.storage.from("room-photos").getPublicUrl(fileName)
 
-    console.log("[v0] API /room-photos/upload - URL pública:", publicUrl)
+    console.log("[v0] API /room-photos/upload - URL pÃºblica:", publicUrl)
 
     // Guardar referencia en la base de datos
     console.log("[v0] API /room-photos/upload - Guardando referencia en BD...")
@@ -115,3 +116,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message || "Error inesperado" }, { status: 500 })
   }
 }
+

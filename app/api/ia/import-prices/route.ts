@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
     const userCountry = profile?.country || "ES"
     const userTable = getUserPriceTableByCountry(userCountry)
 
-    console.log("[v0] País del usuario:", userCountry)
+    console.log("[v0] PaÃ­s del usuario:", userCountry)
     console.log("[v0] Tabla de destino:", userTable)
     console.log("[v0] Downloading PDF from:", pdfUrl)
 
@@ -98,16 +99,16 @@ export async function POST(request: NextRequest) {
 Devuelve un array JSON con esta estructura exacta:
 [
   {
-    "code": "código si existe o null",
-    "category": "DERRIBOS|ALBAÑILERÍA|FONTANERÍA|CARPINTERÍA|ELECTRICIDAD|CALEFACCIÓN|PINTURA|LIMPIEZA|MATERIALES",
-    "subcategory": "CONCEPTO EN MAYÚSCULAS",
-    "description": "Descripción detallada",
-    "unit": "m²|ml|ud|etc",
-    "labor_cost": número,
-    "material_cost": número,
-    "equipment_cost": número,
-    "other_cost": número,
-    "final_price": número
+    "code": "cÃ³digo si existe o null",
+    "category": "DERRIBOS|ALBAÃ‘ILERÃA|FONTANERÃA|CARPINTERÃA|ELECTRICIDAD|CALEFACCIÃ“N|PINTURA|LIMPIEZA|MATERIALES",
+    "subcategory": "CONCEPTO EN MAYÃšSCULAS",
+    "description": "DescripciÃ³n detallada",
+    "unit": "mÂ²|ml|ud|etc",
+    "labor_cost": nÃºmero,
+    "material_cost": nÃºmero,
+    "equipment_cost": nÃºmero,
+    "other_cost": nÃºmero,
+    "final_price": nÃºmero
   }
 ]
 
@@ -127,7 +128,7 @@ ${text.slice(0, 15000)}`,
     try {
       const jsonMatch = aiResponse.match(/\[[\s\S]*\]/)
       if (!jsonMatch) {
-        throw new Error("No se encontró JSON en la respuesta")
+        throw new Error("No se encontrÃ³ JSON en la respuesta")
       }
       prices = JSON.parse(jsonMatch[0])
     } catch (parseError) {
@@ -200,3 +201,4 @@ ${text.slice(0, 15000)}`,
     )
   }
 }
+

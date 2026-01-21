@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import Stripe from "stripe"
 
@@ -7,10 +8,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST() {
   try {
-    // Crear producto Plan Básico
+    // Crear producto Plan BÃ¡sico
     const basicProduct = await stripe.products.create({
-      name: "Plan Básico",
-      description: "Plan básico para profesionales - 300 créditos/mes",
+      name: "Plan BÃ¡sico",
+      description: "Plan bÃ¡sico para profesionales - 300 crÃ©ditos/mes",
       metadata: {
         plan_id: "basic",
         credits: "300",
@@ -21,7 +22,7 @@ export async function POST() {
     // Crear producto Plan Profesional
     const proProduct = await stripe.products.create({
       name: "Plan Profesional",
-      description: "Plan profesional con funciones avanzadas - 800 créditos/mes",
+      description: "Plan profesional con funciones avanzadas - 800 crÃ©ditos/mes",
       metadata: {
         plan_id: "pro",
         credits: "800",
@@ -36,10 +37,10 @@ export async function POST() {
       amount: number
     }> = []
 
-    // Crear precios para Plan Básico (59€/mes, 590€/año)
+    // Crear precios para Plan BÃ¡sico (59â‚¬/mes, 590â‚¬/aÃ±o)
     const basicMonthly = await stripe.prices.create({
       product: basicProduct.id,
-      unit_amount: 5900, // 59€ en centavos
+      unit_amount: 5900, // 59â‚¬ en centavos
       currency: "eur",
       recurring: {
         interval: "month",
@@ -54,7 +55,7 @@ export async function POST() {
 
     const basicYearly = await stripe.prices.create({
       product: basicProduct.id,
-      unit_amount: 59000, // 590€ en centavos
+      unit_amount: 59000, // 590â‚¬ en centavos
       currency: "eur",
       recurring: {
         interval: "year",
@@ -67,10 +68,10 @@ export async function POST() {
     })
     createdPrices.push({ plan: "basic", type: "yearly", priceId: basicYearly.id, amount: 590 })
 
-    // Crear precios para Plan Profesional (89€/mes, 890€/año)
+    // Crear precios para Plan Profesional (89â‚¬/mes, 890â‚¬/aÃ±o)
     const proMonthly = await stripe.prices.create({
       product: proProduct.id,
-      unit_amount: 8900, // 89€ en centavos
+      unit_amount: 8900, // 89â‚¬ en centavos
       currency: "eur",
       recurring: {
         interval: "month",
@@ -85,7 +86,7 @@ export async function POST() {
 
     const proYearly = await stripe.prices.create({
       product: proProduct.id,
-      unit_amount: 89000, // 890€ en centavos
+      unit_amount: 89000, // 890â‚¬ en centavos
       currency: "eur",
       recurring: {
         interval: "year",
@@ -128,3 +129,4 @@ export async function POST() {
     )
   }
 }
+

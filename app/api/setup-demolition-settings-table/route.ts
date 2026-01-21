@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
@@ -5,7 +6,7 @@ export async function POST(request: Request) {
   try {
     const supabase = createClient()
 
-    // Verificar si el usuario está autenticado
+    // Verificar si el usuario estÃ¡ autenticado
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
 
     // Crear la tabla
     const createTableSQL = `
-    -- Asegurarse de que la extensión uuid-ossp está habilitada
+    -- Asegurarse de que la extensiÃ³n uuid-ossp estÃ¡ habilitada
     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
     CREATE TABLE IF NOT EXISTS public.demolition_settings (
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     -- Configurar seguridad RLS
     ALTER TABLE public.demolition_settings ENABLE ROW LEVEL SECURITY;
 
-    -- Crear política para que los usuarios solo puedan ver sus propios ajustes
+    -- Crear polÃ­tica para que los usuarios solo puedan ver sus propios ajustes
     CREATE POLICY "Users can view their own demolition settings" 
       ON public.demolition_settings 
       FOR SELECT 
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
         )
       );
 
-    -- Crear política para que los usuarios solo puedan insertar sus propios ajustes
+    -- Crear polÃ­tica para que los usuarios solo puedan insertar sus propios ajustes
     CREATE POLICY "Users can insert their own demolition settings" 
       ON public.demolition_settings 
       FOR INSERT 
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
         )
       );
 
-    -- Crear política para que los usuarios solo puedan actualizar sus propios ajustes
+    -- Crear polÃ­tica para que los usuarios solo puedan actualizar sus propios ajustes
     CREATE POLICY "Users can update their own demolition settings" 
       ON public.demolition_settings 
       FOR UPDATE 
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
         )
       );
 
-    -- Crear política para que los usuarios solo puedan eliminar sus propios ajustes
+    -- Crear polÃ­tica para que los usuarios solo puedan eliminar sus propios ajustes
     CREATE POLICY "Users can delete their own demolition settings" 
       ON public.demolition_settings 
       FOR DELETE 
@@ -89,3 +90,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message || "Error inesperado" }, { status: 500 })
   }
 }
+

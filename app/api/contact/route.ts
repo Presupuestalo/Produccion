@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
@@ -17,15 +18,15 @@ export async function POST(request: Request) {
     const resendApiKey = process.env.RESEND_API_KEY
 
     if (!resendApiKey) {
-      console.error("[v0] Contacto: ❌ RESEND_API_KEY no está configurada")
+      console.error("[v0] Contacto: âŒ RESEND_API_KEY no estÃ¡ configurada")
       return NextResponse.json({ error: "Servicio de email no configurado" }, { status: 500 })
     }
 
-    console.log("[v0] Contacto: ✅ API key de Resend encontrada")
+    console.log("[v0] Contacto: âœ… API key de Resend encontrada")
 
     // Preparar el email
     const emailData = {
-      from: "Presupuéstalo <noreply@presupuestalo.com>",
+      from: "PresupuÃ©stalo <noreply@presupuestalo.com>",
       to: "soporte@presupuestalo.com",
       replyTo: email,
       subject: `[Contacto Web] ${subject}`,
@@ -47,13 +48,13 @@ export async function POST(request: Request) {
           <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
           
           <p style="color: #666; font-size: 12px;">
-            Este mensaje fue enviado desde el formulario de contacto de Presupuéstalo.
+            Este mensaje fue enviado desde el formulario de contacto de PresupuÃ©stalo.
           </p>
         </div>
       `,
     }
 
-    console.log("[v0] Contacto: 📤 Enviando email a Resend API...")
+    console.log("[v0] Contacto: ðŸ“¤ Enviando email a Resend API...")
     console.log("[v0] Contacto: From:", emailData.from)
     console.log("[v0] Contacto: To:", emailData.to)
 
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
     const data = await response.json()
 
     if (!response.ok) {
-      console.error("[v0] Contacto: ❌ Error de Resend:", data)
+      console.error("[v0] Contacto: âŒ Error de Resend:", data)
       return NextResponse.json(
         {
           error: "Error al enviar el email",
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
       )
     }
 
-    console.log("[v0] Contacto: ✅ Email enviado exitosamente:", data)
+    console.log("[v0] Contacto: âœ… Email enviado exitosamente:", data)
 
     return NextResponse.json({
       success: true,
@@ -99,3 +100,4 @@ export async function POST(request: Request) {
     )
   }
 }
+

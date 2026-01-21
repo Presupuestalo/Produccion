@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 
@@ -5,7 +6,7 @@ export async function GET() {
   try {
     const supabase = await createServerClient()
 
-    // Verificar conexión a Supabase
+    // Verificar conexiÃ³n a Supabase
     const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
       .select("id, email, subscription_plan_id")
@@ -44,9 +45,9 @@ export async function GET() {
       status: "ok",
       message: "Webhook configurado correctamente",
       checks: {
-        supabase_connection: "✅ OK",
-        profiles_table: "✅ OK",
-        subscription_plans_table: "✅ OK",
+        supabase_connection: "âœ… OK",
+        profiles_table: "âœ… OK",
+        subscription_plans_table: "âœ… OK",
         environment_variables: envVars,
       },
       available_plans: plans,
@@ -60,3 +61,4 @@ export async function GET() {
     })
   }
 }
+

@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
 
     const supabase = createClient()
 
-    // Verificar si el usuario está autenticado
+    // Verificar si el usuario estÃ¡ autenticado
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -52,3 +53,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message || "Error inesperado" }, { status: 500 })
   }
 }
+

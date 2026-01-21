@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { type NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
 import {
@@ -12,7 +13,7 @@ import {
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-const FROM_EMAIL = "Presupuéstalo <notificaciones@presupuestalo.com>"
+const FROM_EMAIL = "PresupuÃ©stalo <notificaciones@presupuestalo.com>"
 
 export async function POST(request: NextRequest) {
   try {
@@ -69,3 +70,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
+

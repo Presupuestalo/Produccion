@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { createServerClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
@@ -100,3 +101,4 @@ export async function PATCH(request: Request) {
     )
   }
 }
+

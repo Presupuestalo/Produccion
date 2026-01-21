@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import Stripe from "stripe"
 
@@ -13,7 +14,7 @@ export async function GET() {
       limit: 100,
     })
 
-    // Filtrar solo los planes de suscripción
+    // Filtrar solo los planes de suscripciÃ³n
     const subscriptionProducts = products.data.filter(
       (p) => p.name.includes("Plan") || p.name.includes("Basic") || p.name.includes("Pro"),
     )
@@ -32,3 +33,4 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
+

@@ -1,3 +1,4 @@
+﻿export const dynamic = "force-dynamic"
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Trabajo no encontrado o no pertenece al usuario" }, { status: 403 })
         }
 
-        // Generar nombre único para el archivo
+        // Generar nombre Ãºnico para el archivo
         const fileExt = file.name.split(".").pop()
         const fileName = `${session.user.id}/${workId}/${phase}-${Date.now()}.${fileExt}`
 
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: `Error al subir la foto: ${uploadError.message}` }, { status: 500 })
         }
 
-        // Obtener URL pública
+        // Obtener URL pÃºblica
         const {
             data: { publicUrl },
         } = supabase.storage.from("professional-works").getPublicUrl(fileName)
@@ -96,3 +97,4 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error.message || "Error inesperado" }, { status: 500 })
     }
 }
+
