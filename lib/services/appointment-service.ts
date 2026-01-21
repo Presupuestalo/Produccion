@@ -74,22 +74,52 @@ export async function getAllAppointments(): Promise<ProjectAppointment[]> {
     // Verificar si la tabla existe
     await ensureAppointmentsTableExists()
 
-    const { data, error } = await supabase
+    // 1. Obtener las citas
+    const { data: appointments, error } = await supabase
       .from("project_appointments")
-      .select("*, projects(title)")
+      .select("*")
       .eq("user_id", session.session.user.id)
       .order("date", { ascending: true })
 
     if (error) {
-      // Si la tabla no existe, devolver un array vacío
       if (error.message.includes("does not exist")) {
         return []
       }
-      console.error("Error al obtener citas:", error)
+      console.error("[v0] Error al obtener citas:", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+      })
       throw error
     }
 
-    return data as ProjectAppointment[]
+    if (!appointments || appointments.length === 0) {
+      return []
+    }
+
+    // 2. Obtener los títulos de los proyectos para mapeo manual (más robusto)
+    const projectIds = [...new Set(appointments.map(a => a.project_id))].filter(Boolean)
+    const { data: projectsData, error: projectsError } = await supabase
+      .from("projects")
+      .select("id, title")
+      .in("id", projectIds)
+
+    if (projectsError) {
+      console.error("[v0] Error al obtener proyectos para las citas:", projectsError)
+    }
+
+    const projectTitlesMap = new Map<string, string>()
+    if (projectsData) {
+      projectsData.forEach(p => projectTitlesMap.set(p.id, p.title))
+    }
+
+    // 3. Mapear los resultados para incluir projects: { title }
+    return appointments.map(appointment => ({
+      ...appointment,
+      projects: {
+        title: projectTitlesMap.get(appointment.project_id) || "Proyecto sin título"
+      }
+    })) as ProjectAppointment[]
   } catch (error) {
     console.error("Error al obtener todas las citas:", error)
     return []
@@ -139,9 +169,8 @@ export async function completeAppointment(appointment: ProjectAppointment): Prom
     // Crear una actividad a partir de la cita
     const activityData: ProjectActivityFormData = {
       project_id: appointment.project_id,
-      description: `${appointment.title}${appointment.description ? `: ${appointment.description}` : ""}${
-        appointment.location ? ` en ${appointment.location}` : ""
-      }`,
+      description: `${appointment.title}${appointment.description ? `: ${appointment.description}` : ""}${appointment.location ? ` en ${appointment.location}` : ""
+        }`,
       date: appointment.date,
       type: "visita", // Por defecto, las citas se convierten en visitas
     }

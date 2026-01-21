@@ -9,7 +9,7 @@ import { BudgetService } from "@/lib/services/budget-service"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertTriangle } from "lucide-react"
-import { supabase } from "@/lib/supabase/client"
+import { getSupabase } from "@/lib/supabase/client"
 import { BudgetLimitDialog } from "./budget-limit-dialog"
 import * as SubscriptionLimitsService from "@/lib/services/subscription-limits-service"
 
@@ -82,11 +82,16 @@ export function BudgetSection({ projectId, calculatorData }: BudgetSectionProps)
 
     try {
       setIsGenerating(true)
-      if (!supabase) return
+      const supabaseClient = await getSupabase()
+
+      if (!supabaseClient) {
+        console.error("[v0] No se pudo inicializar el cliente de Supabase")
+        throw new Error("Error de conexión con la base de datos")
+      }
 
       const {
         data: { user },
-      } = await supabase.auth.getUser()
+      } = await supabaseClient.auth.getUser()
 
       if (!user) {
         toast({
@@ -99,8 +104,7 @@ export function BudgetSection({ projectId, calculatorData }: BudgetSectionProps)
 
       let budget
       try {
-        if (!supabase) throw new Error("Supabase client not initialized")
-        budget = await BudgetService.createBudgetFromCalculator(projectId, user.id, calculatorData, supabase)
+        budget = await BudgetService.createBudgetFromCalculator(projectId, user.id, calculatorData, supabaseClient)
       } catch (serviceError) {
         throw serviceError
       }

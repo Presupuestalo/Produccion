@@ -10,17 +10,25 @@ export default async function CobrosPage({ params }: { params: { id: string } })
   } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  // Obtener el proyecto y su presupuesto aceptado
+  // 1. Obtener el proyecto
   const { data: project } = await supabase
     .from("projects")
-    .select("*, accepted_budget:budgets!inner(total_price)")
+    .select("*")
     .eq("id", params.id)
     .eq("user_id", user.id)
     .single()
 
   if (!project) redirect("/dashboard/projects")
 
-  const budgetAmount = project.accepted_budget?.total_price || 0
+  // 2. Obtener el presupuesto aceptado para este proyecto (más robusto que join)
+  const { data: budget } = await supabase
+    .from("budgets")
+    .select("total")
+    .eq("project_id", params.id)
+    .eq("status", "accepted")
+    .maybeSingle()
+
+  const budgetAmount = budget?.total || 0
 
   return (
     <div className="container mx-auto py-6">

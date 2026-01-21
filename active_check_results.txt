@@ -1,0 +1,2 @@
+﻿02-A-12 status: { data: [ { code: '02-A-12', is_active: true } ], error: null }
+Total active prices: 113

@@ -46,7 +46,11 @@ export class BudgetService {
     console.log("[v0] Calculated subtotal:", subtotal)
 
     if (subtotal === 0) {
-      console.warn("[v0] WARNING: Subtotal is 0, budget may have no costs")
+      console.warn("[v0] WARNING: Subtotal is 0. This means either no items were generated or all items have 0 price.")
+      console.warn("[v0] Line items count:", lineItems.length)
+      if (lineItems.length > 0) {
+        console.warn("[v0] First generated item:", JSON.stringify(lineItems[0], null, 2))
+      }
     }
 
     // Obtener el siguiente número de versión

@@ -765,13 +765,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     try {
       const success = await saveAllProjectData(projectId, data)
       if (success) {
-        // Guardar en localStorage como respaldo
-        const storageKey = `presupuestalo_${projectId}`
-        const dataToSave = {
-          ...data,
-          lastUpdated: new Date().toISOString(),
-        }
-        localStorage.setItem(storageKey, JSON.JSON.stringify(dataToSave))
+        localStorage.setItem(storageKey, JSON.stringify(dataToSave))
       }
     } catch (error) {
       console.error("Error al guardar:", error)
@@ -836,18 +830,19 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   ])
 
   const calculateStateHash = useCallback(() => {
-    // Solo incluir datos esenciales, evitar referencias circulares
+    // Escoger campos clave para el hash, evitando circularidad pero detectando cambios reales
     const stateToHash = {
-      roomsLength: rooms.length,
-      roomsIds: rooms.map((r) => r.id).join(","),
-      reformRoomsLength: reformRooms.length,
-      reformRoomsIds: reformRooms.map((r) => r.id).join(","),
-      partitionsLength: partitions.length,
-      partitionsIds: partitions.map((p) => p.id).join(","),
+      rooms: rooms.map(r => ({ id: r.id, area: r.area, perimeter: r.perimeter, type: r.type, floor: r.floorMaterial, wall: r.wallMaterial, windows: r.windows?.length })),
+      reformRooms: reformRooms.map(r => ({ id: r.id, area: r.area, perimeter: r.perimeter, type: r.type, floor: r.floorMaterial, wall: r.wallMaterial })),
+      partitions: partitions.map(p => ({ id: p.id, length: p.length })),
       wallLiningsLength: wallLinings.length,
+      demolitionConfig: { h: demolitionConfig.standardHeight, s: demolitionConfig.structureType },
+      reformConfig: { h: reformConfig.standardHeight, t: reformConfig.reformHeatingType },
+      demolitionSettings: { t: demolitionSettings.wallThickness, c: demolitionSettings.containerSize },
+      electrical: { n: electricalConfig.needsNewInstallation, t: electricalConfig.installationType }
     }
     return JSON.stringify(stateToHash)
-  }, [rooms, reformRooms, partitions, wallLinings])
+  }, [rooms, reformRooms, partitions, wallLinings, demolitionConfig, reformConfig, demolitionSettings, electricalConfig])
 
   const triggerAutoSaveRef = useRef<() => void>(() => { })
 
@@ -958,7 +953,17 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
     // Usar la ref para evitar el bucle de dependencias
     triggerAutoSaveRef.current()
-  }, [rooms.length, reformRooms.length, partitions.length, wallLinings.length, isLoadingFromDB])
+  }, [
+    rooms,
+    reformRooms,
+    partitions,
+    wallLinings,
+    demolitionConfig,
+    reformConfig,
+    demolitionSettings,
+    electricalConfig,
+    isLoadingFromDB
+  ])
 
   // Verificar si la tabla existe y cargar datos desde la base de datos al iniciar
   useEffect(() => {

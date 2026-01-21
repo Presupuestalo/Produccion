@@ -1,6 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { CalculatorData } from "@/lib/types/calculator"
-import type { DemolitionData, ReformData } from "@/lib/types/project" // Added these imports
 
 interface GeneratedLineItem {
   category: string
@@ -31,8 +30,8 @@ export interface ProjectData {
   id: string
   name: string
   structure_type?: string
-  demolition: DemolitionData
-  reform: ReformData
+  demolition: any
+  reform: any
   approved_budget_id?: string | null
 }
 
@@ -47,14 +46,53 @@ export class BudgetGenerator {
   private project: any = {}
 
   constructor(
-    private calculatorData: CalculatorData,
+    private calculatorData: any,
     private supabase: SupabaseClient,
   ) {
-    console.log("[v0] BudgetGenerator - CalculatorData received:", JSON.stringify(calculatorData, null, 2))
-    // Initialize project data from calculatorData if available
-    if (calculatorData.project) {
-      this.project = calculatorData.project
+    console.log("[v0] BudgetGenerator - Raw data received:", JSON.stringify(calculatorData, null, 2))
+    this.normalizeData()
+
+    // Initialize project data from normalized data if available
+    if (this.calculatorData.project) {
+      this.project = this.calculatorData.project
     }
+  }
+
+  /**
+   * Normaliza los datos de la calculadora para asegurar que tengan la estructura esperada
+   * Puede recibir una estructura anidada { demolition: {...}, reform: {...} } 
+   * o una estructura plana directamente desde la base de datos.
+   */
+  private normalizeData() {
+    // Si ya tiene la estructura anidada, no hacemos nada
+    if (this.calculatorData.demolition && this.calculatorData.reform) {
+      console.log("[v0] BudgetGenerator - Data already nested, no normalization needed")
+      return
+    }
+
+    console.log("[v0] BudgetGenerator - Normalizing flat data to nested structure...")
+    const flat = this.calculatorData
+
+    this.calculatorData = {
+      demolition: {
+        rooms: flat.rooms || [],
+        config: flat.global_config || flat.demolition_config || {},
+        settings: flat.demolition_settings || {}
+      },
+      reform: {
+        rooms: flat.reform_rooms || flat.reformRooms || [],
+        config: flat.reform_config || flat.reformConfig || {},
+        partitions: flat.partitions || [],
+        wallLinings: flat.wall_linings || flat.wallLinings || []
+      },
+      electrical: {
+        config: flat.electrical_config || flat.electricalConfig || {}
+      },
+      globalConfig: flat.global_config || flat.globalConfig || {},
+      project: flat.project || {}
+    }
+
+    console.log("[v0] BudgetGenerator - Normalized data:", JSON.stringify(this.calculatorData, null, 2))
   }
 
   /**
@@ -69,45 +107,53 @@ export class BudgetGenerator {
 
     await this.loadPriceCatalog(this.supabase) // Pass supabase client
 
+
+
     // 01. DERRIBOS
+    console.log("[v0] BudgetGenerator - Calling generateDemolitionItems()...")
     this.generateDemolitionItems()
+    console.log("[v0] BudgetGenerator - lineItems after demolition:", this.lineItems.length)
 
     // 02. ALBAÑILERÍA
-    // Renamed to generateAlbanileriaBudget for consistency
+    console.log("[v0] BudgetGenerator - Calling generateAlbanileriaBudget()...")
     this.generateAlbanileriaBudget()
+    console.log("[v0] BudgetGenerator - lineItems after masonry:", this.lineItems.length)
 
     // 03. TABIQUES Y TRASDOSADOS
     this.generatePartitionsItems()
+    console.log("[v0] BudgetGenerator - lineItems after partitions:", this.lineItems.length)
 
     // 04. FONTANERÍA
     this.generatePlumbingItems()
+    console.log("[v0] BudgetGenerator - lineItems after plumbing:", this.lineItems.length)
 
     // 05. CARPINTERÍA
     this.generateCarpentryItems()
+    console.log("[v0] BudgetGenerator - lineItems after carpentry:", this.lineItems.length)
 
-    // 07. CALEFACCIÓN (moved before electrical to calculate heater outlets first)
-    console.log("[v0] ========== CALLING HEATING GENERATION NOW ==========")
+    // 07. CALEFACCIÓN
     this.generateHeatingItems()
-    console.log("[v0] ========== HEATING GENERATION COMPLETED ==========")
+    console.log("[v0] BudgetGenerator - lineItems after heating:", this.lineItems.length)
 
     // 06. ELECTRICIDAD
-    console.log("[v0] ========== CALLING ELECTRICAL GENERATION NOW ==========")
-    this.generateElectricalItems() // Electrical generation is now called AFTER heating
-    console.log("[v0] ========== ELECTRICAL GENERATION COMPLETED ==========")
+    this.generateElectricalItems()
+    console.log("[v0] BudgetGenerator - lineItems after electrical:", this.lineItems.length)
 
     // 08. LIMPIEZA
     this.generateCleaningItems()
+    console.log("[v0] BudgetGenerator - lineItems after cleaning:", this.lineItems.length)
 
     // 09. PINTURA
     this.generatePaintingItems()
+    console.log("[v0] BudgetGenerator - lineItems after painting:", this.lineItems.length)
 
     // 10. MATERIALES
     this.generateMaterialsItems()
+    console.log("[v0] BudgetGenerator - lineItems after materials:", this.lineItems.length)
 
     // 11. VENTANAS
     this.generateWindowsItems()
-
-    console.log("[v0] BudgetGenerator - Generated line items:", this.lineItems.length)
+    console.log("[v0] BudgetGenerator - lineItems final:", this.lineItems.length)
 
     return this.lineItems
   }
@@ -123,37 +169,52 @@ export class BudgetGenerator {
       throw new Error("Usuario no autenticado")
     }
 
-    // Cargar precios master
+    // 0. Cargar todas las categorías para mapeo manual (más robusto que joins de Supabase)
+    const { data: categoriesData, error: categoriesError } = await supabaseClient
+      .from("price_categories")
+      .select("id, name")
+
+    if (categoriesError) {
+      console.error("[v0] BudgetGenerator - Error loading price categories:", categoriesError)
+    }
+
+    const categoryNamesMap = new Map<string, string>()
+    if (categoriesData) {
+      categoriesData.forEach((cat) => categoryNamesMap.set(cat.id, cat.name))
+      console.log(`[v0] BudgetGenerator - Loaded ${categoriesData.length} price categories`)
+    }
+
+    // 1. Cargar precios master
     const { data: masterPrices, error: masterError } = await supabaseClient
       .from("price_master")
-      .select(
-        "id, code, category:price_categories(name), subcategory, description, unit, final_price, notes, color, brand, model",
-      )
+      .select("id, code, category_id, subcategory, description, unit, final_price, notes, color, brand, model")
       .eq("is_active", true)
 
     if (masterError) {
-      console.error("[v0] BudgetGenerator - Error loading master prices:", masterError)
-      throw new Error("Error al cargar el catálogo de precios maestros")
+      console.error("[v0] BudgetGenerator - Error loading master prices:", {
+        message: masterError.message,
+        code: masterError.code,
+        details: masterError.details,
+        hint: masterError.hint,
+      })
+      throw new Error(`Error al cargar el catálogo de precios maestros: ${masterError.message}`)
     }
 
-    // Cargar precios personalizados del usuario (sobrescriben los master)
-    const { data: userPrices, error: userError } = await supabaseClient
-      .from("user_prices")
-      .select("id, code, category_id, subcategory, description, unit, final_price, notes, color, brand, model")
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-
-    if (userError) {
-      console.error("[v0] BudgetGenerator - Error loading user prices:", userError)
-      // No lanzar error, continuar solo con precios master
+    if (masterPrices && masterPrices.length > 0) {
+      console.log(`[v0] BudgetGenerator - Loaded ${masterPrices.length} master prices. First 5 codes:`, masterPrices.slice(0, 5).map(p => p.code))
+    } else {
+      console.warn("[v0] BudgetGenerator - NO master prices loaded from database (is_active=true)")
     }
 
     // Cache master prices first
     masterPrices?.forEach((price) => {
-      this.priceCache.set(price.code, {
+      const trimmedCode = price.code?.trim()
+      if (!trimmedCode) return
+
+      this.priceCache.set(trimmedCode, {
         id: price.id,
-        code: price.code,
-        category: price.category?.name || "Sin categoría",
+        code: trimmedCode,
+        category: categoryNamesMap.get(price.category_id) || "Sin categoría",
         subcategory: price.subcategory,
         description: price.description,
         unit: price.unit,
@@ -165,19 +226,28 @@ export class BudgetGenerator {
       })
     })
 
-    if (userPrices && userPrices.length > 0) {
-      for (const userPrice of userPrices) {
-        // Obtener categoría del precio
-        const { data: category } = await supabaseClient
-          .from("price_categories")
-          .select("name")
-          .eq("id", userPrice.category_id)
-          .single()
+    // 2. Cargar precios personalizados del usuario (sobrescriben los master)
+    const { data: userPrices, error: userError } = await supabaseClient
+      .from("user_prices")
+      .select("id, code, category_id, subcategory, description, unit, final_price, notes, color, brand, model")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
 
-        this.priceCache.set(userPrice.code, {
+    if (userError) {
+      console.error("[v0] BudgetGenerator - Error loading user prices:", userError)
+      // No lanzar error, continuar solo con precios master
+    }
+
+    if (userPrices && userPrices.length > 0) {
+      console.log(`[v0] BudgetGenerator - Loaded ${userPrices.length} personalized prices. First 5 codes:`, userPrices.slice(0, 5).map(p => p.code))
+      userPrices.forEach((userPrice) => {
+        const trimmedCode = userPrice.code?.trim()
+        if (!trimmedCode) return
+
+        this.priceCache.set(trimmedCode, {
           id: userPrice.id,
-          code: userPrice.code,
-          category: category?.name || "Sin categoría",
+          code: trimmedCode,
+          category: categoryNamesMap.get(userPrice.category_id) || "Sin categoría",
           subcategory: userPrice.subcategory,
           description: userPrice.description,
           unit: userPrice.unit,
@@ -187,17 +257,17 @@ export class BudgetGenerator {
           brand: userPrice.brand,
           model: userPrice.model,
         })
-      }
-      console.log(`[v0] BudgetGenerator - Loaded ${userPrices.length} personalized prices (override master)`)
+      })
     }
 
     console.log(`[v0] BudgetGenerator - Total prices in cache: ${this.priceCache.size}`)
   }
 
   private addLineItem(priceCode: string, quantity = 1, customNotes?: string, customPrice?: number) {
-    const priceItem = this.priceCache.get(priceCode)
+    const trimmedCode = priceCode.trim()
+    const priceItem = this.priceCache.get(trimmedCode)
     if (!priceItem) {
-      console.warn(`[v0] BudgetGenerator - Price not found in database: ${priceCode}`)
+      console.warn(`[v0] BudgetGenerator - Price not found in database: "${trimmedCode}" (Cache size: ${this.priceCache.size})`)
       return
     }
 
@@ -245,8 +315,8 @@ export class BudgetGenerator {
       sort_order: this.sortOrder++,
       base_price_id:
         priceItem.id &&
-        typeof priceItem.id === "string" &&
-        priceItem.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+          typeof priceItem.id === "string" &&
+          priceItem.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
           ? priceItem.id
           : undefined,
       price_type: "master", // Origen: catálogo maestro
@@ -282,9 +352,8 @@ export class BudgetGenerator {
    * 1. DERRIBOS - Genera partidas de demolición
    */
   private generateDemolitionItems() {
-    // </CHANGE> changed comment from "01. DERRIBOS" to "DERRIBOS" to match new category naming
     // DERRIBOS
-    const { demolition } = this.calculatorData
+    const demolition: any = this.calculatorData.demolition
 
     // This ensures that caldera/termo removal is always processed
     if (demolition?.config) {
@@ -315,7 +384,7 @@ export class BudgetGenerator {
     let totalLivingRoomFurnitureRemoval = 0
     let totalSewagePipesRemoval = 0
 
-    demolition.rooms.forEach((room) => {
+    demolition.rooms.forEach((room: any) => {
       // Picado de pavimento cerámico - verificar tanto removeFloor como removeAllCeramic
       const shouldRemoveCeramicFloor =
         (room.removeFloor || demolition.config?.removeAllCeramic) &&
@@ -392,7 +461,7 @@ export class BudgetGenerator {
 
       // Retirada de puertas
       if (room.hasDoors && room.doorList && room.doorList.length > 0) {
-        room.doorList.forEach((door) => {
+        room.doorList?.forEach((door: any) => {
           totalDoorsRemoval += 1
         })
       }
@@ -698,10 +767,10 @@ export class BudgetGenerator {
     console.log(`[v0] BudgetGenerator - Área que llevará embaldosado: ${floorTilingArea} m²`)
 
     if (demolition && demolition.rooms && demolition.rooms.length > 0) {
-      demolition.rooms.forEach((room) => {
+      demolition.rooms.forEach((room: any) => {
         const isBathroomOrKitchen = room.type === "Baño" || room.type === "Cocina"
 
-        const reformRoom = reform.rooms?.find((r) => r.type === room.type && r.number === room.number)
+        const reformRoom = reform.rooms?.find((r: any) => r.type === room.type && r.number === room.number)
         const willHaveTiling =
           tileAllFloors || (reformRoom && (reformRoom.type === "Baño" || reformRoom.type === "Cocina"))
 
@@ -825,11 +894,11 @@ export class BudgetGenerator {
     // 7. Lucido de paredes (calcular desde habitaciones que no tienen alicatado)
     let plasteringArea = 0
     if (reform.rooms && reform.rooms.length > 0) {
-      reform.rooms.forEach((room) => {
+      reform.rooms.forEach((room: any) => {
         // Solo lucir paredes si el material es "Lucir y pintar" o "Solo lucir"
         const shouldPlasterWalls = room.wallMaterial === "Lucir y pintar" || room.wallMaterial === "Solo lucir"
 
-        if (shouldPlasterWalls && room.type !== "Baño" && room.type !== "Cocina") {
+        if (shouldPlasterWalls && room.type !== "Baño" && room.type !== "Cocina" && room.type !== "Terraza") {
           let wallHeight = reform.config?.standardHeight || 2.8
 
           if (room.currentCeilingStatus === "lowered_keep" && room.currentCeilingHeight) {
@@ -856,7 +925,7 @@ export class BudgetGenerator {
     // 8. Bajada de techos (calcular desde habitaciones con techo bajo)
     let ceilingLoweringArea = 0
     if (reform.rooms && reform.rooms.length > 0) {
-      reform.rooms.forEach((room) => {
+      reform.rooms.forEach((room: any) => {
         // Si la habitación tiene una altura de techo nueva menor que la estándar, se baja el techo
         if (room.newCeilingHeight && room.newCeilingHeight < 2.8) {
           ceilingLoweringArea += room.area
@@ -926,7 +995,7 @@ export class BudgetGenerator {
    * 03. TABIQUES Y TRASDOSADOS - Genera partidas de tabiques y trasdosados
    */
   private generatePartitionsItems() {
-    const { reform } = this.calculatorData
+    const reform: any = this.calculatorData.reform
 
     console.log("[v0] BudgetGenerator - generatePartitionsItems called")
 
@@ -1011,12 +1080,13 @@ export class BudgetGenerator {
    * 04. FONTANERÍA - Genera partidas de fontanería
    */
   private generatePlumbingItems() {
-    const { reform, demolition } = this.calculatorData
+    const reform: any = this.calculatorData.reform
+    const demolition: any = this.calculatorData.demolition
 
     if (!reform || !reform.rooms) return
 
-    const bathrooms = reform.rooms.filter((r) => r.type === "Baño").length
-    const kitchens = reform.rooms.filter((r) => r.type?.includes("Cocina")).length
+    const bathrooms = reform.rooms.filter((r: any) => r.type === "Baño").length
+    const kitchens = reform.rooms.filter((r: any) => r.type?.includes("Cocina")).length
 
     console.log(`[v0] BudgetGenerator - Bathrooms: ${bathrooms}, Kitchens: ${kitchens}`)
 
@@ -1041,7 +1111,7 @@ export class BudgetGenerator {
     }
 
     // Bajante de fecales (si hay baños o si se retiran en demolición)
-    const sewagePipesCount = demolition?.rooms?.filter((r) => r.removeSewagePipes).length || 0
+    const sewagePipesCount = demolition?.rooms?.filter((r: any) => r.removeSewagePipes).length || 0
     if (sewagePipesCount > 0 || (bathrooms > 0 && reform.drainPipe)) {
       console.log(
         `[v0] BudgetGenerator - Generando partida: Retirada y colocación de bajante fecal PVC-110mm ${Math.max(sewagePipesCount, bathrooms)} ud`,
@@ -1112,7 +1182,8 @@ export class BudgetGenerator {
    * 05. CARPINTERÍA - Genera partidas de carpintería
    */
   private generateCarpentryItems() {
-    const { reform, demolition } = this.calculatorData
+    const reform: any = this.calculatorData.reform
+    const demolition: any = this.calculatorData.demolition
 
     if (!reform) return
 
@@ -1120,7 +1191,7 @@ export class BudgetGenerator {
     let vinylFlooringArea = 0
 
     if (reform.rooms && reform.rooms.length > 0) {
-      reform.rooms.forEach((room) => {
+      reform.rooms.forEach((room: any) => {
         console.log(
           `[v0] BudgetGenerator - Room ${room.type} ${room.number} floorMaterial: "${room.floorMaterial}", area: ${room.area}`,
         )
@@ -1239,7 +1310,8 @@ export class BudgetGenerator {
    */
   private generateHeatingItems() {
     console.log("[v0] BudgetGenerator - ENTRADA: generateHeatingItems")
-    const { demolition, reform } = this.calculatorData
+    const demolition: any = this.calculatorData.demolition
+    const reform: any = this.calculatorData.reform
 
     const heatingType = reform?.config?.reformHeatingType || "No Tiene"
     console.log("[v0] BudgetGenerator - Heating type:", heatingType)
@@ -1269,7 +1341,7 @@ export class BudgetGenerator {
       // Contar emisores eléctricos
       let totalElectricHeaters = 0
       if (reform?.rooms && reform.rooms.length > 0) {
-        reform.rooms.forEach((room) => {
+        reform.rooms.forEach((room: any) => {
           if (room.hasRadiator || (room.radiators && Array.isArray(room.radiators) && room.radiators.length > 0)) {
             const heaterCount = room.radiators?.length || 1
             totalElectricHeaters += heaterCount
@@ -1323,7 +1395,7 @@ export class BudgetGenerator {
       let changeRadiators = 0
 
       if (reform?.rooms && reform.rooms.length > 0) {
-        reform.rooms.forEach((room) => {
+        reform.rooms.forEach((room: any) => {
           if (room.radiatorAction === "Instalar") {
             installRadiators += room.radiatorCount || 0
           } else if (room.radiatorAction === "Cambiar") {
@@ -1366,7 +1438,7 @@ export class BudgetGenerator {
 
       let radiantFloorArea = 0
       if (reform?.rooms && reform.rooms.length > 0) {
-        reform.rooms.forEach((room) => {
+        reform.rooms.forEach((room: any) => {
           const roomType = room.type?.toLowerCase() || ""
           const isOutdoorSpace =
             roomType.includes("terraza") ||
@@ -1419,7 +1491,7 @@ export class BudgetGenerator {
    */
   private generateElectricalItems() {
     console.log("[v0] BudgetGenerator - ENTRADA: generateElectricalItems")
-    const { reform } = this.calculatorData
+    const reform: any = this.calculatorData.reform
 
     if (!reform || !reform.rooms) {
       console.log("[v0] BudgetGenerator - NO reform data, skipping electrical items")
@@ -1432,7 +1504,6 @@ export class BudgetGenerator {
 
     console.log("[v0] BudgetGenerator - Electrical config:", {
       electricalConfig: electricalConfig,
-      needsNewInstallation: electricalConfig?.needsNewInstallation,
       needsNewInstallation: needsNewInstallation,
     })
 
@@ -1452,7 +1523,7 @@ export class BudgetGenerator {
     let totalTVOutlets = 0
     let totalRecessedLights = 0
 
-    reform.rooms.forEach((room) => {
+    reform.rooms.forEach((room: any) => {
       if (room.electricalElements && Array.isArray(room.electricalElements)) {
         room.electricalElements.forEach((element: any) => {
           const quantity = element.quantity || 0
@@ -1637,7 +1708,7 @@ export class BudgetGenerator {
    * 09. PINTURA - Genera partidas de pintura (already correct)
    */
   private generatePaintingItems() {
-    const { reform } = this.calculatorData
+    const reform: any = this.calculatorData.reform
 
     if (!reform || !reform.rooms || reform.rooms.length === 0) {
       console.log("[v0] BudgetGenerator - NO reform data, skipping painting items")
@@ -1647,7 +1718,7 @@ export class BudgetGenerator {
     let wallPaintingArea = 0
     let ceilingPaintingArea = 0
 
-    reform.rooms.forEach((room) => {
+    reform.rooms.forEach((room: any) => {
       let wallHeight = reform.config?.standardHeight || 2.8
 
       if (room.currentCeilingStatus === "lowered_keep" && room.currentCeilingHeight) {
@@ -1702,7 +1773,7 @@ export class BudgetGenerator {
 
     if (!reform || !reform.rooms) return
 
-    const bathrooms = reform.rooms.filter((r) => r.type === "Baño").length
+    const bathrooms = reform.rooms.filter((r: any) => r.type === "Baño").length
 
     // Materiales de baño (por cada baño)
     if (bathrooms > 0) {
@@ -1737,7 +1808,7 @@ export class BudgetGenerator {
     let vinylFlooringArea = 0
 
     if (reform.rooms && reform.rooms.length > 0) {
-      reform.rooms.forEach((room) => {
+      reform.rooms.forEach((room: any) => {
         console.log(
           `[v0] BudgetGenerator - Materials - Room ${room.type} ${room.number} floorMaterial: "${room.floorMaterial}", area: ${room.area}`,
         )
@@ -1836,7 +1907,7 @@ export class BudgetGenerator {
     let bathroomRadiators = 0
 
     if (reform.rooms && reform.rooms.length > 0) {
-      reform.rooms.forEach((room) => {
+      reform.rooms.forEach((room: any) => {
         if (room.radiators && Array.isArray(room.radiators) && room.radiators.length > 0) {
           const radiatorCount = room.radiators.length
           if (room.type === "Baño") {
@@ -2056,7 +2127,7 @@ export class BudgetGenerator {
     if (!demolition || !demolition.rooms) return 0
 
     // Contar elementos de baño a retirar (3 por baño: inodoro, lavabo, ducha/bañera)
-    const bathrooms = demolition.rooms.filter((r) => r.type === "Baño").length
+    const bathrooms = demolition.rooms.filter((r: any) => r.type === "Baño").length
     return bathrooms * 3
   }
 
@@ -2067,7 +2138,7 @@ export class BudgetGenerator {
     let totalArea = 0
     const standardHeight = reform.config?.standardHeight || 2.8
 
-    reform.rooms.forEach((room) => {
+    reform.rooms.forEach((room: any) => {
       // Solo alicatar si el material de paredes es Cerámica/Cerámico y no es "No se modifica"
       const wallMaterial = (room.wallMaterial || "").toLowerCase()
       const isCeramic = wallMaterial === "cerámica" || wallMaterial === "cerámico"
@@ -2114,7 +2185,7 @@ export class BudgetGenerator {
     // Calcular área de embaldosado
     let totalArea = 0
 
-    reform.rooms.forEach((room) => {
+    reform.rooms.forEach((room: any) => {
       if (tileAllFloors) {
         console.log(
           `[v0] BudgetGenerator - calculateFloorTilingArea - Adding ${room.area} m² from ${room.type} ${room.number} (tileAllFloors)`,
@@ -2140,7 +2211,7 @@ export class BudgetGenerator {
     if (!reform || !reform.rooms) return 0
 
     // Sumar perimetro de todas las habitaciones
-    return reform.rooms.reduce((total, room) => total + room.perimeter, 0)
+    return reform.rooms.reduce((total: number, room: any) => total + (room.perimeter || 0), 0)
   }
 
   private countTotalDoors(): number {
@@ -2149,9 +2220,9 @@ export class BudgetGenerator {
 
     let totalDoors = 0
 
-    reform.rooms.forEach((room) => {
+    reform.rooms.forEach((room: any) => {
       if (room.doorList && room.doorList.length > 0) {
-        room.doorList.forEach((door) => {
+        room.doorList.forEach((door: any) => {
           totalDoors += 1
         })
       }
@@ -2172,9 +2243,9 @@ export class BudgetGenerator {
 
     let swingDoors = 0
 
-    reform.rooms.forEach((room) => {
+    reform.rooms.forEach((room: any) => {
       if (room.doorList && room.doorList.length > 0) {
-        room.doorList.forEach((door) => {
+        room.doorList.forEach((door: any) => {
           if (door.type === "Abatible") {
             swingDoors += 1
           }
@@ -2192,11 +2263,11 @@ export class BudgetGenerator {
 
     let slidingDoors = 0
 
-    reform.rooms.forEach((room) => {
+    reform.rooms.forEach((room: any) => {
       if (room.doorList && room.doorList.length > 0) {
         console.log(`[v0] BudgetGenerator - Room ${room.type} ${room.number} doors:`, room.doorList)
 
-        room.doorList.forEach((door) => {
+        room.doorList.forEach((door: any) => {
           console.log(`[v0] BudgetGenerator - Door type: "${door.type}", isExterior: ${door.isExterior}`)
 
           if ((door.type === "Corredera" || door.type === "Corredera empotrada") && !door.isExterior) {
@@ -2216,9 +2287,9 @@ export class BudgetGenerator {
 
     let exteriorSlidingDoors = 0
 
-    reform.rooms.forEach((room) => {
+    reform.rooms.forEach((room: any) => {
       if (room.doorList && room.doorList.length > 0) {
-        room.doorList.forEach((door) => {
+        room.doorList.forEach((door: any) => {
           if (door.type === "Corredera" && door.isExterior) {
             exteriorSlidingDoors += 1
           }
@@ -2258,7 +2329,7 @@ export class BudgetGenerator {
     let totalDebris = 0
 
     // Escombros de cerámica de suelo
-    demolition.rooms.forEach((room) => {
+    demolition.rooms.forEach((room: any) => {
       if (room.removeFalseCeiling || room.currentCeilingStatus === "lowered_remove" || room.falseCeiling) {
         const ceilingThickness = 0.015
         const expansionCoef = 1.4
@@ -2291,7 +2362,7 @@ export class BudgetGenerator {
 
       // Escombros de puertas
       if (room.hasDoors && room.doorList && room.doorList.length > 0) {
-        room.doorList.forEach((door) => {
+        room.doorList.forEach((door: any) => {
           totalDebris += 0.06
         })
       }

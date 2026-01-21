@@ -156,6 +156,7 @@ export default function ProjectDetailPage() {
 
   const fetchProject = useCallback(async () => {
     try {
+      // 1. Obtener datos del proyecto
       const { data: projectData, error: projectError } = await supabase
         .from("coordinator_projects")
         .select("*")
@@ -165,14 +166,36 @@ export default function ProjectDetailPage() {
       if (projectError) throw projectError
       setProject(projectData)
 
+      // 2. Obtener gremios del proyecto (sin el select anidado que puede fallar)
       const { data: tradesData, error: tradesError } = await supabase
         .from("coordinator_project_trades")
-        .select("*, trade_types(name, icon)")
+        .select("*")
         .eq("project_id", id)
         .order("created_at", { ascending: true })
 
       if (tradesError) throw tradesError
-      setTrades(tradesData || [])
+
+      // 3. Obtener tipos de gremio para mapeo manual (más robusto)
+      const { data: typesData, error: typesError } = await supabase
+        .from("trade_types")
+        .select("id, name, icon")
+
+      if (typesError) {
+        console.error("Error fetching trade types for mapping:", typesError)
+      }
+
+      const typesMap = new Map<string, { name: string; icon: string }>()
+      if (typesData) {
+        typesData.forEach(t => typesMap.set(t.id, { name: t.name, icon: t.icon }))
+      }
+
+      // 4. Combinar datos
+      const formattedTrades = (tradesData || []).map(trade => ({
+        ...trade,
+        trade_types: typesMap.get(trade.trade_type_id) || null
+      }))
+
+      setTrades(formattedTrades)
     } catch (error) {
       console.error("Error fetching project:", error)
       toast({
@@ -335,17 +358,29 @@ export default function ProjectDetailPage() {
 
       if (error) throw error
 
-      // Fetch updated trade with trade_types relation
+      // Fetch updated trade (without nested select)
       const { data: updatedTrade, error: fetchError } = await supabase
         .from("coordinator_project_trades")
-        .select("*, trade_types(name, icon)")
+        .select("*")
         .eq("id", selectedTrade.id)
         .single()
 
       if (fetchError) throw fetchError
 
+      // Fetch trade type detail if needed for state update
+      const { data: typeData } = await supabase
+        .from("trade_types")
+        .select("name, icon")
+        .eq("id", updatedTrade.trade_type_id)
+        .single()
+
+      const tradeWithRelation = {
+        ...updatedTrade,
+        trade_types: typeData || null
+      }
+
       // Update the trades state with the updated trade
-      setTrades(trades.map((t) => (t.id === selectedTrade.id ? updatedTrade : t)))
+      setTrades(trades.map((t) => (t.id === selectedTrade.id ? tradeWithRelation : t)))
 
       toast({
         title: "Gremio actualizado",
@@ -864,9 +899,9 @@ export default function ProjectDetailPage() {
                       <td className="text-right p-3 text-orange-600">
                         {formatCurrency(
                           totalClientPrice +
-                            (project.coordination_fee_type === "percentage"
-                              ? totalClientPrice * (project.coordination_fee / 100)
-                              : project.coordination_fee),
+                          (project.coordination_fee_type === "percentage"
+                            ? totalClientPrice * (project.coordination_fee / 100)
+                            : project.coordination_fee),
                         )}
                       </td>
                     </tr>

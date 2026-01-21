@@ -103,7 +103,7 @@ export async function POST(request: Request) {
       console.log("[v0] Rechazando otras propuestas...")
       const { data: otherProposals, error: fetchOthersError } = await supabaseAdmin
         .from("professional_proposals")
-        .select("id, professional_id, profiles(full_name, company_name, email)")
+        .select("id, professional_id")
         .eq("lead_request_id", proposal.lead_request_id)
         .neq("id", proposalId)
         .eq("status", "pending")
