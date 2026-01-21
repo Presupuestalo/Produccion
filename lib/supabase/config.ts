@@ -8,12 +8,11 @@ export function getSupabaseConfig() {
     process.env.SUPABASE_NEXT_PUBLIC_SUPABASE_URL ||
     ""
 
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ""
-
-  console.log("[v0] Supabase Config Check:", {
-    url: url ? "✓ Found" : "✗ Missing",
-    anonKey: anonKey ? "✓ Found" : "✗ Missing",
-  })
+  const anonKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    ""
 
   return { url, anonKey }
 }
