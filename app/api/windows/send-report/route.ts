@@ -31,6 +31,10 @@ export async function POST(request: Request) {
 
     const supabase = await createClient()
 
+    if (!supabase) {
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
+    }
+
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -176,18 +180,18 @@ www.presupuestalo.com
     
     <h3>Detalle de Ventanas</h3>
     ${groupedWindows
-      .map((group, i) => {
-        const w = group.window
-        const extras = []
-        if (w.hasBlind) extras.push("Persiana")
-        if (w.hasFixedPanel) extras.push("Fijo")
-        if (w.hasMotor) extras.push("Motor ElÃ©ctrico")
-        if (w.hasMosquitera) extras.push("Mosquitera")
-        if (w.hasCatFlap) extras.push("Gatera")
-        const displayType = glassTypeDisplayMap[w.glassType] || w.glassType || "No especificado"
-        const roomsLabel = group.rooms.length > 0 ? ` - ${group.rooms.join(", ")}` : ""
+        .map((group, i) => {
+          const w = group.window
+          const extras = []
+          if (w.hasBlind) extras.push("Persiana")
+          if (w.hasFixedPanel) extras.push("Fijo")
+          if (w.hasMotor) extras.push("Motor ElÃ©ctrico")
+          if (w.hasMosquitera) extras.push("Mosquitera")
+          if (w.hasCatFlap) extras.push("Gatera")
+          const displayType = glassTypeDisplayMap[w.glassType] || w.glassType || "No especificado"
+          const roomsLabel = group.rooms.length > 0 ? ` - ${group.rooms.join(", ")}` : ""
 
-        return `
+          return `
       <div class="window">
         <div class="window-title">
           Ventana ${i + 1}${roomsLabel}
@@ -202,8 +206,8 @@ www.presupuestalo.com
         <strong>Extras:</strong> ${extras.length > 0 ? extras.join(", ") : "Ninguno"}
       </div>
     `
-      })
-      .join("")}
+        })
+        .join("")}
     
     <div class="section">
       <h3>Datos de Contacto</h3>
@@ -225,7 +229,7 @@ www.presupuestalo.com
     const resend = new Resend(process.env.RESEND_API_KEY)
 
     const { data, error } = await resend.emails.send({
-      from: "PresupuÃ©stalo <noreply@presupuestalo.com>",
+      from: "Presupuéstalo <noreply@presupuestalo.com>",
       to: recipientEmail,
       subject: `Presupuesto ventanas - ${projectName}`,
       text: emailText,
