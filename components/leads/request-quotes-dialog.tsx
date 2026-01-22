@@ -473,11 +473,16 @@ export function RequestQuotesDialog({
                   <span className="text-gray-500">Proyecto:</span>
                   <span className="font-medium">{projectTitle}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between items-baseline text-sm">
                   <span className="text-gray-500">Presupuesto estimado:</span>
-                  <span className="font-medium text-orange-600">
-                    {estimatedBudget.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €
-                  </span>
+                  <div className="text-right">
+                    <span className="font-medium text-orange-600">
+                      {estimatedBudget.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €
+                    </span>
+                    <span className="block text-[10px] text-gray-400 font-normal -mt-0.5">
+                      (impuestos no incluidos)
+                    </span>
+                  </div>
                 </div>
               </div>
 
