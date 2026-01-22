@@ -438,6 +438,7 @@ export async function POST(req: Request) {
                 creditsCost: creditsCost
               })
 
+              console.log(`[v0] Enviando email a profesional: ${prof.email}`)
               return fetch("https://api.resend.com/emails", {
                 method: "POST",
                 headers: {
@@ -445,9 +446,9 @@ export async function POST(req: Request) {
                   Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
                 },
                 body: JSON.stringify({
-                  from: "Presupuéstalo <notificaciones@presupuestalo.com>",
+                  from: "Presupuéstalo <onboarding@resend.dev>",
                   to: [prof.email],
-                  subject: `ðŸ”  Nuevo proyecto en ${reformCity}: ${formattedBudget}`,
+                  subject: `Nuevo proyecto en ${reformCity}: ${formattedBudget}`,
                   html: profEmailHtml,
                 }),
               })

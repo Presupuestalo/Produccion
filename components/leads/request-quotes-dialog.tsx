@@ -315,43 +315,48 @@ export function RequestQuotesDialog({
   }
 
   const handleSubmit = async () => {
+    console.log("[v0] handleSubmit iniciado")
     if (!reformCity.trim()) {
+      console.log("[v0] Error: Ciudad vacía")
       toast({ title: "Error", description: "La ciudad es requerida", variant: "destructive" })
       return
     }
 
     setIsSubmitting(true)
     try {
-      const supabase = await createClient()
-      if (!supabase) throw new Error("No se pudo inicializar Supabase")
+      console.log("[v0] Preparando datos para el envío...")
+      const fullPhone = phone.startsWith("+") ? phone : `+${userCountry === "ES" ? "34" : userCountry}${phone}`
 
-      // Actualizar nombre en perfil si cambió
-      if (userId && fullName !== originalProfileName) {
-        await supabase.from("profiles").update({ full_name: fullName }).eq("id", userId)
+      const payload = {
+        projectId,
+        budgetId,
+        estimatedBudget,
+        fullName: fullName.trim(),
+        phone: fullPhone,
+        reformStreet: reformStreet || "No especificada",
+        reformCity: reformCity.trim(),
+        reformProvince: reformProvince || reformCity,
+        reformCountry: "España",
+        additionalDetails,
       }
 
-      const fullPhone = phone.startsWith("+") ? phone : `+${userCountry === "ES" ? "34" : userCountry}${phone}`
+      console.log("[v0] Enviando solicitud a /api/leads/publish:", payload)
 
       const response = await fetch("/api/leads/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId,
-          budgetId,
-          estimatedBudget,
-          fullName: fullName.trim(),
-          phone: fullPhone,
-          reformStreet: reformStreet || "No especificada",
-          reformCity: reformCity.trim(),
-          reformProvince: reformProvince || reformCity,
-          reformCountry: "España",
-          additionalDetails,
-        }),
+        body: JSON.stringify(payload),
       })
 
+      console.log("[v0] Respuesta recibida, status:", response.status)
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "Error al publicar")
+      console.log("[v0] Cuerpo de respuesta:", data)
 
+      if (!response.ok) {
+        throw new Error(data.error || "Error al publicar")
+      }
+
+      console.log("[v0] Publicación exitosa!")
       setStep("success")
       toast({ title: "Publicado", description: "Tu solicitud ha sido publicada" })
     } catch (error: any) {
