@@ -7,7 +7,7 @@ export async function GET(request: Request) {
     const forwardedFor = request.headers.get("x-forwarded-for")
     const ip = forwardedFor?.split(",")[0]?.trim() || "unknown"
 
-    // Si es localhost o IP privada, devolver EspaÃ±a por defecto
+    // Si es localhost o IP privada, devolver España por defecto
     if (ip === "unknown" || ip === "127.0.0.1" || ip.startsWith("192.168.") || ip.startsWith("10.")) {
       return NextResponse.json({ country: "ES", ip })
     }

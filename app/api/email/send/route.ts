@@ -13,7 +13,7 @@ import {
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-const FROM_EMAIL = "PresupuÃ©stalo <notificaciones@presupuestalo.com>"
+const FROM_EMAIL = "Presupuéstalo <notificaciones@presupuestalo.com>"
 
 export async function POST(request: NextRequest) {
   try {

@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-// GET /api/referrals/stats - Obtener estadÃ­sticas de referidos del usuario
+// GET /api/referrals/stats - Obtener estadísticas de referidos del usuario
 export async function GET() {
   try {
     const supabase = await createClient()
@@ -16,7 +16,7 @@ export async function GET() {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    // Obtener cÃ³digo del usuario
+    // Obtener código del usuario
     const { data: referralCode } = await supabase
       .from("referral_codes")
       .select("*")
@@ -48,7 +48,7 @@ export async function GET() {
 
     const totalCreditsEarned = rewards?.reduce((sum, r) => sum + r.credits_amount, 0) || 0
 
-    // Calcular estadÃ­sticas
+    // Calcular estadísticas
     const stats = {
       code: referralCode?.code || null,
       maxUses: referralCode?.max_uses || 5,

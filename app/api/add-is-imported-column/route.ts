@@ -28,7 +28,7 @@ export async function POST() {
 ALTER TABLE public.price_master 
 ADD COLUMN IF NOT EXISTS is_imported BOOLEAN DEFAULT false;
 
--- Actualizar la polÃ­tica RLS si es necesario
+-- Actualizar la política RLS si es necesario
 COMMENT ON COLUMN public.price_master.is_imported IS 'Indica si el precio fue importado desde un PDF';
         `,
       },
@@ -46,7 +46,7 @@ COMMENT ON COLUMN public.price_master.is_imported IS 'Indica si el precio fue im
 ALTER TABLE public.price_master 
 ADD COLUMN IF NOT EXISTS is_imported BOOLEAN DEFAULT false;
 
--- Actualizar la polÃ­tica RLS si es necesario
+-- Actualizar la política RLS si es necesario
 COMMENT ON COLUMN public.price_master.is_imported IS 'Indica si el precio fue importado desde un PDF';
         `,
       },

@@ -15,7 +15,7 @@ export async function POST() {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    console.log("[v0] Iniciando normalizaciÃ³n de precios para todos los paÃ­ses")
+    console.log("[v0] Iniciando normalización de precios para todos los países")
 
     // Ejecutar scripts SQL en orden
     const scripts = [
@@ -52,7 +52,7 @@ export async function POST() {
           error: error.message,
         })
       } else {
-        console.log(`[v0] âœ… ${scriptName} ejecutado correctamente`)
+        console.log(`[v0] ✅ ${scriptName} ejecutado correctamente`)
         results.push({
           script: scriptName,
           success: true,
@@ -74,20 +74,20 @@ export async function POST() {
       )
     }
 
-    // Obtener estadÃ­sticas finales
+    // Obtener estadísticas finales
     const { data: stats } = await supabase.rpc("get_price_statistics")
 
     return NextResponse.json({
       success: true,
-      message: "NormalizaciÃ³n completada exitosamente",
+      message: "Normalización completada exitosamente",
       results,
       statistics: stats,
     })
   } catch (error) {
-    console.error("[v0] Error general en normalizaciÃ³n:", error)
+    console.error("[v0] Error general en normalización:", error)
     return NextResponse.json(
       {
-        error: "Error ejecutando normalizaciÃ³n",
+        error: "Error ejecutando normalización",
         details: error instanceof Error ? error.message : "Error desconocido",
       },
       { status: 500 },
@@ -107,11 +107,11 @@ export async function GET() {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    // Obtener estadÃ­sticas de precios por paÃ­s
+    // Obtener estadísticas de precios por país
     const countries = [
-      { code: "ES", name: "EspaÃ±a", table: "price_master" },
-      { code: "PE", name: "PerÃº", table: "price_master_peru" },
-      { code: "MX", name: "MÃ©xico", table: "price_master_mexico" },
+      { code: "ES", name: "España", table: "price_master" },
+      { code: "PE", name: "Perú", table: "price_master_peru" },
+      { code: "MX", name: "México", table: "price_master_mexico" },
       { code: "CO", name: "Colombia", table: "price_master_colombia" },
       { code: "AR", name: "Argentina", table: "price_master_argentina" },
       { code: "CL", name: "Chile", table: "price_master_chile" },
@@ -142,8 +142,8 @@ export async function GET() {
       total_countries: statistics.length,
     })
   } catch (error) {
-    console.error("[v0] Error obteniendo estadÃ­sticas:", error)
-    return NextResponse.json({ error: "Error obteniendo estadÃ­sticas" }, { status: 500 })
+    console.error("[v0] Error obteniendo estadísticas:", error)
+    return NextResponse.json({ error: "Error obteniendo estadísticas" }, { status: 500 })
   }
 }
 

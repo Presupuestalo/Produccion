@@ -81,21 +81,21 @@ export async function POST(request: NextRequest) {
     const { object } = await generateObject({
       model: "openai/gpt-4o",
       schema: floorPlanSchema,
-      prompt: `Analiza este plano arquitectÃ³nico 2D y extrae la informaciÃ³n de las habitaciones, paredes, puertas y ventanas.
+      prompt: `Analiza este plano arquitectónico 2D y extrae la información de las habitaciones, paredes, puertas y ventanas.
 
-Proporciona la informaciÃ³n con la siguiente estructura:
+Proporciona la información con la siguiente estructura:
 - rooms: array de habitaciones, cada una con:
-  - id: identificador Ãºnico (ej: "room-1", "room-2")
-  - type: tipo de habitaciÃ³n (ej: "living-room", "bedroom", "kitchen", "bathroom")
+  - id: identificador único (ej: "room-1", "room-2")
+  - type: tipo de habitación (ej: "living-room", "bedroom", "kitchen", "bathroom")
   - dimensions: ancho (width), largo (length) y altura (height) en metros
-  - position: posiciÃ³n x, y, z en el espacio 3D
+  - position: posición x, y, z en el espacio 3D
   - walls: array de paredes con puntos de inicio y fin { x, y }
-  - doors: array de puertas con posiciÃ³n { x, y } y ancho
-  - windows: array de ventanas con posiciÃ³n { x, y }, ancho y altura
+  - doors: array de puertas con posición { x, y } y ancho
+  - windows: array de ventanas con posición { x, y }, ancho y altura
 
 Imagen del plano: ${publicUrl}
 
-Si no puedes analizar la imagen, crea un ejemplo bÃ¡sico con 2-3 habitaciones.`,
+Si no puedes analizar la imagen, crea un ejemplo básico con 2-3 habitaciones.`,
     })
 
     console.log("[v0] Floor plan analysis result:", object)

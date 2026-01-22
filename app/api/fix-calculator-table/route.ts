@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   try {
     const supabase = createClient()
 
-    // Verificar si el usuario estÃ¡ autenticado
+    // Verificar si el usuario está autenticado
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -22,13 +22,13 @@ export async function POST(request: Request) {
       // Verificar si la columna reform_rooms existe
       const { error: columnError } = await supabase.from("calculator_data").select("reform_rooms").limit(1)
 
-      // Si hay un error y es porque la columna no existe, aÃ±adirla
+      // Si hay un error y es porque la columna no existe, añadirla
       if (
         columnError &&
         columnError.message.includes("does not exist") &&
         columnError.message.includes("reform_rooms")
       ) {
-        // AÃ±adir la columna reform_rooms
+        // Añadir la columna reform_rooms
         const alterTableSQL = `
        ALTER TABLE public.calculator_data 
        ADD COLUMN IF NOT EXISTS reform_rooms JSONB;
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 
         return NextResponse.json({
           success: true,
-          message: "Columna reform_rooms aÃ±adida correctamente",
+          message: "Columna reform_rooms añadida correctamente",
         })
       }
 
@@ -52,13 +52,13 @@ export async function POST(request: Request) {
         .select("electrical_config")
         .limit(1)
 
-      // Si hay un error y es porque la columna no existe, aÃ±adirla
+      // Si hay un error y es porque la columna no existe, añadirla
       if (
         electricalColumnError &&
         electricalColumnError.message.includes("does not exist") &&
         electricalColumnError.message.includes("electrical_config")
       ) {
-        // AÃ±adir la columna electrical_config
+        // Añadir la columna electrical_config
         const alterTableSQL = `
        ALTER TABLE public.calculator_data 
        ADD COLUMN IF NOT EXISTS electrical_config JSONB;
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
 
         return NextResponse.json({
           success: true,
-          message: "Columna electrical_config aÃ±adida correctamente",
+          message: "Columna electrical_config añadida correctamente",
         })
       }
 
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
         instructions: `
      Para crear la tabla calculator_data, ejecuta el siguiente SQL en el Editor SQL de Supabase:
 
-     -- Asegurarse de que la extensiÃ³n uuid-ossp estÃ¡ habilitada
+     -- Asegurarse de que la extensión uuid-ossp está habilitada
      CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
      CREATE TABLE IF NOT EXISTS public.calculator_data (
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
      -- Configurar seguridad RLS
      ALTER TABLE public.calculator_data ENABLE ROW LEVEL SECURITY;
 
-     -- Crear polÃ­tica para que los usuarios solo puedan ver sus propios datos
+     -- Crear política para que los usuarios solo puedan ver sus propios datos
      CREATE POLICY "Users can view their own calculator data" 
        ON public.calculator_data 
        FOR SELECT 
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
          )
        );
 
-     -- Crear polÃ­tica para que los usuarios solo puedan insertar sus propios datos
+     -- Crear política para que los usuarios solo puedan insertar sus propios datos
      CREATE POLICY "Users can insert their own calculator data" 
        ON public.calculator_data 
        FOR INSERT 
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
          )
        );
 
-     -- Crear polÃ­tica para que los usuarios solo puedan actualizar sus propios datos
+     -- Crear política para que los usuarios solo puedan actualizar sus propios datos
      CREATE POLICY "Users can update their own calculator data" 
        ON public.calculator_data 
        FOR UPDATE 
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
          )
        );
 
-     -- Crear polÃ­tica para que los usuarios solo puedan eliminar sus propios datos
+     -- Crear política para que los usuarios solo puedan eliminar sus propios datos
      CREATE POLICY "Users can delete their own calculator data" 
        ON public.calculator_data 
        FOR DELETE 

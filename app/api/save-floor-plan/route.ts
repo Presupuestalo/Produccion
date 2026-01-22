@@ -12,7 +12,7 @@ export async function POST(request: Request) {
 
     const supabase = createClient()
 
-    // Verificar si el usuario estÃ¡ autenticado
+    // Verificar si el usuario está autenticado
     const {
       data: { session },
     } = await supabase.auth.getSession()

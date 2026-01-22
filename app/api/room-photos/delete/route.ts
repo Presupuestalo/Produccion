@@ -20,12 +20,12 @@ export async function DELETE(request: Request) {
 
     const supabase = await createClient()
 
-    // Verificar autenticaciÃ³n
+    // Verificar autenticación
     const {
       data: { session },
     } = await supabase.auth.getSession()
 
-    console.log("[v0] API /room-photos/delete - SesiÃ³n:", {
+    console.log("[v0] API /room-photos/delete - Sesión:", {
       tieneSession: !!session,
       userId: session?.user?.id,
     })
@@ -58,7 +58,7 @@ export async function DELETE(request: Request) {
 
     if (storageError) {
       console.error("[v0] API /room-photos/delete - Error al eliminar de Storage:", storageError)
-      // Continuar con la eliminaciÃ³n de la BD aunque falle el Storage
+      // Continuar con la eliminación de la BD aunque falle el Storage
     }
 
     // Eliminar registro de la base de datos

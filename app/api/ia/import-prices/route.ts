@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     const userCountry = profile?.country || "ES"
     const userTable = getUserPriceTableByCountry(userCountry)
 
-    console.log("[v0] PaÃ­s del usuario:", userCountry)
+    console.log("[v0] País del usuario:", userCountry)
     console.log("[v0] Tabla de destino:", userTable)
     console.log("[v0] Downloading PDF from:", pdfUrl)
 
@@ -99,16 +99,16 @@ export async function POST(request: NextRequest) {
 Devuelve un array JSON con esta estructura exacta:
 [
   {
-    "code": "cÃ³digo si existe o null",
-    "category": "DERRIBOS|ALBAÃ‘ILERÃA|FONTANERÃA|CARPINTERÃA|ELECTRICIDAD|CALEFACCIÃ“N|PINTURA|LIMPIEZA|MATERIALES",
-    "subcategory": "CONCEPTO EN MAYÃšSCULAS",
-    "description": "DescripciÃ³n detallada",
+    "code": "código si existe o null",
+    "category": "DERRIBOS|ALBAí‘ILERíA|FONTANERíA|CARPINTERíA|ELECTRICIDAD|CALEFACCIí“N|PINTURA|LIMPIEZA|MATERIALES",
+    "subcategory": "CONCEPTO EN MAYíšSCULAS",
+    "description": "Descripción detallada",
     "unit": "mÂ²|ml|ud|etc",
-    "labor_cost": nÃºmero,
-    "material_cost": nÃºmero,
-    "equipment_cost": nÃºmero,
-    "other_cost": nÃºmero,
-    "final_price": nÃºmero
+    "labor_cost": número,
+    "material_cost": número,
+    "equipment_cost": número,
+    "other_cost": número,
+    "final_price": número
   }
 ]
 
@@ -128,7 +128,7 @@ ${text.slice(0, 15000)}`,
     try {
       const jsonMatch = aiResponse.match(/\[[\s\S]*\]/)
       if (!jsonMatch) {
-        throw new Error("No se encontrÃ³ JSON en la respuesta")
+        throw new Error("No se encontró JSON en la respuesta")
       }
       prices = JSON.parse(jsonMatch[0])
     } catch (parseError) {

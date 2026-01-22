@@ -14,7 +14,7 @@ export async function GET() {
       limit: 100,
     })
 
-    // Filtrar solo los planes de suscripciÃ³n
+    // Filtrar solo los planes de suscripción
     const subscriptionProducts = products.data.filter(
       (p) => p.name.includes("Plan") || p.name.includes("Basic") || p.name.includes("Pro"),
     )

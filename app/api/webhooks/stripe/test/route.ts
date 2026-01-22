@@ -16,8 +16,8 @@ export async function GET() {
       return NextResponse.json(
         {
           configured: false,
-          message: "STRIPE_WEBHOOK_SECRET no estÃ¡ configurado",
-          instructions: "AÃ±ade la variable de entorno STRIPE_WEBHOOK_SECRET con el signing secret de Stripe",
+          message: "STRIPE_WEBHOOK_SECRET no está configurado",
+          instructions: "Añade la variable de entorno STRIPE_WEBHOOK_SECRET con el signing secret de Stripe",
         },
         { status: 500 },
       )
@@ -41,7 +41,7 @@ export async function GET() {
     return NextResponse.json({
       configured: true,
       database: true,
-      message: "Todo estÃ¡ configurado correctamente",
+      message: "Todo está configurado correctamente",
       webhookSecret: webhookSecret.substring(0, 10) + "...",
       instructions: [
         "1. Configura el webhook en Stripe Dashboard",
@@ -54,7 +54,7 @@ export async function GET() {
     return NextResponse.json(
       {
         configured: false,
-        message: "Error al verificar configuraciÃ³n",
+        message: "Error al verificar configuración",
         error: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },

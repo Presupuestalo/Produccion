@@ -1,0 +1,20 @@
+﻿Inspecting columns for relevant tables...
+Ô£à Table 'projects': Columns -> id, title, description, client, progress, status, duedate, budget, color, user_id, created_at, client_email, client_phone, client_address, client_notes, project_address, license_status, license_date, contract_signed, contract_date, street, project_floor, door, city, province, country, ceiling_height, structure_type, has_elevator, client_dni, country_code, client_country, client_street, client_city, client_province, client_postal_code, is_from_lead
+Ô£à Table 'quote_requests': EXISTS but NO DATA to inspect columns
+Ô£à Table 'quote_offers': EXISTS but NO DATA to inspect columns
+Ô£à Table 'project_floor_plans': EXISTS but NO DATA to inspect columns
+Ô£à Table 'calculator_data': Columns -> id, project_id, state, created_at, updated_at, global_config, demolition_settings, rooms, reform_rooms, electrical_config, reform_config, demolition_config, partitions, wall_linings
+Ô£à Table 'floor_plans': EXISTS but NO DATA to inspect columns
+ÔØî Table 'floor_plans_3d': ERROR/NOT FOUND (Could not find the table 'public.floor_plans_3d' in the schema cache)
+ÔØî Table 'generated_designs': ERROR/NOT FOUND (Could not find the table 'public.generated_designs' in the schema cache)
+Ô£à Table 'budget_comparisons': EXISTS but NO DATA to inspect columns
+Ô£à Table 'budgets': Columns -> id, project_id, user_id, version_number, name, description, is_original, parent_budget_id, status, subtotal, tax_rate, tax_amount, total, notes, created_at, updated_at, accepted_at, accepted_amount_without_vat, accepted_amount_with_vat, accepted_vat_rate, accepted_vat_amount, accepted_includes_vat
+Ô£à Table 'project_appointments': EXISTS but NO DATA to inspect columns
+Ô£à Table 'clients': EXISTS but NO DATA to inspect columns
+Ô£à Table 'professional_portfolio': EXISTS but NO DATA to inspect columns
+Ô£à Table 'user_company_settings': Columns -> user_id, company_name, company_address, company_city, company_province, company_country, company_postal_code, company_phone, company_email, company_website, company_logo_url, default_presentation_text, default_clarification_notes, show_vat, vat_percentage, created_at, updated_at, company_tax_id
+Ô£à Table 'budget_settings': Columns -> id, project_id, company_name, company_address, company_phone, company_email, company_website, company_logo_url, introduction_text, additional_notes, created_at, updated_at, show_vat, vat_percentage, modifications, status
+Ô£à Table 'user_prices': Columns -> id, user_id, base_price_id, code, category_id, subcategory, description, long_description, unit, labor_cost, material_cost, equipment_cost, other_cost, base_price, margin_percentage, final_price, is_active, is_imported, notes, color, brand, model, created_at, updated_at, is_custom
+Ô£à Table 'user_subscriptions': EXISTS but NO DATA to inspect columns
+Ô£à Table 'profiles': Columns -> id, user_type, full_name, company_name, phone, address, city, postal_code, subscription_plan, created_at, updated_at, role, country, stripe_customer_id, stripe_subscription_id, email, accepted_terms, terms_accepted_at, subscription_plan_id, avatar_url, dni_nif, address_street, address_city, address_province, address_postal_code, is_admin, phone_verified, is_coordinator, work_mode, total_claims_submitted, total_claims_approved, total_claims_rejected, claim_abuse_flag, accepted_privacy, marketing_consent
+Ô£à Table 'room_photos': Columns -> id, project_id, room_name, photo_url, storage_path, note, phase, user_id, created_at, updated_at

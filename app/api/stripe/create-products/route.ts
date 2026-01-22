@@ -21,7 +21,7 @@ export async function POST() {
     for (const pkg of CREDIT_PACKAGES) {
       const product = await stripe.products.create({
         name: pkg.name,
-        description: `${pkg.credits} crÃ©ditos para acceder a leads de clientes${pkg.bonus ? ` - ${pkg.bonus}` : ""}`,
+        description: `${pkg.credits} créditos para acceder a leads de clientes${pkg.bonus ? ` - ${pkg.bonus}` : ""}`,
         metadata: {
           package_id: pkg.id,
           credits: pkg.credits.toString(),
@@ -62,7 +62,7 @@ export async function POST() {
     for (const plan of SUBSCRIPTION_PLANS) {
       const product = await stripe.products.create({
         name: plan.name,
-        description: `SuscripciÃ³n ${plan.name} - Acceso completo a la plataforma`,
+        description: `Suscripción ${plan.name} - Acceso completo a la plataforma`,
         metadata: {
           plan_id: plan.id,
           type: "subscription",
@@ -108,12 +108,12 @@ export async function POST() {
       })
     }
 
-    // Generar el cÃ³digo actualizado
+    // Generar el código actualizado
     const updatedCode = `
-// === BONOS DE CRÃ‰DITOS ===
+// === BONOS DE CRí‰DITOS ===
 ${createdProducts.map((p) => `// ${p.name}: stripePriceId: "${p.priceId}"`).join("\n")}
 
-// === PLANES DE SUSCRIPCIÃ“N ===
+// === PLANES DE SUSCRIPCIí“N ===
 ${createdSubscriptions.map((s) => `// ${s.name}: monthly: "${s.monthlyPriceId}", yearly: "${s.yearlyPriceId}"`).join("\n")}
 `
 

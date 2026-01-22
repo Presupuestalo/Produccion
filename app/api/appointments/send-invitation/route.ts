@@ -10,7 +10,7 @@ const FROM_EMAIL = "citas@presupuestalo.com" // Cambia esto por tu dominio verif
 
 export async function POST(request: Request) {
   try {
-    console.log("[v0] ðŸ“§ Send invitation API called")
+    console.log("[v0] 📧 Send invitation API called")
     console.log(`[v0] ðŸ§ª Test mode: ${IS_TEST_MODE ? "ENABLED" : "DISABLED"}`)
 
     const { appointmentId, guestEmail, appointmentName, appointmentDate, address, description } = await request.json()
@@ -50,18 +50,18 @@ export async function POST(request: Request) {
       )
     }
 
-    console.log("[v0] âœ… Company settings loaded:", {
+    console.log("[v0] ✅ Company settings loaded:", {
       name: companySettings.company_name,
       email: companySettings.company_email,
     })
 
     const resendApiKey = process.env.RESEND_API_KEY
     if (!resendApiKey) {
-      console.error("[v0] âŒ RESEND_API_KEY no estÃ¡ configurada")
+      console.error("[v0] âŒ RESEND_API_KEY no está configurada")
       return NextResponse.json({ error: "Servicio de email no configurado" }, { status: 500 })
     }
 
-    console.log("[v0] âœ… RESEND_API_KEY found")
+    console.log("[v0] ✅ RESEND_API_KEY found")
 
     const date = new Date(appointmentDate)
     const formattedDate = format(date, "PPP", { locale: es })
@@ -71,8 +71,8 @@ export async function POST(request: Request) {
       ? `
       <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #f59e0b;">
         <strong>ðŸ§ª MODO DE PRUEBA</strong><br>
-        Este email se envÃ­a a ${VERIFIED_EMAIL} porque Resend estÃ¡ en modo de prueba.<br>
-        En producciÃ³n, este email se enviarÃ­a a: <strong>${guestEmail || companySettings.company_email}</strong>
+        Este email se envía a ${VERIFIED_EMAIL} porque Resend está en modo de prueba.<br>
+        En producción, este email se enviaría a: <strong>${guestEmail || companySettings.company_email}</strong>
       </div>
     `
       : ""
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
         <body>
           <div class="container">
             <div class="header">
-              <h1>ConfirmaciÃ³n de Cita</h1>
+              <h1>Confirmación de Cita</h1>
             </div>
             <div class="content">
               ${testModeBanner}
@@ -115,24 +115,24 @@ export async function POST(request: Request) {
                   <span class="label">Hora:</span> ${formattedTime}
                 </div>
                 <div class="info-row">
-                  <span class="label">DirecciÃ³n:</span> ${address}
+                  <span class="label">Dirección:</span> ${address}
                 </div>
                 ${description ? `<div class="info-row"><span class="label">Detalles:</span> ${description}</div>` : ""}
               </div>
 
               <div class="warning">
-                <strong>âš ï¸ Importante:</strong> Si no puede asistir a la cita, por favor infÃ³rmenos con antelaciÃ³n para poder anularla o modificarla. Puede contactarnos en:
+                <strong>âš ï¸ Importante:</strong> Si no puede asistir a la cita, por favor infórmenos con antelación para poder anularla o modificarla. Puede contactarnos en:
                 <ul>
                   <li>Email: ${companySettings.company_email}</li>
-                  ${companySettings.company_phone ? `<li>TelÃ©fono: ${companySettings.company_phone}</li>` : ""}
+                  ${companySettings.company_phone ? `<li>Teléfono: ${companySettings.company_phone}</li>` : ""}
                 </ul>
               </div>
 
-              <p>Quedamos a su disposiciÃ³n para cualquier consulta.</p>
+              <p>Quedamos a su disposición para cualquier consulta.</p>
               <p>Saludos cordiales,<br><strong>${companySettings.company_name}</strong></p>
             </div>
             <div class="footer">
-              <p>Este es un email automÃ¡tico, por favor no responda a este mensaje.</p>
+              <p>Este es un email automático, por favor no responda a este mensaje.</p>
             </div>
           </div>
         </body>
@@ -158,7 +158,7 @@ export async function POST(request: Request) {
         <body>
           <div class="container">
             <div class="header">
-              <h1>âœ… Nueva Cita Creada</h1>
+              <h1>✅ Nueva Cita Creada</h1>
             </div>
             <div class="content">
               ${testModeBanner}
@@ -175,17 +175,17 @@ export async function POST(request: Request) {
                   <span class="label">Hora:</span> ${formattedTime}
                 </div>
                 <div class="info-row">
-                  <span class="label">DirecciÃ³n:</span> ${address}
+                  <span class="label">Dirección:</span> ${address}
                 </div>
                 ${description ? `<div class="info-row"><span class="label">Detalles:</span> ${description}</div>` : ""}
                 ${guestEmail ? `<div class="info-row"><span class="label">Cliente invitado:</span> ${guestEmail}</div>` : ""}
               </div>
 
-              <p>Se ha enviado una confirmaciÃ³n por email al cliente${guestEmail ? ` (${guestEmail})` : ""}.</p>
-              <p>Puedes gestionar tus citas desde el panel de control de PresupuÃ©stalo.</p>
+              <p>Se ha enviado una confirmación por email al cliente${guestEmail ? ` (${guestEmail})` : ""}.</p>
+              <p>Puedes gestionar tus citas desde el panel de control de Presupuéstalo.</p>
             </div>
             <div class="footer">
-              <p>PresupuÃ©stalo - GestiÃ³n de Citas</p>
+              <p>Presupuéstalo - Gestión de Citas</p>
             </div>
           </div>
         </body>
@@ -204,7 +204,7 @@ export async function POST(request: Request) {
 
     if (guestEmail) {
       console.log(
-        `[v0] ðŸ“¤ Enviando email de confirmaciÃ³n al cliente: ${guestEmail} ${IS_TEST_MODE ? `(redirigido a ${VERIFIED_EMAIL})` : ""}`,
+        `[v0] 📤 Enviando email de confirmación al cliente: ${guestEmail} ${IS_TEST_MODE ? `(redirigido a ${VERIFIED_EMAIL})` : ""}`,
       )
 
       try {
@@ -215,9 +215,9 @@ export async function POST(request: Request) {
             Authorization: `Bearer ${resendApiKey}`,
           },
           body: JSON.stringify({
-            from: `PresupuÃ©stalo <${FROM_EMAIL}>`,
+            from: `Presupuéstalo <${FROM_EMAIL}>`,
             to: actualGuestEmail,
-            subject: `${IS_TEST_MODE ? "[TEST] " : ""}ConfirmaciÃ³n de cita - ${appointmentName}`,
+            subject: `${IS_TEST_MODE ? "[TEST] " : ""}Confirmación de cita - ${appointmentName}`,
             html: guestEmailHtml,
           }),
         })
@@ -228,7 +228,7 @@ export async function POST(request: Request) {
           console.error("[v0] âŒ Error enviando email al cliente:", guestData)
           emailResults.errors.push(`Error al cliente: ${guestData.message || "Error desconocido"}`)
         } else {
-          console.log("[v0] âœ… Email enviado al cliente exitosamente. ID:", guestData.id)
+          console.log("[v0] ✅ Email enviado al cliente exitosamente. ID:", guestData.id)
           emailResults.guestEmailSent = true
         }
       } catch (error: any) {
@@ -240,7 +240,7 @@ export async function POST(request: Request) {
     }
 
     console.log(
-      `[v0] ðŸ“¤ Enviando email de confirmaciÃ³n a la empresa: ${companySettings.company_email} ${IS_TEST_MODE ? `(redirigido a ${VERIFIED_EMAIL})` : ""}`,
+      `[v0] 📤 Enviando email de confirmación a la empresa: ${companySettings.company_email} ${IS_TEST_MODE ? `(redirigido a ${VERIFIED_EMAIL})` : ""}`,
     )
 
     try {
@@ -251,7 +251,7 @@ export async function POST(request: Request) {
           Authorization: `Bearer ${resendApiKey}`,
         },
         body: JSON.stringify({
-          from: `PresupuÃ©stalo <${FROM_EMAIL}>`,
+          from: `Presupuéstalo <${FROM_EMAIL}>`,
           to: actualCompanyEmail,
           subject: `${IS_TEST_MODE ? "[TEST] " : ""}Nueva cita creada - ${appointmentName}`,
           html: companyEmailHtml,
@@ -264,7 +264,7 @@ export async function POST(request: Request) {
         console.error("[v0] âŒ Error enviando email a la empresa:", companyData)
         emailResults.errors.push(`Error a empresa: ${companyData.message || "Error desconocido"}`)
       } else {
-        console.log("[v0] âœ… Email enviado a la empresa exitosamente. ID:", companyData.id)
+        console.log("[v0] ✅ Email enviado a la empresa exitosamente. ID:", companyData.id)
         emailResults.companyEmailSent = true
       }
     } catch (error: any) {
@@ -272,7 +272,7 @@ export async function POST(request: Request) {
       emailResults.errors.push(`Exception a empresa: ${error.message}`)
     }
 
-    console.log("[v0] ðŸ“Š Email results:", emailResults)
+    console.log("[v0] 📊 Email results:", emailResults)
 
     if (emailResults.errors.length > 0) {
       return NextResponse.json(

@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
     const supabase = await createClient()
 
-    // Verificar autenticaciÃ³n
+    // Verificar autenticación
     const {
       data: { user },
       error: authError,
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
 
     // Verificar que sea empresa o profesional
     if (profile.user_type === "homeowner") {
-      return NextResponse.json({ error: "Solo empresas y profesionales pueden comprar crÃ©ditos" }, { status: 403 })
+      return NextResponse.json({ error: "Solo empresas y profesionales pueden comprar créditos" }, { status: 403 })
     }
 
     console.log("[v0] Credits purchase: Profile found:", profile.email)
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     const creditPackage = getPackageById(packageId)
     if (!creditPackage) {
       console.error("[v0] Credits purchase: Invalid package:", packageId)
-      return NextResponse.json({ error: "Paquete de crÃ©ditos invÃ¡lido" }, { status: 400 })
+      return NextResponse.json({ error: "Paquete de créditos inválido" }, { status: 400 })
     }
 
     console.log("[v0] Credits purchase: Package:", creditPackage.name, "credits:", creditPackage.credits)
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
         console.log("[v0] Credits purchase: Creating new product and price...")
         const product = await stripe.products.create({
           name: creditPackage.name,
-          description: `${creditPackage.credits} crÃ©ditos para Presmarket`,
+          description: `${creditPackage.credits} créditos para Presmarket`,
           metadata: {
             package_id: creditPackage.id,
             credits: creditPackage.credits.toString(),
@@ -99,7 +99,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Error al preparar el pago" }, { status: 500 })
     }
 
-    // Crear sesiÃ³n de checkout con el precio obtenido/creado
+    // Crear sesión de checkout con el precio obtenido/creado
     const session = await stripe.checkout.sessions.create({
       customer_email: profile.email,
       line_items: [

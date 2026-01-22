@@ -88,7 +88,7 @@ export async function GET() {
   }
 }
 
-// POST para forzar actualizaciÃ³n
+// POST para forzar actualización
 export async function POST() {
   try {
     const supabase = await createClient()
@@ -140,7 +140,7 @@ export async function POST() {
 
     const billing = price.recurring?.interval === "year" ? "annual" : "monthly"
 
-    // Forzar actualizaciÃ³n con SQL directo para evitar problemas de RLS
+    // Forzar actualización con SQL directo para evitar problemas de RLS
     const { error: updateError } = await supabaseAdmin.rpc("exec_sql", {
       sql: `
         UPDATE profiles 
@@ -153,7 +153,7 @@ export async function POST() {
       `,
     })
 
-    // Si no hay funciÃ³n RPC, intentar update normal
+    // Si no hay función RPC, intentar update normal
     if (updateError) {
       console.log("RPC failed, trying direct update:", updateError.message)
 
@@ -177,7 +177,7 @@ export async function POST() {
       }
     }
 
-    // Verificar que se actualizÃ³
+    // Verificar que se actualizó
     const { data: updatedProfile } = await supabaseAdmin
       .from("profiles")
       .select("subscription_plan, stripe_customer_id, stripe_subscription_id")

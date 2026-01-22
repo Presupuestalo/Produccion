@@ -29,16 +29,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Lead no encontrado" }, { status: 404 })
     }
 
-    // Verificar que el lead estÃ¡ disponible
+    // Verificar que el lead está disponible
     if (lead.status !== "open") {
       return NextResponse.json({ error: "Lead no disponible" }, { status: 400 })
     }
 
     if (lead.companies_accessed_count >= lead.max_companies) {
-      return NextResponse.json({ error: "Lead completo - mÃ¡ximo de empresas alcanzado" }, { status: 400 })
+      return NextResponse.json({ error: "Lead completo - máximo de empresas alcanzado" }, { status: 400 })
     }
 
-    // Verificar si ya accediÃ³
+    // Verificar si ya accedió
     const { data: existingInteraction } = await supabase
       .from("lead_interactions")
       .select("*")
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
 
     console.log("[v0] Lead access - budget:", estimatedBudget, "plan:", userPlan, "cost:", creditsCost)
 
-    // Verificar balance de crÃ©ditos
+    // Verificar balance de créditos
     const { data: credits, error: creditsError } = await supabase
       .from("company_credits")
       .select("credits_balance, credits_spent_total")
@@ -78,14 +78,14 @@ export async function POST(req: Request) {
       .single()
 
     if (creditsError || !credits) {
-      return NextResponse.json({ error: "No tienes crÃ©ditos disponibles" }, { status: 400 })
+      return NextResponse.json({ error: "No tienes créditos disponibles" }, { status: 400 })
     }
 
     if (credits.credits_balance < creditsCost) {
-      return NextResponse.json({ error: `CrÃ©ditos insuficientes. Necesitas ${creditsCost} crÃ©ditos` }, { status: 400 })
+      return NextResponse.json({ error: `Créditos insuficientes. Necesitas ${creditsCost} créditos` }, { status: 400 })
     }
 
-    // Descontar crÃ©ditos
+    // Descontar créditos
     const newBalance = credits.credits_balance - creditsCost
     const newSpentTotal = (credits.credits_spent_total || 0) + creditsCost
 
@@ -99,10 +99,10 @@ export async function POST(req: Request) {
 
     if (updateCreditsError) {
       console.error("[v0] Error updating credits:", updateCreditsError)
-      return NextResponse.json({ error: "Error al procesar crÃ©ditos" }, { status: 500 })
+      return NextResponse.json({ error: "Error al procesar créditos" }, { status: 500 })
     }
 
-    // Registrar transacciÃ³n
+    // Registrar transacción
     await supabase.from("credit_transactions").insert({
       company_id: user.id,
       type: "spent",
@@ -111,7 +111,7 @@ export async function POST(req: Request) {
       lead_request_id: leadId,
     })
 
-    // Registrar interacciÃ³n
+    // Registrar interacción
     await supabase.from("lead_interactions").insert({
       lead_request_id: leadId,
       company_id: user.id,
@@ -130,7 +130,7 @@ export async function POST(req: Request) {
       })
       .eq("id", leadId)
 
-    // Devolver el lead con informaciÃ³n completa
+    // Devolver el lead con información completa
     return NextResponse.json({
       success: true,
       credits_spent: creditsCost,

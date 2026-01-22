@@ -26,10 +26,10 @@ export async function POST(request: NextRequest) {
     // Validar estado
     const validStatuses = ["contacted", "negotiating", "won", "lost"]
     if (!validStatuses.includes(status)) {
-      return NextResponse.json({ error: "Estado no vÃ¡lido" }, { status: 400 })
+      return NextResponse.json({ error: "Estado no válido" }, { status: 400 })
     }
 
-    // Verificar que la interacciÃ³n existe y pertenece al usuario
+    // Verificar que la interacción existe y pertenece al usuario
     const { data: interaction, error: interactionError } = await supabase
       .from("lead_interactions")
       .select("*")
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (interactionError || !interaction) {
-      return NextResponse.json({ error: "InteracciÃ³n no encontrada" }, { status: 404 })
+      return NextResponse.json({ error: "Interacción no encontrada" }, { status: 404 })
     }
 
     // Actualizar el estado

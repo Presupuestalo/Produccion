@@ -17,7 +17,7 @@ const comparisonSchema = z.object({
         reason: z.string(),
       }),
     )
-    .describe("Habitaciones aÃ±adidas en el nuevo plano"),
+    .describe("Habitaciones añadidas en el nuevo plano"),
   roomsRemoved: z
     .array(
       z.object({
@@ -38,7 +38,7 @@ const comparisonSchema = z.object({
         areaAfter: z.number(),
       }),
     )
-    .describe("Habitaciones que cambiaron de tamaÃ±o"),
+    .describe("Habitaciones que cambiaron de tamaño"),
   wallsRemoved: z
     .array(
       z.object({
@@ -59,19 +59,19 @@ const comparisonSchema = z.object({
     .describe("Tabiques nuevos"),
   kitchenTransformation: z
     .object({
-      hasChanged: z.boolean().describe("Si la cocina cambiÃ³ de tipo"),
+      hasChanged: z.boolean().describe("Si la cocina cambió de tipo"),
       beforeType: z
         .enum(["cocina", "cocina_americana", "cocina_abierta", "no_existia"])
         .describe("Tipo de cocina en el plano ANTES"),
       afterType: z
         .enum(["cocina", "cocina_americana", "cocina_abierta", "eliminada"])
-        .describe("Tipo de cocina en el plano DESPUÃ‰S"),
-      description: z.string().describe("DescripciÃ³n del cambio en la cocina"),
+        .describe("Tipo de cocina en el plano DESPUí‰S"),
+      description: z.string().describe("Descripción del cambio en la cocina"),
     })
-    .describe("TransformaciÃ³n de la cocina si aplica"),
-  suggestAddPartitions: z.boolean().describe("Si se recomienda aÃ±adir tabiquerÃ­a"),
+    .describe("Transformación de la cocina si aplica"),
+  suggestAddPartitions: z.boolean().describe("Si se recomienda añadir tabiquería"),
   totalWallsRemovedMeters: z.number().describe("Total metros lineales de tabiques eliminados"),
-  totalWallsAddedMeters: z.number().describe("Total metros lineales de tabiques aÃ±adidos"),
+  totalWallsAddedMeters: z.number().describe("Total metros lineales de tabiques añadidos"),
 })
 
 export async function POST(request: Request) {
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     const { beforeImageUrl, afterImageUrl } = await request.json()
 
     if (!beforeImageUrl || !afterImageUrl) {
-      return NextResponse.json({ error: "Se requieren ambas imÃ¡genes (antes y despuÃ©s)" }, { status: 400 })
+      return NextResponse.json({ error: "Se requieren ambas imágenes (antes y después)" }, { status: 400 })
     }
 
     console.log("[v0] Comparando planos:")
@@ -107,44 +107,44 @@ export async function POST(request: Request) {
           content: [
             {
               type: "text",
-              text: `Eres un arquitecto espaÃ±ol experto en reformas. Compara estos dos planos arquitectÃ³nicos.
+              text: `Eres un arquitecto español experto en reformas. Compara estos dos planos arquitectónicos.
 
 El PRIMER plano es el estado ACTUAL (ANTES de la reforma).
-El SEGUNDO plano es el estado FUTURO (DESPUÃ‰S de la reforma).
+El SEGUNDO plano es el estado FUTURO (DESPUí‰S de la reforma).
 
 ANALIZA DETALLADAMENTE:
 
-1. **Habitaciones aÃ±adidas**: Nuevas en el plano "despuÃ©s"
-2. **Habitaciones eliminadas**: ExistÃ­an "antes" pero no "despuÃ©s"
-3. **Habitaciones modificadas**: Cambiaron de tamaÃ±o o forma
+1. **Habitaciones añadidas**: Nuevas en el plano "después"
+2. **Habitaciones eliminadas**: Existían "antes" pero no "después"
+3. **Habitaciones modificadas**: Cambiaron de tamaño o forma
 4. **Tabiques eliminados**: Paredes derribadas (estima metros lineales)
-5. **Tabiques aÃ±adidos**: Nuevas paredes (estima metros lineales)
+5. **Tabiques añadidos**: Nuevas paredes (estima metros lineales)
 
-MUY IMPORTANTE - TRANSFORMACIÃ“N DE LA COCINA:
+MUY IMPORTANTE - TRANSFORMACIí“N DE LA COCINA:
 
-Detecta si la cocina cambiÃ³ de tipo entre el plano "antes" y "despuÃ©s":
+Detecta si la cocina cambió de tipo entre el plano "antes" y "después":
 
 - **cocina**: Cocina tradicional, cerrada, separada del resto por paredes
-- **cocina_americana**: Cocina ABIERTA AL SALÃ“N, sin pared de separaciÃ³n entre cocina y salÃ³n. 
-  Se detecta cuando en el plano "despuÃ©s" se eliminÃ³ la pared entre cocina y salÃ³n, 
-  creando un espacio Ãºnico donde se ve cocina y salÃ³n conectados visualmente.
-- **cocina_abierta**: Cocina AMPLIADA pero que sigue siendo independiente del salÃ³n.
-  Se detecta cuando la cocina creciÃ³ (mÃ¡s metros cuadrados) pero mantiene paredes 
-  que la separan del salÃ³n.
+- **cocina_americana**: Cocina ABIERTA AL SALí“N, sin pared de separación entre cocina y salón. 
+  Se detecta cuando en el plano "después" se eliminó la pared entre cocina y salón, 
+  creando un espacio único donde se ve cocina y salón conectados visualmente.
+- **cocina_abierta**: Cocina AMPLIADA pero que sigue siendo independiente del salón.
+  Se detecta cuando la cocina creció (más metros cuadrados) pero mantiene paredes 
+  que la separan del salón.
 
-EJEMPLOS DE DETECCIÃ“N:
+EJEMPLOS DE DETECCIí“N:
 
-1. Si en "antes" la cocina tenÃ­a pared con el salÃ³n y en "despuÃ©s" no hay pared:
+1. Si en "antes" la cocina tenía pared con el salón y en "después" no hay pared:
    â†’ beforeType: "cocina", afterType: "cocina_americana"
    
-2. Si en "antes" la cocina era pequeÃ±a y en "despuÃ©s" es mÃ¡s grande pero sigue cerrada:
+2. Si en "antes" la cocina era pequeña y en "después" es más grande pero sigue cerrada:
    â†’ beforeType: "cocina", afterType: "cocina_abierta"
    
-3. Si en "antes" ya estaba abierta al salÃ³n y sigue igual:
+3. Si en "antes" ya estaba abierta al salón y sigue igual:
    â†’ beforeType: "cocina_americana", afterType: "cocina_americana"
 
-Calcula los metros totales de tabiques eliminados y aÃ±adidos.
-TODO EN ESPAÃ‘OL.`,
+Calcula los metros totales de tabiques eliminados y añadidos.
+TODO EN ESPAí‘OL.`,
             },
             {
               type: "image",
@@ -159,7 +159,7 @@ TODO EN ESPAÃ‘OL.`,
       ],
     })
 
-    console.log("[v0] ComparaciÃ³n completada")
+    console.log("[v0] Comparación completada")
     console.log("[v0] Kitchen transformation:", result.object.kitchenTransformation)
 
     return NextResponse.json({ success: true, comparison: result.object })

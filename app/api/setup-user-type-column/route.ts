@@ -28,7 +28,7 @@ export async function GET() {
       // Si hay un error, probablemente la columna no existe
       console.error("Error verificando columna user_type:", userTypeError)
 
-      // Verificar si el error es especÃ­ficamente porque la columna no existe
+      // Verificar si el error es específicamente porque la columna no existe
       if (
         userTypeError.message.includes("column") &&
         userTypeError.message.includes("user_type") &&
@@ -44,7 +44,7 @@ export async function GET() {
               "Ve a tu proyecto en Supabase Dashboard",
               "Abre el SQL Editor",
               "Ejecuta el comando: ALTER TABLE public.profiles ADD COLUMN user_type TEXT;",
-              "Vuelve a esta pÃ¡gina y haz clic en 'Verificar ConfiguraciÃ³n'",
+              "Vuelve a esta página y haz clic en 'Verificar Configuración'",
             ],
           },
           { status: 200 }, // Cambiamos a 200 porque es un estado esperado
@@ -54,8 +54,8 @@ export async function GET() {
       return NextResponse.json({ error: userTypeError.message }, { status: 500 })
     }
 
-    // Si llegamos aquÃ­, la columna existe
-    // En lugar de hacer un upsert de prueba, solo verificamos que la consulta funcionÃ³
+    // Si llegamos aquí, la columna existe
+    // En lugar de hacer un upsert de prueba, solo verificamos que la consulta funcionó
     console.log("Columna user_type existe y es accesible")
 
     // Opcionalmente, si hay perfiles existentes, podemos probar con uno real
@@ -69,7 +69,7 @@ export async function GET() {
         .eq("id", existingProfileId)
 
       if (updateError) {
-        console.error("Error en actualizaciÃ³n de prueba:", updateError)
+        console.error("Error en actualización de prueba:", updateError)
         // No fallar por esto, la columna existe
       }
     }
@@ -91,7 +91,7 @@ export async function GET() {
           "Ve a tu proyecto en Supabase Dashboard",
           "Abre el SQL Editor",
           "Ejecuta el comando: ALTER TABLE public.profiles ADD COLUMN user_type TEXT;",
-          "Vuelve a esta pÃ¡gina y haz clic en 'Verificar ConfiguraciÃ³n'",
+          "Vuelve a esta página y haz clic en 'Verificar Configuración'",
         ],
       },
       { status: 500 },

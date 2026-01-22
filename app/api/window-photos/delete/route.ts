@@ -12,7 +12,7 @@ export async function DELETE(request: Request) {
 
     const supabase = await createClient()
 
-    // Verificar autenticaciÃ³n
+    // Verificar autenticación
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -39,7 +39,7 @@ export async function DELETE(request: Request) {
 
     if (storageError) {
       console.error("[v0] Error al eliminar de Storage:", storageError)
-      // Continuar con la eliminaciÃ³n de la BD aunque falle el Storage
+      // Continuar con la eliminación de la BD aunque falle el Storage
     }
 
     // Eliminar registro de la base de datos

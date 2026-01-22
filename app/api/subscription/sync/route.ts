@@ -34,7 +34,7 @@ export async function POST() {
     })
 
     if (customers.data.length === 0) {
-      return NextResponse.json({ error: "No se encontrÃ³ cliente en Stripe" }, { status: 404 })
+      return NextResponse.json({ error: "No se encontró cliente en Stripe" }, { status: 404 })
     }
 
     const customer = customers.data[0]
@@ -48,7 +48,7 @@ export async function POST() {
     })
 
     if (subscriptions.data.length === 0) {
-      // Buscar tambiÃ©n trialing o past_due
+      // Buscar también trialing o past_due
       const allSubs = await stripe.subscriptions.list({
         customer: customer.id,
         limit: 1,
@@ -73,7 +73,7 @@ export async function POST() {
     let plan = "basic"
     if (productName.includes("profesional") || productName.includes("pro")) plan = "pro"
     else if (productName.includes("empresa") || productName.includes("business")) plan = "business"
-    else if (productName.includes("bÃ¡sico") || productName.includes("basic")) plan = "basic"
+    else if (productName.includes("básico") || productName.includes("basic")) plan = "basic"
 
     const billing = price.recurring?.interval === "year" ? "annual" : "monthly"
 

@@ -6,13 +6,13 @@ export async function POST(request: NextRequest) {
   try {
     const { email, name, userType } = await request.json()
 
-    console.log("[v0] ðŸ“§ Iniciando envÃ­o de email de bienvenida...")
+    console.log("[v0] 📧 Iniciando envío de email de bienvenida...")
     console.log("[v0] Email destinatario:", email)
     console.log("[v0] Nombre:", name)
     console.log("[v0] Tipo de usuario:", userType)
 
     if (!email) {
-      console.error("[v0] âŒ Email no proporcionado")
+      console.error("[v0] ❌ Email no proporcionado")
       return NextResponse.json({ error: "Email es requerido" }, { status: 400 })
     }
 
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const resendApiKey = process.env.RESEND_API_KEY
 
     if (!resendApiKey) {
-      console.error("[v0] âŒ RESEND_API_KEY no estÃ¡ configurada en las variables de entorno")
+      console.error("[v0] ❌ RESEND_API_KEY no está configurada en las variables de entorno")
       return NextResponse.json(
         {
           success: false,
@@ -30,17 +30,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log("[v0] âœ… API key de Resend encontrada")
+    console.log("[v0] ✅ API key de Resend encontrada")
 
     const emailPayload = {
-      from: "PresupuÃ©stalo <onboarding@resend.dev>",
+      from: "Presupuéstalo <onboarding@resend.dev>",
       to: email,
-      subject: "Â¡Bienvenido a PresupuÃ©stalo! ðŸŽ‰",
+      subject: "¡Bienvenido a Presupuéstalo! 🎉",
       html: getWelcomeEmailHTML({ name, email, userType }),
       text: getWelcomeEmailText({ name, email, userType }),
     }
 
-    console.log("[v0] ðŸ“¤ Enviando email a Resend API...")
+    console.log("[v0] 📤 Enviando email a Resend API...")
 
     // Enviar email usando Resend
     const response = await fetch("https://api.resend.com/emails", {
@@ -54,11 +54,11 @@ export async function POST(request: NextRequest) {
 
     const data = await response.json()
 
-    console.log("[v0] ðŸ“¥ Respuesta de Resend:", JSON.stringify(data, null, 2))
+    console.log("[v0] 📥 Respuesta de Resend:", JSON.stringify(data, null, 2))
 
     if (!response.ok) {
-      console.error("[v0] âŒ Error al enviar email. Status:", response.status)
-      console.error("[v0] âŒ Detalles del error:", data)
+      console.error("[v0] ❌ Error al enviar email. Status:", response.status)
+      console.error("[v0] ❌ Detalles del error:", data)
       return NextResponse.json(
         {
           success: false,
@@ -70,8 +70,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log("[v0] âœ… Email de bienvenida enviado exitosamente a:", email)
-    console.log("[v0] âœ… ID del email:", data.id)
+    console.log("[v0] ✅ Email de bienvenida enviado exitosamente a:", email)
+    console.log("[v0] ✅ ID del email:", data.id)
 
     return NextResponse.json({
       success: true,
@@ -79,8 +79,8 @@ export async function POST(request: NextRequest) {
       message: "Email enviado correctamente",
     })
   } catch (error: any) {
-    console.error("[v0] ðŸ’¥ Error inesperado en send-welcome-email:", error)
-    console.error("[v0] ðŸ’¥ Stack trace:", error.stack)
+    console.error("[v0] 💥 Error inesperado en send-welcome-email:", error)
+    console.error("[v0] 💥 Stack trace:", error.stack)
     return NextResponse.json(
       {
         success: false,
@@ -91,4 +91,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
     const { offerId, creditsCost } = await request.json()
 
-    // Verificar autenticaciÃ³n
+    // Verificar autenticación
     const {
       data: { user },
       error: authError,
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 })
     }
 
-    // Obtener balance de crÃ©ditos
+    // Obtener balance de créditos
     const { data: credits, error: creditsError } = await supabase
       .from("company_credits")
       .select("credits_balance")
@@ -35,11 +35,11 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (creditsError || !credits) {
-      return NextResponse.json({ error: "No tienes crÃ©ditos configurados" }, { status: 400 })
+      return NextResponse.json({ error: "No tienes créditos configurados" }, { status: 400 })
     }
 
     if (credits.credits_balance < creditsCost) {
-      return NextResponse.json({ error: "CrÃ©ditos insuficientes" }, { status: 400 })
+      return NextResponse.json({ error: "Créditos insuficientes" }, { status: 400 })
     }
 
     // Obtener la oferta (quote_request)
@@ -60,12 +60,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Oferta no encontrada" }, { status: 404 })
     }
 
-    // Verificar que no haya llegado al mÃ¡ximo de empresas (3)
+    // Verificar que no haya llegado al máximo de empresas (3)
     const currentCount = offer.offer_count || 0
     const maxCompanies = 3
 
     if (currentCount >= maxCompanies) {
-      return NextResponse.json({ error: "Esta oferta ya tiene el mÃ¡ximo de empresas" }, { status: 400 })
+      return NextResponse.json({ error: "Esta oferta ya tiene el máximo de empresas" }, { status: 400 })
     }
 
     // Verificar que el profesional no haya accedido ya
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Ya has accedido a esta oferta" }, { status: 400 })
     }
 
-    // Descontar crÃ©ditos
+    // Descontar créditos
     const { error: deductError } = await supabase
       .from("company_credits")
       .update({
@@ -91,10 +91,10 @@ export async function POST(request: NextRequest) {
 
     if (deductError) {
       console.error("Error deducting credits:", deductError)
-      return NextResponse.json({ error: "Error al descontar crÃ©ditos" }, { status: 500 })
+      return NextResponse.json({ error: "Error al descontar créditos" }, { status: 500 })
     }
 
-    // Registrar transacciÃ³n
+    // Registrar transacción
     await supabase.from("credit_transactions").insert({
       company_id: user.id,
       type: "spent",
@@ -103,13 +103,13 @@ export async function POST(request: NextRequest) {
       lead_request_id: offerId,
     })
 
-    // Crear registro de acceso en quote_offers (sin propuesta aÃºn)
+    // Crear registro de acceso en quote_offers (sin propuesta aún)
     const { error: accessError } = await supabase.from("quote_offers").insert({
       quote_request_id: offerId,
       professional_id: user.id,
       offered_price: 0, // Pendiente de propuesta
       currency_code: offer.currency_code || "EUR",
-      currency_symbol: offer.currency_symbol || "â‚¬",
+      currency_symbol: offer.currency_symbol || "€",
       description: "Pendiente de propuesta",
       company_name: professional.company_name || professional.full_name,
       professional_phone: professional.phone,
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
 
     if (accessError) {
       console.error("Error creating access record:", accessError)
-      // Revertir crÃ©ditos si falla
+      // Revertir créditos si falla
       await supabase
         .from("company_credits")
         .update({ credits_balance: credits.credits_balance })
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Error al registrar acceso" }, { status: 500 })
     }
 
-    // Enviar emails de notificaciÃ³n
+    // Enviar emails de notificación
     const clientData = {
       name: offer.profiles?.full_name || "Cliente",
       email: offer.profiles?.email || offer.contact_email,
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: clientData.email,
-          subject: "Un profesional estÃ¡ interesado en tu proyecto",
+          subject: "Un profesional está interesado en tu proyecto",
           template: "professional-interested",
           data: {
             clientName: clientData.name,

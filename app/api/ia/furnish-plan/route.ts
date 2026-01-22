@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const base64 = buffer.toString("base64")
     const imageUrl = `data:${floorPlan.type};base64,${base64}`
 
-    // Prompts segÃºn el estilo seleccionado
+    // Prompts según el estilo seleccionado
     const stylePrompts: Record<string, string> = {
       moderno:
         "modern minimalist interior design, clean lines, neutral colors, contemporary furniture, top-down view, architectural floor plan with realistic furniture placement",

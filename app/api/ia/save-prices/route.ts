@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       prices = body.prices
     } catch (parseError) {
       console.error("[v0] Error parsing request body:", parseError)
-      return NextResponse.json({ error: "Cuerpo de solicitud invÃ¡lido" }, { status: 400 })
+      return NextResponse.json({ error: "Cuerpo de solicitud inválido" }, { status: 400 })
     }
 
     if (!prices || !Array.isArray(prices) || prices.length === 0) {
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     const userCountry = profile?.country || "ES"
     const userTable = getUserPriceTableByCountry(userCountry)
 
-    console.log("[v0] PaÃ­s del usuario:", userCountry)
+    console.log("[v0] País del usuario:", userCountry)
     console.log("[v0] Tabla de destino:", userTable)
     console.log("[v0] Fetching categories...")
 
@@ -92,12 +92,12 @@ export async function POST(request: NextRequest) {
 
     if (categoriesError) {
       console.error("[v0] Error fetching categories:", categoriesError)
-      return NextResponse.json({ error: "Error al obtener categorÃ­as: " + categoriesError.message }, { status: 500 })
+      return NextResponse.json({ error: "Error al obtener categorías: " + categoriesError.message }, { status: 500 })
     }
 
     if (!categories || categories.length === 0) {
       console.error("[v0] No categories found in database")
-      return NextResponse.json({ error: "No se encontraron categorÃ­as en la base de datos" }, { status: 500 })
+      return NextResponse.json({ error: "No se encontraron categorías en la base de datos" }, { status: 500 })
     }
 
     console.log("[v0] Found", categories.length, "categories")
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
         code,
         category_id: categoryId,
         subcategory: price.subcategory || "General",
-        description: price.description || "Sin descripciÃ³n",
+        description: price.description || "Sin descripción",
         long_description: null,
         unit: price.unit || "ud",
         labor_cost: laborCost,

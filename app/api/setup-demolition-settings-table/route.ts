@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   try {
     const supabase = createClient()
 
-    // Verificar si el usuario estÃ¡ autenticado
+    // Verificar si el usuario está autenticado
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
     // Crear la tabla
     const createTableSQL = `
-    -- Asegurarse de que la extensiÃ³n uuid-ossp estÃ¡ habilitada
+    -- Asegurarse de que la extensión uuid-ossp está habilitada
     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
     CREATE TABLE IF NOT EXISTS public.demolition_settings (
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     -- Configurar seguridad RLS
     ALTER TABLE public.demolition_settings ENABLE ROW LEVEL SECURITY;
 
-    -- Crear polÃ­tica para que los usuarios solo puedan ver sus propios ajustes
+    -- Crear política para que los usuarios solo puedan ver sus propios ajustes
     CREATE POLICY "Users can view their own demolition settings" 
       ON public.demolition_settings 
       FOR SELECT 
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
         )
       );
 
-    -- Crear polÃ­tica para que los usuarios solo puedan insertar sus propios ajustes
+    -- Crear política para que los usuarios solo puedan insertar sus propios ajustes
     CREATE POLICY "Users can insert their own demolition settings" 
       ON public.demolition_settings 
       FOR INSERT 
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
         )
       );
 
-    -- Crear polÃ­tica para que los usuarios solo puedan actualizar sus propios ajustes
+    -- Crear política para que los usuarios solo puedan actualizar sus propios ajustes
     CREATE POLICY "Users can update their own demolition settings" 
       ON public.demolition_settings 
       FOR UPDATE 
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
         )
       );
 
-    -- Crear polÃ­tica para que los usuarios solo puedan eliminar sus propios ajustes
+    -- Crear política para que los usuarios solo puedan eliminar sus propios ajustes
     CREATE POLICY "Users can delete their own demolition settings" 
       ON public.demolition_settings 
       FOR DELETE 

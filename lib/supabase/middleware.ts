@@ -61,7 +61,8 @@ export async function updateSession(request: NextRequest) {
       request.nextUrl.pathname === "/" ||
       request.nextUrl.pathname.startsWith("/auth") ||
       request.nextUrl.pathname === "/test-auth" ||
-      request.nextUrl.pathname === "/debug"
+      request.nextUrl.pathname === "/debug" ||
+      request.nextUrl.pathname === "/despedida"
 
     const isProtectedRoute =
       request.nextUrl.pathname.startsWith("/dashboard") || request.nextUrl.pathname.startsWith("/projects")

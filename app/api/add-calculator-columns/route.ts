@@ -10,7 +10,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
     }
 
-    // Verificar si el usuario estÃ¡ autenticado
+    // Verificar si el usuario está autenticado
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    // AÃ±adir las columnas faltantes
+    // Añadir las columnas faltantes
     const alterTableSQL = `
       ALTER TABLE public.calculator_data 
       ADD COLUMN IF NOT EXISTS reform_config JSONB,
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: "Columnas aÃ±adidas correctamente a calculator_data",
+      message: "Columnas añadidas correctamente a calculator_data",
     })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Error inesperado" }, { status: 500 })

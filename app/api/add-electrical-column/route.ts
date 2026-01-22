@@ -16,7 +16,7 @@ export async function POST() {
       })
     }
 
-    // Intentar crear un registro de prueba para forzar la creaciÃ³n de la columna
+    // Intentar crear un registro de prueba para forzar la creación de la columna
     const { error: insertError } = await supabase
       .from("calculator_data")
       .insert({

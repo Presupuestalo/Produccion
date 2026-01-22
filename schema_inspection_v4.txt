@@ -1,0 +1,7 @@
+﻿Testing columns for quote_requests: user_id (OK) homeowner_id (FAIL: 42703) 
+Testing columns for quote_offers: user_id (FAIL: 42703) professional_id (OK) 
+Testing columns for professional_portfolio: user_id (OK) professional_id (FAIL: 42703) 
+Testing columns for calculator_data: user_id (FAIL: 42703) project_id (OK) 
+Testing columns for project_floor_plans: user_id (FAIL: 42703) project_id (OK) 
+Testing columns for budget_settings: user_id (FAIL: 42703) project_id (OK) 
+Testing columns for room_photos: user_id (OK) project_id (OK) 

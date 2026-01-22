@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   try {
     const supabase = createClient()
 
-    // Verificar si el usuario estÃ¡ autenticado
+    // Verificar si el usuario está autenticado
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -86,18 +86,18 @@ export async function POST(request: Request) {
 
     if (rlsError) {
       console.error("[v0] Error updating RLS policies:", rlsError)
-      return NextResponse.json({ error: "Error al actualizar polÃ­ticas RLS: " + rlsError.message }, { status: 500 })
+      return NextResponse.json({ error: "Error al actualizar políticas RLS: " + rlsError.message }, { status: 500 })
     }
 
     console.log("[v0] RLS policies updated successfully")
 
     return NextResponse.json({ 
       success: true, 
-      message: "MigraciÃ³n completada correctamente",
+      message: "Migración completada correctamente",
       details: {
-        profiles: "Campos aÃ±adidos: full_name, phone, dni_nif, address_*, country, avatar_url",
-        projects: "Campos aÃ±adidos: country_code, client_dni",
-        rls: "PolÃ­ticas RLS actualizadas"
+        profiles: "Campos añadidos: full_name, phone, dni_nif, address_*, country, avatar_url",
+        projects: "Campos añadidos: country_code, client_dni",
+        rls: "Políticas RLS actualizadas"
       }
     })
   } catch (error: any) {

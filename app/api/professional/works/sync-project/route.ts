@@ -22,7 +22,7 @@ export async function POST(request: Request) {
 
         const userId = session.user.id
 
-        // 1. Obtener datos del proyecto para el tÃ­tulo si no se proporciona
+        // 1. Obtener datos del proyecto para el título si no se proporciona
         const { data: project, error: projectError } = await supabase
             .from("projects")
             .select("name, client_name")
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "No hay fotos para sincronizar" }, { status: 400 })
         }
 
-        // 4. Sincronizar las fotos (Copiando archivos fÃ­sicamente para independencia)
+        // 4. Sincronizar las fotos (Copiando archivos físicamente para independencia)
         const { data: existingWorkPhotos } = await supabase
             .from("professional_work_photos")
             .select("storage_path")

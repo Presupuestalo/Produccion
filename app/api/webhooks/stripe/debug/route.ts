@@ -6,7 +6,7 @@ export async function GET() {
   try {
     const supabase = await createServerClient()
 
-    // Verificar conexiÃ³n a Supabase
+    // Verificar conexión a Supabase
     const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
       .select("id, email, subscription_plan_id")
@@ -45,9 +45,9 @@ export async function GET() {
       status: "ok",
       message: "Webhook configurado correctamente",
       checks: {
-        supabase_connection: "âœ… OK",
-        profiles_table: "âœ… OK",
-        subscription_plans_table: "âœ… OK",
+        supabase_connection: "✅ OK",
+        profiles_table: "✅ OK",
+        subscription_plans_table: "✅ OK",
         environment_variables: envVars,
       },
       available_plans: plans,

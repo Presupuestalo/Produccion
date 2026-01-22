@@ -8,7 +8,7 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 const glassTypeMap: Record<string, string> = {
   Sencillo: "Ventana Sencilla",
   Doble: "Ventana Doble",
-  "Puerta BalcÃ³n": "Puerta de BalcÃ³n",
+  "Puerta Balcón": "Puerta de Balcón",
 }
 
 export async function POST(request: Request) {
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     const validWindows = windows.filter((w: any) => w.width && w.height && Number(w.width) > 0 && Number(w.height) > 0)
 
     if (validWindows.length === 0) {
-      return NextResponse.json({ error: "No hay ventanas con medidas vÃ¡lidas" }, { status: 400 })
+      return NextResponse.json({ error: "No hay ventanas con medidas válidas" }, { status: 400 })
     }
 
     const groupedWindows = groupWindows(validWindows)
@@ -40,11 +40,11 @@ export async function POST(request: Request) {
         const material = w.material || "No especificado"
         const colorInt = w.innerColor || "No especificado"
         const colorExt = w.outerColor || "No especificado"
-        const persiana = w.hasBlind ? "SÃ­" : "No"
-        const fijo = w.hasFixedPanel ? "SÃ­" : "No"
-        const motor = w.hasMotor ? "SÃ­" : "No"
-        const mosquitera = w.hasMosquitera ? "SÃ­" : "No"
-        const gatera = w.hasCatFlap ? "SÃ­" : "No"
+        const persiana = w.hasBlind ? "Sí" : "No"
+        const fijo = w.hasFixedPanel ? "Sí" : "No"
+        const motor = w.hasMotor ? "Sí" : "No"
+        const mosquitera = w.hasMosquitera ? "Sí" : "No"
+        const gatera = w.hasCatFlap ? "Sí" : "No"
         const quantityLabel = group.quantity > 1 ? `${group.quantity} x ` : ""
         const roomsLabel = group.rooms.length > 0 ? ` (${group.rooms.join(", ")})` : ""
 
@@ -52,13 +52,13 @@ export async function POST(request: Request) {
 ${quantityLabel}Ventana ${i + 1}${roomsLabel}
   â€¢ Tipo: ${tipo}
   â€¢ Abertura: ${abertura}
-  â€¢ Dimensiones: ${ancho}m (ancho) Ã— ${alto}m (alto)
+  â€¢ Dimensiones: ${ancho}m (ancho) í— ${alto}m (alto)
   â€¢ Material: ${material}
   â€¢ Color Interior: ${colorInt}
   â€¢ Color Exterior: ${colorExt}
   â€¢ Persiana: ${persiana}
   â€¢ Fijo: ${fijo}
-  â€¢ Motor ElÃ©ctrico: ${motor}
+  â€¢ Motor Eléctrico: ${motor}
   â€¢ Mosquitera: ${mosquitera}
   â€¢ Gatera: ${gatera}
 ${group.quantity > 1 ? `  â€¢ Cantidad: ${group.quantity} unidades` : ""}
@@ -79,38 +79,38 @@ ${group.quantity > 1 ? `  â€¢ Cantidad: ${group.quantity} unidades` : ""}
         </style>
       </head>
       <body>
-        <h1>âœ“ Solicitud de CotizaciÃ³n Recibida</h1>
+        <h1>âœ“ Solicitud de Cotización Recibida</h1>
         <div class="success-box">
           <p>Estimado/a <strong>${empresaNombre}</strong>,</p>
-          <p>Hemos recibido tu solicitud de cotizaciÃ³n para las ventanas de tu proyecto.</p>
+          <p>Hemos recibido tu solicitud de cotización para las ventanas de tu proyecto.</p>
           <p>Nos pondremos en contacto contigo en breve con un presupuesto personalizado.</p>
         </div>
         <p><strong>Detalles del proyecto:</strong></p>
         <ul>
           <li>Proyecto: ${projectName || "No especificado"}</li>
-          <li>UbicaciÃ³n: ${projectAddress || "No especificada"}</li>
+          <li>Ubicación: ${projectAddress || "No especificada"}</li>
           <li>Total de ventanas: ${validWindows.length}</li>
           <li>Tipos diferentes: ${groupedWindows.length}</li>
         </ul>
         <div class="footer">
-          <p>PresupuÃ©stalo - Tu soluciÃ³n de presupuestos online</p>
+          <p>Presupuéstalo - Tu solución de presupuestos online</p>
         </div>
       </body>
       </html>
     `
 
     const adminText = `
-NUEVA SOLICITUD DE COTIZACIÃ“N - VENTANAS
+NUEVA SOLICITUD DE COTIZACIí“N - VENTANAS
 ==========================================
 
 DATOS DEL SOLICITANTE:
 - Empresa/Nombre: ${empresaNombre}
 - Email: ${homeownerEmail}
-- TelÃ©fono: ${companyPhone || "No especificado"}
+- Teléfono: ${companyPhone || "No especificado"}
 
 DATOS DEL PROYECTO:
 - Nombre: ${projectName || "No especificado"}
-- UbicaciÃ³n: ${projectAddress || "No especificada"}
+- Ubicación: ${projectAddress || "No especificada"}
 - Total de ventanas: ${validWindows.length}
 - Tipos diferentes: ${groupedWindows.length}
 
@@ -120,7 +120,7 @@ DETALLE DE VENTANAS:
 ${windowsSummary}
 
 ==========================================
-Solicitud enviada desde PresupuÃ©stalo
+Solicitud enviada desde Presupuéstalo
     `.trim()
 
     const adminHtml = `
@@ -142,7 +142,7 @@ Solicitud enviada desde PresupuÃ©stalo
       </head>
       <body>
         <div class="header">
-          <h1 style="margin: 0;">Nueva Solicitud de CotizaciÃ³n</h1>
+          <h1 style="margin: 0;">Nueva Solicitud de Cotización</h1>
           <p style="margin: 5px 0 0 0;">Ventanas - ${validWindows.length} unidades (${groupedWindows.length} tipos)</p>
         </div>
         <div class="content">
@@ -150,13 +150,13 @@ Solicitud enviada desde PresupuÃ©stalo
             <div class="section-title">Datos del Solicitante</div>
             <p><strong>Empresa/Nombre:</strong> ${empresaNombre}</p>
             <p><strong>Email:</strong> ${homeownerEmail}</p>
-            <p><strong>TelÃ©fono:</strong> ${companyPhone || "No especificado"}</p>
+            <p><strong>Teléfono:</strong> ${companyPhone || "No especificado"}</p>
           </div>
           
           <div class="section">
             <div class="section-title">Datos del Proyecto</div>
             <p><strong>Proyecto:</strong> ${projectName || "No especificado"}</p>
-            <p><strong>UbicaciÃ³n:</strong> ${projectAddress || "No especificada"}</p>
+            <p><strong>Ubicación:</strong> ${projectAddress || "No especificada"}</p>
           </div>
           
           <div class="section">
@@ -173,11 +173,11 @@ Solicitud enviada desde PresupuÃ©stalo
                 </div>
                 <div class="window-detail"><strong>Tipo:</strong> ${glassTypeMap[w.glassType] || w.glassType || "No especificado"}</div>
                 <div class="window-detail"><strong>Abertura:</strong> ${w.type || "No especificada"}</div>
-                <div class="window-detail"><strong>Dimensiones:</strong> ${w.width || "?"}m Ã— ${w.height || "?"}m</div>
+                <div class="window-detail"><strong>Dimensiones:</strong> ${w.width || "?"}m í— ${w.height || "?"}m</div>
                 <div class="window-detail"><strong>Material:</strong> ${w.material || "No especificado"}</div>
                 <div class="window-detail"><strong>Color Interior:</strong> ${w.innerColor || "No especificado"}</div>
                 <div class="window-detail"><strong>Color Exterior:</strong> ${w.outerColor || "No especificado"}</div>
-                <div class="window-detail"><strong>Persiana:</strong> ${w.hasBlind ? "SÃ­" : "No"} | <strong>Fijo:</strong> ${w.hasFixedPanel ? "SÃ­" : "No"} | <strong>Motor:</strong> ${w.hasMotor ? "SÃ­" : "No"} | <strong>Mosquitera:</strong> ${w.hasMosquitera ? "SÃ­" : "No"} | <strong>Gatera:</strong> ${w.hasCatFlap ? "SÃ­" : "No"}</div>
+                <div class="window-detail"><strong>Persiana:</strong> ${w.hasBlind ? "Sí" : "No"} | <strong>Fijo:</strong> ${w.hasFixedPanel ? "Sí" : "No"} | <strong>Motor:</strong> ${w.hasMotor ? "Sí" : "No"} | <strong>Mosquitera:</strong> ${w.hasMosquitera ? "Sí" : "No"} | <strong>Gatera:</strong> ${w.hasCatFlap ? "Sí" : "No"}</div>
               </div>
             `
               })
@@ -185,7 +185,7 @@ Solicitud enviada desde PresupuÃ©stalo
           </div>
         </div>
         <div class="footer">
-          <p>Solicitud enviada desde PresupuÃ©stalo</p>
+          <p>Solicitud enviada desde Presupuéstalo</p>
         </div>
       </body>
       </html>
@@ -193,9 +193,9 @@ Solicitud enviada desde PresupuÃ©stalo
 
     // Enviar email al propietario
     const { error: homeownerError } = await resend.emails.send({
-      from: "PresupuÃ©stalo <noreply@presupuestalo.com>",
+      from: "Presupuéstalo <noreply@presupuestalo.com>",
       to: [homeownerEmail],
-      subject: "Solicitud de CotizaciÃ³n Recibida - PresupuÃ©stalo",
+      subject: "Solicitud de Cotización Recibida - Presupuéstalo",
       html: homeownerHtml,
     })
 
@@ -205,9 +205,9 @@ Solicitud enviada desde PresupuÃ©stalo
 
     // Enviar email al equipo admin
     const { error: adminError } = await resend.emails.send({
-      from: "PresupuÃ©stalo <noreply@presupuestalo.com>",
+      from: "Presupuéstalo <noreply@presupuestalo.com>",
       to: ["presupuestaloficial@gmail.com"],
-      subject: `Nueva Solicitud CotizaciÃ³n Ventanas - ${empresaNombre}`,
+      subject: `Nueva Solicitud Cotización Ventanas - ${empresaNombre}`,
       text: adminText,
       html: adminHtml,
     })

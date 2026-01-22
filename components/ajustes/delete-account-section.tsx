@@ -98,28 +98,30 @@ export function DeleteAccountSection() {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>¿Estás completamente seguro?</AlertDialogTitle>
-              <AlertDialogDescription className="space-y-4">
-                <p>
-                  Esta acción <strong>no se puede deshacer</strong>. Se eliminarán permanentemente:
-                </p>
-                <ul className="list-disc list-inside space-y-1 text-sm">
-                  <li>Todos tus proyectos y presupuestos</li>
-                  <li>Todos tus clientes y citas</li>
-                  <li>Todos tus planos y diseños</li>
-                  <li>Tu configuración y preferencias</li>
-                  <li>Tu suscripción activa</li>
-                </ul>
-                <div className="space-y-2 pt-4">
-                  <Label htmlFor="confirm-delete">
-                    Escribe <strong>ELIMINAR</strong> para confirmar:
-                  </Label>
-                  <Input
-                    id="confirm-delete"
-                    value={confirmText}
-                    onChange={(e) => setConfirmText(e.target.value)}
-                    placeholder="ELIMINAR"
-                    className="font-mono"
-                  />
+              <AlertDialogDescription asChild>
+                <div className="space-y-4 text-sm text-muted-foreground">
+                  <p>
+                    Esta acción <strong>no se puede deshacer</strong>. Se eliminarán permanentemente:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Todos tus proyectos y presupuestos</li>
+                    <li>Todos tus clientes y citas</li>
+                    <li>Todos tus planos y diseños</li>
+                    <li>Tu configuración y preferencias</li>
+                    <li>Tu suscripción activa</li>
+                  </ul>
+                  <div className="space-y-2 pt-4">
+                    <Label htmlFor="confirm-delete">
+                      Escribe <strong>ELIMINAR</strong> para confirmar:
+                    </Label>
+                    <Input
+                      id="confirm-delete"
+                      value={confirmText}
+                      onChange={(e) => setConfirmText(e.target.value)}
+                      placeholder="ELIMINAR"
+                      className="font-mono"
+                    />
+                  </div>
                 </div>
               </AlertDialogDescription>
             </AlertDialogHeader>

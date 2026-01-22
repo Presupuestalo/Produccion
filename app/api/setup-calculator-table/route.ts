@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   try {
     const supabase = createClient()
 
-    // Verificar si el usuario estÃ¡ autenticado
+    // Verificar si el usuario está autenticado
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
     // Crear la tabla
     const createTableSQL = `
-    -- Asegurarse de que la extensiÃ³n uuid-ossp estÃ¡ habilitada
+    -- Asegurarse de que la extensión uuid-ossp está habilitada
     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
     CREATE TABLE IF NOT EXISTS public.calculator_data (
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     -- Configurar seguridad RLS
     ALTER TABLE public.calculator_data ENABLE ROW LEVEL SECURITY;
 
-    -- Crear polÃ­tica para que los usuarios solo puedan ver sus propios datos
+    -- Crear política para que los usuarios solo puedan ver sus propios datos
     CREATE POLICY "Users can view their own calculator data" 
       ON public.calculator_data 
       FOR SELECT 
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
         )
       );
 
-    -- Crear polÃ­tica para que los usuarios solo puedan insertar sus propios datos
+    -- Crear política para que los usuarios solo puedan insertar sus propios datos
     CREATE POLICY "Users can insert their own calculator data" 
       ON public.calculator_data 
       FOR INSERT 
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
         )
       );
 
-    -- Crear polÃ­tica para que los usuarios solo puedan actualizar sus propios datos
+    -- Crear política para que los usuarios solo puedan actualizar sus propios datos
     CREATE POLICY "Users can update their own calculator data" 
       ON public.calculator_data 
       FOR UPDATE 
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
         )
       );
 
-    -- Crear polÃ­tica para que los usuarios solo puedan eliminar sus propios datos
+    -- Crear política para que los usuarios solo puedan eliminar sus propios datos
     CREATE POLICY "Users can delete their own calculator data" 
       ON public.calculator_data 
       FOR DELETE 

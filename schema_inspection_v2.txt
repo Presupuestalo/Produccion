@@ -1,0 +1,11 @@
+﻿Inspecting column names from information_schema...
+Ô£à Table 'quote_requests': FETCHED (0 rows)
+Ô£à Table 'quote_offers': FETCHED (0 rows)
+Ô£à Table 'calculator_data': FETCHED (0 rows)
+Ô£à Table 'projects': FETCHED (0 rows)
+Ô£à Table 'budgets': FETCHED (0 rows)
+Testing columns for quote_requests: user_id (OK) id (OK) 
+Testing columns for quote_offers: professional_id (OK) id (OK) 
+Testing columns for calculator_data: project_id (OK) id (OK) 
+Testing columns for projects: user_id (OK) id (OK) 
+Testing columns for budgets: user_id (OK) project_id (OK) id (OK) 

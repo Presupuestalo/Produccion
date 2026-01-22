@@ -9,22 +9,22 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 const PLAN_CONFIG = {
   basic: {
-    name: "Plan BÃ¡sico",
-    stripeName: "Plan BÃ¡sico", // Nombre exacto en Stripe
-    monthly: 5900, // 59â‚¬
-    annual: 59000, // 590â‚¬
+    name: "Plan Básico",
+    stripeName: "Plan Básico", // Nombre exacto en Stripe
+    monthly: 5900, // 59€
+    annual: 59000, // 590€
   },
   pro: {
     name: "Plan Pro",
     stripeName: "Plan Pro", // Cambiado de "Plan Profesional" a "Plan Pro" para coincidir con Stripe
-    monthly: 8900, // 89â‚¬
-    annual: 89000, // 890â‚¬
+    monthly: 8900, // 89€
+    annual: 89000, // 890€
   },
   business: {
     name: "Plan Empresa",
     stripeName: "Plan Empresa", // Nombre exacto en Stripe
-    monthly: 7990, // 79.90â‚¬
-    annual: 79900, // 799â‚¬
+    monthly: 7990, // 79.90€
+    annual: 79900, // 799€
   },
 }
 
@@ -127,7 +127,7 @@ export async function POST(req: Request) {
 
     if (!planName || !PLAN_CONFIG[planName as keyof typeof PLAN_CONFIG]) {
       console.error("[v0] Create checkout: Invalid plan:", planName)
-      return NextResponse.json({ error: "Plan invÃ¡lido" }, { status: 400 })
+      return NextResponse.json({ error: "Plan inválido" }, { status: 400 })
     }
 
     const config = PLAN_CONFIG[planName as keyof typeof PLAN_CONFIG]
@@ -140,7 +140,7 @@ export async function POST(req: Request) {
       console.error(`[v0] Product not found in Stripe: "${config.stripeName}"`)
       return NextResponse.json(
         {
-          error: `Producto "${config.stripeName}" no encontrado en Stripe. Por favor, verifica el catÃ¡logo de productos.`,
+          error: `Producto "${config.stripeName}" no encontrado en Stripe. Por favor, verifica el catálogo de productos.`,
         },
         { status: 400 },
       )
@@ -158,7 +158,7 @@ export async function POST(req: Request) {
 
     console.log("[v0] Create checkout: Using existing price:", priceId)
 
-    // Crear sesiÃ³n de checkout
+    // Crear sesión de checkout
     const session = await stripe.checkout.sessions.create({
       customer_email: customerEmail,
       line_items: [

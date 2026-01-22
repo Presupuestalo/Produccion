@@ -15,21 +15,21 @@ export async function POST(request: NextRequest) {
 
     const { walls, doors, windows } = await request.json()
 
-    // Usar IA para detectar habitaciones basÃ¡ndose en las paredes
+    // Usar IA para detectar habitaciones basándose en las paredes
     const { text } = await generateText({
       model: "openai/gpt-4o",
-      prompt: `Analiza las siguientes paredes, puertas y ventanas de un plano arquitectÃ³nico y detecta las habitaciones.
+      prompt: `Analiza las siguientes paredes, puertas y ventanas de un plano arquitectónico y detecta las habitaciones.
 
 Paredes: ${JSON.stringify(walls)}
 Puertas: ${JSON.stringify(doors)}
 Ventanas: ${JSON.stringify(windows)}
 
-Proporciona la informaciÃ³n en formato JSON:
+Proporciona la información en formato JSON:
 {
   "rooms": [
     {
       "id": "room-1",
-      "name": "SalÃ³n",
+      "name": "Salón",
       "walls": ["wall-id-1", "wall-id-2"],
       "area": 25.5
     }

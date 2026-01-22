@@ -22,7 +22,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "ID de lead requerido" }, { status: 400 })
     }
 
-    // Verificar que la empresa accediÃ³ al lead
+    // Verificar que la empresa accedió al lead
     const { data: interaction, error: interactionError } = await supabase
       .from("lead_interactions")
       .select("*")
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       )
     }
 
-    // Verificar que ya no haya reclamaciÃ³n pendiente
+    // Verificar que ya no haya reclamación pendiente
     const { data: existingClaim } = await supabase
       .from("lead_interactions")
       .select("*")
@@ -49,27 +49,27 @@ export async function POST(req: Request) {
 
     if (existingClaim) {
       return NextResponse.json(
-        { error: "Ya has presentado una reclamaciÃ³n para este lead" },
+        { error: "Ya has presentado una reclamación para este lead" },
         { status: 400 }
       )
     }
 
-    // Verificar que han pasado al menos 7 dÃ­as desde el acceso
+    // Verificar que han pasado al menos 7 días desde el acceso
     const accessDate = new Date(interaction.accessed_at!)
     const now = new Date()
     const daysSinceAccess = Math.floor((now.getTime() - accessDate.getTime()) / (1000 * 60 * 60 * 24))
 
     if (daysSinceAccess < MARKETPLACE_CONFIG.CLAIM_WINDOW_DAYS) {
       return NextResponse.json(
-        { error: `Debes esperar ${MARKETPLACE_CONFIG.CLAIM_WINDOW_DAYS} dÃ­as desde el acceso para reclamar` },
+        { error: `Debes esperar ${MARKETPLACE_CONFIG.CLAIM_WINDOW_DAYS} días desde el acceso para reclamar` },
         { status: 400 }
       )
     }
 
-    // Calcular devoluciÃ³n (50% de los crÃ©ditos gastados)
+    // Calcular devolución (50% de los créditos gastados)
     const refundAmount = Math.floor(interaction.credits_spent! * MARKETPLACE_CONFIG.REFUND_PERCENTAGE)
 
-    // Crear registro de reclamaciÃ³n
+    // Crear registro de reclamación
     const { error: claimError } = await supabase
       .from("lead_interactions")
       .insert({
@@ -84,10 +84,10 @@ export async function POST(req: Request) {
 
     if (claimError) {
       console.error("[v0] Error creating claim:", claimError)
-      return NextResponse.json({ error: "Error al crear reclamaciÃ³n" }, { status: 500 })
+      return NextResponse.json({ error: "Error al crear reclamación" }, { status: 500 })
     }
 
-    // Devolver crÃ©ditos automÃ¡ticamente
+    // Devolver créditos automáticamente
     const { data: credits } = await supabase
       .from("company_credits")
       .select("credits_balance")
@@ -102,12 +102,12 @@ export async function POST(req: Request) {
         })
         .eq("company_id", user.id)
 
-      // Registrar transacciÃ³n de devoluciÃ³n
+      // Registrar transacción de devolución
       await supabase.from("credit_transactions").insert({
         company_id: user.id,
         type: "refund",
         amount: refundAmount,
-        description: `DevoluciÃ³n parcial por lead sin respuesta (${MARKETPLACE_CONFIG.REFUND_PERCENTAGE * 100}%)`,
+        description: `Devolución parcial por lead sin respuesta (${MARKETPLACE_CONFIG.REFUND_PERCENTAGE * 100}%)`,
         lead_request_id: leadId,
       })
     }
@@ -115,7 +115,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       refunded_credits: refundAmount,
-      message: `Se han devuelto ${refundAmount} crÃ©ditos (${MARKETPLACE_CONFIG.REFUND_PERCENTAGE * 100}% del coste)`,
+      message: `Se han devuelto ${refundAmount} créditos (${MARKETPLACE_CONFIG.REFUND_PERCENTAGE * 100}% del coste)`,
     })
   } catch (error: any) {
     console.error("[v0] Error processing claim:", error)

@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     const validWindows = windows.filter((w: any) => w.width > 0 && w.height > 0)
 
     if (validWindows.length === 0) {
-      return NextResponse.json({ error: "No hay ventanas con medidas vÃ¡lidas para enviar" }, { status: 400 })
+      return NextResponse.json({ error: "No hay ventanas con medidas válidas para enviar" }, { status: 400 })
     }
 
     const groupedWindows = groupWindows(validWindows)
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
     const glassTypeDisplayMap: Record<string, string> = {
       Sencillo: "Ventana Sencilla",
       Doble: "Ventana Doble",
-      "Puerta BalcÃ³n": "Puerta de BalcÃ³n",
+      "Puerta Balcón": "Puerta de Balcón",
     }
 
     const windowsList = groupedWindows
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
         const extras = []
         if (w.hasBlind) extras.push("Persiana")
         if (w.hasFixedPanel) extras.push("Fijo")
-        if (w.hasMotor) extras.push("Motor ElÃ©ctrico")
+        if (w.hasMotor) extras.push("Motor Eléctrico")
         if (w.hasMosquitera) extras.push("Mosquitera")
         if (w.hasCatFlap) extras.push("Gatera")
 
@@ -100,7 +100,7 @@ ${quantityLabel}VENTANA${group.quantity > 1 ? "S" : ""} ${index + 1}${roomsLabel
 â€¢ Tipo: ${displayType}
 â€¢ Abertura: ${w.type || "No especificado"}
 â€¢ Material: ${w.material || "No especificado"}
-â€¢ Dimensiones: ${w.width}m (ancho) Ã— ${w.height}m (alto)
+â€¢ Dimensiones: ${w.width}m (ancho) í— ${w.height}m (alto)
 â€¢ Color Interior: ${w.innerColor || "Blanco"}
 â€¢ Color Exterior: ${w.outerColor || "Blanco"}
 â€¢ Extras: ${extras.length > 0 ? extras.join(", ") : "Ninguno"}
@@ -114,13 +114,13 @@ ${group.quantity > 1 ? `â€¢ Cantidad: ${group.quantity} unidades` : ""}
     const emailText = `
 Estimado/a ${recipientName || "profesional"},
 
-La empresa ${companyName} solicita un presupuesto para la instalaciÃ³n de ventanas con las siguientes especificaciones:
+La empresa ${companyName} solicita un presupuesto para la instalación de ventanas con las siguientes especificaciones:
 
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 DATOS DEL PROYECTO
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 â€¢ Nombre: ${projectName}
-â€¢ UbicaciÃ³n: ${projectLocation}
+â€¢ Ubicación: ${projectLocation}
 â€¢ Total de ventanas: ${validWindows.length}
 â€¢ Tipos diferentes: ${groupedWindows.length}
 ${descriptionText}
@@ -133,14 +133,14 @@ DATOS DE CONTACTO
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 â€¢ Empresa: ${companyName}
 â€¢ Email: ${contactEmail}
-â€¢ TelÃ©fono: ${contactPhone}
+â€¢ Teléfono: ${contactPhone}
 
-Por favor, envÃ­e su presupuesto a la direcciÃ³n de email indicada.
+Por favor, envíe su presupuesto a la dirección de email indicada.
 
-Gracias por su atenciÃ³n.
+Gracias por su atención.
 
 ---
-Este mensaje ha sido enviado desde PresupuÃ©stalo
+Este mensaje ha sido enviado desde Presupuéstalo
 www.presupuestalo.com
 `
 
@@ -166,12 +166,12 @@ www.presupuestalo.com
   </div>
   <div class="content">
     <p>Estimado/a <strong>${recipientName || "profesional"}</strong>,</p>
-    <p>La empresa <strong>${companyName}</strong> solicita un presupuesto para la instalaciÃ³n de ventanas con las siguientes especificaciones:</p>
+    <p>La empresa <strong>${companyName}</strong> solicita un presupuesto para la instalación de ventanas con las siguientes especificaciones:</p>
     
     <div class="section">
       <h3>Datos del Proyecto</h3>
       <p><strong>Nombre:</strong> ${projectName}</p>
-      <p><strong>UbicaciÃ³n:</strong> ${projectLocation}</p>
+      <p><strong>Ubicación:</strong> ${projectLocation}</p>
       <p><strong>Total de ventanas:</strong> ${validWindows.length}</p>
       <p><strong>Tipos diferentes:</strong> ${groupedWindows.length}</p>
     </div>
@@ -185,7 +185,7 @@ www.presupuestalo.com
           const extras = []
           if (w.hasBlind) extras.push("Persiana")
           if (w.hasFixedPanel) extras.push("Fijo")
-          if (w.hasMotor) extras.push("Motor ElÃ©ctrico")
+          if (w.hasMotor) extras.push("Motor Eléctrico")
           if (w.hasMosquitera) extras.push("Mosquitera")
           if (w.hasCatFlap) extras.push("Gatera")
           const displayType = glassTypeDisplayMap[w.glassType] || w.glassType || "No especificado"
@@ -200,7 +200,7 @@ www.presupuestalo.com
         <strong>Tipo:</strong> ${displayType}<br>
         <strong>Abertura:</strong> ${w.type || "No especificado"}<br>
         <strong>Material:</strong> ${w.material || "No especificado"}<br>
-        <strong>Dimensiones:</strong> ${w.width}m Ã— ${w.height}m<br>
+        <strong>Dimensiones:</strong> ${w.width}m í— ${w.height}m<br>
         <strong>Color Interior:</strong> ${w.innerColor || "Blanco"}<br>
         <strong>Color Exterior:</strong> ${w.outerColor || "Blanco"}<br>
         <strong>Extras:</strong> ${extras.length > 0 ? extras.join(", ") : "Ninguno"}
@@ -213,14 +213,14 @@ www.presupuestalo.com
       <h3>Datos de Contacto</h3>
       <p><strong>Empresa:</strong> ${companyName}</p>
       <p><strong>Email:</strong> ${contactEmail}</p>
-      <p><strong>TelÃ©fono:</strong> ${contactPhone}</p>
+      <p><strong>Teléfono:</strong> ${contactPhone}</p>
     </div>
     
-    <p>Por favor, envÃ­e su presupuesto a la direcciÃ³n de email indicada.</p>
-    <p>Gracias por su atenciÃ³n.</p>
+    <p>Por favor, envíe su presupuesto a la dirección de email indicada.</p>
+    <p>Gracias por su atención.</p>
   </div>
   <div class="footer">
-    <p>Este mensaje ha sido enviado desde PresupuÃ©stalo<br>www.presupuestalo.com</p>
+    <p>Este mensaje ha sido enviado desde Presupuéstalo<br>www.presupuestalo.com</p>
   </div>
 </body>
 </html>

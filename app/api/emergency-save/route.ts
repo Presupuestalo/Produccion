@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       },
     )
 
-    // Verificar si ya existe una configuraciÃ³n para este proyecto
+    // Verificar si ya existe una configuración para este proyecto
     const { data: existingData, error: checkError } = await supabase
       .from("calculator_data")
       .select("id")
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
     if (checkError && checkError.code !== "PGRST116") {
       // Si hay un error que no sea "no se encontraron resultados"
-      console.error("Error al verificar configuraciÃ³n existente:", checkError)
+      console.error("Error al verificar configuración existente:", checkError)
       return NextResponse.json({ success: false, error: checkError.message }, { status: 500 })
     }
 
@@ -53,15 +53,15 @@ export async function POST(request: Request) {
       demolitionSettings: "demolition_settings",
     }
 
-    // AÃ±adir los datos al objeto de actualizaciÃ³n
+    // Añadir los datos al objeto de actualización
     updateData[columnMap[dataType]] = data
 
     let result
     if (existingData) {
-      // Actualizar configuraciÃ³n existente
+      // Actualizar configuración existente
       result = await supabase.from("calculator_data").update(updateData).eq("id", existingData.id)
     } else {
-      // Crear nueva configuraciÃ³n
+      // Crear nueva configuración
       updateData.project_id = projectId
       updateData.created_at = new Date().toISOString()
       result = await supabase.from("calculator_data").insert(updateData)

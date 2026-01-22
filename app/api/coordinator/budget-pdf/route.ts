@@ -98,8 +98,8 @@ export async function GET(request: NextRequest) {
         coordination_fee: coordinationFee,
         coordination_fee_label:
           project.coordination_fee_type === "percentage"
-            ? `CoordinaciÃ³n y gestiÃ³n (${project.coordination_fee}%)`
-            : "CoordinaciÃ³n y gestiÃ³n",
+            ? `Coordinación y gestión (${project.coordination_fee}%)`
+            : "Coordinación y gestión",
         total,
       },
     }

@@ -24,9 +24,9 @@ export async function POST(req: Request) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "PresupuÃ©stalo <no-reply@presupuestalo.com>",
+        from: "Presupuéstalo <no-reply@presupuestalo.com>",
         to: email,
-        subject: `Has ganado ${creditsEarned} crÃ©ditos por tu referido`,
+        subject: `Has ganado ${creditsEarned} créditos por tu referido`,
         html: `
           <!DOCTYPE html>
           <html>
@@ -42,23 +42,23 @@ export async function POST(req: Request) {
                     <!-- Header -->
                     <tr>
                       <td style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 30px; text-align: center;">
-                        <h1 style="color: #ffffff; margin: 0; font-size: 28px;">ðŸŽ‰ Â¡Felicidades ${referrerName}!</h1>
+                        <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🎉 ¡Felicidades ${referrerName}!</h1>
                       </td>
                     </tr>
                     <!-- Content -->
                     <tr>
                       <td style="padding: 40px;">
                         <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
-                          <p style="font-size: 48px; margin: 0 0 8px 0;">ðŸª™</p>
-                          <p style="font-size: 36px; font-weight: bold; color: #d97706; margin: 0;">+${creditsEarned} crÃ©ditos</p>
+                          <p style="font-size: 48px; margin: 0 0 8px 0;">🪙</p>
+                          <p style="font-size: 36px; font-weight: bold; color: #d97706; margin: 0;">+${creditsEarned} créditos</p>
                         </div>
                         
                         <p style="color: #374151; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">
-                          <strong>${referredName}</strong> ha contratado el <strong>${planDisplayName}</strong> el ${convertedDate} gracias a tu invitaciÃ³n.
+                          <strong>${referredName}</strong> ha contratado el <strong>${planDisplayName}</strong> el ${convertedDate} gracias a tu invitación.
                         </p>
                         
                         <p style="color: #374151; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">
-                          Como recompensa, hemos aÃ±adido <strong>${creditsEarned} crÃ©ditos</strong> a tu cuenta. Â¡Sigue invitando a mÃ¡s profesionales para ganar mÃ¡s!
+                          Como recompensa, hemos añadido <strong>${creditsEarned} créditos</strong> a tu cuenta. ¡Sigue invitando a más profesionales para ganar más!
                         </p>
                         
                         <div style="text-align: center; margin-top: 32px;">
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
                     <tr>
                       <td style="background-color: #f9fafb; padding: 24px; text-align: center; border-top: 1px solid #e5e7eb;">
                         <p style="color: #6b7280; font-size: 14px; margin: 0;">
-                          Â© ${new Date().getFullYear()} PresupuÃ©stalo. Todos los derechos reservados.
+                          © ${new Date().getFullYear()} Presupuéstalo. Todos los derechos reservados.
                         </p>
                       </td>
                     </tr>

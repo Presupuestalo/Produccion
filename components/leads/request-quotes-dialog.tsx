@@ -101,11 +101,11 @@ export function RequestQuotesDialog({
   const [isLoading, setIsLoading] = useState(true)
   const [reformCity, setReformCity] = useState("")
   const [reformProvince, setReformProvince] = useState("")
+  const [reformStreet, setReformStreet] = useState("")
   const [projectTitle, setProjectTitle] = useState("Proyecto de reforma")
   const [originalProfileName, setOriginalProfileName] = useState("")
   const [userId, setUserId] = useState<string | null>(null)
 
-  const supabase = createClient()
 
   useEffect(() => {
     console.log(`[v0] ########## REQUEST-QUOTES-DIALOG ${DIALOG_VERSION} MONTADO ##########`)
@@ -126,7 +126,13 @@ export function RequestQuotesDialog({
     console.log(`[v0] ${DIALOG_VERSION} - Iniciando carga de datos para proyecto:`, projectId)
 
     try {
-      // 1. Obtener usuario actual
+      // 1. Obtener cliente y usuario actual
+      const supabase = await createClient()
+      if (!supabase) {
+        console.error("[v0] No se pudo inicializar el cliente de Supabase")
+        return
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -182,15 +188,18 @@ export function RequestQuotesDialog({
           !!project.province,
         )
 
-        // Setear ciudad aunque sea string vacío
+        // Setear ciudad y provincia
         const cityValue = project.city || ""
         const provinceValue = project.province || ""
+        const streetValue = project.street || ""
 
         console.log("[v0] Seteando ciudad:", cityValue)
         console.log("[v0] Seteando provincia:", provinceValue)
+        console.log("[v0] Seteando calle (interna):", streetValue)
 
         setReformCity(cityValue)
         setReformProvince(provinceValue)
+        setReformStreet(streetValue)
 
         console.log("[v0] === DESPUÉS DE SETEAR ===")
       } else {
@@ -313,6 +322,9 @@ export function RequestQuotesDialog({
 
     setIsSubmitting(true)
     try {
+      const supabase = await createClient()
+      if (!supabase) throw new Error("No se pudo inicializar Supabase")
+
       // Actualizar nombre en perfil si cambió
       if (userId && fullName !== originalProfileName) {
         await supabase.from("profiles").update({ full_name: fullName }).eq("id", userId)
@@ -329,7 +341,7 @@ export function RequestQuotesDialog({
           estimatedBudget,
           fullName: fullName.trim(),
           phone: fullPhone,
-          reformStreet: "", // Removed address field
+          reformStreet: reformStreet || "No especificada",
           reformCity: reformCity.trim(),
           reformProvince: reformProvince || reformCity,
           reformCountry: "España",
@@ -360,6 +372,10 @@ export function RequestQuotesDialog({
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="sr-only">Cargando...</DialogTitle>
+            <DialogDescription className="sr-only">Estamos preparando tu solicitud</DialogDescription>
+          </DialogHeader>
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
           </div>
@@ -396,8 +412,7 @@ export function RequestQuotesDialog({
                 <PhoneInputWithCountry
                   value={phone}
                   onChange={setPhone}
-                  country={userCountry}
-                  onCountryChange={setUserCountry}
+                  defaultCountry={userCountry}
                 />
               </div>
 
@@ -528,14 +543,14 @@ export function RequestQuotesDialog({
                 )}
               </div>
 
-              {/* Comentarios */}
               <div className="space-y-2">
                 <Label>Comentarios adicionales (opcional)</Label>
                 <Textarea
                   value={additionalDetails}
                   onChange={(e) => setAdditionalDetails(e.target.value)}
                   placeholder="¿Algo más que quieras que sepan los profesionales?"
-                  rows={2}
+                  rows={3}
+                  className="resize-none focus-visible:ring-orange-500"
                 />
               </div>
 

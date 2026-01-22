@@ -15,9 +15,11 @@ export async function GET(request: Request) {
   const errorDescription = searchParams.get("error_description")
 
   if (errorParam) {
-    console.error("OAuth error:", errorParam, errorDescription)
+    console.error("OAuth error received in callback:", errorParam, errorDescription)
     return NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(errorDescription || errorParam)}`)
   }
+
+  console.log("Auth callback triggered with code:", code ? "exists" : "missing")
 
   if (code) {
     const cookieStore = await cookies()
@@ -87,9 +89,11 @@ export async function GET(request: Request) {
     }
 
     // Esto evita problemas en móvil donde las cookies pueden no estar disponibles inmediatamente
+    console.log("Exchanging code for session...")
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error && data?.user) {
+      console.log("Session exchanged successfully for user:", data.user.email)
       // Código intercambiado correctamente
       await syncOAuthDataToProfile(data.user.id, data.user.user_metadata || {}, data.user.email || "")
 
@@ -126,18 +130,21 @@ export async function GET(request: Request) {
     }
 
     if (error) {
+      console.error("Error during code exchange:", error.message, error.code)
       // El código puede haber sido ya intercambiado (doble petición en móvil)
       if (
         error.message?.includes("already used") ||
         error.message?.includes("invalid") ||
         error.code === "bad_oauth_state"
       ) {
+        console.log("Checking for existing session due to potential double-callback...")
         // Intentar obtener sesión existente
         const {
           data: { session: existingSession },
         } = await supabase.auth.getSession()
 
         if (existingSession?.user) {
+          console.log("Existing session found for user:", existingSession.user.email)
           // Ya hay sesión, sincronizar datos y redirigir
           await syncOAuthDataToProfile(
             existingSession.user.id,

@@ -105,7 +105,7 @@ export async function POST(request: Request) {
             Authorization: `Bearer ${resendApiKey}`,
           },
           body: JSON.stringify({
-            from: process.env.RESEND_FROM_EMAIL || "PresupuÃ©stalo <onboarding@resend.dev>",
+            from: process.env.RESEND_FROM_EMAIL || "Presupuéstalo <onboarding@resend.dev>",
             to: homeownerData.email,
             subject: `Nueva propuesta recibida para tu proyecto de ${leadData?.reform_types?.[0] || "reforma"}`,
             html: `
@@ -137,12 +137,12 @@ export async function POST(request: Request) {
                       <p><strong>Empresa:</strong> ${professionalData?.company_name || professionalData?.full_name || "No especificado"}</p>
                       <p><strong>Contacto:</strong> ${professionalData?.full_name || "No especificado"}</p>
                       <p><strong>Email:</strong> ${professionalData?.email || "No especificado"}</p>
-                      <p><strong>TelÃ©fono:</strong> ${professionalData?.phone || "No especificado"}</p>
+                      <p><strong>Teléfono:</strong> ${professionalData?.phone || "No especificado"}</p>
                     </div>
                     
                     <div class="highlight">
                       <h3 style="margin-top: 0;">Presupuesto propuesto</h3>
-                      <p class="price">${Number(proposed_budget).toLocaleString("es-ES", { minimumFractionDigits: 2 })} â‚¬ (sin IVA)</p>
+                      <p class="price">${Number(proposed_budget).toLocaleString("es-ES", { minimumFractionDigits: 2 })} € (sin IVA)</p>
                     </div>
 
                     ${message
@@ -164,7 +164,7 @@ export async function POST(request: Request) {
                     </center>
                   </div>
                   <div class="footer">
-                    <p>Este email fue enviado automÃ¡ticamente por PresupuÃ©stalo.</p>
+                    <p>Este email fue enviado automáticamente por Presupuéstalo.</p>
                     <p>Si no solicitaste este presupuesto, puedes ignorar este mensaje.</p>
                   </div>
                 </div>

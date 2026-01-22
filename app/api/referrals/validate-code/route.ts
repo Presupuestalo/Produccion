@@ -2,16 +2,16 @@
 import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase-admin"
 
-// POST /api/referrals/validate-code - Validar cÃ³digo de referido
+// POST /api/referrals/validate-code - Validar código de referido
 export async function POST(req: Request) {
   try {
     const { code } = await req.json()
 
     if (!code) {
-      return NextResponse.json({ error: "CÃ³digo requerido" }, { status: 400 })
+      return NextResponse.json({ error: "Código requerido" }, { status: 400 })
     }
 
-    // Buscar cÃ³digo
+    // Buscar código
     const { data: referralCode, error } = await supabaseAdmin
       .from("referral_codes")
       .select(`
@@ -29,18 +29,18 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           valid: false,
-          error: "CÃ³digo de referido no vÃ¡lido o expirado",
+          error: "Código de referido no válido o expirado",
         },
         { status: 404 },
       )
     }
 
-    // Verificar lÃ­mite de usos
+    // Verificar límite de usos
     if (referralCode.uses_count >= referralCode.max_uses) {
       return NextResponse.json(
         {
           valid: false,
-          error: "Este cÃ³digo ha alcanzado el lÃ­mite mÃ¡ximo de usos",
+          error: "Este código ha alcanzado el límite máximo de usos",
         },
         { status: 400 },
       )

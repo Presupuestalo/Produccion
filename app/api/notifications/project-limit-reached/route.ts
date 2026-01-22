@@ -7,17 +7,17 @@ export async function POST(request: NextRequest) {
   try {
     const { userEmail, userName, maxProjects } = await request.json()
 
-    console.log("[v0] Enviando email de lÃ­mite de proyectos alcanzado a:", userEmail)
+    console.log("[v0] Enviando email de límite de proyectos alcanzado a:", userEmail)
 
     // Verificar que tenemos la API key de Resend
     const resendApiKey = process.env.RESEND_API_KEY
 
     if (!resendApiKey) {
-      console.error("[v0] âŒ RESEND_API_KEY no estÃ¡ configurada")
+      console.error("[v0] âŒ RESEND_API_KEY no está configurada")
       return NextResponse.json({ success: false, message: "Servicio de email no configurado" }, { status: 500 })
     }
 
-    console.log("[v0] âœ… API key de Resend encontrada")
+    console.log("[v0] ✅ API key de Resend encontrada")
 
     // Construir el HTML del email
     const emailHtml = `
@@ -84,21 +84,21 @@ export async function POST(request: NextRequest) {
         <body>
           <div class="container">
             <div class="header">
-              <div class="logo">PresupuÃ©stalo</div>
+              <div class="logo">Presupuéstalo</div>
             </div>
             
             <div class="content">
-              <h1>Has alcanzado el lÃ­mite de proyectos</h1>
+              <h1>Has alcanzado el límite de proyectos</h1>
               
               <p>Hola ${userName || ""},</p>
               
               <p>
-                Has alcanzado el lÃ­mite de <strong>${maxProjects} ${maxProjects === 1 ? "proyecto" : "proyectos"}</strong> 
+                Has alcanzado el límite de <strong>${maxProjects} ${maxProjects === 1 ? "proyecto" : "proyectos"}</strong> 
                 de tu plan actual.
               </p>
               
               <p>
-                Para continuar creando mÃ¡s proyectos y aprovechar al mÃ¡ximo PresupuÃ©stalo, 
+                Para continuar creando más proyectos y aprovechar al máximo Presupuéstalo, 
                 actualiza tu plan a uno superior.
               </p>
               
@@ -110,8 +110,8 @@ export async function POST(request: NextRequest) {
             </div>
             
             <div class="footer">
-              <p>Este es un email automÃ¡tico. Por favor, no respondas a este mensaje.</p>
-              <p>Â© ${new Date().getFullYear()} PresupuÃ©stalo. Todos los derechos reservados.</p>
+              <p>Este es un email automático. Por favor, no respondas a este mensaje.</p>
+              <p>© ${new Date().getFullYear()} Presupuéstalo. Todos los derechos reservados.</p>
             </div>
           </div>
         </body>
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
     `
 
     // Enviar email usando Resend
-    console.log("[v0] ðŸ“¤ Enviando email a Resend API...")
+    console.log("[v0] 📤 Enviando email a Resend API...")
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         from: "Presupuestalo <noreply@presupuestalo.com>",
         to: userEmail,
-        subject: "Presupuestalo.com - LÃ­mite alcanzado",
+        subject: "Presupuestalo.com - Límite alcanzado",
         html: emailHtml,
       }),
     })
@@ -141,10 +141,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "Error al enviar email", resendError: data }, { status: 500 })
     }
 
-    console.log("[v0] âœ… Email enviado exitosamente:", data.id)
+    console.log("[v0] ✅ Email enviado exitosamente:", data.id)
     return NextResponse.json({ success: true, emailId: data.id })
   } catch (error: any) {
-    console.error("[v0] âŒ Error enviando email de lÃ­mite:", error)
+    console.error("[v0] âŒ Error enviando email de límite:", error)
     return NextResponse.json({ success: false, message: error.message }, { status: 500 })
   }
 }

@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       console.error("[v0] Phone not verified. Phone:", profile.phone, "Verified:", profile.phone_verified)
       return NextResponse.json(
         {
-          error: "Se requiere un nÃºmero de telÃ©fono verificado para publicar. Por favor verifica tu telÃ©fono primero.",
+          error: "Se requiere un número de teléfono verificado para publicar. Por favor verifica tu teléfono primero.",
         },
         { status: 400 },
       )
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     }
 
     if (!fullName || !reformStreet || !reformCity || !reformProvince || !reformCountry) {
-      return NextResponse.json({ error: "Nombre y direcciÃ³n completa de la reforma son requeridos" }, { status: 400 })
+      return NextResponse.json({ error: "Nombre y dirección completa de la reforma son requeridos" }, { status: 400 })
     }
 
     console.log("[v0] Checking if lead_requests table exists...")
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
         return NextResponse.json(
           {
             error:
-              "El sistema de marketplace no estÃ¡ configurado todavÃ­a. Por favor, ejecuta el script de inicializaciÃ³n primero: /api/setup-marketplace",
+              "El sistema de marketplace no está configurado todavía. Por favor, ejecuta el script de inicialización primero: /api/setup-marketplace",
             needsSetup: true,
           },
           { status: 503 },
@@ -236,7 +236,7 @@ export async function POST(req: Request) {
       reform_address: reformStreet,
       city: reformCity,
       province: reformProvince,
-      country_code: reformCountry === "EspaÃ±a" ? "ES" : reformCountry,
+      country_code: reformCountry === "España" ? "ES" : reformCountry,
       location_lat: null,
       location_lng: null,
       client_name: fullName,
@@ -278,27 +278,27 @@ export async function POST(req: Request) {
           Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: "PresupuÃ©stalo <onboarding@resend.dev>",
+          from: "Presupuéstalo <onboarding@resend.dev>",
           to: [user.email],
           subject: "ðŸ” Estamos buscando profesionales para tu reforma",
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <div style="background-color: #f97316; padding: 20px; border-radius: 8px 8px 0 0;">
-                <h1 style="color: white; margin: 0; font-size: 24px;">Â¡Tu solicitud ha sido publicada!</h1>
+                <h1 style="color: white; margin: 0; font-size: 24px;">¡Tu solicitud ha sido publicada!</h1>
               </div>
               
               <div style="padding: 30px; background-color: #ffffff; border: 1px solid #e5e7eb; border-top: none;">
                 <p style="font-size: 16px; color: #374151;">Hola <strong>${fullName}</strong>,</p>
                 
                 <p style="font-size: 16px; color: #374151; line-height: 1.6;">
-                  Hemos recibido tu solicitud de presupuesto y ya estamos en bÃºsqueda de profesionales 
+                  Hemos recibido tu solicitud de presupuesto y ya estamos en búsqueda de profesionales 
                   que puedan ayudarte con tu reforma.
                 </p>
                 
                 <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #f59e0b;">
                   <p style="margin: 0; color: #92400e; font-weight: bold;">âš ï¸ Importante:</p>
                   <p style="margin: 10px 0 0 0; color: #92400e;">
-                    Tus datos de contacto serÃ¡n compartidos con profesionales verificados de tu zona. 
+                    Tus datos de contacto serán compartidos con profesionales verificados de tu zona. 
                     <strong>Estate atento porque pueden llamarte en cualquier momento</strong> para ofrecerte 
                     sus servicios y presupuestos.
                   </p>
@@ -306,7 +306,7 @@ export async function POST(req: Request) {
                 
                 <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 25px 0;">
                   <h3 style="color: #374151; margin: 0 0 15px 0;">ðŸ“‹ Resumen de tu solicitud:</h3>
-                  <p style="margin: 8px 0; color: #4b5563;"><strong>UbicaciÃ³n:</strong> ${reformStreet}, ${reformCity}, ${reformProvince}</p>
+                  <p style="margin: 8px 0; color: #4b5563;"><strong>Ubicación:</strong> ${reformStreet}, ${reformCity}, ${reformProvince}</p>
                   <p style="margin: 8px 0; color: #4b5563;"><strong>Presupuesto estimado:</strong> ${estimatedBudget.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</p>
                   <p style="margin: 8px 0; color: #4b5563;"><strong>Partidas incluidas:</strong> ${budgetSnapshot?.line_items?.length || 0}</p>
                 </div>
@@ -317,13 +317,13 @@ export async function POST(req: Request) {
                 
                 <p style="font-size: 14px; color: #6b7280;">
                   Un saludo,<br>
-                  <strong>El equipo de PresupuÃ©stalo</strong>
+                  <strong>El equipo de Presupuéstalo</strong>
                 </p>
               </div>
               
               <div style="background-color: #f3f4f6; padding: 15px; border-radius: 0 0 8px 8px; text-align: center;">
                 <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-                  Â© ${new Date().getFullYear()} PresupuÃ©stalo. Todos los derechos reservados.
+                  © ${new Date().getFullYear()} Presupuéstalo. Todos los derechos reservados.
                 </p>
               </div>
             </div>
@@ -346,7 +346,7 @@ export async function POST(req: Request) {
           Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: "PresupuÃ©stalo <onboarding@resend.dev>",
+          from: "Presupuéstalo <onboarding@resend.dev>",
           to: ["presupuestaloficial@gmail.com"],
           subject: `ðŸ“ Nueva solicitud de reforma en ${reformCity}, ${reformProvince}`,
           html: `
@@ -365,21 +365,21 @@ export async function POST(req: Request) {
                   <p style="margin: 8px 0; color: #4b5563;"><strong>ID:</strong> ${newLead.id}</p>
                   <p style="margin: 8px 0; color: #4b5563;"><strong>Cliente:</strong> ${fullName}</p>
                   <p style="margin: 8px 0; color: #4b5563;"><strong>Email:</strong> ${user.email}</p>
-                  <p style="margin: 8px 0; color: #4b5563;"><strong>TelÃ©fono:</strong> ${profile.phone}</p>
+                  <p style="margin: 8px 0; color: #4b5563;"><strong>Teléfono:</strong> ${profile.phone}</p>
                 </div>
                 
                 <div style="background-color: #ecfdf5; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #059669;">
-                  <h3 style="color: #065f46; margin: 0 0 15px 0;">ðŸ“ UbicaciÃ³n de la reforma:</h3>
-                  <p style="margin: 8px 0; color: #065f46;"><strong>DirecciÃ³n:</strong> ${reformStreet}</p>
+                  <h3 style="color: #065f46; margin: 0 0 15px 0;">ðŸ“ Ubicación de la reforma:</h3>
+                  <p style="margin: 8px 0; color: #065f46;"><strong>Dirección:</strong> ${reformStreet}</p>
                   <p style="margin: 8px 0; color: #065f46;"><strong>Ciudad:</strong> ${reformCity}</p>
                   <p style="margin: 8px 0; color: #065f46;"><strong>Provincia:</strong> ${reformProvince}</p>
                 </div>
                 
                 <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 25px 0;">
-                  <h3 style="color: #92400e; margin: 0 0 15px 0;">ðŸ’° InformaciÃ³n econÃ³mica:</h3>
+                  <h3 style="color: #92400e; margin: 0 0 15px 0;">💰 Información económica:</h3>
                   <p style="margin: 8px 0; color: #92400e;"><strong>Presupuesto estimado:</strong> ${estimatedBudget.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</p>
                   <p style="margin: 8px 0; color: #92400e;"><strong>Partidas incluidas:</strong> ${budgetSnapshot?.line_items?.length || 0}</p>
-                  <p style="margin: 8px 0; color: #92400e;"><strong>CrÃ©ditos:</strong> ${creditsCost}</p>
+                  <p style="margin: 8px 0; color: #92400e;"><strong>Créditos:</strong> ${creditsCost}</p>
                 </div>
                 
                 <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
@@ -389,7 +389,7 @@ export async function POST(req: Request) {
               
               <div style="background-color: #f3f4f6; padding: 15px; border-radius: 0 0 8px 8px; text-align: center;">
                 <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-                  Email automÃ¡tico de notificaciÃ³n - PresupuÃ©stalo
+                  Email automático de notificación - Presupuéstalo
                 </p>
               </div>
             </div>
