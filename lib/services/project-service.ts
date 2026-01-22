@@ -518,6 +518,20 @@ export async function deleteProject(id: string) {
       )
     }
 
+    const { data: activeLeadRequest, error: leadCheckError } = await supabase
+      .from("lead_requests")
+      .select("id, status")
+      .eq("project_id", id)
+      .in("status", ["open", "active"])
+      .maybeSingle()
+
+    if (activeLeadRequest) {
+      throw new Error(
+        "No puedes eliminar este proyecto porque tiene una solicitud activa en el marketplace. " +
+        "Debes eliminar la solicitud primero.",
+      )
+    }
+
     const { data: pendingOffers, error: offersCheckError } = await supabase
       .from("quote_offers")
       .select("id, status")

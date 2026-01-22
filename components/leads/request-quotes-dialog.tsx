@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Users, CheckCircle2, Phone, FileText, MapPin, Info } from "lucide-react"
 import { PhoneInputWithCountry } from "@/components/shared/phone-input-with-country"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -103,17 +104,15 @@ export function RequestQuotesDialog({
   const [reformProvince, setReformProvince] = useState("")
   const [reformStreet, setReformStreet] = useState("")
   const [projectTitle, setProjectTitle] = useState("Proyecto de reforma")
-  const [originalProfileName, setOriginalProfileName] = useState("")
   const [userId, setUserId] = useState<string | null>(null)
 
 
   useEffect(() => {
-    console.log(`[v0] ########## REQUEST-QUOTES-DIALOG ${DIALOG_VERSION} MONTADO ##########`)
+    // Component mounted
   }, [])
 
   useEffect(() => {
     if (open) {
-      console.log(`[v0] DIALOG ABIERTO - ${DIALOG_VERSION}`)
       loadData()
     } else {
       setVerificationCode("")
@@ -123,8 +122,6 @@ export function RequestQuotesDialog({
 
   const loadData = async () => {
     setIsLoading(true)
-    console.log(`[v0] ${DIALOG_VERSION} - Iniciando carga de datos para proyecto:`, projectId)
-
     try {
       // 1. Obtener cliente y usuario actual
       const supabase = await createClient()
@@ -145,23 +142,12 @@ export function RequestQuotesDialog({
       }
 
       setUserId(user.id)
-      console.log("[v0] Usuario:", user.id)
 
       // 2. Cargar perfil y proyecto en paralelo
       const [profileRes, projectRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id).single(),
         supabase.from("projects").select("title, street, city, province").eq("id", projectId).single(),
       ])
-
-      console.log("[v0] === PROFILE RESPONSE ===")
-      console.log("[v0] Data:", profileRes.data)
-      console.log("[v0] Error:", profileRes.error)
-
-      console.log("[v0] === PROJECT RESPONSE ===")
-      console.log("[v0] Project data completo:", JSON.stringify(projectRes.data, null, 2))
-      console.log("[v0] Project city:", projectRes.data?.city)
-      console.log("[v0] Project province:", projectRes.data?.province)
-      console.log("[v0] Error:", projectRes.error)
 
       const profile = profileRes.data
       const project = projectRes.data
@@ -170,40 +156,14 @@ export function RequestQuotesDialog({
       if (project) {
         setProjectTitle(project.title || "Proyecto de reforma")
 
-        console.log("[v0] === ANTES DE SETEAR CIUDAD/PROVINCIA ===")
-        console.log(
-          "[v0] project.city valor:",
-          project.city,
-          "| tipo:",
-          typeof project.city,
-          "| truthy:",
-          !!project.city,
-        )
-        console.log(
-          "[v0] project.province valor:",
-          project.province,
-          "| tipo:",
-          typeof project.province,
-          "| truthy:",
-          !!project.province,
-        )
-
         // Setear ciudad y provincia
         const cityValue = project.city || ""
         const provinceValue = project.province || ""
         const streetValue = project.street || ""
 
-        console.log("[v0] Seteando ciudad:", cityValue)
-        console.log("[v0] Seteando provincia:", provinceValue)
-        console.log("[v0] Seteando calle (interna):", streetValue)
-
         setReformCity(cityValue)
         setReformProvince(provinceValue)
         setReformStreet(streetValue)
-
-        console.log("[v0] === DESPUÉS DE SETEAR ===")
-      } else {
-        console.log("[v0] !!! NO HAY DATOS DE PROYECTO !!!")
       }
 
       // 4. Cargar nombre (prioridad: profile > user_metadata.name > email)
@@ -219,7 +179,6 @@ export function RequestQuotesDialog({
         console.log("[v0] Nombre desde email:", nombre)
       }
       setFullName(nombre)
-      setOriginalProfileName(nombre)
 
       // 5. Cargar teléfono
       if (profile?.phone) {
@@ -229,11 +188,7 @@ export function RequestQuotesDialog({
 
       // 6. Verificar phone_verified
       const phoneVerifiedValue = profile?.phone_verified
-      console.log("[v0] phone_verified valor:", phoneVerifiedValue, "| tipo:", typeof phoneVerifiedValue)
-
-      // Comparar como boolean O como string
       const isVerified = phoneVerifiedValue === true || phoneVerifiedValue === "true" || phoneVerifiedValue === "TRUE"
-      console.log("[v0] isVerified:", isVerified)
       setPhoneVerified(isVerified)
 
       // 7. Decidir paso inicial
@@ -315,17 +270,36 @@ export function RequestQuotesDialog({
   }
 
   const handleSubmit = async () => {
-    console.log("[v0] handleSubmit iniciado")
-    if (!reformCity.trim()) {
-      console.log("[v0] Error: Ciudad vacía")
-      toast({ title: "Error", description: "La ciudad es requerida", variant: "destructive" })
+    console.log("[v0] handleSubmit iniciado - Estado actual:", {
+      projectId,
+      budgetId,
+      estimatedBudget,
+      fullName,
+      reformCity,
+      reformProvince,
+      phone,
+      phoneVerified
+    })
+
+    if (!reformCity || !reformCity.trim()) {
+      toast({ title: "Error", description: "La ciudad de la reforma es requerida", variant: "destructive" })
+      return
+    }
+
+    if (!fullName || !fullName.trim()) {
+      toast({ title: "Error", description: "Tu nombre es requerido", variant: "destructive" })
+      return
+    }
+
+    if (!phoneVerified) {
+      toast({ title: "Error", description: "Debes verificar tu teléfono primero", variant: "destructive" })
       return
     }
 
     setIsSubmitting(true)
     try {
-      console.log("[v0] Preparando datos para el envío...")
-      const fullPhone = phone.startsWith("+") ? phone : `+${userCountry === "ES" ? "34" : userCountry}${phone}`
+      const safePhone = phone || ""
+      const fullPhone = safePhone.startsWith("+") ? safePhone : `+${userCountry === "ES" ? "34" : userCountry}${safePhone}`
 
       const payload = {
         projectId,
@@ -337,10 +311,10 @@ export function RequestQuotesDialog({
         reformCity: reformCity.trim(),
         reformProvince: reformProvince || reformCity,
         reformCountry: "España",
-        additionalDetails,
+        description: additionalDetails || "",
       }
 
-      console.log("[v0] Enviando solicitud a /api/leads/publish:", payload)
+      console.log("[v0] Enviando payload:", payload)
 
       const response = await fetch("/api/leads/publish", {
         method: "POST",
@@ -348,19 +322,29 @@ export function RequestQuotesDialog({
         body: JSON.stringify(payload),
       })
 
-      console.log("[v0] Respuesta recibida, status:", response.status)
-      const data = await response.json()
-      console.log("[v0] Cuerpo de respuesta:", data)
-
-      if (!response.ok) {
-        throw new Error(data.error || "Error al publicar")
+      let data
+      try {
+        data = await response.json()
+      } catch (e) {
+        console.error("[v0] Error parseando JSON de respuesta:", e)
+        throw new Error("Respuesta inválida del servidor")
       }
 
-      console.log("[v0] Publicación exitosa!")
+      if (!response.ok) {
+        console.error("[v0] Error en la respuesta:", data)
+        throw new Error(data.error || "Error al publicar la solicitud")
+      }
+
+      console.log("[v0] Éxito:", data)
       setStep("success")
-      toast({ title: "Publicado", description: "Tu solicitud ha sido publicada" })
+      toast({ title: "¡Publicado!", description: "Tu solicitud ha sido enviada correctamente" })
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+      console.error("[v0] Error catch en handleSubmit:", error)
+      toast({
+        title: "Error al publicar",
+        description: error.message || "Ha ocurrido un error inesperado",
+        variant: "destructive"
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -537,20 +521,38 @@ export function RequestQuotesDialog({
                   Ubicación de la reforma
                 </div>
 
-                <div className="flex items-center gap-2 text-sm bg-white rounded p-2">
-                  <MapPin className="h-4 w-4 text-gray-400" />
-                  <span className="font-medium">
-                    {reformCity && reformProvince
-                      ? `${reformCity}, ${reformProvince}`
-                      : reformCity || reformProvince || "Sin ubicación definida"}
-                  </span>
-                </div>
-
-                {!reformCity && !reformProvince && (
-                  <p className="text-xs text-gray-500">
-                    La ubicación se obtiene de los datos del proyecto. Puedes editarla en la configuración del proyecto.
+                <div className="space-y-4 pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="province">Provincia</Label>
+                      <Select value={reformProvince} onValueChange={setReformProvince}>
+                        <SelectTrigger id="province" className="bg-white focus:ring-orange-500">
+                          <SelectValue placeholder="Selecciona provincia" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SPANISH_PROVINCES.map((prov) => (
+                            <SelectItem key={prov} value={prov}>
+                              {prov}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="city">Ciudad / Localidad</Label>
+                      <Input
+                        id="city"
+                        value={reformCity}
+                        onChange={(e) => setReformCity(e.target.value)}
+                        placeholder="Ej: Madrid o Getafe"
+                        className="bg-white focus-visible:ring-orange-500"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-gray-500 italic">
+                    * Solo mostramos la ciudad y provincia a los profesionales para proteger tu privacidad.
                   </p>
-                )}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -569,9 +571,12 @@ export function RequestQuotesDialog({
                   Cancelar
                 </Button>
                 <Button
-                  onClick={handleSubmit}
+                  onClick={() => {
+                    console.log("[v0] Botón clickeado")
+                    handleSubmit()
+                  }}
                   disabled={isSubmitting || !reformCity.trim() || !phoneVerified}
-                  className="bg-orange-500 hover:bg-orange-600"
+                  className="bg-orange-500 hover:bg-orange-600 w-full sm:w-auto"
                 >
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   <Users className="mr-2 h-4 w-4" />

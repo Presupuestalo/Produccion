@@ -168,54 +168,42 @@ async function sendEstimationNotification(data: {
   estimatedPriceRange?: string
 }) {
   try {
-    const resendApiKey = process.env.RESEND_API_KEY
-    if (!resendApiKey) {
-      console.error("[v0] RESEND_API_KEY no configurada")
-      return
-    }
+    const { sendEmail } = await import("@/lib/email/send-email")
+    const { ADMIN_EMAIL } = await import("@/lib/email/send-email")
 
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify({
-        from: "Presupuéstalo <onboarding@resend.dev>",
-        to: ["presupuestaloficial@gmail.com"],
-        subject: `Nueva Estimación de Presupuesto - ${data.city}, ${data.country}`,
-        html: `
-          <h2>Nueva Estimación de Presupuesto</h2>
-          <h3>Ubicación</h3>
-          <ul>
-            <li><strong>País:</strong> ${data.country}</li>
-            <li><strong>Ciudad:</strong> ${data.city}</li>
-          </ul>
-          
-          <h3>Detalles del Proyecto</h3>
-          <ul>
-            <li><strong>Metros cuadrados:</strong> ${data.squareMeters}</li>
-            <li><strong>Habitaciones:</strong> ${data.rooms}</li>
-            <li><strong>Baños:</strong> ${data.bathrooms}</li>
-            <li><strong>Tipo de calefacción:</strong> ${data.heatingType}</li>
-            ${data.availableBudget ? `<li><strong>Presupuesto disponible:</strong> ${data.availableBudget} ${data.currency.symbol}</li>` : ""}
-            ${data.estimatedPriceRange ? `<li><strong>Estimación generada:</strong> ${data.estimatedPriceRange}</li>` : ""}
-          </ul>
-          
-          <h3>Moneda</h3>
-          <ul>
-            <li><strong>Código:</strong> ${data.currency.code}</li>
-            <li><strong>Símbolo:</strong> ${data.currency.symbol}</li>
-          </ul>
-          
-          <p><em>Este email fue generado automáticamente desde Presupuéstalo.</em></p>
-        `,
-      }),
+    const { success, error } = await sendEmail({
+      to: ADMIN_EMAIL,
+      subject: `Nueva Estimación de Presupuesto - ${data.city}, ${data.country}`,
+      html: `
+        <h2>Nueva Estimación de Presupuesto</h2>
+        <h3>Ubicación</h3>
+        <ul>
+          <li><strong>País:</strong> ${data.country}</li>
+          <li><strong>Ciudad:</strong> ${data.city}</li>
+        </ul>
+        
+        <h3>Detalles del Proyecto</h3>
+        <ul>
+          <li><strong>Metros cuadrados:</strong> ${data.squareMeters}</li>
+          <li><strong>Habitaciones:</strong> ${data.rooms}</li>
+          <li><strong>Baños:</strong> ${data.bathrooms}</li>
+          <li><strong>Tipo de calefacción:</strong> ${data.heatingType}</li>
+          ${data.availableBudget ? `<li><strong>Presupuesto disponible:</strong> ${data.availableBudget} ${data.currency.symbol}</li>` : ""}
+          ${data.estimatedPriceRange ? `<li><strong>Estimación generada:</strong> ${data.estimatedPriceRange}</li>` : ""}
+        </ul>
+        
+        <h3>Moneda</h3>
+        <ul>
+          <li><strong>Código:</strong> ${data.currency.code}</li>
+          <li><strong>Símbolo:</strong> ${data.currency.symbol}</li>
+        </ul>
+        
+        <p><em>Este email fue generado automáticamente desde Presupuéstalo.</em></p>
+      `,
     })
 
-    if (!response.ok) {
-      const error = await response.text()
-      console.error("[v0] Error enviando email con Resend:", error)
+    if (!success) {
+      console.error("[v0] Error enviando email de notificación:", error)
     } else {
       console.log("[v0] Email de notificación enviado exitosamente")
     }

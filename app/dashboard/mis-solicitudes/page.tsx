@@ -24,7 +24,7 @@ import {
   ThumbsUp,
   ThumbsDown,
 } from "lucide-react"
-import { createBrowserClient } from "@supabase/ssr"
+import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 
 interface ProfessionalProposal {
@@ -143,44 +143,48 @@ export default function MisSolicitudesPage() {
   const [leadRequests, setLeadRequests] = useState<LeadRequest[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchRequests()
-  }, [])
-
   const fetchRequests = async () => {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    )
+    const supabase = await createClient()
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
 
     const {
       data: { user },
     } = await supabase.auth.getUser()
 
     if (!user) {
+      console.log("[v0] MisSolicitudes - No user found")
       setLoading(false)
       return
     }
+
+    console.log("[v0] MisSolicitudes - Fetching for user:", user.id)
 
     const [quoteResult, leadResult] = await Promise.all([
       supabase.from("quote_requests").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
       supabase
         .from("lead_requests")
-        .select("*, budget_snapshot")
+        .select("*")
         .eq("homeowner_id", user.id)
         .order("created_at", { ascending: false }),
     ])
 
     if (quoteResult.error) {
       console.error("Error fetching quote_requests:", quoteResult.error)
+    } else {
+      console.log("[v0] MisSolicitudes - quote_requests found:", quoteResult.data?.length || 0)
     }
 
     if (leadResult.error) {
       console.error("Error fetching lead_requests:", leadResult.error)
+    } else {
+      console.log("[v0] MisSolicitudes - lead_requests found:", leadResult.data?.length || 0)
     }
 
     const leadsWithCompaniesAndProposals = await Promise.all(
-      (leadResult.data || []).map(async (lead) => {
+      (leadResult.data || []).map(async (lead: any) => {
         // Cargar propuestas del lead
         const { data: proposalsData } = await supabase
           .from("professional_proposals")
@@ -221,8 +225,8 @@ export default function MisSolicitudesPage() {
             .eq("lead_request_id", lead.id)
             .eq("action", "accessed")
 
-          companiesAccessed = (companiesData || []).map((company) => {
-            const interaction = interactionsData?.find((i) => i.company_id === company.id)
+          companiesAccessed = (companiesData || []).map((company: any) => {
+            const interaction = (interactionsData || []).find((i: any) => i.company_id === company.id)
             const proposal = proposalsWithProfiles.find((p) => p.professional_id === company.id)
             return {
               id: company.id,
@@ -247,7 +251,7 @@ export default function MisSolicitudesPage() {
 
     // Procesar quote_requests con ofertas
     const requestsWithOffers = await Promise.all(
-      (quoteResult.data || []).map(async (request) => {
+      (quoteResult.data || []).map(async (request: any) => {
         const { data: offersData } = await supabase
           .from("quote_offers")
           .select("*")
@@ -255,14 +259,14 @@ export default function MisSolicitudesPage() {
           .order("created_at", { ascending: false })
 
         if (offersData && offersData.length > 0) {
-          const unviewedOffers = offersData.filter((offer) => !offer.viewed_by_client)
+          const unviewedOffers = offersData.filter((offer: any) => !offer.viewed_by_client)
           if (unviewedOffers.length > 0) {
             await supabase
               .from("quote_offers")
               .update({ viewed_by_client: true, viewed_at: new Date().toISOString() })
               .in(
                 "id",
-                unviewedOffers.map((o) => o.id),
+                unviewedOffers.map((o: any) => o.id),
               )
           }
         }
@@ -275,6 +279,11 @@ export default function MisSolicitudesPage() {
     setLeadRequests(leadsWithCompaniesAndProposals)
     setLoading(false)
   }
+
+  useEffect(() => {
+    fetchRequests()
+  }, [])
+
 
   const handleProposalAction = async (proposalId: string, action: "accepted" | "rejected") => {
     try {
@@ -307,10 +316,8 @@ export default function MisSolicitudesPage() {
   }
 
   const handleOfferAction = async (offerId: string, action: "accepted" | "rejected") => {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    )
+    const supabase = await createClient()
+    if (!supabase) return
 
     const { error } = await supabase.from("quote_offers").update({ status: action }).eq("id", offerId)
 

@@ -471,6 +471,21 @@ export class BudgetService {
   static async deleteBudget(budgetId: string, supabaseClient: SupabaseClient): Promise<void> {
     const supabase = supabaseClient
 
+    // Verificar si hay solicitudes activas en el marketplace
+    const { data: activeLeads, error: leadCheckError } = await supabase
+      .from("lead_requests")
+      .select("id")
+      .eq("budget_id", budgetId)
+      .in("status", ["open", "active"])
+      .limit(1)
+
+    if (activeLeads && activeLeads.length > 0) {
+      throw new Error(
+        "No puedes eliminar este presupuesto porque tiene una solicitud activa en el marketplace. " +
+        "Debes cancelar la solicitud primero.",
+      )
+    }
+
     // Primero eliminar todas las partidas del presupuesto
     const { error: lineItemsError } = await supabase.from("budget_line_items").delete().eq("budget_id", budgetId)
 
@@ -507,6 +522,20 @@ export class BudgetService {
     }
 
     const budgetIds = budgets.map((b) => b.id)
+
+    // Verificar si alguno tiene solicitudes activas
+    const { data: activeLeads, error: leadCheckError } = await supabase
+      .from("lead_requests")
+      .select("id")
+      .in("budget_id", budgetIds)
+      .in("status", ["open", "active"])
+      .limit(1)
+
+    if (activeLeads && activeLeads.length > 0) {
+      throw new Error(
+        "No puedes eliminar los presupuestos de este proyecto porque al menos uno tiene una solicitud activa en el marketplace.",
+      )
+    }
 
     // Eliminar todas las partidas de todos los presupuestos
     const { error: lineItemsError } = await supabase.from("budget_line_items").delete().in("budget_id", budgetIds)

@@ -32,55 +32,38 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] ✅ API key de Resend encontrada")
 
-    const emailPayload = {
-      from: "Presupuéstalo <onboarding@resend.dev>",
+    const { sendEmail } = await import("@/lib/email/send-email")
+
+    console.log("[v0] 📤 Enviando email de bienvenida...")
+
+    const { success, emailId, error } = await sendEmail({
       to: email,
       subject: "¡Bienvenido a Presupuéstalo! 🎉",
       html: getWelcomeEmailHTML({ name, email, userType }),
-      text: getWelcomeEmailText({ name, email, userType }),
-    }
-
-    console.log("[v0] 📤 Enviando email a Resend API...")
-
-    // Enviar email usando Resend
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify(emailPayload),
     })
 
-    const data = await response.json()
-
-    console.log("[v0] 📥 Respuesta de Resend:", JSON.stringify(data, null, 2))
-
-    if (!response.ok) {
-      console.error("[v0] ❌ Error al enviar email. Status:", response.status)
-      console.error("[v0] ❌ Detalles del error:", data)
+    if (!success) {
+      console.error("[v0] ❌ Error al enviar email:", error)
       return NextResponse.json(
         {
           success: false,
           error: "Error al enviar email",
-          details: data,
-          message: data.message || "Error desconocido",
+          message: error || "Error desconocido",
         },
-        { status: response.status },
+        { status: 500 },
       )
     }
 
     console.log("[v0] ✅ Email de bienvenida enviado exitosamente a:", email)
-    console.log("[v0] ✅ ID del email:", data.id)
+    console.log("[v0] ✅ ID del email:", emailId)
 
     return NextResponse.json({
       success: true,
-      data,
+      emailId,
       message: "Email enviado correctamente",
     })
   } catch (error: any) {
     console.error("[v0] 💥 Error inesperado en send-welcome-email:", error)
-    console.error("[v0] 💥 Stack trace:", error.stack)
     return NextResponse.json(
       {
         success: false,

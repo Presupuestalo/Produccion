@@ -112,6 +112,16 @@ BEGIN
   GET DIAGNOSTICS count_val = ROW_COUNT;
   deleted_counts := jsonb_set(deleted_counts, '{auth_users}', to_jsonb(count_val));
 
+  -- Eliminar lead_requests
+  DELETE FROM lead_requests WHERE homeowner_id = user_uuid;
+  GET DIAGNOSTICS count_val = ROW_COUNT;
+  deleted_counts := jsonb_set(deleted_counts, '{lead_requests}', to_jsonb(count_val));
+
+  -- Eliminar professional_proposals
+  DELETE FROM professional_proposals WHERE professional_id = user_uuid;
+  GET DIAGNOSTICS count_val = ROW_COUNT;
+  deleted_counts := jsonb_set(deleted_counts, '{professional_proposals}', to_jsonb(count_val));
+
   RETURN jsonb_build_object(
     'success', true,
     'deleted_counts', deleted_counts

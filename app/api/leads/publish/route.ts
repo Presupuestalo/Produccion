@@ -47,10 +47,19 @@ export async function POST(req: Request) {
       )
     }
 
-    const { projectId, budgetId, description, fullName, reformStreet, reformCity, reformProvince, reformCountry } =
-      await req.json()
+    const {
+      projectId,
+      budgetId,
+      estimatedBudget: bodyEstimatedBudget,
+      description,
+      fullName,
+      reformStreet,
+      reformCity,
+      reformProvince,
+      reformCountry,
+    } = await req.json()
 
-    console.log("[v0] Request body - projectId:", projectId, "budgetId:", budgetId)
+    console.log("[v0] Request body - projectId:", projectId, "budgetId:", budgetId, "bodyEstimatedBudget:", bodyEstimatedBudget)
     console.log("[v0] Reform address:", { reformStreet, reformCity, reformProvince, reformCountry })
     console.log("[v0] Full name from request:", fullName)
 
@@ -120,7 +129,7 @@ export async function POST(req: Request) {
     console.log("[v0] Project found:", project.id)
 
     let budgetSnapshot = null
-    let estimatedBudget = project.budget || 0
+    let estimatedBudget = project.budget || bodyEstimatedBudget || 0
 
     if (budgetId) {
       console.log("[v0] Fetching budget with ID:", budgetId)
@@ -209,8 +218,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "El proyecto debe tener un presupuesto estimado" }, { status: 400 })
     }
 
-    if (fullName && fullName !== profile.full_name) {
-      console.log("[v0] Updating profile full_name from", profile.full_name, "to", fullName)
+    // We only update the profile name if it was empty before, 
+    // to avoid overwriting a full name with just a first name from the dialog
+    if (fullName && (!profile.full_name || profile.full_name === "")) {
+      console.log("[v0] Updating missing profile full_name to:", fullName)
       const { error: updateError } = await supabase.from("profiles").update({ full_name: fullName }).eq("id", user.id)
 
       if (updateError) {
@@ -235,6 +246,7 @@ export async function POST(req: Request) {
       reform_types: reformTypes,
       project_description: description || project.description || null,
       reform_address: reformStreet,
+      postal_code: project.reform_postal_code || project.postal_code || "00000", // Required field in DB
       city: reformCity,
       province: reformProvince,
       country_code: reformCountry === "España" ? "ES" : reformCountry,
@@ -243,17 +255,22 @@ export async function POST(req: Request) {
       client_name: fullName,
       client_email: user.email || null,
       client_phone: profile.phone,
-      max_companies: 3, // Updated from 4 to 3
+      max_companies: 3,
       companies_accessed_count: 0,
       companies_accessed_ids: [],
       expires_at: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(),
       created_at: new Date().toISOString(),
     }
 
-    console.log("[v0] Inserting lead request at:", leadRequest.created_at)
-    console.log("[v0] Lead request object:", JSON.stringify(leadRequest, null, 2))
+    console.log("[v0] Inserting lead request for user:", user.id)
+    console.log("[v0] Lead data sample:", {
+      city: leadRequest.city,
+      postal: leadRequest.postal_code,
+      budget: leadRequest.estimated_budget
+    })
 
-    const { data: newLead, error: leadError } = await supabase
+    const { supabaseAdmin } = await import("@/lib/supabase-admin")
+    const { data: newLead, error: leadError } = await supabaseAdmin
       .from("lead_requests")
       .insert(leadRequest)
       .select()
@@ -261,7 +278,6 @@ export async function POST(req: Request) {
 
     if (leadError) {
       console.error("[v0] Error creating lead request:", leadError)
-      console.error("[v0] Lead error details:", JSON.stringify(leadError, null, 2))
       return NextResponse.json(
         { error: leadError.message || "Error al crear solicitud de presupuestos" },
         { status: 500 },
@@ -270,197 +286,126 @@ export async function POST(req: Request) {
 
     console.log("[v0] Lead request created successfully with ID:", newLead.id)
 
+    // Using centralized email service
+    const { sendEmail } = await import("@/lib/email/send-email")
+
     try {
-      // Email 1: To the homeowner confirming their request
-      const homeownerEmailResponse = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        },
-        body: JSON.stringify({
-          from: "Presupuéstalo <onboarding@resend.dev>",
-          to: [user.email],
-          subject: "ðŸ” Estamos buscando profesionales para tu reforma",
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <div style="background-color: #f97316; padding: 20px; border-radius: 8px 8px 0 0;">
-                <h1 style="color: white; margin: 0; font-size: 24px;">¡Tu solicitud ha sido publicada!</h1>
-              </div>
-              
-              <div style="padding: 30px; background-color: #ffffff; border: 1px solid #e5e7eb; border-top: none;">
-                <p style="font-size: 16px; color: #374151;">Hola <strong>${fullName}</strong>,</p>
-                
-                <p style="font-size: 16px; color: #374151; line-height: 1.6;">
-                  Hemos recibido tu solicitud de presupuesto y ya estamos en búsqueda de profesionales 
-                  que puedan ayudarte con tu reforma.
-                </p>
-                
-                <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #f59e0b;">
-                  <p style="margin: 0; color: #92400e; font-weight: bold;">âš ï¸ Importante:</p>
-                  <p style="margin: 10px 0 0 0; color: #92400e;">
-                    Tus datos de contacto serán compartidos con profesionales verificados de tu zona. 
-                    <strong>Estate atento porque pueden llamarte en cualquier momento</strong> para ofrecerte 
-                    sus servicios y presupuestos.
-                  </p>
-                </div>
-                
-                <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 25px 0;">
-                  <h3 style="color: #374151; margin: 0 0 15px 0;">ðŸ“‹ Resumen de tu solicitud:</h3>
-                  <p style="margin: 8px 0; color: #4b5563;"><strong>Ubicación:</strong> ${reformStreet}, ${reformCity}, ${reformProvince}</p>
-                  <p style="margin: 8px 0; color: #4b5563;"><strong>Presupuesto estimado:</strong> ${estimatedBudget.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</p>
-                  <p style="margin: 8px 0; color: #4b5563;"><strong>Partidas incluidas:</strong> ${budgetSnapshot?.line_items?.length || 0}</p>
-                </div>
-                
-                <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
-                  Si tienes alguna pregunta, no dudes en contactarnos.
-                </p>
-                
-                <p style="font-size: 14px; color: #6b7280;">
-                  Un saludo,<br>
-                  <strong>El equipo de Presupuéstalo</strong>
-                </p>
-              </div>
-              
-              <div style="background-color: #f3f4f6; padding: 15px; border-radius: 0 0 8px 8px; text-align: center;">
-                <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-                  © ${new Date().getFullYear()} Presupuéstalo. Todos los derechos reservados.
-                </p>
-              </div>
+      // Email 1: To the homeowner
+      await sendEmail({
+        to: user.email!,
+        subject: "🔍 Estamos buscando profesionales para tu reforma",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #f97316; padding: 20px; border-radius: 8px 8px 0 0;">
+              <h1 style="color: white; margin: 0; font-size: 24px;">¡Tu solicitud ha sido publicada!</h1>
             </div>
-          `,
-        }),
+            
+            <div style="padding: 30px; background-color: #ffffff; border: 1px solid #e5e7eb; border-top: none;">
+              <p style="font-size: 16px; color: #374151;">Hola <strong>${fullName}</strong>,</p>
+              
+              <p style="font-size: 16px; color: #374151; line-height: 1.6;">
+                Hemos recibido tu solicitud de presupuesto y ya estamos en búsqueda de profesionales 
+                que puedan ayudarte con tu reforma.
+              </p>
+              
+              <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #f59e0b;">
+                <p style="margin: 0; color: #92400e; font-weight: bold;">⚠️ Importante:</p>
+                <p style="margin: 10px 0 0 0; color: #92400e;">
+                  Tus datos de contacto serán compartidos con profesionales verificados de tu zona. 
+                  <strong>Estate atento por si te llaman</strong> para ofrecerte sus servicios y presupuestos.
+                </p>
+              </div>
+              
+              <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 25px 0;">
+                <h3 style="color: #374151; margin: 0 0 15px 0;">📋 Resumen de tu solicitud:</h3>
+                <p style="margin: 8px 0; color: #4b5563;"><strong>Ubicación:</strong> ${reformStreet}, ${reformCity}, ${reformProvince}</p>
+                <p style="margin: 8px 0; color: #4b5563;"><strong>Presupuesto estimado:</strong> ${estimatedBudget.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</p>
+                <p style="margin: 8px 0; color: #4b5563;"><strong>Partidas incluidas:</strong> ${budgetSnapshot?.line_items?.length || 0}</p>
+              </div>
+              
+              <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
+                Un saludo,<br>
+                <strong>El equipo de Presupuéstalo</strong>
+              </p>
+            </div>
+          </div>
+        `,
       })
 
-      if (!homeownerEmailResponse.ok) {
-        const errorData = await homeownerEmailResponse.json()
-        console.error("[v0] Error sending homeowner email:", errorData)
-      } else {
-        console.log("[v0] Homeowner confirmation email sent successfully")
-      }
-
-      // Email 2: To admin (presupuestaloficial@gmail.com) for tracking
-      const adminEmailResponse = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        },
-        body: JSON.stringify({
-          from: "Presupuéstalo <onboarding@resend.dev>",
-          to: ["presupuestaloficial@gmail.com"],
-          subject: `ðŸ“ Nueva solicitud de reforma en ${reformCity}, ${reformProvince}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <div style="background-color: #059669; padding: 20px; border-radius: 8px 8px 0 0;">
-                <h1 style="color: white; margin: 0; font-size: 24px;">Nueva Solicitud de Reforma</h1>
+      // Email 2: To admin
+      const { ADMIN_EMAIL } = await import("@/lib/email/send-email")
+      await sendEmail({
+        to: ADMIN_EMAIL,
+        subject: `📌 Nueva solicitud de reforma en ${reformCity}, ${reformProvince}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #059669; padding: 20px; border-radius: 8px 8px 0 0;">
+              <h1 style="color: white; margin: 0; font-size: 24px;">Nueva Solicitud de Reforma</h1>
+            </div>
+            
+            <div style="padding: 30px; background-color: #ffffff; border: 1px solid #e5e7eb; border-top: none;">
+              <p style="font-size: 16px; color: #374151;">Se ha publicado una nueva solicitud en la plataforma.</p>
+              
+              <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 25px 0;">
+                <h3 style="color: #374151; margin: 0 0 15px 0;">📋 Detalles:</h3>
+                <p style="margin: 8px 0; color: #4b5563;"><strong>ID:</strong> ${newLead.id}</p>
+                <p style="margin: 8px 0; color: #4b5563;"><strong>Cliente:</strong> ${fullName}</p>
+                <p style="margin: 8px 0; color: #4b5563;"><strong>Email:</strong> ${user.email}</p>
+                <p style="margin: 8px 0; color: #4b5563;"><strong>Teléfono:</strong> ${profile.phone}</p>
               </div>
               
-              <div style="padding: 30px; background-color: #ffffff; border: 1px solid #e5e7eb; border-top: none;">
-                <p style="font-size: 16px; color: #374151;">
-                  Se ha publicado una nueva solicitud de presupuesto en la plataforma.
-                </p>
-                
-                <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 25px 0;">
-                  <h3 style="color: #374151; margin: 0 0 15px 0;">ðŸ“‹ Detalles de la solicitud:</h3>
-                  <p style="margin: 8px 0; color: #4b5563;"><strong>ID:</strong> ${newLead.id}</p>
-                  <p style="margin: 8px 0; color: #4b5563;"><strong>Cliente:</strong> ${fullName}</p>
-                  <p style="margin: 8px 0; color: #4b5563;"><strong>Email:</strong> ${user.email}</p>
-                  <p style="margin: 8px 0; color: #4b5563;"><strong>Teléfono:</strong> ${profile.phone}</p>
-                </div>
-                
-                <div style="background-color: #ecfdf5; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #059669;">
-                  <h3 style="color: #065f46; margin: 0 0 15px 0;">ðŸ“ Ubicación de la reforma:</h3>
-                  <p style="margin: 8px 0; color: #065f46;"><strong>Dirección:</strong> ${reformStreet}</p>
-                  <p style="margin: 8px 0; color: #065f46;"><strong>Ciudad:</strong> ${reformCity}</p>
-                  <p style="margin: 8px 0; color: #065f46;"><strong>Provincia:</strong> ${reformProvince}</p>
-                </div>
-                
-                <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 25px 0;">
-                  <h3 style="color: #92400e; margin: 0 0 15px 0;">💰 Información económica:</h3>
-                  <p style="margin: 8px 0; color: #92400e;"><strong>Presupuesto estimado:</strong> ${estimatedBudget.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</p>
-                  <p style="margin: 8px 0; color: #92400e;"><strong>Partidas incluidas:</strong> ${budgetSnapshot?.line_items?.length || 0}</p>
-                  <p style="margin: 8px 0; color: #92400e;"><strong>Créditos:</strong> ${creditsCost}</p>
-                </div>
-                
-                <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
-                  <strong>Fecha:</strong> ${new Date().toLocaleString("es-ES", { dateStyle: "full", timeStyle: "short" })}
-                </p>
+              <div style="background-color: #ecfdf5; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #059669;">
+                <h3 style="color: #065f46; margin: 0 0 15px 0;">📍 Ubicación:</h3>
+                <p style="margin: 8px 0; color: #065f46;"><strong>Dirección:</strong> ${reformStreet}</p>
+                <p style="margin: 8px 0; color: #065f46;"><strong>Ciudad:</strong> ${reformCity}</p>
+                <p style="margin: 8px 0; color: #065f46;"><strong>Provincia:</strong> ${reformProvince}</p>
               </div>
               
-              <div style="background-color: #f3f4f6; padding: 15px; border-radius: 0 0 8px 8px; text-align: center;">
-                <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-                  Email automático de notificación - Presupuéstalo
-                </p>
+              <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 25px 0;">
+                <h3 style="color: #92400e; margin: 0 0 15px 0;">💰 Economía:</h3>
+                <p style="margin: 8px 0; color: #92400e;"><strong>Presupuesto:</strong> ${estimatedBudget.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</p>
+                <p style="margin: 8px 0; color: #92400e;"><strong>Créditos:</strong> ${creditsCost}</p>
               </div>
             </div>
-          `,
-        }),
+          </div>
+        `,
       })
 
-      if (!adminEmailResponse.ok) {
-        const errorData = await adminEmailResponse.json()
-        console.error("[v0] Error sending admin email:", errorData)
-      } else {
-        console.log("[v0] Admin notification email sent successfully")
-      }
-
-      // Email 3: To all professionals in the same province
+      // Email 3: To professionals in the province
       if (reformProvince) {
-        console.log("[v0] Identifying professionals in province:", reformProvince)
-
-        // Find professionals in this province
-        const { data: professionals, error: profError } = await supabase
+        const { data: professionals } = await supabase
           .from("profiles")
           .select("id, full_name, email")
           .eq("user_type", "profesional")
           .eq("address_province", reformProvince)
           .not("email", "is", null)
 
-        if (profError) {
-          console.error("[v0] Error fetching professionals for notification:", profError)
-        } else if (professionals && professionals.length > 0) {
-          console.log(`[v0] Found ${professionals.length} professionals in ${reformProvince}. Sending emails...`)
-
+        if (professionals && professionals.length > 0) {
           const formattedBudget = estimatedBudget.toLocaleString("es-ES", { style: "currency", currency: "EUR" })
 
-          // Send emails in parallel (using Promise.allSettled to not fail if one fails)
           await Promise.allSettled(
             professionals.map(async (prof) => {
               if (!prof.email) return
 
               const profEmailHtml = newLeadAvailableTemplate({
                 professionalName: prof.full_name || "Profesional",
-                projectType: "Reforma Integral", // Default for now as per reformTypes array above
+                projectType: "Reforma Integral",
                 city: reformCity,
                 province: reformProvince,
                 estimatedBudget: formattedBudget,
-                creditsCost: creditsCost
+                creditsCost: creditsCost,
               })
 
-              console.log(`[v0] Enviando email a profesional: ${prof.email}`)
-              return fetch("https://api.resend.com/emails", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-                },
-                body: JSON.stringify({
-                  from: "Presupuéstalo <onboarding@resend.dev>",
-                  to: [prof.email],
-                  subject: `Nuevo proyecto en ${reformCity}: ${formattedBudget}`,
-                  html: profEmailHtml,
-                }),
+              return sendEmail({
+                to: prof.email,
+                subject: `🚀 Nuevo proyecto en ${reformCity}: ${formattedBudget}`,
+                html: profEmailHtml,
               })
-            })
+            }),
           )
-          console.log("[v0] Province notifications sent")
-        } else {
-          console.log("[v0] No professionals found in this province to notify")
         }
       }
     } catch (emailError) {
-      // Don't fail the request if emails fail, just log the error
       console.error("[v0] Error sending notification emails:", emailError)
     }
 

@@ -184,6 +184,35 @@ export async function POST() {
       )
     }
 
+    // Nueva comprobación en lead_requests
+    const { data: activeLeads, error: leadError } = await supabase
+      .from("lead_requests")
+      .select("id, companies_accessed_count")
+      .eq("homeowner_id", userId)
+      .in("status", ["open", "active"])
+
+    if (activeLeads && activeLeads.length > 0) {
+      const hasPurchasedLeads = activeLeads.some(l => (l.companies_accessed_count || 0) > 0)
+
+      if (hasPurchasedLeads) {
+        return NextResponse.json(
+          {
+            error: "No puedes eliminar tu cuenta mientras tengas solicitudes activas adquiridas por profesionales",
+            message: "Tienes solicitudes publicadas que ya han sido adquiridas por profesionales. Por motivos de seguridad y transparencia, no puedes eliminar la cuenta hasta que se resuelvan estas solicitudes o pase el tiempo estipulado.",
+          },
+          { status: 400 },
+        )
+      } else {
+        return NextResponse.json(
+          {
+            error: "No puedes eliminar tu cuenta mientras tengas solicitudes publicadas",
+            message: "Tienes solicitudes publicadas en el marketplace. Debes eliminarlas primero antes de poder cerrar tu cuenta.",
+          },
+          { status: 400 },
+        )
+      }
+    }
+
     const { count: pendingProposals } = await supabase
       .from("quote_offers")
       .select("id", { count: "exact", head: true })

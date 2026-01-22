@@ -1,0 +1,201 @@
+﻿Checking lead_requests for user: 76030274-0308-4b66-94d3-e68d206bc7b9
+Found 6 leads for this user:
+{
+  "id": "f0622e39-b4ae-4248-929c-d5d9085ba1e3",
+  "project_id": "881d9dfa-aa3f-486d-a95d-28df1d6cdffd",
+  "homeowner_id": "76030274-0308-4b66-94d3-e68d206bc7b9",
+  "status": "open",
+  "estimated_budget": 27129.7,
+  "credits_cost": 25,
+  "reform_types": [
+    "reforma_integral"
+  ],
+  "project_description": null,
+  "surface_m2": null,
+  "postal_code": "00000",
+  "city": "Madrid",
+  "province": "Madrid",
+  "country_code": "ES",
+  "location_lat": null,
+  "location_lng": null,
+  "client_name": "Vascol",
+  "client_email": "vascolreformas@gmail.com",
+  "client_phone": "+34 615078192",
+  "max_companies": 3,
+  "companies_accessed_count": 0,
+  "companies_accessed_ids": [],
+  "created_at": "2026-01-22T17:41:51.44+00:00",
+  "expires_at": "2036-01-20T17:41:51.438+00:00",
+  "closed_at": null,
+  "budget_id": "8ac7547c-9ba1-419c-af5b-66ceb45054d9",
+  "budget_snapshot": null,
+  "reform_address": "Calle calle",
+  "lead_type": "normal"
+}
+{
+  "id": "38220175-886d-4e78-959f-67c01d6884fd",
+  "project_id": "881d9dfa-aa3f-486d-a95d-28df1d6cdffd",
+  "homeowner_id": "76030274-0308-4b66-94d3-e68d206bc7b9",
+  "status": "open",
+  "estimated_budget": 27129.7,
+  "credits_cost": 25,
+  "reform_types": [
+    "reforma_integral"
+  ],
+  "project_description": null,
+  "surface_m2": null,
+  "postal_code": "00000",
+  "city": "Madrid",
+  "province": "Madrid",
+  "country_code": "ES",
+  "location_lat": null,
+  "location_lng": null,
+  "client_name": "Vascol",
+  "client_email": "vascolreformas@gmail.com",
+  "client_phone": "+34 615078192",
+  "max_companies": 3,
+  "companies_accessed_count": 0,
+  "companies_accessed_ids": [],
+  "created_at": "2026-01-22T15:00:37.701+00:00",
+  "expires_at": "2036-01-20T15:00:37.695+00:00",
+  "closed_at": null,
+  "budget_id": "8ac7547c-9ba1-419c-af5b-66ceb45054d9",
+  "budget_snapshot": null,
+  "reform_address": "Calle calle",
+  "lead_type": "normal"
+}
+{
+  "id": "cfb7b1b1-04c4-457b-8748-706135ddf295",
+  "project_id": "881d9dfa-aa3f-486d-a95d-28df1d6cdffd",
+  "homeowner_id": "76030274-0308-4b66-94d3-e68d206bc7b9",
+  "status": "open",
+  "estimated_budget": 27129.7,
+  "credits_cost": 25,
+  "reform_types": [
+    "reforma_integral"
+  ],
+  "project_description": null,
+  "surface_m2": null,
+  "postal_code": "00000",
+  "city": "Madrid",
+  "province": "Madrid",
+  "country_code": "ES",
+  "location_lat": null,
+  "location_lng": null,
+  "client_name": "Vascol",
+  "client_email": "vascolreformas@gmail.com",
+  "client_phone": "+34 615078192",
+  "max_companies": 3,
+  "companies_accessed_count": 0,
+  "companies_accessed_ids": [],
+  "created_at": "2026-01-22T14:22:43.23+00:00",
+  "expires_at": "2036-01-20T14:22:43.229+00:00",
+  "closed_at": null,
+  "budget_id": "8ac7547c-9ba1-419c-af5b-66ceb45054d9",
+  "budget_snapshot": null,
+  "reform_address": "Calle calle",
+  "lead_type": "normal"
+}
+{
+  "id": "d8b34007-1c33-4fdb-8ed4-35cf0ce6aa53",
+  "project_id": "881d9dfa-aa3f-486d-a95d-28df1d6cdffd",
+  "homeowner_id": "76030274-0308-4b66-94d3-e68d206bc7b9",
+  "status": "open",
+  "estimated_budget": 27129.7,
+  "credits_cost": 25,
+  "reform_types": [
+    "reforma_integral"
+  ],
+  "project_description": null,
+  "surface_m2": null,
+  "postal_code": "00000",
+  "city": "Madrid",
+  "province": "Madrid",
+  "country_code": "ES",
+  "location_lat": null,
+  "location_lng": null,
+  "client_name": "Vascol",
+  "client_email": "vascolreformas@gmail.com",
+  "client_phone": "+34 615078192",
+  "max_companies": 3,
+  "companies_accessed_count": 0,
+  "companies_accessed_ids": [],
+  "created_at": "2026-01-22T13:43:51.478+00:00",
+  "expires_at": "2036-01-20T13:43:51.478+00:00",
+  "closed_at": null,
+  "budget_id": "8ac7547c-9ba1-419c-af5b-66ceb45054d9",
+  "budget_snapshot": null,
+  "reform_address": "Calle calle",
+  "lead_type": "normal"
+}
+{
+  "id": "ec8d4a23-f1f1-4b70-8fa4-ae832597174a",
+  "project_id": "881d9dfa-aa3f-486d-a95d-28df1d6cdffd",
+  "homeowner_id": "76030274-0308-4b66-94d3-e68d206bc7b9",
+  "status": "open",
+  "estimated_budget": 27129.7,
+  "credits_cost": 25,
+  "reform_types": [
+    "reforma_integral"
+  ],
+  "project_description": null,
+  "surface_m2": null,
+  "postal_code": "00000",
+  "city": "Madrid",
+  "province": "Madrid",
+  "country_code": "ES",
+  "location_lat": null,
+  "location_lng": null,
+  "client_name": "Vascol",
+  "client_email": "vascolreformas@gmail.com",
+  "client_phone": "+34 615078192",
+  "max_companies": 3,
+  "companies_accessed_count": 0,
+  "companies_accessed_ids": [],
+  "created_at": "2026-01-22T13:36:31.519+00:00",
+  "expires_at": "2036-01-20T13:36:31.518+00:00",
+  "closed_at": null,
+  "budget_id": "8ac7547c-9ba1-419c-af5b-66ceb45054d9",
+  "budget_snapshot": null,
+  "reform_address": "Calle calle",
+  "lead_type": "normal"
+}
+{
+  "id": "90d7e4e4-28ef-476d-a71b-0a1ad06232a2",
+  "project_id": "881d9dfa-aa3f-486d-a95d-28df1d6cdffd",
+  "homeowner_id": "76030274-0308-4b66-94d3-e68d206bc7b9",
+  "status": "open",
+  "estimated_budget": 27129.7,
+  "credits_cost": 25,
+  "reform_types": [
+    "reforma_integral"
+  ],
+  "project_description": null,
+  "surface_m2": null,
+  "postal_code": "00000",
+  "city": "Madrid",
+  "province": "Madrid",
+  "country_code": "ES",
+  "location_lat": null,
+  "location_lng": null,
+  "client_name": "Vascol",
+  "client_email": "vascolreformas@gmail.com",
+  "client_phone": "+34 615078192",
+  "max_companies": 3,
+  "companies_accessed_count": 0,
+  "companies_accessed_ids": [],
+  "created_at": "2026-01-22T13:35:49.76+00:00",
+  "expires_at": "2036-01-20T13:35:49.759+00:00",
+  "closed_at": null,
+  "budget_id": "8ac7547c-9ba1-419c-af5b-66ceb45054d9",
+  "budget_snapshot": null,
+  "reform_address": "Calle calle",
+  "lead_type": "normal"
+}
+
+Checking ALL recent leads (limit 5):
+- ID: f0622e39-b4ae-4248-929c-d5d9085ba1e3 | Homeowner: 76030274-0308-4b66-94d3-e68d206bc7b9 | Client: Vascol | Status: open
+- ID: 38220175-886d-4e78-959f-67c01d6884fd | Homeowner: 76030274-0308-4b66-94d3-e68d206bc7b9 | Client: Vascol | Status: open
+- ID: cfb7b1b1-04c4-457b-8748-706135ddf295 | Homeowner: 76030274-0308-4b66-94d3-e68d206bc7b9 | Client: Vascol | Status: open
+- ID: d8b34007-1c33-4fdb-8ed4-35cf0ce6aa53 | Homeowner: 76030274-0308-4b66-94d3-e68d206bc7b9 | Client: Vascol | Status: open
+- ID: ec8d4a23-f1f1-4b70-8fa4-ae832597174a | Homeowner: 76030274-0308-4b66-94d3-e68d206bc7b9 | Client: Vascol | Status: open

@@ -12,6 +12,7 @@ import { FileText, Plus, Loader2, Trash2 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils/format"
 import { formatDistanceToNow } from "date-fns"
 import { es } from "date-fns/locale"
+import { toast } from "sonner"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +49,8 @@ export function BudgetList({
   const [deletingAll, setDeletingAll] = useState(false)
   const [budgetSettings, setBudgetSettings] = useState<any>(null)
   const [hasAcceptedBudget, setHasAcceptedBudget] = useState(false)
+
+  // const { toast } = useToast() // Removed in favor of sonner
 
   useEffect(() => {
     const loadBudgets = async () => {
@@ -91,9 +94,15 @@ export function BudgetList({
       await BudgetService.deleteBudget(budgetId, supabase)
       setBudgets((prev) => prev.filter((b) => b.id !== budgetId))
       setBudgetToDelete(null)
-    } catch (err) {
+      toast({
+        title: "Presupuesto eliminado",
+        description: "El presupuesto se ha eliminado correctamente",
+      })
+    } catch (err: any) {
       console.error("[BudgetList] Error deleting budget:", err)
-      alert("Error al eliminar el presupuesto")
+      toast.error(err instanceof Error ? err.message : "No se pudo eliminar el presupuesto", {
+        position: "top-right",
+      })
     } finally {
       setDeletingId(null)
     }
@@ -108,22 +117,28 @@ export function BudgetList({
       await BudgetService.deleteAllBudgets(projectId, supabase)
       setBudgets([])
       setShowDeleteAllDialog(false)
-    } catch (err) {
+      toast({
+        title: "Presupuestos eliminados",
+        description: "Se han eliminado todos los presupuestos del proyecto",
+      })
+    } catch (err: any) {
       console.error("[BudgetList] Error deleting all budgets:", err)
-      alert("Error al eliminar los presupuestos")
+      toast.error(err instanceof Error ? err.message : "No se pudieron eliminar los presupuestos", {
+        position: "top-right",
+      })
     } finally {
       setDeletingAll(false)
     }
   }
 
   const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      draft: { variant: "secondary" as const, label: "Borrador" },
-      sent: { variant: "default" as const, label: "Entregado" },
-      approved: { variant: "default" as const, label: "Aceptado", className: "bg-green-600" },
-      rejected: { variant: "destructive" as const, label: "Rechazado" },
-      in_progress: { variant: "default" as const, label: "En Obra", className: "bg-blue-600" },
-      completed: { variant: "default" as const, label: "Terminado", className: "bg-green-700" },
+    const statusConfig: Record<string, { variant: "secondary" | "default" | "destructive"; label: string; className?: string }> = {
+      draft: { variant: "secondary", label: "Borrador" },
+      sent: { variant: "default", label: "Entregado" },
+      approved: { variant: "default", label: "Aceptado", className: "bg-green-600" },
+      rejected: { variant: "destructive", label: "Rechazado" },
+      in_progress: { variant: "default", label: "En Obra", className: "bg-blue-600" },
+      completed: { variant: "default", label: "Terminado", className: "bg-green-700" },
     }
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft

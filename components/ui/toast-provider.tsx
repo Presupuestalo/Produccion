@@ -4,11 +4,18 @@ import type React from "react"
 
 // Modificar el proveedor de toast para evitar mostrar mensajes duplicados
 
-import { ToastProvider as RadixToastProvider } from "@radix-ui/react-toast"
+import {
+  Toast,
+  ToastClose,
+  ToastDescription,
+  ToastProvider as RadixToastProvider,
+  ToastTitle,
+  ToastViewport,
+} from "@/components/ui/toast"
 import { useToast } from "@/hooks/use-toast"
 import { useRef } from "react"
 
-export function ToastProvider({ children }: { children: React.ReactNode }) {
+export function ToastProvider({ children }: { children?: React.ReactNode }) {
   const { toasts } = useToast()
 
   // Añadir una referencia para rastrear los últimos mensajes mostrados
@@ -43,9 +50,20 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <RadixToastProvider>
-      {/* Renderizar los toasts filtrados en lugar de todos */}
-      {/* Resto del código del componente */}
       {children}
+      {filteredToasts.map(function ({ id, title, description, action, ...props }) {
+        return (
+          <Toast key={id} {...props}>
+            <div className="grid gap-1">
+              {title && <ToastTitle>{title}</ToastTitle>}
+              {description && <ToastDescription>{description}</ToastDescription>}
+            </div>
+            {action}
+            <ToastClose />
+          </Toast>
+        )
+      })}
+      <ToastViewport />
     </RadixToastProvider>
   )
 }

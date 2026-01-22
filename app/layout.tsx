@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { AuthProvider } from "@/components/auth/auth-provider"
 import { ToastProvider } from "@/components/ui/toast-provider"
+import { Toaster } from "sonner"
 import { CookieConsentBanner } from "@/components/cookie-consent-banner"
 import Script from "next/script"
 
@@ -67,6 +68,7 @@ export default function RootLayout({
         />
         <AuthProvider>
           {children}
+          <Toaster richColors closeButton position="top-right" />
           <ToastProvider />
           <CookieConsentBanner />
         </AuthProvider>

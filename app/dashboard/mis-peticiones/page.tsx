@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { supabase } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/client"
 import {
   Clock,
   MapPin,
@@ -74,6 +74,11 @@ export default function MisPeticionesPage() {
   const loadLeadRequests = async () => {
     try {
       setLoading(true)
+      const supabase = await createClient()
+      if (!supabase) {
+        setLoading(false)
+        return
+      }
       const {
         data: { user },
       } = await supabase.auth.getUser()
