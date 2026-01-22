@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { calculateLeadCreditsCost } from "@/types/marketplace"
+import { newLeadAvailableTemplate } from "@/lib/email/templates/presmarket-emails"
 
 export async function POST(req: Request) {
   try {
@@ -402,6 +403,60 @@ export async function POST(req: Request) {
         console.error("[v0] Error sending admin email:", errorData)
       } else {
         console.log("[v0] Admin notification email sent successfully")
+      }
+
+      // Email 3: To all professionals in the same province
+      if (reformProvince) {
+        console.log("[v0] Identifying professionals in province:", reformProvince)
+
+        // Find professionals in this province
+        const { data: professionals, error: profError } = await supabase
+          .from("profiles")
+          .select("id, full_name, email")
+          .eq("user_type", "profesional")
+          .eq("address_province", reformProvince)
+          .not("email", "is", null)
+
+        if (profError) {
+          console.error("[v0] Error fetching professionals for notification:", profError)
+        } else if (professionals && professionals.length > 0) {
+          console.log(`[v0] Found ${professionals.length} professionals in ${reformProvince}. Sending emails...`)
+
+          const formattedBudget = estimatedBudget.toLocaleString("es-ES", { style: "currency", currency: "EUR" })
+
+          // Send emails in parallel (using Promise.allSettled to not fail if one fails)
+          await Promise.allSettled(
+            professionals.map(async (prof) => {
+              if (!prof.email) return
+
+              const profEmailHtml = newLeadAvailableTemplate({
+                professionalName: prof.full_name || "Profesional",
+                projectType: "Reforma Integral", // Default for now as per reformTypes array above
+                city: reformCity,
+                province: reformProvince,
+                estimatedBudget: formattedBudget,
+                creditsCost: creditsCost
+              })
+
+              return fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+                },
+                body: JSON.stringify({
+                  from: "Presupuéstalo <notificaciones@presupuestalo.com>",
+                  to: [prof.email],
+                  subject: `ðŸ”  Nuevo proyecto en ${reformCity}: ${formattedBudget}`,
+                  html: profEmailHtml,
+                }),
+              })
+            })
+          )
+          console.log("[v0] Province notifications sent")
+        } else {
+          console.log("[v0] No professionals found in this province to notify")
+        }
       }
     } catch (emailError) {
       // Don't fail the request if emails fail, just log the error

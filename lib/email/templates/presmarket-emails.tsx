@@ -114,17 +114,16 @@ export function leadAccessConfirmationTemplate(data: {
           ${data.location ? `<p style="margin: 8px 0;"><strong>Ubicación:</strong> ${data.location}</p>` : ""}
         </div>
         
-        ${
-          data.projectDescription
-            ? `
+        ${data.projectDescription
+      ? `
         <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <h3 style="margin-top: 0; color: #1f2937;">Descripción del proyecto</h3>
           <p style="color: #4b5563;">${data.projectDescription}</p>
           ${data.estimatedBudget ? `<p style="margin-top: 10px;"><strong>Presupuesto estimado:</strong> ${data.estimatedBudget}</p>` : ""}
         </div>
         `
-            : ""
-        }
+      : ""
+    }
         
         <div style="background-color: #fef3c7; border-left: 4px solid #f97316; padding: 15px; margin: 20px 0;">
           <p style="margin: 0; color: #92400e; font-size: 14px;">
@@ -211,15 +210,14 @@ export function claimApprovedTemplate(data: {
           <p style="font-size: 32px; font-weight: bold; color: #16a34a; margin: 10px 0;">${data.creditsRefunded}</p>
         </div>
         
-        ${
-          data.adminNotes
-            ? `
+        ${data.adminNotes
+      ? `
         <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
           <p style="margin: 0; color: #4b5563; font-size: 14px;"><strong>Nota:</strong> ${data.adminNotes}</p>
         </div>
         `
-            : ""
-        }
+      : ""
+    }
         
         <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://presupuestalo.com"}/dashboard/creditos" style="${buttonStyles}">
           Ver mi balance de créditos
@@ -254,15 +252,14 @@ export function claimRejectedTemplate(data: {
           <strong style="color: #dc2626;">no ha sido aprobada</strong>.
         </p>
         
-        ${
-          data.adminNotes
-            ? `
+        ${data.adminNotes
+      ? `
         <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0;">
           <p style="margin: 0; color: #991b1b; font-size: 14px;"><strong>Motivo:</strong> ${data.adminNotes}</p>
         </div>
         `
-            : ""
-        }
+      : ""
+    }
         
         <p style="font-size: 14px; color: #6b7280;">
           Si crees que esta decisión es incorrecta, puedes contactar con nuestro equipo de soporte 
@@ -301,25 +298,23 @@ export function newClaimAdminTemplate(data: {
         <h1 style="color: white; margin: 0; font-size: 24px;">Nueva reclamación pendiente</h1>
       </div>
       <div style="${contentStyles}">
-        ${
-          isHighRisk
-            ? `
+        ${isHighRisk
+      ? `
         <div style="background-color: #fef2f2; border: 2px solid #dc2626; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
           <p style="margin: 0; color: #dc2626; font-weight: bold;">⚠️ ALERTA: Este profesional tiene una tasa de reclamación alta (${data.claimRate?.toFixed(1)}%)</p>
         </div>
         `
-            : ""
-        }
+      : ""
+    }
         
-        ${
-          otherContacted
-            ? `
+        ${otherContacted
+      ? `
         <div style="background-color: #fef3c7; border: 2px solid #f59e0b; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
           <p style="margin: 0; color: #92400e; font-weight: bold;">⚠️ ATENCIÓN: ${data.otherProfessionalsContacted} profesional(es) marcaron este lead como "contactado"</p>
         </div>
         `
-            : ""
-        }
+      : ""
+    }
         
         <h3 style="color: #1f2937;">Datos del profesional</h3>
         <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
@@ -439,3 +434,54 @@ export function emailClaimResolved(data: {
 }
 export const emailProfessionalInterested = professionalInterestedTemplate
 export const emailLeadAccessConfirmation = leadAccessConfirmationTemplate
+
+// Template: Notificación de nuevo lead disponible para profesionales de la zona
+export function newLeadAvailableTemplate(data: {
+  professionalName: string
+  projectType: string
+  city: string
+  province: string
+  estimatedBudget: string
+  creditsCost: number
+}): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="${baseStyles}">
+      <div style="${headerStyles}">
+        <h1 style="color: white; margin: 0; font-size: 24px;">¡Nuevo proyecto en tu zona!</h1>
+        <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">Hay una nueva solicitud de presupuesto en ${data.province}</p>
+      </div>
+      <div style="${contentStyles}">
+        <p style="font-size: 16px; color: #374151;">Hola ${data.professionalName},</p>
+        <p style="font-size: 16px; color: #374151;">
+          Se ha publicado una nueva solicitud de presupuesto que coincide con tu zona de trabajo.
+        </p>
+        
+        <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #1f2937;">Detalles del proyecto</h3>
+          <p style="margin: 8px 0;"><strong>Tipo:</strong> ${data.projectType}</p>
+          <p style="margin: 8px 0;"><strong>Ubicación:</strong> ${data.city}, ${data.province}</p>
+          <p style="margin: 8px 0;"><strong>Presupuesto est.:</strong> ${data.estimatedBudget}</p>
+          <p style="margin: 8px 0;"><strong>Costo:</strong> ${data.creditsCost} créditos</p>
+        </div>
+        
+        <div style="text-align: center;">
+          <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://presupuestalo.com"}/dashboard/solicitudes-disponibles" style="${buttonStyles}">
+            Ver Detalles y Captar Lead
+          </a>
+        </div>
+        
+        <p style="font-size: 14px; color: #6b7280; margin-top: 25px;">
+          Date prisa, solo los 3 primeros profesionales podrán acceder a los datos de contacto de este cliente.
+        </p>
+      </div>
+      <div style="${footerStyles}">
+        <p>Este es un email automático de <a href="https://presupuestalo.com" style="color: #f97316;">Presupuéstalo</a>.</p>
+        <p>© ${new Date().getFullYear()} Presupuéstalo. Todos los derechos reservados.</p>
+      </div>
+    </body>
+    </html>
+  `
+}
