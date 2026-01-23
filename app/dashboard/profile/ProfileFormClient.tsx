@@ -65,6 +65,7 @@ interface UserProfile {
   work_mode?: string
   is_coordinator?: boolean
   subscription_plan?: string
+  service_provinces?: string[]
 }
 
 const workModeOptions = [
@@ -138,6 +139,7 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
   const rawCountry = userData.country || ""
   const [country, setCountry] = useState(rawCountry === "España" ? "ES" : rawCountry)
   const [workMode, setWorkMode] = useState(userData.work_mode || "executor")
+  const [serviceProvinces, setServiceProvinces] = useState<string[]>(userData.service_provinces || [])
 
   const [isLoading, setIsLoading] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
@@ -349,6 +351,9 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
 
       if (isProfessional) {
         updates.address_province = province;
+        // Map serviceProvinces to ensure the current main province is always included
+        const finalServiceProvinces = Array.from(new Set([province, ...serviceProvinces])).filter(Boolean);
+        updates.service_provinces = finalServiceProvinces;
       }
 
       if (!isProfessional) {
@@ -640,7 +645,13 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
                   <div className="space-y-2">
                     <Label htmlFor="prof-province">{fieldLabels.province}</Label>
                     {hasProvinces ? (
-                      <Select value={province} onValueChange={setProvince}>
+                      <Select value={province} onValueChange={(val) => {
+                        setProvince(val);
+                        // Automatically add the new main province to service provinces if not already there
+                        if (!serviceProvinces.includes(val)) {
+                          setServiceProvinces(prev => [...prev, val]);
+                        }
+                      }}>
                         <SelectTrigger id="prof-province">
                           <SelectValue placeholder="Selecciona tu provincia" />
                         </SelectTrigger>
@@ -656,11 +667,58 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
                       <Input
                         id="prof-province"
                         value={province}
-                        onChange={(e) => setProvince(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setProvince(val);
+                          if (val && !serviceProvinces.includes(val)) {
+                            setServiceProvinces(prev => [...prev, val]);
+                          }
+                        }}
                         placeholder="Escribe tu provincia"
                       />
                     )}
                   </div>
+                </div>
+
+                <div className="space-y-3 pt-2">
+                  <Label className="text-base font-semibold">Áreas de Actuación (Provincias)</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Selecciona las provincias adicionales en las que prestas servicios para recibir notificaciones de leads.
+                  </p>
+
+                  {hasProvinces ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 border p-4 rounded-lg bg-gray-50 max-h-[250px] overflow-y-auto">
+                      {countryProvinces.map((p) => (
+                        <div key={p} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={`province-${p}`}
+                            disabled={p === province}
+                            checked={p === province || serviceProvinces.includes(p)}
+                            onChange={(e) => {
+                              if (p === province) return;
+                              if (e.target.checked) {
+                                setServiceProvinces(prev => [...prev, p]);
+                              } else {
+                                setServiceProvinces(prev => prev.filter(item => item !== p));
+                              }
+                            }}
+                            className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500 cursor-pointer disabled:cursor-not-allowed"
+                          />
+                          <Label
+                            htmlFor={`province-${p}`}
+                            className={`text-sm cursor-pointer ${p === province ? "font-bold text-orange-700" : ""}`}
+                          >
+                            {p}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm italic text-muted-foreground">
+                      No hay una lista de provincias disponible para este país. Las notificaciones se basarán solo en tu provincia principal.
+                    </p>
+                  )}
                 </div>
               </div>
             )}

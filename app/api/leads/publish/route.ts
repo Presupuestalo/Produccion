@@ -380,11 +380,11 @@ export async function POST(req: Request) {
 
       const { data: professionals, error: profsError } = await supabaseAdmin
         .from("profiles")
-        .select("id, full_name, email, user_type, country, address_province")
+        .select("id, full_name, email, user_type, country, address_province, service_provinces")
         .eq("user_type", "professional")
-        .ilike("address_province", reformProvince)
         .eq("country", currentCountry)
         .not("email", "is", null)
+        .or(`address_province.ilike.${reformProvince},service_provinces.cs.{${reformProvince}}`)
 
       if (profsError) {
         console.error("[v0] Error searching for professionals:", profsError)
