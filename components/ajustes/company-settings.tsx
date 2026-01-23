@@ -101,7 +101,8 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
         console.error("[v0] Error loading profile country:", profileError)
       }
 
-      const userCountry = profileData?.country || userData.country || "ES"
+      let userCountry = profileData?.country || userData.country || "ES"
+      if (userCountry === "España") userCountry = "ES"
       setProfileCountry(userCountry)
 
       const { data, error } = await supabase
@@ -196,6 +197,18 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
         } = supabase.storage.from("company-logos").getPublicUrl(fileName)
 
         logoUrl = publicUrl
+      }
+
+      const isSpain = profileCountry === "ES" || profileCountry === "España"
+
+      if (isSpain && availableProvinces && !formData.company_province) {
+        toast({
+          title: "Provincia requerida",
+          description: "La provincia es obligatoria para los profesionales en España para poder recibir notificaciones de leads.",
+          variant: "destructive",
+        })
+        setIsLoading(false)
+        return
       }
 
       const { error } = await supabase.from("user_company_settings").upsert(
@@ -359,7 +372,9 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="company_province">{fieldLabels.province}</Label>
+                <Label htmlFor="company_province">
+                  {fieldLabels.province} {(profileCountry === "ES" || profileCountry === "España") && availableProvinces && "*"}
+                </Label>
                 {availableProvinces ? (
                   <Select value={formData.company_province} onValueChange={handleProvinceChange}>
                     <SelectTrigger>

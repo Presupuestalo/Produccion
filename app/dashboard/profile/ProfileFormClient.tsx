@@ -31,6 +31,7 @@ import { DeleteAccountSection } from "@/components/ajustes/delete-account-sectio
 import Link from "next/link"
 import type { FormEvent } from "react"
 import { CreditPurchaseHistory } from "@/components/credits/credit-purchase-history"
+import { getProvincesForCountry, getCountryFieldLabels } from "@/lib/utils/country-fields"
 
 interface UserProfile {
   id: string
@@ -127,61 +128,15 @@ const PAISES = [
   { code: "OTHER", name: "Otro país", flag: "🌍" },
 ]
 
-const PROVINCIAS_ESPANA = [
-  "Álava", "Albacete", "Alicante", "Almería", "Asturias", "Ávila", "Badajoz", "Barcelona", "Burgos", "Cáceres",
-  "Cádiz", "Cantabria", "Castellón", "Ciudad Real", "Córdoba", "Cuenca", "Girona", "Granada", "Guadalajara",
-  "Guipúzcoa", "Huelva", "Huesca", "Islas Baleares", "Jaén", "La Coruña", "La Rioja", "Las Palmas", "León",
-  "Lérida", "Lugo", "Madrid", "Málaga", "Murcia", "Navarra", "Orense", "Palencia", "Pontevedra", "Salamanca",
-  "Santa Cruz de Tenerife", "Segovia", "Sevilla", "Soria", "Tarragona", "Teruel", "Toledo", "Valencia",
-  "Valladolid", "Vizcaya", "Zamora", "Zaragoza"
-]
-
-const PROVINCIAS_MEXICO = [
-  "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas", "Chihuahua", "Ciudad de México",
-  "Coahuila", "Colima", "Durango", "Estado de México", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco", "Michoacán",
-  "Morelos", "Nayarit", "Nuevo León", "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí", "Sinaloa",
-  "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas"
-]
-
-const PROVINCIAS_ARGENTINA = [
-  "Buenos Aires", "CABA", "Catamarca", "Chaco", "Chubut", "Córdoba", "Corrientes", "Entre Ríos", "Formosa",
-  "Jujuy", "La Pampa", "La Rioja", "Mendoza", "Misiones", "Neuquén", "Río Negro", "Salta", "San Juan",
-  "San Luis", "Santa Cruz", "Santa Fe", "Santiago del Estero", "Tierra del Fuego", "Tucumán"
-]
-
-const PROVINCIAS_COLOMBIA = [
-  "Amazonas", "Antioquia", "Arauca", "Atlántico", "Bolívar", "Boyacá", "Caldas", "Caquetá", "Casanare", "Cauca",
-  "Cesar", "Chocó", "Córdoba", "Cundinamarca", "Guainía", "Guaviare", "Huila", "La Guajira", "Magdalena", "Meta",
-  "Nariño", "Norte de Santander", "Putumayo", "Quindío", "Risaralda", "San Andrés y Providencia", "Santander",
-  "Sucre", "Tolima", "Valle del Cauca", "Vaupés", "Vichada", "Bogotá D.C."
-]
-
-const PROVINCIAS_CHILE = [
-  "Arica y Parinacota", "Tarapacá", "Antofagasta", "Atacama", "Coquimbo", "Valparaíso", "Metropolitana de Santiago",
-  "O'Higgins", "Maule", "Ñuble", "Biobío", "Araucanía", "Los Ríos", "Los Lagos", "Aysén", "Magallanes"
-]
-
-const PROVINCIAS_PERU = [
-  "Amazonas", "Ancash", "Apurímac", "Arequipa", "Ayacucho", "Cajamarca", "Callao", "Cusco", "Huancavelica",
-  "Huánuco", "Ica", "Junín", "La Libertad", "Lambayeque", "Lima", "Loreto", "Madre de Dios", "Moquegua",
-  "Pasco", "Piura", "Puno", "San Martín", "Tacna", "Tumbes", "Ucayali"
-]
-
-const PROVINCES_MAP: Record<string, string[]> = {
-  "ES": PROVINCIAS_ESPANA,
-  "MX": PROVINCIAS_MEXICO,
-  "AR": PROVINCIAS_ARGENTINA,
-  "CO": PROVINCIAS_COLOMBIA,
-  "CL": PROVINCIAS_CHILE,
-  "PE": PROVINCIAS_PERU,
-}
+// Provincial lists are now managed in @/lib/utils/country-fields
 
 export default function ProfileFormClient({ userData }: { userData: UserProfile }) {
   const [fullName, setFullName] = useState(userData.full_name || "")
   const [phoneNumber, setPhoneNumber] = useState(userData.phone_number || userData.phone?.replace("+34", "") || "")
   const [avatarUrl, setAvatarUrl] = useState(userData.avatar_url || "")
   const [province, setProvince] = useState(userData.province || userData.address_province || "")
-  const [country, setCountry] = useState(userData.country || "")
+  const rawCountry = userData.country || ""
+  const [country, setCountry] = useState(rawCountry === "España" ? "ES" : rawCountry)
   const [workMode, setWorkMode] = useState(userData.work_mode || "executor")
 
   const [isLoading, setIsLoading] = useState(false)
@@ -212,8 +167,9 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
     }
   }, [isProfessional, userData.country])
 
-  const countryProvinces = PROVINCES_MAP[country] || []
+  const countryProvinces = getProvincesForCountry(country) || []
   const hasProvinces = countryProvinces.length > 0
+  const fieldLabels = getCountryFieldLabels(country)
 
   const detectCountryByIP = async () => {
     try {
@@ -682,7 +638,7 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
               <div className="space-y-4 pt-4 border-t">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="prof-province">Provincia/Estado/Región</Label>
+                    <Label htmlFor="prof-province">{fieldLabels.province}</Label>
                     {hasProvinces ? (
                       <Select value={province} onValueChange={setProvince}>
                         <SelectTrigger id="prof-province">
@@ -991,7 +947,7 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="province">Provincia/Estado/Región</Label>
+                <Label htmlFor="province">{fieldLabels.province}</Label>
                 {hasProvinces ? (
                   <Select value={province} onValueChange={setProvince}>
                     <SelectTrigger id="province">
