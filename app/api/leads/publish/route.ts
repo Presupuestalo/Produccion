@@ -392,13 +392,23 @@ export async function POST(req: Request) {
       }
 
       console.log("[v0] Professionals matched:", professionals?.length || 0)
-      await logToDb("Professionals Matched", { count: professionals?.length || 0, emails: professionals?.map(p => p.email) })
 
-      if (professionals && professionals.length > 0) {
+      // Deduplicate by email
+      const uniqueProfessionals = Array.from(new Map(
+        (professionals || []).map(p => [p.email, p])
+      ).values())
+
+      await logToDb("Professionals Matched", {
+        count: professionals?.length || 0,
+        uniqueCount: uniqueProfessionals.length,
+        emails: uniqueProfessionals.map(p => p.email)
+      })
+
+      if (uniqueProfessionals.length > 0) {
         const formattedBudget = estimatedBudget.toLocaleString("es-ES", { style: "currency", currency: "EUR" })
 
         const results = await Promise.allSettled(
-          professionals.map(async (prof) => {
+          uniqueProfessionals.map(async (prof) => {
             if (!prof.email) return
 
             const profEmailHtml = newLeadAvailableTemplate({
