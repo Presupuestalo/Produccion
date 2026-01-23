@@ -128,57 +128,53 @@ const PAISES = [
 ]
 
 const PROVINCIAS_ESPANA = [
-  "Álava",
-  "Albacete",
-  "Alicante",
-  "Almería",
-  "Asturias",
-  "Ávila",
-  "Badajoz",
-  "Barcelona",
-  "Burgos",
-  "Cáceres",
-  "Cádiz",
-  "Cantabria",
-  "Castellón",
-  "Ciudad Real",
-  "Córdoba",
-  "Cuenca",
-  "Girona",
-  "Granada",
-  "Guadalajara",
-  "Guipúzcoa",
-  "Huelva",
-  "Huesca",
-  "Islas Baleares",
-  "Jaén",
-  "La Coruña",
-  "La Rioja",
-  "Las Palmas",
-  "León",
-  "Lérida",
-  "Lugo",
-  "Madrid",
-  "Málaga",
-  "Murcia",
-  "Navarra",
-  "Orense",
-  "Palencia",
-  "Pontevedra",
-  "Salamanca",
-  "Santa Cruz de Tenerife",
-  "Segovia",
-  "Sevilla",
-  "Soria",
-  "Tarragona",
-  "Teruel",
-  "Toledo",
-  "Valencia",
-  "Valladolid",
-  "Vizcaya",
-  "Zamora",
-  "Zaragoza",
+  "Álava", "Albacete", "Alicante", "Almería", "Asturias", "Ávila", "Badajoz", "Barcelona", "Burgos", "Cáceres",
+  "Cádiz", "Cantabria", "Castellón", "Ciudad Real", "Córdoba", "Cuenca", "Girona", "Granada", "Guadalajara",
+  "Guipúzcoa", "Huelva", "Huesca", "Islas Baleares", "Jaén", "La Coruña", "La Rioja", "Las Palmas", "León",
+  "Lérida", "Lugo", "Madrid", "Málaga", "Murcia", "Navarra", "Orense", "Palencia", "Pontevedra", "Salamanca",
+  "Santa Cruz de Tenerife", "Segovia", "Sevilla", "Soria", "Tarragona", "Teruel", "Toledo", "Valencia",
+  "Valladolid", "Vizcaya", "Zamora", "Zaragoza"
 ]
+
+const PROVINCIAS_MEXICO = [
+  "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas", "Chihuahua", "Ciudad de México",
+  "Coahuila", "Colima", "Durango", "Estado de México", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco", "Michoacán",
+  "Morelos", "Nayarit", "Nuevo León", "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí", "Sinaloa",
+  "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas"
+]
+
+const PROVINCIAS_ARGENTINA = [
+  "Buenos Aires", "CABA", "Catamarca", "Chaco", "Chubut", "Córdoba", "Corrientes", "Entre Ríos", "Formosa",
+  "Jujuy", "La Pampa", "La Rioja", "Mendoza", "Misiones", "Neuquén", "Río Negro", "Salta", "San Juan",
+  "San Luis", "Santa Cruz", "Santa Fe", "Santiago del Estero", "Tierra del Fuego", "Tucumán"
+]
+
+const PROVINCIAS_COLOMBIA = [
+  "Amazonas", "Antioquia", "Arauca", "Atlántico", "Bolívar", "Boyacá", "Caldas", "Caquetá", "Casanare", "Cauca",
+  "Cesar", "Chocó", "Córdoba", "Cundinamarca", "Guainía", "Guaviare", "Huila", "La Guajira", "Magdalena", "Meta",
+  "Nariño", "Norte de Santander", "Putumayo", "Quindío", "Risaralda", "San Andrés y Providencia", "Santander",
+  "Sucre", "Tolima", "Valle del Cauca", "Vaupés", "Vichada", "Bogotá D.C."
+]
+
+const PROVINCIAS_CHILE = [
+  "Arica y Parinacota", "Tarapacá", "Antofagasta", "Atacama", "Coquimbo", "Valparaíso", "Metropolitana de Santiago",
+  "O'Higgins", "Maule", "Ñuble", "Biobío", "Araucanía", "Los Ríos", "Los Lagos", "Aysén", "Magallanes"
+]
+
+const PROVINCIAS_PERU = [
+  "Amazonas", "Ancash", "Apurímac", "Arequipa", "Ayacucho", "Cajamarca", "Callao", "Cusco", "Huancavelica",
+  "Huánuco", "Ica", "Junín", "La Libertad", "Lambayeque", "Lima", "Loreto", "Madre de Dios", "Moquegua",
+  "Pasco", "Piura", "Puno", "San Martín", "Tacna", "Tumbes", "Ucayali"
+]
+
+const PROVINCES_MAP: Record<string, string[]> = {
+  "ES": PROVINCIAS_ESPANA,
+  "MX": PROVINCIAS_MEXICO,
+  "AR": PROVINCIAS_ARGENTINA,
+  "CO": PROVINCIAS_COLOMBIA,
+  "CL": PROVINCIAS_CHILE,
+  "PE": PROVINCIAS_PERU,
+}
 
 export default function ProfileFormClient({ userData }: { userData: UserProfile }) {
   const [fullName, setFullName] = useState(userData.full_name || "")
@@ -215,6 +211,9 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
       detectCountryByIP()
     }
   }, [isProfessional, userData.country])
+
+  const countryProvinces = PROVINCES_MAP[country] || []
+  const hasProvinces = countryProvinces.length > 0
 
   const detectCountryByIP = async () => {
     try {
@@ -646,8 +645,8 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
                   key={option.value}
                   onClick={() => setWorkMode(option.value)}
                   className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${workMode === option.value
-                      ? "border-orange-500 bg-orange-50"
-                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                    ? "border-orange-500 bg-orange-50"
+                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                     }`}
                 >
                   <div className={`p-2 rounded-lg ${workMode === option.value ? "bg-orange-100" : "bg-gray-100"}`}>
@@ -684,18 +683,27 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="prof-province">Provincia/Estado/Región</Label>
-                    <Select value={province} onValueChange={setProvince}>
-                      <SelectTrigger id="prof-province">
-                        <SelectValue placeholder="Selecciona tu provincia" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[300px]">
-                        {PROVINCIAS_ESPANA.map((p) => (
-                          <SelectItem key={p} value={p}>
-                            {p}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {hasProvinces ? (
+                      <Select value={province} onValueChange={setProvince}>
+                        <SelectTrigger id="prof-province">
+                          <SelectValue placeholder="Selecciona tu provincia" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[300px]">
+                          {countryProvinces.map((p) => (
+                            <SelectItem key={p} value={p}>
+                              {p}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        id="prof-province"
+                        value={province}
+                        onChange={(e) => setProvince(e.target.value)}
+                        placeholder="Escribe tu provincia"
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -984,18 +992,27 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
 
               <div className="space-y-2">
                 <Label htmlFor="province">Provincia/Estado/Región</Label>
-                <Select value={province} onValueChange={setProvince}>
-                  <SelectTrigger id="province">
-                    <SelectValue placeholder="Selecciona tu provincia" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    {PROVINCIAS_ESPANA.map((p) => (
-                      <SelectItem key={p} value={p}>
-                        {p}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {hasProvinces ? (
+                  <Select value={province} onValueChange={setProvince}>
+                    <SelectTrigger id="province">
+                      <SelectValue placeholder="Selecciona tu provincia" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {countryProvinces.map((p) => (
+                        <SelectItem key={p} value={p}>
+                          {p}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    id="province"
+                    value={province}
+                    onChange={(e) => setProvince(e.target.value)}
+                    placeholder="Escribe tu provincia"
+                  />
+                )}
               </div>
 
               {country !== "ES" && (
