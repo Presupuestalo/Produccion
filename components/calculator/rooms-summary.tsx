@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Home } from "lucide-react"
 import type { Room } from "@/types/calculator"
+import { formatNumber } from "@/lib/utils/format"
 
 interface RoomsSummaryProps {
   rooms: Room[]
@@ -78,7 +79,7 @@ export function RoomsSummary({ rooms }: RoomsSummaryProps) {
               className="flex justify-between items-center py-1 text-xs border-b last:border-b-0"
             >
               <span className="font-medium truncate">{getRoomDisplayName(room)}</span>
-              <span className="font-semibold whitespace-nowrap ml-2">{(room.area || 0).toFixed(2)} m²</span>
+              <span className="font-semibold whitespace-nowrap ml-2">{formatNumber(room.area || 0)} m²</span>
             </div>
           ))}
         </div>
@@ -86,7 +87,7 @@ export function RoomsSummary({ rooms }: RoomsSummaryProps) {
         <div className="pt-2 border-t-2 border-primary/20">
           <div className="flex justify-between items-center">
             <span className="text-sm font-bold">Total</span>
-            <span className="text-sm font-bold text-primary">{totalArea.toFixed(2)} m²</span>
+            <span className="text-sm font-bold text-primary">{formatNumber(totalArea)} m²</span>
           </div>
         </div>
 

@@ -116,13 +116,16 @@ export function DashboardHeader() {
             effectiveUserType === "profesional" ||
             effectiveUserType === "company"
           ) {
-            const { data: credits } = await supabase
-              .from("company_credits")
-              .select("credits_balance")
-              .eq("company_id", session.user.id)
-              .single()
-
-            setUserCredits(credits?.credits_balance || 0)
+            // Fetch credits via our API instead of direct Supabase to avoid 406/RLS issues
+            const response = await fetch("/api/credits/balance")
+            if (response.ok) {
+              const data = await response.json()
+              setUserCredits(data.credits_balance || 0)
+            } else {
+              console.warn("[v0] HEADER - Failed to fetch balance via API")
+              // Fallback to 0 if API fails
+              setUserCredits(0)
+            }
           }
         }
       } catch (error) {

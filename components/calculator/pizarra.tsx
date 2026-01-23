@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Trash2, Undo, Grid, Magnet, ZoomIn, ZoomOut, RotateCcw } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { formatNumber } from "@/lib/utils/format"
 
 interface Point {
   x: number
@@ -1244,13 +1245,13 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
                   <div className="bg-blue-50 rounded-lg p-3">
                     <p className="text-sm text-gray-600 mb-1">Área</p>
                     <p className="text-2xl font-bold text-blue-600">
-                      {area !== null ? (area / 10000).toFixed(2) : "0.00"} m²
+                      {area !== null ? formatNumber(area / 10000) : "0,00"} m²
                     </p>
                   </div>
                   <div className="bg-green-50 rounded-lg p-3">
                     <p className="text-sm text-gray-600 mb-1">Perímetro</p>
                     <p className="text-2xl font-bold text-green-600">
-                      {perimeter !== null ? (perimeter / 100).toFixed(2) : "0.00"} m
+                      {perimeter !== null ? formatNumber(perimeter / 100) : "0,00"} m
                     </p>
                   </div>
                 </div>

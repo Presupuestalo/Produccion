@@ -466,7 +466,7 @@ export function RequestQuotesDialog({
                   <span className="text-gray-500">Presupuesto estimado:</span>
                   <div className="text-right">
                     <span className="font-medium text-orange-600">
-                      {estimatedBudget.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €
+                      {estimatedBudget.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true })} €
                     </span>
                     <span className="block text-[10px] text-gray-400 font-normal -mt-0.5">
                       (impuestos no incluidos)
@@ -525,28 +525,15 @@ export function RequestQuotesDialog({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="province">Provincia</Label>
-                      <Select value={reformProvince} onValueChange={setReformProvince}>
-                        <SelectTrigger id="province" className="bg-white focus:ring-orange-500">
-                          <SelectValue placeholder="Selecciona provincia" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SPANISH_PROVINCES.map((prov) => (
-                            <SelectItem key={prov} value={prov}>
-                              {prov}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="h-10 w-full rounded-md border border-input bg-gray-50 px-3 py-2 text-sm text-gray-700 flex items-center font-medium">
+                        {reformProvince || "No especificada"}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="city">Ciudad / Localidad</Label>
-                      <Input
-                        id="city"
-                        value={reformCity}
-                        onChange={(e) => setReformCity(e.target.value)}
-                        placeholder="Ej: Madrid o Getafe"
-                        className="bg-white focus-visible:ring-orange-500"
-                      />
+                      <div className="h-10 w-full rounded-md border border-input bg-gray-50 px-3 py-2 text-sm text-gray-700 flex items-center font-medium">
+                        {reformCity || "No especificada"}
+                      </div>
                     </div>
                   </div>
                   <p className="text-[10px] text-gray-500 italic">

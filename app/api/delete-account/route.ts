@@ -145,7 +145,6 @@ async function saveDeletedUserAndNotify(
 
 export async function POST() {
   try {
-    console.log("[v0] [DELETE_ACCOUNT] Iniciando proceso POST")
     const supabase = await createClient()
 
     if (!supabase) {
@@ -157,14 +156,11 @@ export async function POST() {
     } = await supabase.auth.getSession()
 
     if (!session) {
-      console.error("[v0] [DELETE_ACCOUNT] No hay sesión activa")
       return NextResponse.json({ error: "No autenticado" }, { status: 401 })
     }
 
     const userId = session.user.id
     const userEmail = session.user.email || ""
-
-    console.log("[v0] [DELETE_ACCOUNT] Usuario identificado:", userId, userEmail)
 
     // Paso 1: Validaciones previas
     const { count: activeQuoteRequests } = await supabase
@@ -178,7 +174,7 @@ export async function POST() {
         {
           error: "No puedes eliminar tu cuenta mientras tengas solicitudes activas en el presmarket",
           activeOffersCount: activeQuoteRequests,
-          message: `Tienes ${activeQuoteRequests} solicitud(es) activa(s). Debes esperar a que expiren.`,
+          message: `No puedes eliminar tu cuenta porque tienes ${activeQuoteRequests} solicitud(es) activa(s) en el presmarket. Debes esperar a que expiren o cancelarlas.`,
         },
         { status: 400 },
       )
@@ -198,7 +194,8 @@ export async function POST() {
         return NextResponse.json(
           {
             error: "No puedes eliminar tu cuenta mientras tengas solicitudes activas adquiridas por profesionales",
-            message: "Tienes solicitudes publicadas que ya han sido adquiridas por profesionales. Por motivos de seguridad y transparencia, no puedes eliminar la cuenta hasta que se resuelvan estas solicitudes o pase el tiempo estipulado.",
+            message: "No puedes eliminar tu cuenta porque tienes solicitudes publicadas que ya han sido adquiridas por profesionales. Por motivos de seguridad y transparencia, no puedes eliminar la cuenta hasta que se resuelvan estas solicitudes o pase el tiempo estipulado.",
+            activeOffersCount: activeLeads.length,
           },
           { status: 400 },
         )
@@ -206,7 +203,8 @@ export async function POST() {
         return NextResponse.json(
           {
             error: "No puedes eliminar tu cuenta mientras tengas solicitudes publicadas",
-            message: "Tienes solicitudes publicadas en el marketplace. Debes eliminarlas primero antes de poder cerrar tu cuenta.",
+            message: "No puedes eliminar tu cuenta porque tienes solicitudes activas en el marketplace. Debes eliminarlas primero para poder cerrar tu cuenta.",
+            activeOffersCount: activeLeads.length,
           },
           { status: 400 },
         )

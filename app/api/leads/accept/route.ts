@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { supabaseAdmin } from "@/lib/supabase-admin"
 import { Resend } from "resend"
+import { professionalInterestedTemplate } from "@/lib/email/templates/presmarket-emails"
 
 export const dynamic = "force-dynamic"
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -169,67 +170,11 @@ export async function POST(req: Request) {
           from: "Presupuéstalo <notificaciones@presupuestalo.com>",
           to: lead.client_email,
           subject: `🏗️ ${companyName} se ha interesado en tu proyecto`,
-          html: `
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            </head>
-            <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
-              <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-                <!-- Header -->
-                <div style="background: linear-gradient(135deg, #E07B38 0%, #C96A2D 100%); padding: 30px 40px; text-align: center;">
-                  <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">
-                    ¡Buenas noticias!
-                  </h1>
-                </div>
-                
-                <!-- Content -->
-                <div style="padding: 40px;">
-                  <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-                    Hola${lead.client_name ? ` ${lead.client_name}` : ""},
-                  </p>
-                  
-                  <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-                    <strong style="color: #E07B38;">${companyName}</strong> ha mostrado interés en tu proyecto de <strong>${reformType}</strong> en ${location}.
-                  </p>
-                  
-                  <div style="background-color: #FFF8F3; border-left: 4px solid #E07B38; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
-                    <p style="color: #333; font-size: 15px; margin: 0; line-height: 1.6;">
-                      Esta empresa ha accedido a los datos de tu solicitud y podrá contactarte directamente o enviarte una propuesta detallada.
-                    </p>
-                  </div>
-                  
-                  <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 25px 0;">
-                    Puedes ver todas las empresas interesadas y sus propuestas en tu panel de control:
-                  </p>
-                  
-                  <div style="text-align: center; margin: 30px 0;">
-                    <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://presupuestalo.com"}/dashboard/mis-solicitudes" 
-                       style="display: inline-block; background: linear-gradient(135deg, #E07B38 0%, #C96A2D 100%); color: #ffffff; text-decoration: none; padding: 14px 35px; border-radius: 8px; font-weight: 600; font-size: 16px;">
-                      Ver mis solicitudes
-                    </a>
-                  </div>
-                  
-                  <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin-top: 30px;">
-                    <p style="color: #666; font-size: 14px; margin: 0; line-height: 1.6;">
-                      <strong>💡 Consejo:</strong> Compara las propuestas que recibas y no dudes en contactar directamente con las empresas para resolver cualquier duda antes de decidirte.
-                    </p>
-                  </div>
-                </div>
-                
-                <!-- Footer -->
-                <div style="background-color: #2D3748; padding: 25px 40px; text-align: center;">
-                  <p style="color: #A0AEC0; font-size: 12px; margin: 0; line-height: 1.6;">
-                    Este email fue enviado por Presupuéstalo<br>
-                    © ${new Date().getFullYear()} Presupuéstalo. Todos los derechos reservados.
-                  </p>
-                </div>
-              </div>
-            </body>
-            </html>
-          `,
+          html: professionalInterestedTemplate({
+            ownerName: lead.client_name || "Propietario",
+            professionalName: companyName,
+            projectType: lead.reform_types?.join(", ") || "Reforma",
+          }),
         })
 
         console.log("[v0] Notification email sent successfully to homeowner")

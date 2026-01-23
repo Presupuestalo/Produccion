@@ -65,7 +65,6 @@ interface UserProfile {
   work_mode?: string
   is_coordinator?: boolean
   subscription_plan?: string
-  service_provinces?: string[]
 }
 
 const workModeOptions = [
@@ -139,7 +138,9 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
   const rawCountry = userData.country || ""
   const [country, setCountry] = useState(rawCountry === "España" ? "ES" : rawCountry)
   const [workMode, setWorkMode] = useState(userData.work_mode || "executor")
-  const [serviceProvinces, setServiceProvinces] = useState<string[]>(userData.service_provinces || [])
+  const [addressStreet, setAddressStreet] = useState(userData.address_street || "")
+  const [addressCity, setAddressCity] = useState(userData.address_city || "")
+  const [dniNif, setDniNif] = useState(userData.dni_nif || "")
 
   const [isLoading, setIsLoading] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
@@ -351,15 +352,15 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
 
       if (isProfessional) {
         updates.address_province = province;
-        // Map serviceProvinces to ensure the current main province is always included
-        const finalServiceProvinces = Array.from(new Set([province, ...serviceProvinces])).filter(Boolean);
-        updates.service_provinces = finalServiceProvinces;
       }
 
       if (!isProfessional) {
         updates.phone = "+" + country + phoneNumber
         updates.country = country
         updates.address_province = province || "";
+        updates.address_street = addressStreet;
+        updates.address_city = addressCity;
+        updates.dni_nif = dniNif;
       }
 
       const { error: updateError } = await supabase.auth.updateUser({
@@ -645,13 +646,7 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
                   <div className="space-y-2">
                     <Label htmlFor="prof-province">{fieldLabels.province}</Label>
                     {hasProvinces ? (
-                      <Select value={province} onValueChange={(val) => {
-                        setProvince(val);
-                        // Automatically add the new main province to service provinces if not already there
-                        if (!serviceProvinces.includes(val)) {
-                          setServiceProvinces(prev => [...prev, val]);
-                        }
-                      }}>
+                      <Select value={province} onValueChange={setProvince}>
                         <SelectTrigger id="prof-province">
                           <SelectValue placeholder="Selecciona tu provincia" />
                         </SelectTrigger>
@@ -667,58 +662,11 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
                       <Input
                         id="prof-province"
                         value={province}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setProvince(val);
-                          if (val && !serviceProvinces.includes(val)) {
-                            setServiceProvinces(prev => [...prev, val]);
-                          }
-                        }}
+                        onChange={(e) => setProvince(e.target.value)}
                         placeholder="Escribe tu provincia"
                       />
                     )}
                   </div>
-                </div>
-
-                <div className="space-y-3 pt-2">
-                  <Label className="text-base font-semibold">Áreas de Actuación (Provincias)</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Selecciona las provincias adicionales en las que prestas servicios para recibir notificaciones de leads.
-                  </p>
-
-                  {hasProvinces ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 border p-4 rounded-lg bg-gray-50 max-h-[250px] overflow-y-auto">
-                      {countryProvinces.map((p) => (
-                        <div key={p} className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id={`province-${p}`}
-                            disabled={p === province}
-                            checked={p === province || serviceProvinces.includes(p)}
-                            onChange={(e) => {
-                              if (p === province) return;
-                              if (e.target.checked) {
-                                setServiceProvinces(prev => [...prev, p]);
-                              } else {
-                                setServiceProvinces(prev => prev.filter(item => item !== p));
-                              }
-                            }}
-                            className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500 cursor-pointer disabled:cursor-not-allowed"
-                          />
-                          <Label
-                            htmlFor={`province-${p}`}
-                            className={`text-sm cursor-pointer ${p === province ? "font-bold text-orange-700" : ""}`}
-                          >
-                            {p}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm italic text-muted-foreground">
-                      No hay una lista de provincias disponible para este país. Las notificaciones se basarán solo en tu provincia principal.
-                    </p>
-                  )}
                 </div>
               </div>
             )}
@@ -969,6 +917,16 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="dniNif">DNI/NIF (Para contratos y presupuestos)</Label>
+                <Input
+                  id="dniNif"
+                  value={dniNif}
+                  onChange={(e) => setDniNif(e.target.value)}
+                  placeholder="12345678A"
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="phone">Teléfono</Label>
                 <div className="flex gap-2">
                   <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 border rounded-md text-sm">
@@ -1005,7 +963,7 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="province">{fieldLabels.province}</Label>
+                <Label htmlFor="province">{fieldLabels.province} (Fiscal)</Label>
                 {hasProvinces ? (
                   <Select value={province} onValueChange={setProvince}>
                     <SelectTrigger id="province">
@@ -1028,6 +986,28 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
                   />
                 )}
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="addressStreet">Dirección Fiscal (Calle y número)</Label>
+                  <Input
+                    id="addressStreet"
+                    value={addressStreet}
+                    onChange={(e) => setAddressStreet(e.target.value)}
+                    placeholder="Calle Mayor, 1"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="addressCity">Ciudad (Fiscal)</Label>
+                  <Input
+                    id="addressCity"
+                    value={addressCity}
+                    onChange={(e) => setAddressCity(e.target.value)}
+                    placeholder="Madrid"
+                  />
+                </div>
+              </div>
+
 
               {country !== "ES" && (
                 <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">

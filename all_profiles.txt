@@ -1,0 +1,1 @@
+﻿Executing SQL: SELECT id, email FROM profiles

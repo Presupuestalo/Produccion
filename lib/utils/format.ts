@@ -7,6 +7,7 @@ export function formatCurrency(amount: number): string {
     currency: "EUR",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
+    useGrouping: true,
   }).format(amount)
 }
 
@@ -17,6 +18,7 @@ export function formatNumber(value: number, decimals = 2): string {
   return new Intl.NumberFormat("es-ES", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
+    useGrouping: true,
   }).format(value)
 }
 
@@ -33,8 +35,13 @@ export function formatDecimalInput(value: string | number): string {
     return "0,00"
   }
 
-  // Formatear con 2 decimales y coma como separador
-  return num.toFixed(2).replace(".", ",")
+  // Formatear con es-ES para asegurar la coma decimal y el punto de miles si fuera necesario
+  // Nota: Para inputs solemos preferir solo decimales, pero el usuario pidió ver los miles con punto
+  return new Intl.NumberFormat("es-ES", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: true,
+  }).format(num)
 }
 
 /**

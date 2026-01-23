@@ -37,6 +37,7 @@ import {
 import { formatDecimalInput, parseDecimalInput, sanitizeDecimalInput } from "@/lib/utils/format"
 import { SUPPORTED_COUNTRIES, type UserProfile } from "@/types/user"
 import { getCountryFieldLabels, getProvincesForCountry } from "@/lib/utils/country-fields"
+import { Checkbox } from "@/components/ui/checkbox"
 
 const PROVINCIAS_ESPANA = [
   "Álava",
@@ -143,6 +144,9 @@ export function CreateProjectButton() {
                   : "",
                 client_dni: profile.dni_nif || "",
               }))
+              if (!profile.address_street || !profile.address_province) {
+                setShouldSyncFiscal(true)
+              }
             }
           }
         }
@@ -178,6 +182,7 @@ export function CreateProjectButton() {
     budget: 0,
     dueDate: new Date().toISOString().split("T")[0],
   })
+  const [shouldSyncFiscal, setShouldSyncFiscal] = useState(false)
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target
@@ -321,6 +326,18 @@ export function CreateProjectButton() {
         title: "Proyecto creado",
         description: "El proyecto se ha creado correctamente",
       })
+
+      // Sync fiscal address if requested
+      if (shouldSyncFiscal && userProfile) {
+        const supabase = await getSupabase()
+        if (supabase) {
+          await supabase.from("profiles").update({
+            address_street: formData.street,
+            address_city: formData.city,
+            address_province: formData.province,
+          }).eq("id", userProfile.id)
+        }
+      }
 
       setOpen(false)
       console.log("[v0] 🔄 Redirigiendo a:", `/dashboard/projects/${projectId}`)
@@ -545,7 +562,7 @@ export function CreateProjectButton() {
               <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
                 <TabsList className={`grid w-full ${userType === "homeowner" ? "grid-cols-2" : "grid-cols-3"}`}>
                   <TabsTrigger value="project">Proyecto</TabsTrigger>
-                  <TabsTrigger value="location">Ubicación</TabsTrigger>
+                  <TabsTrigger value="location">Ubicación Obra</TabsTrigger>
                   {userType !== "homeowner" && <TabsTrigger value="client">Cliente</TabsTrigger>}
                 </TabsList>
 
@@ -623,7 +640,7 @@ export function CreateProjectButton() {
                 <TabsContent value="location" className="space-y-4 pt-4">
                   <div className="grid gap-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="country_code">País de la reforma *</Label>
+                      <Label htmlFor="country_code">País de la obra *</Label>
                       <Select
                         value={formData.country_code}
                         onValueChange={(value) => {
@@ -771,6 +788,32 @@ export function CreateProjectButton() {
                         Esta información es necesaria para calcular costes de transporte de materiales
                       </p>
                     </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="postal_code">Código Postal *</Label>
+                        <Input
+                          id="postal_code"
+                          placeholder="28001"
+                          value={formData.postal_code}
+                          onChange={handleChange}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {userType === "homeowner" && (shouldSyncFiscal || !userProfile?.address_street) && (
+                      <div className="flex items-center space-x-2 pt-2 border-t mt-2">
+                        <Checkbox
+                          id="sync-fiscal"
+                          checked={shouldSyncFiscal}
+                          onCheckedChange={(checked) => setShouldSyncFiscal(checked as boolean)}
+                        />
+                        <Label htmlFor="sync-fiscal" className="text-xs text-slate-600 cursor-pointer">
+                          Establecer también como mi dirección fiscal (para presupuestos y contratos)
+                        </Label>
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
 

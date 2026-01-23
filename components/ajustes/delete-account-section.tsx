@@ -16,22 +16,19 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import { Loader2, AlertTriangle } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 export function DeleteAccountSection() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [confirmText, setConfirmText] = useState("")
-  const { toast } = useToast()
   const router = useRouter()
 
   const handleDeleteAccount = async () => {
     if (confirmText !== "ELIMINAR") {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "Debes escribir ELIMINAR para confirmar",
-        variant: "destructive",
       })
       return
     }
@@ -46,16 +43,11 @@ export function DeleteAccountSection() {
       const data = await response.json()
 
       if (!response.ok) {
-        if (data.activeOffersCount || data.pendingProposalsCount) {
-          toast({
-            title: "No se puede eliminar la cuenta",
-            description: data.message,
-            variant: "destructive",
-            duration: 8000,
-          })
-        } else {
-          throw new Error(data.error || "Error al eliminar la cuenta")
-        }
+        toast.error("No se puede eliminar la cuenta", {
+          description: data.message || data.error || "Error al intentar eliminar la cuenta.",
+          duration: 8000,
+          position: "top-right",
+        })
         setIsDeleting(false)
         return
       }
@@ -63,10 +55,9 @@ export function DeleteAccountSection() {
       // Redirigir a la página de despedida
       router.push("/despedida")
     } catch (error: any) {
-      toast({
-        title: "Error",
+      console.error("[v0] [DELETE_ACCOUNT] Catch error:", error)
+      toast.error("Error", {
         description: error.message || "No se pudo eliminar la cuenta",
-        variant: "destructive",
       })
       setIsDeleting(false)
     }
@@ -105,6 +96,7 @@ export function DeleteAccountSection() {
                   </p>
                   <ul className="list-disc list-inside space-y-1">
                     <li>Todos tus proyectos y presupuestos</li>
+                    <li>Tus solicitudes publicadas</li>
                     <li>Todos tus clientes y citas</li>
                     <li>Todos tus planos y diseños</li>
                     <li>Tu configuración y preferencias</li>

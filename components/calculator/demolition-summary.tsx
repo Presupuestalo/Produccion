@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation"
 import type { GlobalConfig, Room } from "@/types"
 import type { DemolitionSettings as DemolitionSettingsType } from "@/types/calculator"
 import { getProjectDemolitionSettings } from "@/lib/services/demolition-service"
+import { formatNumber } from "@/lib/utils/format"
 
 // Interfaz para los derribos de tabiques
 interface WallDemolition {
@@ -383,14 +384,14 @@ export function DemolitionSummary({
                   >
                     <div className="min-w-0 break-words leading-tight">Demolición tabiquería ({group.thickness} cm)</div>
                     <div className="text-muted-foreground text-right shrink-0">m²</div>
-                    <div className="font-medium text-right w-16 shrink-0">{group.totalArea.toFixed(2)}</div>
+                    <div className="font-medium text-right w-16 shrink-0">{formatNumber(group.totalArea)}</div>
                   </div>
                 ))
               : (summary?.wallDemolition || 0) > 0 && (
                 <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
                   <div>Demolición tabiquería:</div>
                   <div className="text-muted-foreground text-right">m²</div>
-                  <div className="font-medium text-right w-20">{(summary?.wallDemolition || 0).toFixed(2)}</div>
+                  <div className="font-medium text-right w-20">{formatNumber(summary?.wallDemolition || 0)}</div>
                 </div>
               )}
 
@@ -398,7 +399,7 @@ export function DemolitionSummary({
               <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-start py-1 border-b border-orange-100 last:border-0">
                 <div className="min-w-0 break-words leading-tight">Picado de pavimento cerámico</div>
                 <div className="text-muted-foreground text-right shrink-0">m²</div>
-                <div className="font-medium text-right w-16 shrink-0">{(summary?.floorTileRemoval || 0).toFixed(2)}</div>
+                <div className="font-medium text-right w-16 shrink-0">{formatNumber(summary?.floorTileRemoval || 0)}</div>
               </div>
             )}
 
@@ -406,7 +407,7 @@ export function DemolitionSummary({
               <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
                 <div>Picado de solera base mortero:</div>
                 <div className="text-muted-foreground text-right">m²</div>
-                <div className="font-medium text-right w-20">{(summary?.mortarBaseRemoval || 0).toFixed(2)}</div>
+                <div className="font-medium text-right w-20">{formatNumber(summary?.mortarBaseRemoval || 0)}</div>
               </div>
             )}
 
@@ -414,7 +415,7 @@ export function DemolitionSummary({
               <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
                 <div>Picado de cerámica vertical (paredes):</div>
                 <div className="text-muted-foreground text-right">m²</div>
-                <div className="font-medium text-right w-20">{adjustedWallTileRemoval.toFixed(2)}</div>
+                <div className="font-medium text-right w-20">{formatNumber(adjustedWallTileRemoval)}</div>
               </div>
             )}
 
@@ -422,7 +423,7 @@ export function DemolitionSummary({
               <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
                 <div>Retirada de falso techo:</div>
                 <div className="text-muted-foreground text-right">m²</div>
-                <div className="font-medium text-right w-20">{falseCeilingArea.toFixed(2)}</div>
+                <div className="font-medium text-right w-20">{formatNumber(falseCeilingArea)}</div>
               </div>
             )}
 
@@ -446,7 +447,7 @@ export function DemolitionSummary({
               <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
                 <div>Levantado de suelo de madera:</div>
                 <div className="text-muted-foreground text-right">m²</div>
-                <div className="font-medium text-right w-20">{(summary?.woodenFloorRemoval || 0).toFixed(2)}</div>
+                <div className="font-medium text-right w-20">{formatNumber(summary?.woodenFloorRemoval || 0)}</div>
               </div>
             )}
 
@@ -454,7 +455,7 @@ export function DemolitionSummary({
               <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-start py-1 border-b border-orange-100 last:border-0">
                 <div className="min-w-0 break-words leading-tight">Retirada de rodapié suelo madera</div>
                 <div className="text-muted-foreground text-right shrink-0">ml</div>
-                <div className="font-medium text-right w-16 shrink-0">{skirtingWoodenFloor.toFixed(2)}</div>
+                <div className="font-medium text-right w-16 shrink-0">{formatNumber(skirtingWoodenFloor)}</div>
               </div>
             )}
 
@@ -470,7 +471,7 @@ export function DemolitionSummary({
               <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
                 <div>Retirada de gotelé:</div>
                 <div className="text-muted-foreground text-right">m²</div>
-                <div className="font-medium text-right w-20">{(summary?.goteleRemoval || 0).toFixed(2)}</div>
+                <div className="font-medium text-right w-20">{formatNumber(summary?.goteleRemoval || 0)}</div>
               </div>
             )}
 
@@ -478,7 +479,7 @@ export function DemolitionSummary({
               <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
                 <div>Retirada de papel:</div>
                 <div className="text-muted-foreground text-right">m²</div>
-                <div className="font-medium text-right w-20">{(summary?.wallpaperRemoval || 0).toFixed(2)}</div>
+                <div className="font-medium text-right w-20">{formatNumber(summary?.wallpaperRemoval || 0)}</div>
               </div>
             )}
 
@@ -502,7 +503,7 @@ export function DemolitionSummary({
               <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
                 <div>Retirada de molduras:</div>
                 <div className="text-muted-foreground text-right">ml</div>
-                <div className="font-medium text-right w-20">{totalMoldings.toFixed(2)}</div>
+                <div className="font-medium text-right w-20">{formatNumber(totalMoldings)}</div>
               </div>
             )}
 
@@ -518,7 +519,7 @@ export function DemolitionSummary({
               <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
                 <div>Bajada manual de escombros:</div>
                 <div className="text-muted-foreground text-right">h</div>
-                <div className="font-medium text-right w-20">{manualDebrisHours.toFixed(2)}</div>
+                <div className="font-medium text-right w-20">{formatNumber(manualDebrisHours)}</div>
               </div>
             )}
 
@@ -561,7 +562,7 @@ export function DemolitionSummary({
                 volume > 0 && (
                   <div key={`vol-${group.thickness}-${index}`} className="flex items-center justify-between gap-2">
                     <div className="flex-1">Escombros tabiques ({group.thickness} cm):</div>
-                    <div className="text-right font-medium">{volume.toFixed(2)} m³</div>
+                    <div className="text-right font-medium">{formatNumber(volume)} m³</div>
                   </div>
                 )
               )
@@ -571,7 +572,7 @@ export function DemolitionSummary({
               <div className="flex items-center justify-between gap-2">
                 <div className="flex-1">Escombros cerámica:</div>
                 <div className="text-right font-medium">
-                  {((debrisCalculation.floorTileDebris || 0) + (debrisCalculation.wallTileDebris || 0)).toFixed(2)} m³
+                  {formatNumber((debrisCalculation.floorTileDebris || 0) + (debrisCalculation.wallTileDebris || 0))} m³
                 </div>
               </div>
             )}
@@ -579,7 +580,7 @@ export function DemolitionSummary({
             {(debrisCalculation.mortarBaseDebris || 0) > 0 && (
               <div className="flex items-center justify-between gap-2">
                 <div className="flex-1">Escombros solera mortero:</div>
-                <div className="text-right font-medium">{(debrisCalculation.mortarBaseDebris || 0).toFixed(2)} m³</div>
+                <div className="text-right font-medium">{formatNumber(debrisCalculation.mortarBaseDebris || 0)} m³</div>
               </div>
             )}
 
@@ -587,7 +588,7 @@ export function DemolitionSummary({
               <div className="flex items-center justify-between gap-2">
                 <div className="flex-1">Escombros elementos baño:</div>
                 <div className="text-right font-medium">
-                  {((summary?.bathroomElementsRemoval || 0) * 1.5).toFixed(2)} m³
+                  {formatNumber((summary?.bathroomElementsRemoval || 0) * 1.5)} m³
                 </div>
               </div>
             )}
@@ -595,19 +596,19 @@ export function DemolitionSummary({
             {ceilingDebrisVolume > 0 && (
               <div className="flex items-center justify-between gap-2">
                 <div className="flex-1">Escombros falso techo:</div>
-                <div className="text-right font-medium">{ceilingDebrisVolume.toFixed(2)} m³</div>
+                <div className="text-right font-medium">{formatNumber(ceilingDebrisVolume)} m³</div>
               </div>
             )}
 
             {radiatorsToRemove > 0 && (
               <div className="flex items-center justify-between gap-2">
                 <div className="flex-1">Escombros radiadores:</div>
-                <div className="text-right font-medium">{radiatorsDebrisVolume.toFixed(2)} m³</div>
+                <div className="text-right font-medium">{formatNumber(radiatorsDebrisVolume)} m³</div>
               </div>
             )}
 
             <div className="font-semibold pt-2">Total escombros:</div>
-            <div className="text-right font-semibold pt-2">{totalDebris.toFixed(2)} m³</div>
+            <div className="text-right font-semibold pt-2">{formatNumber(totalDebris)} m³</div>
             <div className="text-sm text-muted-foreground">Sacos aproximados (25kg):</div>
             <div className="text-right text-sm text-muted-foreground">{Math.ceil(totalDebris / 0.05)} sacos</div>
           </div>
@@ -630,7 +631,7 @@ export function DemolitionSummary({
                   <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
                     <div>Residuos suelo madera:</div>
                     <div className="text-right font-medium">
-                      {(debrisCalculation.woodenFloorDebris || 0).toFixed(2)} m³
+                      {formatNumber(debrisCalculation.woodenFloorDebris || 0)} m³
                     </div>
                   </div>
                 )}
@@ -653,7 +654,7 @@ export function DemolitionSummary({
                 {totalDoorsFromRooms > 0 && (
                   <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
                     <div>Residuos puertas:</div>
-                    <div className="text-right font-medium">{(totalDoorsFromRooms * 0.06).toFixed(2)} m³</div>
+                    <div className="text-right font-medium">{formatNumber(totalDoorsFromRooms * 0.06)} m³</div>
                   </div>
                 )}
 
@@ -661,7 +662,7 @@ export function DemolitionSummary({
                   <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
                     <div>Residuos muebles cocina:</div>
                     <div className="text-right font-medium">
-                      {((summary?.kitchenFurnitureRemoval || 0) * 3.5).toFixed(2)} m³
+                      {formatNumber((summary?.kitchenFurnitureRemoval || 0) * 3.5)} m³
                     </div>
                   </div>
                 )}
@@ -670,7 +671,7 @@ export function DemolitionSummary({
                   <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
                     <div>Residuos muebles dormitorio:</div>
                     <div className="text-right font-medium">
-                      {((summary?.bedroomFurnitureRemoval || 0) * 2.0).toFixed(2)} m³
+                      {formatNumber((summary?.bedroomFurnitureRemoval || 0) * 2.0)} m³
                     </div>
                   </div>
                 )}
@@ -678,13 +679,13 @@ export function DemolitionSummary({
                 {livingRoomFurnitureCount > 0 && (
                   <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
                     <div>Residuos muebles salón:</div>
-                    <div className="text-right font-medium">{(livingRoomFurnitureCount * 2.0).toFixed(2)} m³</div>
+                    <div className="text-right font-medium">{formatNumber(livingRoomFurnitureCount * 2.0)} m³</div>
                   </div>
                 )}
 
                 <div className="font-semibold pt-2">Total deshechos madera:</div>
                 <div className="text-right font-semibold pt-2">
-                  {(
+                  {formatNumber(
                     (debrisCalculation.woodenFloorDebris || 0) +
                     skirtingWoodenFloor *
                     (demolitionSettings.woodenFloorThickness || 0.02) *
@@ -694,8 +695,7 @@ export function DemolitionSummary({
                     (summary?.kitchenFurnitureRemoval || 0) * 3.5 +
                     (summary?.bedroomFurnitureRemoval || 0) * 2.0 +
                     livingRoomFurnitureCount * 2.0
-                  ) // Removed heating removal from total
-                    .toFixed(2)}{" "}
+                  )}{" "}
                   m³
                 </div>
               </div>
@@ -711,20 +711,20 @@ export function DemolitionSummary({
           <div className="space-y-1 text-sm">
             <div className="font-semibold">Total escombros:</div>
             <div className="text-right font-semibold">
-              {(
+              {formatNumber(
                 wallDebrisVolume +
                 (debrisCalculation.floorTileDebris || 0) +
                 (debrisCalculation.wallTileDebris || 0) +
                 (debrisCalculation.mortarBaseDebris || 0) +
                 ceilingDebrisVolume +
                 (summary?.bathroomElementsRemoval || 0) * 1.5
-              ).toFixed(2)}{" "}
+              )}{" "}
               m³
             </div>
 
             <div className="font-semibold">Total deshechos madera:</div>
             <div className="text-right font-semibold">
-              {(
+              {formatNumber(
                 (debrisCalculation.woodenFloorDebris || 0) +
                 skirtingWoodenFloor *
                 (demolitionSettings.woodenFloorThickness || 0.02) *
@@ -734,13 +734,12 @@ export function DemolitionSummary({
                 (summary?.kitchenFurnitureRemoval || 0) * 3.5 +
                 (summary?.bedroomFurnitureRemoval || 0) * 2.0 +
                 livingRoomFurnitureCount * 2.0
-              ) // Removed heating removal from total
-                .toFixed(2)}{" "}
+              )}{" "}
               m³
             </div>
 
             <div className="font-bold text-lg pt-2">Total mixto:</div>
-            <div className="text-right font-bold text-lg pt-2">{totalDebris.toFixed(2)} m³</div>
+            <div className="text-right font-bold text-lg pt-2">{formatNumber(totalDebris)} m³</div>
 
             <div className="font-bold text-lg">Contenedores necesarios:</div>
             <div className="text-right font-bold text-lg">
@@ -769,7 +768,7 @@ export function DemolitionSummary({
                   baseHours += additionalHours
                 }
 
-                return baseHours.toFixed(1)
+                return formatNumber(baseHours, 1)
               })()} h
             </div>
 

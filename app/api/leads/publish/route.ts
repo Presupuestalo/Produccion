@@ -2,8 +2,12 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { supabaseAdmin } from "@/lib/supabase-admin"
-import { calculateLeadCreditsCost } from "@/types/marketplace"
-import { newLeadAvailableTemplate } from "@/lib/email/templates/presmarket-emails"
+import { calculateCreditCost } from "@/lib/utils/credit-calculator"
+import {
+  newLeadAvailableTemplate,
+  leadPublishedHomeownerTemplate,
+  leadPublishedAdminTemplate
+} from "@/lib/email/templates/presmarket-emails"
 import { sendEmail, ADMIN_EMAIL } from "@/lib/email/send-email"
 
 async function logToDb(message: string, data: any = {}) {
@@ -241,8 +245,8 @@ export async function POST(req: Request) {
     }
 
     const reformTypes = ["reforma_integral"]
-    const creditsCost = calculateLeadCreditsCost(estimatedBudget)
-    console.log("[v0] Credits cost for budget", estimatedBudget, "is:", creditsCost)
+    const creditsCost = calculateCreditCost(estimatedBudget, "basic").credits
+    console.log("[v0] Credits cost (basic) for budget", estimatedBudget, "is:", creditsCost)
 
     const leadRequest = {
       project_id: projectId,
@@ -255,7 +259,7 @@ export async function POST(req: Request) {
       reform_types: reformTypes,
       project_description: description || project.description || null,
       reform_address: reformStreet,
-      postal_code: project.reform_postal_code || project.postal_code || "00000", // Required field in DB
+      postal_code: "00000", // Required field in DB, using default as it is being removed from UI
       city: reformCity,
       province: reformProvince,
       country_code: reformCountry === "España" ? "ES" : reformCountry,
@@ -292,87 +296,42 @@ export async function POST(req: Request) {
     await logToDb("Publish Lead Success In DB", { leadId: newLead.id, userId: user.id })
 
     try {
+      // Helper function for delay
+      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
       // Email 1: To the homeowner
       const homeownerEmailResult = await sendEmail({
         to: user.email!,
         subject: "🔍 Estamos buscando profesionales para tu reforma",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background-color: #f97316; padding: 20px; border-radius: 8px 8px 0 0;">
-              <h1 style="color: white; margin: 0; font-size: 24px;">¡Tu solicitud ha sido publicada!</h1>
-            </div>
-            
-            <div style="padding: 30px; background-color: #ffffff; border: 1px solid #e5e7eb; border-top: none;">
-              <p style="font-size: 16px; color: #374151;">Hola <strong>${fullName}</strong>,</p>
-              
-              <p style="font-size: 16px; color: #374151; line-height: 1.6;">
-                Hemos recibido tu solicitud de presupuesto y ya estamos en búsqueda de profesionales 
-                que puedan ayudarte con tu reforma.
-              </p>
-              
-              <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #f59e0b;">
-                <p style="margin: 0; color: #92400e; font-weight: bold;">⚠️ Importante:</p>
-                <p style="margin: 10px 0 0 0; color: #92400e;">
-                  Tus datos de contacto serán compartidos con profesionales verificados de tu zona. 
-                  <strong>Estate atento por si te llaman</strong> para ofrecerte sus servicios y presupuestos.
-                </p>
-              </div>
-              
-              <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 25px 0;">
-                <h3 style="color: #374151; margin: 0 0 15px 0;">📋 Resumen de tu solicitud:</h3>
-                <p style="margin: 8px 0; color: #4b5563;"><strong>Ubicación:</strong> ${reformStreet}, ${reformCity}, ${reformProvince}</p>
-                <p style="margin: 8px 0; color: #4b5563;"><strong>Presupuesto estimado:</strong> ${estimatedBudget.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</p>
-                <p style="margin: 8px 0; color: #4b5563;"><strong>Partidas incluidas:</strong> ${budgetSnapshot?.line_items?.length || 0}</p>
-              </div>
-              
-              <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
-                Un saludo,<br>
-                <strong>El equipo de Presupuéstalo</strong>
-              </p>
-            </div>
-          </div>
-        `,
+        html: leadPublishedHomeownerTemplate({
+          ownerName: fullName,
+          location: `${reformStreet}, ${reformCity}, ${reformProvince}`,
+          estimatedBudget: estimatedBudget.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true }) + " €",
+        }),
       })
       await logToDb("Homeowner Email Sent", { result: homeownerEmailResult })
+
+      // Small delay between emails to avoid rate limits
+      await delay(1500);
 
       // Email 2: To admin
       const adminEmailResult = await sendEmail({
         to: ADMIN_EMAIL,
         subject: `📌 Nueva solicitud de reforma en ${reformCity}, ${reformProvince}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background-color: #059669; padding: 20px; border-radius: 8px 8px 0 0;">
-              <h1 style="color: white; margin: 0; font-size: 24px;">Nueva Solicitud de Reforma</h1>
-            </div>
-            
-            <div style="padding: 30px; background-color: #ffffff; border: 1px solid #e5e7eb; border-top: none;">
-              <p style="font-size: 16px; color: #374151;">Se ha publicado una nueva solicitud en la plataforma.</p>
-              
-              <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 25px 0;">
-                <h3 style="color: #374151; margin: 0 0 15px 0;">📋 Detalles:</h3>
-                <p style="margin: 8px 0; color: #4b5563;"><strong>ID:</strong> ${newLead.id}</p>
-                <p style="margin: 8px 0; color: #4b5563;"><strong>Cliente:</strong> ${fullName}</p>
-                <p style="margin: 8px 0; color: #4b5563;"><strong>Email:</strong> ${user.email}</p>
-                <p style="margin: 8px 0; color: #4b5563;"><strong>Teléfono:</strong> ${profile.phone}</p>
-              </div>
-              
-              <div style="background-color: #ecfdf5; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #059669;">
-                <h3 style="color: #065f46; margin: 0 0 15px 0;">📍 Ubicación:</h3>
-                <p style="margin: 8px 0; color: #065f46;"><strong>Dirección:</strong> ${reformStreet}</p>
-                <p style="margin: 8px 0; color: #065f46;"><strong>Ciudad:</strong> ${reformCity}</p>
-                <p style="margin: 8px 0; color: #065f46;"><strong>Provincia:</strong> ${reformProvince}</p>
-              </div>
-              
-              <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 25px 0;">
-                <h3 style="color: #92400e; margin: 0 0 15px 0;">💰 Economía:</h3>
-                <p style="margin: 8px 0; color: #92400e;"><strong>Presupuesto:</strong> ${estimatedBudget.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</p>
-                <p style="margin: 8px 0; color: #92400e;"><strong>Créditos:</strong> ${creditsCost}</p>
-              </div>
-            </div>
-          </div>
-        `,
+        html: leadPublishedAdminTemplate({
+          leadId: newLead.id,
+          ownerName: fullName,
+          ownerEmail: user.email!,
+          ownerPhone: profile.phone,
+          location: `${reformStreet}, ${reformCity}, ${reformProvince}`,
+          estimatedBudget: estimatedBudget.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true }) + " €",
+          creditsCost: creditsCost,
+        }),
       })
       await logToDb("Admin Email Sent", { result: adminEmailResult })
+
+      // Small delay before professionals
+      await delay(1500);
 
       // Email 3: To professionals in the province
       const currentCountry = reformCountry === "ES" ? "España" : (reformCountry === "Spain" ? "España" : reformCountry)
@@ -380,7 +339,7 @@ export async function POST(req: Request) {
 
       const { data: professionals, error: profsError } = await supabaseAdmin
         .from("profiles")
-        .select("id, full_name, email, user_type, country, address_province, service_provinces")
+        .select("id, full_name, email, user_type, country, address_province, service_provinces, subscription_plan")
         .eq("user_type", "professional")
         .eq("country", currentCountry)
         .not("email", "is", null)
@@ -405,28 +364,44 @@ export async function POST(req: Request) {
       })
 
       if (uniqueProfessionals.length > 0) {
-        const formattedBudget = estimatedBudget.toLocaleString("es-ES", { style: "currency", currency: "EUR" })
+        const formattedBudget = estimatedBudget.toLocaleString("es-ES", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+          useGrouping: true
+        }) + " €"
+        const results = [];
 
-        const results = await Promise.allSettled(
-          uniqueProfessionals.map(async (prof) => {
-            if (!prof.email) return
+        // Send sequentially to avoid rate limiting
+        for (const prof of uniqueProfessionals) {
+          if (!prof.email) continue;
 
-            const profEmailHtml = newLeadAvailableTemplate({
-              professionalName: prof.full_name || "Profesional",
-              projectType: "Reforma Integral",
-              city: reformCity,
-              province: reformProvince,
-              estimatedBudget: formattedBudget,
-              creditsCost: creditsCost,
-            })
+          await logToDb("Sending Email to Professional", { email: prof.email });
 
-            return sendEmail({
-              to: prof.email,
-              subject: `🚀 Nuevo proyecto en ${reformCity}: ${formattedBudget}`,
-              html: profEmailHtml,
-            })
-          }),
-        )
+          const profPlan = prof.subscription_plan || "free"
+          const profCreditsCost = calculateCreditCost(estimatedBudget, profPlan).credits
+
+          const profEmailHtml = newLeadAvailableTemplate({
+            professionalName: prof.full_name || "Profesional",
+            projectType: "Reforma Integral",
+            city: reformCity,
+            province: reformProvince,
+            estimatedBudget: formattedBudget,
+            creditsCost: profCreditsCost,
+            professionalPlan: profPlan,
+          })
+
+          const res = await sendEmail({
+            to: prof.email,
+            subject: `🚀 Nuevo proyecto en ${reformCity}: ${formattedBudget} `,
+            html: profEmailHtml,
+          });
+
+          results.push(res);
+
+          // Delay between each professional
+          await delay(1500);
+        }
+
         await logToDb("Professional Emails Results", { results })
       }
     } catch (emailError) {

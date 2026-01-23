@@ -26,6 +26,7 @@ import {
   Briefcase,
   AlertTriangle,
   Building2,
+  Crown,
 } from "lucide-react"
 import Link from "next/link"
 import { AccessOfferDialog } from "@/components/leads/access-offer-dialog"
@@ -54,6 +55,8 @@ interface Lead {
   proposals_count: number
   selected_company: string | null // añadido para detectar adjudicación
   source: string
+  lead_type?: "normal" | "premium"
+  budget_id?: string | null
   budget_snapshot?: {
     line_items?: any[]
     lineItems?: any[]
@@ -86,7 +89,11 @@ interface AcquiredLead {
     offer_count: number
     max_companies: number
     status: string
-    budget_snapshot: number
+    lead_type?: "normal" | "premium"
+    budget_snapshot?: {
+      line_items?: any[]
+      lineItems?: any[]
+    } | null
   }
   proposal_sent: boolean
   offer_status: string
@@ -241,6 +248,8 @@ export default function SolicitudesDisponiblesPage() {
             has_accessed: lead.has_accessed,
             source: "presmarket",
             budget_snapshot: lead.budget_snapshot || null,
+            lead_type: lead.lead_type || "normal",
+            budget_id: lead.budget_id || null,
           }))
 
           console.log("[v0] Formatted leads:", formattedLeads.length)
@@ -283,6 +292,7 @@ export default function SolicitudesDisponiblesPage() {
                   offer_count: interaction.lead_requests.companies_accessed_count,
                   max_companies: interaction.lead_requests.max_companies || 3,
                   selected_company: interaction.lead_requests.selected_company,
+                  lead_type: interaction.lead_requests.lead_type || "normal",
                 },
                 proposal_sent: !!proposal,
                 offer_status: "accessed",
@@ -543,8 +553,10 @@ export default function SolicitudesDisponiblesPage() {
                 const hasEnoughCredits = userCredits >= creditCost
                 const isFull = companiesCount >= maxCompanies
                 const leadStatus = getLeadStatus(lead) // obtener estado de la oferta
-                const isPremiumLead =
-                  lead.budget_snapshot?.line_items?.length > 0 || lead.budget_snapshot?.lineItems?.length > 0
+                const isPremiumLead = lead.lead_type === 'premium' ||
+                  !!lead.budget_id ||
+                  (lead.budget_snapshot?.line_items && lead.budget_snapshot.line_items.length > 0) ||
+                  (lead.budget_snapshot?.lineItems && lead.budget_snapshot.lineItems.length > 0)
 
                 return (
                   <Card key={lead.id} className={`overflow-hidden ${leadStatus ? "opacity-75" : ""}`}>
@@ -559,8 +571,8 @@ export default function SolicitudesDisponiblesPage() {
                                   Reforma en {lead.city || "Ciudad"}, {lead.province || "Provincia"}
                                 </h3>
                                 {isPremiumLead && (
-                                  <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
-                                    <Star className="h-3 w-3 mr-1 fill-current" />
+                                  <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 flex items-center gap-1">
+                                    <Crown className="h-3 w-3 fill-current" />
                                     PREMIUM
                                   </Badge>
                                 )}
@@ -743,6 +755,14 @@ export default function SolicitudesDisponiblesPage() {
                               Reforma en {acquired.lead.city}, {acquired.lead.province}
                             </h3>
                             {getProposalBadge()}
+                            {(acquired.lead.lead_type === "premium" ||
+                              acquired.lead.budget_snapshot?.line_items?.length > 0 ||
+                              acquired.lead.budget_snapshot?.lineItems?.length > 0) && (
+                                <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 flex items-center gap-1">
+                                  <Crown className="h-3 w-3 fill-current" />
+                                  PREMIUM
+                                </Badge>
+                              )}
                             {leadStatus && (
                               <Badge variant="secondary" className={`ml-1 ${leadStatus.color}`}>
                                 {leadStatus.label}
@@ -797,7 +817,7 @@ export default function SolicitudesDisponiblesPage() {
                             <div className="bg-muted/50 p-4 rounded-lg mb-4">
                               <h4 className="font-semibold mb-2">Tu Propuesta</h4>
                               <p className="text-lg font-bold text-primary">
-                                {acquired.proposal.proposed_budget?.toLocaleString()} € (sin IVA)
+                                {acquired.proposal.proposed_budget?.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true })} € (sin IVA)
                               </p>
                               {acquired.proposal.message && (
                                 <p className="text-sm text-muted-foreground mt-2">{acquired.proposal.message}</p>

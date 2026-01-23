@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Calculator, Printer } from "lucide-react"
+import { formatNumber, formatCurrency } from "@/lib/utils/format"
 
 interface Room {
   id: string
@@ -142,24 +143,24 @@ export function CostCalculator({ rooms }: CostCalculatorProps) {
           </thead>
           <tbody>
             ${rooms
-              .map(
-                (room) => `
+        .map(
+          (room) => `
               <tr>
                 <td>${room.type}</td>
-                <td>${room.area.toFixed(2)}</td>
+                <td>${formatNumber(room.area)}</td>
                 <td>${room.floorMaterial}</td>
                 <td>${room.wallMaterial || "Pintura"}</td>
                 <td>${room.hasFalseCeiling ? "Sí" : "No"}</td>
-                <td>${calculateRoomCost(room).toLocaleString("es-ES")} €</td>
+                <td>${formatCurrency(calculateRoomCost(room))}</td>
               </tr>
             `,
-              )
-              .join("")}
+        )
+        .join("")}
           </tbody>
         </table>
         
         <div class="total">
-          <p>Costo Total: ${totalCost.toLocaleString("es-ES")} €</p>
+          <p>Costo Total: ${formatCurrency(totalCost)}</p>
         </div>
         
         <div class="footer">
@@ -298,16 +299,16 @@ export function CostCalculator({ rooms }: CostCalculatorProps) {
                 {rooms.map((room) => (
                   <TableRow key={room.id}>
                     <TableCell className="font-medium">{room.type}</TableCell>
-                    <TableCell>{room.area.toFixed(2)}</TableCell>
+                    <TableCell>{formatNumber(room.area)}</TableCell>
                     <TableCell>{room.floorMaterial}</TableCell>
-                    <TableCell className="text-right">{calculateRoomCost(room).toLocaleString("es-ES")}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(calculateRoomCost(room))}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
 
             <div className="mt-4 text-right">
-              <p className="text-lg font-bold">Total: {totalCost.toLocaleString("es-ES")} €</p>
+              <p className="text-lg font-bold">Total: {formatCurrency(totalCost)}</p>
               <p className="text-xs text-muted-foreground">
                 *Este presupuesto es una estimación basada en los precios estándar
               </p>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { formatNumber } from "@/lib/utils/format"
 
 interface ReformSummaryProps {
   rooms: any[]
@@ -494,63 +495,63 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
                   <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-start py-1 border-b border-green-100 last:border-0 border-collapse">
                     <div className="min-w-0 break-words leading-tight">Capa mortero aligerado arcilla expandida (ARLITA)</div>
                     <div className="text-muted-foreground text-right shrink-0">m²</div>
-                    <div className="text-right font-medium w-16 shrink-0">{summary.arlita.toFixed(2)}</div>
+                    <div className="text-right font-medium w-16 shrink-0">{formatNumber(summary.arlita)}</div>
                   </div>
                 )}
                 {summary.rastrelado > 0 && (
                   <>
                     <div className="min-w-0 break-words leading-tight">Base nivelación mediante rastrelado en madera</div>
                     <div className="text-muted-foreground">m²</div>
-                    <div className="text-right font-medium">{summary.rastrelado.toFixed(2)}</div>
+                    <div className="text-right font-medium">{formatNumber(summary.rastrelado)}</div>
                   </>
                 )}
                 {summary.solera > 0 && (
                   <>
                     <div>Formación de solera de mortero y arlita</div>
                     <div className="text-muted-foreground">m²</div>
-                    <div className="text-right font-medium">{summary.solera.toFixed(2)}</div>
+                    <div className="text-right font-medium">{formatNumber(summary.solera)}</div>
                   </>
                 )}
                 {summary.lucidoParedes > 0 && (
                   <>
                     <div>Lucido de paredes</div>
                     <div className="text-muted-foreground">m²</div>
-                    <div className="text-right font-medium">{summary.lucidoParedes.toFixed(2)}</div>
+                    <div className="text-right font-medium">{formatNumber(summary.lucidoParedes)}</div>
                   </>
                 )}
                 {summary.bajadoTechos > 0 && (
                   <>
                     <div>Bajado de techos</div>
                     <div className="text-muted-foreground">m²</div>
-                    <div className="text-right font-medium">{summary.bajadoTechos.toFixed(2)}</div>
+                    <div className="text-right font-medium">{formatNumber(summary.bajadoTechos)}</div>
                   </>
                 )}
                 {summary.raseo > 0 && (
                   <>
                     <div>Raseo de suelo</div>
                     <div className="text-muted-foreground">m²</div>
-                    <div className="text-right font-medium">{summary.raseo.toFixed(2)}</div>
+                    <div className="text-right font-medium">{formatNumber(summary.raseo)}</div>
                   </>
                 )}
                 {summary.embaldosado > 0 && (
                   <>
                     <div>Embaldosado cerámico</div>
                     <div className="text-muted-foreground">m²</div>
-                    <div className="text-right font-medium">{summary.embaldosado.toFixed(2)}</div>
+                    <div className="text-right font-medium">{formatNumber(summary.embaldosado)}</div>
                   </>
                 )}
                 {summary.raseoParedes > 0 && (
                   <>
                     <div>Raseo de paredes</div>
                     <div className="text-muted-foreground">m²</div>
-                    <div className="text-right font-medium">{summary.raseoParedes.toFixed(2)}</div>
+                    <div className="text-right font-medium">{formatNumber(summary.raseoParedes)}</div>
                   </>
                 )}
                 {summary.alicatadoParedes > 0 && (
                   <>
                     <div>Alicatado de paredes</div>
                     <div className="text-muted-foreground">m²</div>
-                    <div className="text-right font-medium">{summary.alicatadoParedes.toFixed(2)}</div>
+                    <div className="text-right font-medium">{formatNumber(summary.alicatadoParedes)}</div>
                   </>
                 )}
                 {summary.cajonPuertaCorredera > 0 && (
@@ -571,7 +572,7 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
                   <>
                     <div>Instalación de falsotecho</div>
                     <div className="text-muted-foreground">m²</div>
-                    <div className="text-right font-medium">{summary.falsotecho.toFixed(2)}</div>
+                    <div className="text-right font-medium">{formatNumber(summary.falsotecho)}</div>
                   </>
                 )}
               </div>
@@ -738,14 +739,14 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
                 <>
                   <div>Pintura de paredes</div>
                   <div className="text-muted-foreground">m²</div>
-                  <div className="text-right font-medium">{summary.pinturaParedes.toFixed(2)}</div>
+                  <div className="text-right font-medium">{formatNumber(summary.pinturaParedes)}</div>
                 </>
               )}
               {summary.pinturaTechos > 0 && (
                 <>
                   <div>Pintura de techos</div>
                   <div className="text-muted-foreground">m²</div>
-                  <div className="text-right font-medium">{summary.pinturaTechos.toFixed(2)}</div>
+                  <div className="text-right font-medium">{formatNumber(summary.pinturaTechos)}</div>
                 </>
               )}
               {summary.lacarPuertaEntrada > 0 && (
@@ -782,42 +783,42 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
                   <>
                     <div>Instalación de parquet flotante</div>
                     <div className="text-muted-foreground">m²</div>
-                    <div className="text-right font-medium">{summary.floatingParquet.toFixed(2)}</div>
+                    <div className="text-right font-medium">{formatNumber(summary.floatingParquet)}</div>
                   </>
                 )}
                 {summary.rodapie > 0 && (
                   <>
                     <div>Colocación de rodapié</div>
                     <div className="text-muted-foreground">ml</div>
-                    <div className="text-right font-medium">{summary.rodapie.toFixed(2)}</div>
+                    <div className="text-right font-medium">{formatNumber(summary.rodapie)}</div>
                   </>
                 )}
                 {summary.laminateFloor > 0 && (
                   <>
                     <div>Instalación de suelo laminado</div>
                     <div className="text-muted-foreground">m²</div>
-                    <div className="text-right font-medium">{summary.laminateFloor.toFixed(2)}</div>
+                    <div className="text-right font-medium">{formatNumber(summary.laminateFloor)}</div>
                   </>
                 )}
                 {summary.vinylFloor > 0 && (
                   <>
                     <div>Instalación de suelo vinílico</div>
                     <div className="text-muted-foreground">m²</div>
-                    <div className="text-right font-medium">{summary.vinylFloor.toFixed(2)}</div>
+                    <div className="text-right font-medium">{formatNumber(summary.vinylFloor)}</div>
                   </>
                 )}
                 {summary.baseAislante > 0 && (
                   <>
                     <div>Base aislante</div>
                     <div className="text-muted-foreground">m²</div>
-                    <div className="text-right font-medium">{summary.baseAislante.toFixed(2)}</div>
+                    <div className="text-right font-medium">{formatNumber(summary.baseAislante)}</div>
                   </>
                 )}
                 {summary.nivelarTablon > 0 && (
                   <>
                     <div>Nivelar con tablón</div>
                     <div className="text-muted-foreground">m²</div>
-                    <div className="text-right font-medium">{summary.nivelarTablon.toFixed(2)}</div>
+                    <div className="text-right font-medium">{formatNumber(summary.nivelarTablon)}</div>
                   </>
                 )}
                 {summary.puertasAbatibles > 0 && (
@@ -872,14 +873,14 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
                 <>
                   <div>Tabiques de Placa de yeso laminado</div>
                   <div className="text-muted-foreground">m²</div>
-                  <div className="text-right font-medium">{summary.partitionsArea.toFixed(2)}</div>
+                  <div className="text-right font-medium">{formatNumber(summary.partitionsArea)}</div>
                 </>
               )}
               {summary.wallLiningsArea > 0 && (
                 <>
                   <div>Trasdosados de Placa de yeso laminado</div>
                   <div className="text-muted-foreground">m²</div>
-                  <div className="text-right font-medium">{summary.wallLiningsArea.toFixed(2)}</div>
+                  <div className="text-right font-medium">{formatNumber(summary.wallLiningsArea)}</div>
                 </>
               )}
             </div>
@@ -932,7 +933,7 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
                   <>
                     <div>Suelo radiante</div>
                     <div className="text-muted-foreground">m²</div>
-                    <div className="text-right font-medium">{summary.sueloRadiante.toFixed(2)}</div>
+                    <div className="text-right font-medium">{formatNumber(summary.sueloRadiante)}</div>
                   </>
                 )}
               </div>

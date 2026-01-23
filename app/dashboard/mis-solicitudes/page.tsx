@@ -23,7 +23,19 @@ import {
   Send,
   ThumbsUp,
   ThumbsDown,
+  Trash2,
+  Loader2,
 } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 
@@ -142,6 +154,8 @@ export default function MisSolicitudesPage() {
   const [requests, setRequests] = useState<QuoteRequest[]>([])
   const [leadRequests, setLeadRequests] = useState<LeadRequest[]>([])
   const [loading, setLoading] = useState(true)
+  const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [requestToDelete, setRequestToDelete] = useState<{ id: string; type: "lead" | "quote" } | null>(null)
 
   const fetchRequests = async () => {
     const supabase = await createClient()
@@ -330,6 +344,38 @@ export default function MisSolicitudesPage() {
     fetchRequests()
   }
 
+  const handleDeleteRequest = async () => {
+    if (!requestToDelete) return
+
+    try {
+      setIsDeleting(requestToDelete.id)
+      const endpoint = requestToDelete.type === "lead" ? "/api/leads/delete" : "/api/quote-requests/delete"
+      const bodyKey = requestToDelete.type === "lead" ? "leadId" : "requestId"
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [bodyKey]: requestToDelete.id }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        toast.error(result.message || result.error || "Error al eliminar la solicitud")
+        return
+      }
+
+      toast.success("Solicitud eliminada correctamente")
+      fetchRequests()
+    } catch (error) {
+      console.error("[v0] Error deleting request:", error)
+      toast.error("Error al eliminar la solicitud")
+    } finally {
+      setIsDeleting(null)
+      setRequestToDelete(null)
+    }
+  }
+
   const isPremiumLead = (lead: LeadRequest) => {
     return lead.budget_snapshot?.line_items && lead.budget_snapshot.line_items.length > 0
   }
@@ -414,6 +460,20 @@ export default function MisSolicitudesPage() {
                         {lead.proposals.length} propuesta{lead.proposals.length !== 1 ? "s" : ""}
                       </Badge>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-gray-500 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                      onClick={() => setRequestToDelete({ id: lead.id, type: "lead" })}
+                      disabled={isDeleting === lead.id}
+                      title="Eliminar solicitud"
+                    >
+                      {isDeleting === lead.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
                 </div>
 
@@ -447,7 +507,7 @@ export default function MisSolicitudesPage() {
                       <p className="text-xs md:text-sm text-gray-400 mb-1">Presupuesto Estimado</p>
                       <p className="text-xl md:text-2xl font-bold text-green-400 flex items-center gap-1">
                         <Euro className="h-4 w-4 md:h-5 md:w-5" />
-                        {lead.estimated_budget?.toLocaleString("es-ES")}
+                        {lead.estimated_budget?.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true })}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 text-gray-400 text-xs md:text-sm">
@@ -511,12 +571,14 @@ export default function MisSolicitudesPage() {
                               <div className="bg-green-500/20 border border-green-500/30 rounded-lg px-3 py-2 mb-2">
                                 <p className="text-xs text-gray-400">Presupuesto</p>
                                 <p className="text-xl font-bold text-green-400">
-                                  {proposal.proposed_budget?.toLocaleString("es-ES")} €
+                                  {proposal.proposed_budget?.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true })} €
                                 </p>
                                 <p className="text-xs text-gray-500">
                                   +IVA:{" "}
                                   {((proposal.proposed_budget || 0) * 1.21).toLocaleString("es-ES", {
+                                    minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
+                                    useGrouping: true,
                                   })}{" "}
                                   €
                                 </p>
@@ -660,6 +722,20 @@ export default function MisSolicitudesPage() {
                         {request.offers.length} {request.offers.length === 1 ? "oferta" : "ofertas"}
                       </Badge>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-gray-500 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                      onClick={() => setRequestToDelete({ id: request.id, type: "quote" })}
+                      disabled={isDeleting === request.id}
+                      title="Eliminar solicitud"
+                    >
+                      {isDeleting === request.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
                 </div>
 
@@ -765,6 +841,26 @@ export default function MisSolicitudesPage() {
           </div>
         )}
       </div>
+
+      <AlertDialog open={!!requestToDelete} onOpenChange={(open) => !open && setRequestToDelete(null)}>
+        <AlertDialogContent className="bg-gray-800 border-gray-700 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar solicitud?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              Esta acción no se puede deshacer. Si la solicitud está activa en el marketplace, desaparecerá de la lista
+              de ofertas disponibles para los profesionales.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteRequest} className="bg-red-600 hover:bg-red-700 text-white">
+              Eliminar Definitivamente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

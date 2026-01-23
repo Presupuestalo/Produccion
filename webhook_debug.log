@@ -1,0 +1,4 @@
+2026-01-23T20:27:54.218Z - Webhook received. body length: 268
+2026-01-23T20:27:54.221Z - Stripe signature present: false
+2026-01-23T20:27:54.221Z - Simulated Webhook. Type: checkout.session.completed
+2026-01-23T20:27:54.222Z - Session Data: {"id":"cs_test_final","metadata":{"type":"credit_purchase","user_id":"acf8fc4c-9b46-47af-97c0-f25168e64fa7","amount":"500"},"amount":5000}

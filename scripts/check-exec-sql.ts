@@ -7,12 +7,17 @@ async function checkExecSQL() {
 
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    console.log("Checking RPC exec_sql...")
-    const { data, error } = await supabase.rpc('exec_sql', { sql: 'SELECT 1' })
+    const sql = process.argv[2] || 'SELECT 1'
+    console.log(`Executing SQL: ${sql}`)
+
+    const { data, error } = await supabase.rpc('exec_sql', { sql })
+
     if (error) {
         console.log(`❌ RPC exec_sql: ERROR (${error.code}: ${error.message})`)
+        console.error(error)
     } else {
-        console.log(`✅ RPC exec_sql: EXISTS`)
+        console.log(`✅ RPC exec_sql: SUCCESS`)
+        console.log(JSON.stringify(data, null, 2))
     }
 
     process.exit(0)

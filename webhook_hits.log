@@ -1,0 +1,10 @@
+2026-01-23T21:17:38.535Z - ========== MASTER WEBHOOK REQUEST START ==========
+2026-01-23T21:17:38.648Z - TEST EVENT: checkout.session.completed
+2026-01-23T21:17:38.656Z - SESSION ID: test_final_diagnostic
+2026-01-23T21:17:38.658Z - METADATA: {"type":"credits_purchase","credits_amount":"300"}
+2026-01-23T21:17:38.659Z - CUSTOMER_EMAIL: presupuestaloficial@gmail.com
+2026-01-23T21:17:38.660Z - AMOUNT_TOTAL: 5000
+2026-01-23T21:17:38.661Z - Searching user for email: presupuestaloficial@gmail.com
+2026-01-23T21:17:39.197Z - User found by email: d2552f2d-ce70-4a2e-a405-3f6119a763d4
+2026-01-23T21:17:39.208Z - UPDATING CREDITS for d2552f2d-ce70-4a2e-a405-3f6119a763d4: +300
+2026-01-23T21:17:39.564Z - SUCCESSFULLY ADDED 300 CREDITS TO d2552f2d-ce70-4a2e-a405-3f6119a763d4

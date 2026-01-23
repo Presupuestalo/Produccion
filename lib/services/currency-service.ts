@@ -279,7 +279,12 @@ export function formatPrice(price: number, targetCountry?: Country): string {
   const country = targetCountry || getUserCountry()
 
   // Los precios ya están en la moneda correcta de cada país, solo formateamos
-  return `${price.toFixed(2)} ${country.currency.symbol}`
+  // Usamos es-ES para asegurar el formato de miles con punto y decimales con coma
+  return new Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency: country.currency.code,
+    useGrouping: true,
+  }).format(price)
 }
 
 // Obtener símbolo de moneda

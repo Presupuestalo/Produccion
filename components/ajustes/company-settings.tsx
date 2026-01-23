@@ -67,7 +67,6 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
     company_city: "",
     company_province: "",
     company_country: userData.country || "ES",
-    company_postal_code: "",
     company_tax_id: "",
     company_phone: userData.phone || "",
     company_email: userData.email || "",
@@ -78,6 +77,7 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
     show_vat: false,
     vat_percentage: 21,
   })
+  const [serviceProvinces, setServiceProvinces] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingSettings, setIsLoadingSettings] = useState(true)
   const [logoFile, setLogoFile] = useState<File | null>(null)
@@ -93,7 +93,7 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
     try {
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("country")
+        .select("country, service_provinces")
         .eq("id", userId)
         .maybeSingle()
 
@@ -120,7 +120,6 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
           company_city: data.company_city || "",
           company_province: data.company_province || "",
           company_country: userCountry,
-          company_postal_code: data.company_postal_code || "",
           company_tax_id: data.company_tax_id || "",
           company_phone: data.company_phone || userData.phone || "",
           company_email: data.company_email || userData.email || "",
@@ -134,8 +133,10 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
         if (data.company_logo_url) {
           setLogoPreview(data.company_logo_url)
         }
+        setServiceProvinces(profileData?.service_provinces || [])
       } else {
         setFormData((prev) => ({ ...prev, company_country: userCountry }))
+        setServiceProvinces(profileData?.service_provinces || [])
       }
     } catch (error: any) {
       console.error("[v0] Error loading company settings:", error)
@@ -164,6 +165,9 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
 
   const handleProvinceChange = (province: string) => {
     setFormData({ ...formData, company_province: province })
+    if (province && !serviceProvinces.includes(province)) {
+      setServiceProvinces(prev => [...prev, province])
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -219,7 +223,6 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
           company_city: formData.company_city,
           company_province: formData.company_province,
           company_country: formData.company_country,
-          company_postal_code: formData.company_postal_code,
           company_tax_id: formData.company_tax_id,
           company_phone: formData.company_phone,
           company_email: formData.company_email,
@@ -239,6 +242,21 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
       if (error) {
         console.error("[v0] Error saving company settings:", error)
         throw error
+      }
+
+      // Sync with profiles table for notification consistency
+      const finalServiceProvinces = Array.from(new Set([formData.company_province, ...serviceProvinces])).filter(Boolean)
+      const { error: profileSyncError } = await supabase
+        .from("profiles")
+        .update({
+          address_province: formData.company_province,
+          service_provinces: finalServiceProvinces,
+          country: formData.company_country === "ES" ? "España" : formData.company_country // Keep consistenct with lead publish logic
+        })
+        .eq("id", userId)
+
+      if (profileSyncError) {
+        console.error("[v0] Error syncing with profile:", profileSyncError)
       }
 
       toast({
@@ -409,23 +427,47 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="company_postal_code">Código Postal</Label>
-              <Input
-                id="company_postal_code"
-                value={formData.company_postal_code}
-                onChange={(e) => setFormData({ ...formData, company_postal_code: e.target.value })}
-                placeholder={
-                  formData.company_country === "ES"
-                    ? "28013"
-                    : formData.company_country === "US"
-                      ? "10001"
-                      : formData.company_country === "GB"
-                        ? "SW1A 1AA"
-                        : "Código postal"
-                }
-              />
+            <div className="space-y-3 pt-2">
+              <Label className="text-base font-semibold">Áreas de Actuación (Provincias)</Label>
+              <p className="text-sm text-muted-foreground">
+                Selecciona las provincias adicionales en las que tu empresa presta servicios para recibir notificaciones de leads.
+              </p>
+
+              {availableProvinces ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 border p-4 rounded-lg bg-gray-50 max-h-[250px] overflow-y-auto">
+                  {availableProvinces.map((p) => (
+                    <div key={p} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`province-${p}`}
+                        disabled={p === formData.company_province}
+                        checked={p === formData.company_province || serviceProvinces.includes(p)}
+                        onChange={(e) => {
+                          if (p === formData.company_province) return
+                          if (e.target.checked) {
+                            setServiceProvinces((prev) => [...prev, p])
+                          } else {
+                            setServiceProvinces((prev) => prev.filter((item) => item !== p))
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500 cursor-pointer disabled:cursor-not-allowed"
+                      />
+                      <Label
+                        htmlFor={`province-${p}`}
+                        className={`text-sm cursor-pointer ${p === formData.company_province ? "font-bold text-orange-700" : ""}`}
+                      >
+                        {p}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm italic text-muted-foreground">
+                  No hay una lista de provincias disponible para este país. Las notificaciones se basarán solo en tu provincia principal.
+                </p>
+              )}
             </div>
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -504,7 +546,7 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
           </div>
         </form>
       </CardContent>
-    </Card>
+    </Card >
   )
 }
 

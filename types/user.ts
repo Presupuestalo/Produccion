@@ -5,19 +5,18 @@ export interface UserProfile {
   user_type: UserType
   accepted_terms: boolean
   created_at?: string
-  
+
   full_name?: string
   phone?: string
   dni_nif?: string
-  
+
   address_street?: string
   address_city?: string
   address_province?: string
-  address_postal_code?: string
   country?: string  // ISO code: 'ES', 'FR', 'PT', 'IT', etc.
-  
+
   avatar_url?: string
-  
+
   // Email from auth.user (not stored in profiles table)
   email?: string
 }

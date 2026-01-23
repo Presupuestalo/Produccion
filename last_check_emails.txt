@@ -1,0 +1,3 @@
+﻿Executing SQL: SELECT p.email, c.credits_balance FROM profiles p JOIN company_credits c ON p.id = c.company_id
+Ô£à RPC exec_sql: SUCCESS
+null

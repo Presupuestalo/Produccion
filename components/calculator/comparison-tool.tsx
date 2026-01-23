@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Copy, Save, Trash2, BarChart2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { formatNumber, formatCurrency } from "@/lib/utils/format"
 
 interface Room {
   id: string
@@ -210,8 +211,7 @@ export function ComparisonTool({ rooms, baseCost }: ComparisonToolProps) {
                     <p className="text-sm text-muted-foreground">{scenario.description}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Multiplicador: {scenario.priceMultiplier}x</p>
-                    <p className="text-xl font-bold">{Math.round(scenario.totalCost).toLocaleString("es-ES")} €</p>
+                    <p className="text-xl font-bold">{formatCurrency(scenario.totalCost)}</p>
                   </div>
                 </div>
 
@@ -229,15 +229,15 @@ export function ComparisonTool({ rooms, baseCost }: ComparisonToolProps) {
                       {scenario.rooms.map((room) => (
                         <TableRow key={room.id}>
                           <TableCell className="font-medium">{room.type}</TableCell>
-                          <TableCell>{room.area.toFixed(2)}</TableCell>
+                          <TableCell>{formatNumber(room.area)}</TableCell>
                           <TableCell>{room.floorMaterial}</TableCell>
-                          <TableCell className="text-right">
-                            {Math.round(
+                          {formatCurrency(
+                            Math.round(
                               baseCost *
-                                (room.area / rooms.reduce((sum, r) => sum + r.area, 0)) *
-                                scenario.priceMultiplier,
-                            ).toLocaleString("es-ES")}
-                          </TableCell>
+                              (room.area / rooms.reduce((sum, r) => sum + r.area, 0)) *
+                              scenario.priceMultiplier,
+                            ),
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>

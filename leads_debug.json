@@ -1,0 +1,39 @@
+{
+  "columns": {
+    "error": null
+  },
+  "leads": [
+    {
+      "id": "c880c224-01fb-4b23-a595-d1b6c76f313f",
+      "project_id": "97790f09-1714-4ed3-bcc1-20ad7d83e862",
+      "homeowner_id": "895017bf-87e7-4990-ab09-b0f97f9fb06c",
+      "status": "open",
+      "estimated_budget": 16906.63,
+      "credits_cost": 25,
+      "reform_types": [
+        "reforma_integral"
+      ],
+      "project_description": null,
+      "surface_m2": null,
+      "postal_code": "00000",
+      "city": "Sanchinarro",
+      "province": "Madrid",
+      "country_code": "ES",
+      "location_lat": null,
+      "location_lng": null,
+      "client_name": "Vascol",
+      "client_email": "vascolreformas@gmail.com",
+      "client_phone": "+34 615078192",
+      "max_companies": 3,
+      "companies_accessed_count": 0,
+      "companies_accessed_ids": [],
+      "created_at": "2026-01-23T00:54:20.597+00:00",
+      "expires_at": "2036-01-21T00:54:20.597+00:00",
+      "closed_at": null,
+      "budget_id": "a23c2512-fbd1-4aed-bfbe-c6bab24e9b3c",
+      "budget_snapshot": null,
+      "reform_address": "calle",
+      "lead_type": "premium"
+    }
+  ]
+}

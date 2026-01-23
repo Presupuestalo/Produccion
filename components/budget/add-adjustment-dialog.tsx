@@ -26,6 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import * as SubscriptionLimitsService from "@/lib/services/subscription-limits-service"
 import { Badge } from "@/components/ui/badge"
 import { AIPriceImportDialog } from "@/components/precios/ai-price-import-dialog"
+import { formatNumber } from "@/lib/utils/format"
 
 interface CustomPrice {
   id: string
@@ -372,7 +373,7 @@ export function AddAdjustmentDialog({
                                 <div className="flex items-center justify-between gap-4">
                                   <span className="font-medium flex-1">{price.subcategory || price.description}</span>
                                   <span className="text-sm text-muted-foreground group-data-[selected=true]:text-white whitespace-nowrap">
-                                    {price.final_price.toFixed(2)} €/{price.unit}
+                                    {formatNumber(price.final_price)} €/{price.unit}
                                   </span>
                                 </div>
                               </div>
@@ -463,7 +464,7 @@ export function AddAdjustmentDialog({
                   className={`text-lg font-semibold ${adjustmentType === "addition" ? "text-green-600" : "text-red-600"}`}
                 >
                   {adjustmentType === "addition" ? "+" : "-"}
-                  {(formData.quantity * formData.unit_price).toFixed(2)} €
+                  {formatNumber(formData.quantity * formData.unit_price)} €
                 </span>
               </div>
             </div>
@@ -583,7 +584,7 @@ export function AddAdjustmentDialog({
                   className={`text-lg font-semibold ${adjustmentType === "addition" ? "text-green-600" : "text-red-600"}`}
                 >
                   {adjustmentType === "addition" ? "+" : "-"}
-                  {(formData.quantity * formData.unit_price).toFixed(2)} €
+                  {formatNumber(formData.quantity * formData.unit_price)} €
                 </span>
               </div>
             </div>
@@ -679,7 +680,7 @@ export function AddAdjustmentDialog({
                   className={`text-lg font-semibold ${adjustmentType === "addition" ? "text-green-600" : "text-red-600"}`}
                 >
                   {adjustmentType === "addition" ? "+" : "-"}
-                  {(formData.quantity * formData.unit_price).toFixed(2)} €
+                  {formatNumber(formData.quantity * formData.unit_price)} €
                 </span>
               </div>
             </div>

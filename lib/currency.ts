@@ -42,6 +42,7 @@ export function formatCurrency(amount: number, country: string): string {
   return new Intl.NumberFormat("es-ES", {
     style: "currency",
     currency: currency,
+    useGrouping: true,
   })
     .format(amount)
     .replace(currency, symbol)

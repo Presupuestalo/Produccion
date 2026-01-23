@@ -115,11 +115,11 @@ export async function POST(request: Request) {
     let result
     if (existingCredits) {
       // Update existing
-      const newBalance = (existingCredits.balance || 0) + credits_to_add
+      const newBalance = (existingCredits.credits_balance || 0) + credits_to_add
       const { data, error } = await supabaseAdmin
         .from("company_credits")
         .update({
-          balance: newBalance,
+          credits_balance: newBalance,
           updated_at: new Date().toISOString(),
         })
         .eq("company_id", targetUserId)
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
         .from("company_credits")
         .insert({
           company_id: targetUserId,
-          balance: credits_to_add,
+          credits_balance: credits_to_add,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })

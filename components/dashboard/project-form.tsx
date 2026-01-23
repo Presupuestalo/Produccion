@@ -58,7 +58,10 @@ const defaultDemolitionSettings: DemolitionSettings = {
   wallExpansionCoef: 1.3, // Coef. Esponjamiento de tabiques
   ceilingThickness: 0.015, // 1.5 cm
   ceilingExpansionCoef: 1.4, // Coef. esponjamiento falso techo
-  woodThickness: 0.02, // 2 cm
+  wallThickness: 10, // 10 cm
+  floorTileExpansionCoef: 1.4,
+  woodenFloorExpansionCoef: 1.4,
+  woodenFloorThickness: 0.02, // 2 cm
 }
 
 // Definir los rangos válidos para cada campo
@@ -73,7 +76,10 @@ const validationRanges = {
   wallExpansionCoef: { min: 1.1, max: 2.0, step: 0.1 },
   ceilingThickness: { min: 0.005, max: 0.05, step: 0.001 },
   ceilingExpansionCoef: { min: 1.1, max: 2.0, step: 0.1 },
-  woodThickness: { min: 0.005, max: 0.1, step: 0.001 },
+  wallThickness: { min: 1, max: 50, step: 1 },
+  floorTileExpansionCoef: { min: 1.1, max: 2.0, step: 0.1 },
+  woodenFloorExpansionCoef: { min: 1.1, max: 2.0, step: 0.1 },
+  woodenFloorThickness: { min: 0.005, max: 0.1, step: 0.001 },
 }
 
 // Valores predeterminados para los ajustes eléctricos
@@ -120,26 +126,19 @@ export function ProjectForm({
     contract_signed: project?.contract_signed || false,
     contract_date: project?.contract_date || "",
     street: project?.street || "",
-    project_floor: project?.project_floor || "",
+    project_floor: project?.project_floor ?? "",
     door: project?.door || "",
     city: project?.city || "",
     province: project?.province || "",
     country: project?.country || "",
-    ceiling_height: project?.ceiling_height || "",
+    ceiling_height: project?.ceiling_height ?? "",
     structure_type: project?.structure_type || "",
     has_elevator: project?.has_elevator || "", // Ya no necesita conversión
     // Añadir DNI a formData
     client_dni: project?.client_dni || "",
-    // Añadir campos de país y código postal
-    country_code: project?.country_code || "",
-    client_country: project?.client_country || "",
-    client_street: project?.client_street || "",
-    client_city: project?.client_city || "",
-    client_province: project?.client_province || "",
-    client_postal_code: project?.client_postal_code || "",
     // Campos que se añadieron después de la creación inicial del proyecto
-    progress: project?.progress || "0",
-    status: project?.status || "Pendiente",
+    progress: project?.progress || 0,
+    status: project?.status || "Borrador",
     color: project?.color || "#000000",
   })
 
@@ -166,7 +165,7 @@ export function ProjectForm({
     wallExpansionCoef: "",
     ceilingThickness: "",
     ceilingExpansionCoef: "",
-    woodThickness: "",
+    woodenFloorThickness: "",
   })
   // Modificar la inicialización del estado activeTab para usar initialTab
   const [activeTab, setActiveTab] = useState<string>(initialTab)
@@ -195,25 +194,18 @@ export function ProjectForm({
     contract_signed: project?.contract_signed || false,
     contract_date: project?.contract_date || "",
     street: project?.street || "",
-    project_floor: project?.project_floor || "",
+    project_floor: project?.project_floor ?? "",
     door: project?.door || "",
     city: project?.city || "",
     province: project?.province || "",
     country: project?.country || "",
-    ceiling_height: project?.ceiling_height || "",
+    ceiling_height: project?.ceiling_height ?? "",
     structure_type: project?.structure_type || "",
     has_elevator: project?.has_elevator || "", // Ya no necesita conversión
     client_dni: project?.client_dni || "",
-    // Añadir campos de país y código postal a initialFormData
-    country_code: project?.country_code || "",
-    client_country: project?.client_country || "",
-    client_street: project?.client_street || "",
-    client_city: project?.client_city || "",
-    client_province: project?.client_province || "",
-    client_postal_code: project?.client_postal_code || "",
     // Campos que se añadieron después de la creación inicial del proyecto
-    progress: project?.progress || "0",
-    status: project?.status || "Pendiente",
+    progress: project?.progress || 0,
+    status: project?.status || "Borrador",
     color: project?.color || "#000000",
   })
 
@@ -309,25 +301,18 @@ export function ProjectForm({
         contract_signed: project.contract_signed || false,
         contract_date: project.contract_date || "",
         street: project.street || "",
-        project_floor: project.project_floor || "",
+        project_floor: project.project_floor ?? "",
         door: project.door || "",
         city: project.city || "",
         province: project.province || "",
         country: project.country || "",
-        ceiling_height: project.ceiling_height || "",
+        ceiling_height: project.ceiling_height ?? "",
         structure_type: project.structure_type || "",
         has_elevator: project.has_elevator || "",
         client_dni: project.client_dni || "",
-        // Cargar campos de país y código postal desde el proyecto
-        country_code: project.country_code || "",
-        client_country: project.client_country || "",
-        client_street: project.client_street || "",
-        client_city: project.client_city || "",
-        client_province: project.client_province || "",
-        client_postal_code: project.client_postal_code || "",
         // Campos que se añadieron después de la creación inicial del proyecto
-        progress: project.progress || "0",
-        status: project.status || "Pendiente",
+        progress: project.progress || 0,
+        status: project.status || "Borrador",
         color: project.color || "#000000",
       }
 
@@ -437,10 +422,9 @@ export function ProjectForm({
         client_street: "",
         client_city: "",
         client_province: "",
-        client_postal_code: "",
         // Campos que se añadieron después de la creación inicial del proyecto
-        progress: "0",
-        status: "Pendiente",
+        progress: 0,
+        status: "Borrador",
         color: "#000000",
       })
       setInitialDemolitionSettings(defaultDemolitionSettings)
@@ -564,17 +548,20 @@ export function ProjectForm({
   // Función para validar los ajustes de demolición en tiempo real
   const validateDemolitionSettingsRealTime = (settings: DemolitionSettings) => {
     const errors: Record<keyof DemolitionSettings, string> = {
+      wallThickness: "",
       floorTileThickness: "",
       wallTileThickness: "",
       woodExpansionCoef: "",
       ceramicExpansionCoef: "",
       containerSize: "",
+      floorTileExpansionCoef: "",
+      woodenFloorThickness: "",
+      woodenFloorExpansionCoef: "",
       mortarBaseThickness: "",
       mortarBaseExpansionCoef: "",
       wallExpansionCoef: "",
       ceilingThickness: "",
       ceilingExpansionCoef: "",
-      woodThickness: "",
     }
 
     // Validar cada campo solo si tiene un valor
@@ -706,15 +693,15 @@ export function ProjectForm({
       }
     }
 
-    if (settings.woodThickness !== "") {
+    if (settings.woodenFloorThickness !== "") {
       const value =
-        typeof settings.woodThickness === "string"
-          ? Number.parseFloat(settings.woodThickness.replace(",", "."))
-          : settings.woodThickness
+        typeof settings.woodenFloorThickness === "string"
+          ? Number.parseFloat(settings.woodenFloorThickness.replace(",", "."))
+          : settings.woodenFloorThickness
 
       if (!isNaN(value)) {
-        if (value < validationRanges.woodThickness.min || value > validationRanges.woodThickness.max) {
-          errors.woodThickness = `Debe estar entre ${validationRanges.woodThickness.min} y ${validationRanges.woodThickness.max} m`
+        if (value < validationRanges.woodenFloorThickness.min || value > validationRanges.woodenFloorThickness.max) {
+          errors.woodenFloorThickness = `Debe estar entre ${validationRanges.woodenFloorThickness.min} y ${validationRanges.woodenFloorThickness.max} m`
         }
       }
     }
@@ -736,7 +723,7 @@ export function ProjectForm({
       wallExpansionCoef: "",
       ceilingThickness: "",
       ceilingExpansionCoef: "",
-      woodThickness: "",
+      woodenFloorThickness: "",
     })
   }
 
@@ -1466,17 +1453,6 @@ export function ProjectForm({
                       </div>
                     </div>
 
-                    <div className="grid gap-2 max-w-md">
-                      <Label htmlFor="client_postal_code">
-                        {getCountryFieldLabels(formData.client_country || userCountry).postalCode}
-                      </Label>
-                      <Input
-                        id="client_postal_code"
-                        placeholder={getCountryFieldLabels(formData.client_country || userCountry).postalCode}
-                        value={formData.client_postal_code || ""}
-                        onChange={handleChange}
-                      />
-                    </div>
                   </div>
                 </div>
 
