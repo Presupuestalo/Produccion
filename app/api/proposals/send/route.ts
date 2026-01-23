@@ -105,7 +105,7 @@ export async function POST(request: Request) {
             Authorization: `Bearer ${resendApiKey}`,
           },
           body: JSON.stringify({
-            from: process.env.RESEND_FROM_EMAIL || "Presupuéstalo <onboarding@resend.dev>",
+            from: "Presupuéstalo <onboarding@resend.dev>",
             to: homeownerData.email,
             subject: `Nueva propuesta recibida para tu proyecto de ${leadData?.reform_types?.[0] || "reforma"}`,
             html: `

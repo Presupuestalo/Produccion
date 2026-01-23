@@ -1,7 +1,7 @@
 // Servicio centralizado de envío de emails con Resend
 
 const RESEND_API_URL = "https://api.resend.com/emails"
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Presupuéstalo <onboarding@resend.dev>"
+const FROM_EMAIL = "Presupuéstalo <onboarding@resend.dev>"
 const ADMIN_EMAIL = "pascualmollar@gmail.com"
 
 interface SendEmailOptions {
