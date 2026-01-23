@@ -1,8 +1,18 @@
 ﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 import { calculateLeadCreditsCost } from "@/types/marketplace"
 import { newLeadAvailableTemplate } from "@/lib/email/templates/presmarket-emails"
+import { sendEmail, ADMIN_EMAIL } from "@/lib/email/send-email"
+
+async function logToDb(message: string, data: any = {}) {
+  try {
+    await supabaseAdmin.from("debug_logs").insert({ message, data })
+  } catch (e) {
+    console.error("Error logging to DB:", e)
+  }
+}
 
 export async function POST(req: Request) {
   try {
@@ -47,17 +57,16 @@ export async function POST(req: Request) {
       )
     }
 
-    const {
-      projectId,
-      budgetId,
-      estimatedBudget: bodyEstimatedBudget,
-      description,
-      fullName,
-      reformStreet,
-      reformCity,
-      reformProvince,
-      reformCountry,
-    } = await req.json()
+    const body = await req.json()
+    const projectId = body.projectId
+    const budgetId = body.budgetId
+    const bodyEstimatedBudget = body.estimatedBudget
+    const description = body.description
+    const fullName = body.fullName?.trim()
+    const reformStreet = body.reformStreet?.trim()
+    const reformCity = body.reformCity?.trim()
+    const reformProvince = body.reformProvince?.trim()
+    const reformCountry = body.reformCountry?.trim()
 
     console.log("[v0] Request body - projectId:", projectId, "budgetId:", budgetId, "bodyEstimatedBudget:", bodyEstimatedBudget)
     console.log("[v0] Reform address:", { reformStreet, reformCity, reformProvince, reformCountry })
@@ -258,18 +267,13 @@ export async function POST(req: Request) {
       max_companies: 3,
       companies_accessed_count: 0,
       companies_accessed_ids: [],
+      lead_type: budgetId ? 'premium' : 'normal',
       expires_at: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(),
       created_at: new Date().toISOString(),
     }
 
     console.log("[v0] Inserting lead request for user:", user.id)
-    console.log("[v0] Lead data sample:", {
-      city: leadRequest.city,
-      postal: leadRequest.postal_code,
-      budget: leadRequest.estimated_budget
-    })
 
-    const { supabaseAdmin } = await import("@/lib/supabase-admin")
     const { data: newLead, error: leadError } = await supabaseAdmin
       .from("lead_requests")
       .insert(leadRequest)
@@ -285,13 +289,11 @@ export async function POST(req: Request) {
     }
 
     console.log("[v0] Lead request created successfully with ID:", newLead.id)
-
-    // Using centralized email service
-    const { sendEmail } = await import("@/lib/email/send-email")
+    await logToDb("Publish Lead Success In DB", { leadId: newLead.id, userId: user.id })
 
     try {
       // Email 1: To the homeowner
-      await sendEmail({
+      const homeownerEmailResult = await sendEmail({
         to: user.email!,
         subject: "🔍 Estamos buscando profesionales para tu reforma",
         html: `
@@ -331,10 +333,10 @@ export async function POST(req: Request) {
           </div>
         `,
       })
+      await logToDb("Homeowner Email Sent", { result: homeownerEmailResult })
 
       // Email 2: To admin
-      const { ADMIN_EMAIL } = await import("@/lib/email/send-email")
-      await sendEmail({
+      const adminEmailResult = await sendEmail({
         to: ADMIN_EMAIL,
         subject: `📌 Nueva solicitud de reforma en ${reformCity}, ${reformProvince}`,
         html: `
@@ -370,50 +372,62 @@ export async function POST(req: Request) {
           </div>
         `,
       })
+      await logToDb("Admin Email Sent", { result: adminEmailResult })
 
       // Email 3: To professionals in the province
-      if (reformProvince) {
-        const { data: professionals } = await supabase
-          .from("profiles")
-          .select("id, full_name, email")
-          .eq("user_type", "profesional")
-          .eq("address_province", reformProvince)
-          .not("email", "is", null)
+      const currentCountry = reformCountry === "ES" ? "España" : (reformCountry === "Spain" ? "España" : reformCountry)
+      await logToDb("Professional Search Started", { country: currentCountry, province: reformProvince })
 
-        if (professionals && professionals.length > 0) {
-          const formattedBudget = estimatedBudget.toLocaleString("es-ES", { style: "currency", currency: "EUR" })
+      const { data: professionals, error: profsError } = await supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, email, user_type, country, address_province")
+        .eq("user_type", "professional")
+        .ilike("address_province", reformProvince)
+        .eq("country", currentCountry)
+        .not("email", "is", null)
 
-          await Promise.allSettled(
-            professionals.map(async (prof) => {
-              if (!prof.email) return
+      if (profsError) {
+        console.error("[v0] Error searching for professionals:", profsError)
+        await logToDb("Professional Search Error", { error: profsError })
+      }
 
-              const profEmailHtml = newLeadAvailableTemplate({
-                professionalName: prof.full_name || "Profesional",
-                projectType: "Reforma Integral",
-                city: reformCity,
-                province: reformProvince,
-                estimatedBudget: formattedBudget,
-                creditsCost: creditsCost,
-              })
+      console.log("[v0] Professionals matched:", professionals?.length || 0)
+      await logToDb("Professionals Matched", { count: professionals?.length || 0, emails: professionals?.map(p => p.email) })
 
-              return sendEmail({
-                to: prof.email,
-                subject: `🚀 Nuevo proyecto en ${reformCity}: ${formattedBudget}`,
-                html: profEmailHtml,
-              })
-            }),
-          )
-        }
+      if (professionals && professionals.length > 0) {
+        const formattedBudget = estimatedBudget.toLocaleString("es-ES", { style: "currency", currency: "EUR" })
+
+        const results = await Promise.allSettled(
+          professionals.map(async (prof) => {
+            if (!prof.email) return
+
+            const profEmailHtml = newLeadAvailableTemplate({
+              professionalName: prof.full_name || "Profesional",
+              projectType: "Reforma Integral",
+              city: reformCity,
+              province: reformProvince,
+              estimatedBudget: formattedBudget,
+              creditsCost: creditsCost,
+            })
+
+            return sendEmail({
+              to: prof.email,
+              subject: `🚀 Nuevo proyecto en ${reformCity}: ${formattedBudget}`,
+              html: profEmailHtml,
+            })
+          }),
+        )
+        await logToDb("Professional Emails Results", { results })
       }
     } catch (emailError) {
       console.error("[v0] Error sending notification emails:", emailError)
+      await logToDb("General Email Error", { error: emailError instanceof Error ? emailError.message : String(emailError) })
     }
 
     return NextResponse.json({ success: true, leadRequest: newLead })
   } catch (error: any) {
     console.error("[v0] Error publishing lead:", error)
-    console.error("[v0] Error stack:", error.stack)
+    await logToDb("Fatal Error in POST", { error: error.message, stack: error.stack })
     return NextResponse.json({ error: error.message || "Error interno del servidor" }, { status: 500 })
   }
 }
-
