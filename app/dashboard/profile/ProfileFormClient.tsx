@@ -393,12 +393,13 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
       }
 
       if (isProfessional) {
+        updates.address_province = province;
       }
 
       if (!isProfessional) {
         updates.phone = "+" + country + phoneNumber
         updates.country = country
-        updates.address_province = ""
+        updates.address_province = province || "";
       }
 
       const { error: updateError } = await supabase.auth.updateUser({
@@ -644,11 +645,10 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
                 <div
                   key={option.value}
                   onClick={() => setWorkMode(option.value)}
-                  className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    workMode === option.value
+                  className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${workMode === option.value
                       ? "border-orange-500 bg-orange-50"
                       : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                  }`}
+                    }`}
                 >
                   <div className={`p-2 rounded-lg ${workMode === option.value ? "bg-orange-100" : "bg-gray-100"}`}>
                     <option.icon
@@ -660,9 +660,8 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
                     <div className="text-sm text-muted-foreground">{option.description}</div>
                   </div>
                   <div
-                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      workMode === option.value ? "border-orange-500 bg-orange-500" : "border-gray-300"
-                    }`}
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${workMode === option.value ? "border-orange-500 bg-orange-500" : "border-gray-300"
+                      }`}
                   >
                     {workMode === option.value && <div className="w-2 h-2 rounded-full bg-white" />}
                   </div>
@@ -677,6 +676,28 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
                   donde podrás gestionar proyectos con múltiples gremios, aplicar márgenes y generar presupuestos
                   consolidados.
                 </p>
+              </div>
+            )}
+
+            {isProfessional && (
+              <div className="space-y-4 pt-4 border-t">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="prof-province">Provincia/Estado/Región</Label>
+                    <Select value={province} onValueChange={setProvince}>
+                      <SelectTrigger id="prof-province">
+                        <SelectValue placeholder="Selecciona tu provincia" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        {PROVINCIAS_ESPANA.map((p) => (
+                          <SelectItem key={p} value={p}>
+                            {p}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -955,6 +976,22 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
                     {PAISES.map((pais) => (
                       <SelectItem key={pais.code} value={pais.code}>
                         {pais.flag} {pais.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="province">Provincia/Estado/Región</Label>
+                <Select value={province} onValueChange={setProvince}>
+                  <SelectTrigger id="province">
+                    <SelectValue placeholder="Selecciona tu provincia" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {PROVINCIAS_ESPANA.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p}
                       </SelectItem>
                     ))}
                   </SelectContent>
