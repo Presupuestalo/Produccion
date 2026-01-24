@@ -26,6 +26,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-01-27.acacia" as any,
 })
 
+export async function GET(req: Request) {
+  await logWebhook("GET_PING", { url: req.url })
+  return NextResponse.json({ status: "ok", message: "Stripe Webhook Endpoint" })
+}
+
 export async function POST(req: Request) {
   await logWebhook("PING")
 
