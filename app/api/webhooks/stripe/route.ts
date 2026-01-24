@@ -7,20 +7,28 @@ import path from "path"
 
 export const dynamic = "force-dynamic"
 
+// Memory log for production debugging
+const webhookLogs: string[] = []
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-01-27.acacia" as any,
 })
 
 function logHit(msg: string) {
   try {
+    const entry = `${new Date().toISOString()} - ${msg}`
+    webhookLogs.push(entry)
+    if (webhookLogs.length > 100) webhookLogs.shift()
+
     const logPath = path.join(process.cwd(), "webhook_hits.log")
-    const entry = `${new Date().toISOString()} - ${msg}\n`
-    fs.appendFileSync(logPath, entry)
+    fs.appendFileSync(logPath, entry + "\n")
     console.log(`[WebhookHit] ${msg}`)
   } catch (e) {
     console.error("Failed to write to webhook_hits.log", e)
   }
 }
+
+export { webhookLogs }
 
 export async function POST(req: Request) {
   logHit("========== MASTER WEBHOOK REQUEST START ==========")
