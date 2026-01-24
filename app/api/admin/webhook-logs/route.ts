@@ -1,15 +1,28 @@
 import { NextResponse } from "next/server"
-import { webhookLogs } from "@/app/api/webhooks/stripe/route"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 export const dynamic = "force-dynamic"
 
 export async function GET() {
     try {
-        if (!webhookLogs || webhookLogs.length === 0) {
-            return NextResponse.json({ message: "No webhook hits recorded in this instance." })
+        const { data: logs, error } = await supabaseAdmin
+            .from("debug_logs")
+            .select("*")
+            .ilike("message", "WEBHOOK:%")
+            .order("created_at", { ascending: false })
+            .limit(100)
+
+        if (error) throw error
+
+        if (!logs || logs.length === 0) {
+            return NextResponse.json({ message: "No webhook logs recorded in DB yet." })
         }
 
-        return new NextResponse(webhookLogs.join("\n"), {
+        const text = logs
+            .map(l => `${l.created_at} | ${l.message} | ${JSON.stringify(l.data)}`)
+            .join("\n")
+
+        return new NextResponse(text, {
             headers: { "Content-Type": "text/plain; charset=utf-8" }
         })
     } catch (error: any) {

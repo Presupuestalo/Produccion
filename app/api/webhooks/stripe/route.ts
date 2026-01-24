@@ -7,31 +7,27 @@ import path from "path"
 
 export const dynamic = "force-dynamic"
 
-// Memory log for production debugging
-const webhookLogs: string[] = []
+async function logWebhook(msg: string, data: any = {}) {
+  console.log(`[WebhookDebug] ${msg}`, data)
+  try {
+    await supabaseAdmin.from("debug_logs").insert({
+      message: `WEBHOOK: ${msg}`,
+      data: {
+        ...data,
+        timestamp: new Date().toISOString(),
+      },
+    })
+  } catch (e) {
+    console.error("Failed to write to debug_logs:", e)
+  }
+}
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-01-27.acacia" as any,
 })
 
-function logHit(msg: string) {
-  try {
-    const entry = `${new Date().toISOString()} - ${msg}`
-    webhookLogs.push(entry)
-    if (webhookLogs.length > 100) webhookLogs.shift()
-
-    const logPath = path.join(process.cwd(), "webhook_hits.log")
-    fs.appendFileSync(logPath, entry + "\n")
-    console.log(`[WebhookHit] ${msg}`)
-  } catch (e) {
-    console.error("Failed to write to webhook_hits.log", e)
-  }
-}
-
-export { webhookLogs }
-
 export async function POST(req: Request) {
-  logHit("========== MASTER WEBHOOK REQUEST START ==========")
+  await logWebhook("START")
 
   try {
     const secret = process.env.STRIPE_WEBHOOK_SECRET
@@ -39,7 +35,7 @@ export async function POST(req: Request) {
     const isTest = headersList.get("x-internal-test") === "true"
 
     if (!secret && !isTest) {
-      logHit("CRITICAL: STRIPE_WEBHOOK_SECRET missing")
+      await logWebhook("CRITICAL: STRIPE_WEBHOOK_SECRET missing")
       return NextResponse.json({ error: "Missing secret" }, { status: 500 })
     }
 
@@ -49,24 +45,23 @@ export async function POST(req: Request) {
     // Log all headers for diagnosis
     const hObj: Record<string, string> = {}
     headersList.forEach((v, k) => { hObj[k] = v })
-    logHit(`NEW REQUEST - Headers: ${JSON.stringify(hObj)}`)
-    logHit(`Body length: ${body.length}`)
+    await logWebhook("NEW_REQUEST", { headers: hObj, bodyLength: body.length })
 
     if (!signature && !isTest) {
-      logHit("ERROR: No signature found in headers")
+      await logWebhook("ERROR: No signature found in headers")
       return NextResponse.json({ error: "No signature" }, { status: 400 })
     }
 
     let event: Stripe.Event
     if (isTest) {
       event = JSON.parse(body) as any
-      logHit(`TEST EVENT: ${event.type}`)
+      await logWebhook("TEST_EVENT", { type: event.type })
     } else {
       try {
         event = stripe.webhooks.constructEvent(body, signature!, secret!)
-        logHit(`VERIFIED EVENT: ${event.type}`)
+        await logWebhook("VERIFIED_EVENT", { type: event.type })
       } catch (err: any) {
-        logHit(`SIGNATURE ERROR: ${err.message}`)
+        await logWebhook("SIGNATURE_ERROR", { message: err.message })
         return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
       }
     }
@@ -74,28 +69,30 @@ export async function POST(req: Request) {
     // --- CHECKOUT SESSION COMPLETED ---
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session
-      logHit(`SESSION ID: ${session.id}`)
-      logHit(`METADATA: ${JSON.stringify(session.metadata)}`)
-      logHit(`CUSTOMER_EMAIL: ${session.customer_email}`)
-      logHit(`AMOUNT_TOTAL: ${session.amount_total}`)
+      await logWebhook("SESSION_DATA", {
+        id: session.id,
+        metadata: session.metadata,
+        email: session.customer_email,
+        amount: session.amount_total
+      })
 
       const metadataType = session.metadata?.type
       let userId = session.metadata?.user_id
 
       // 1. IDENTIFICACIÓN DE USUARIO (Metadata -> Email -> Customer ID)
       if (!userId && session.customer_email) {
-        logHit(`Searching user for email: ${session.customer_email}`)
+        await logWebhook("SEARCHING_USER_BY_EMAIL", { email: session.customer_email })
         const { data: profile } = await supabaseAdmin
           .from("profiles")
           .select("id")
           .eq("email", session.customer_email)
           .single()
         userId = profile?.id
-        logHit(`User found by email: ${userId || 'NONE'}`)
+        await logWebhook("USER_FOUND", { userId: userId || 'NONE' })
       }
 
       if (!userId) {
-        logHit("CRITICAL: COULD NOT IDENTIFY USER")
+        await logWebhook("CRITICAL: COULD NOT IDENTIFY USER")
         return NextResponse.json({ received: true, warning: "User not found" })
       }
 
@@ -111,11 +108,11 @@ export async function POST(req: Request) {
         else if (amount === 10000) finalCredits = 750 // Ajustado según logs previos
         else if (amount === 1000) finalCredits = 50 // Por si hay paquetes pequeños
 
-        logHit(`INFERRED CREDITS: ${finalCredits} (from amount ${amount})`)
+        await logWebhook("INFERRED_CREDITS", { amount, finalCredits })
       }
 
       if (finalCredits > 0) {
-        logHit(`UPDATING CREDITS for ${userId}: +${finalCredits}`)
+        await logWebhook("UPDATING_CREDITS_START", { userId, amountToAdd: finalCredits })
 
         const { data: current, error: fetchErr } = await supabaseAdmin
           .from("company_credits")
@@ -124,7 +121,7 @@ export async function POST(req: Request) {
           .single()
 
         if (fetchErr && fetchErr.code !== "PGRST116") {
-          logHit(`FETCH ERROR: ${JSON.stringify(fetchErr)}`)
+          await logWebhook("FETCH_BALANCE_ERROR", { error: fetchErr })
         }
 
         const prevBalance = current?.credits_balance || 0
@@ -139,7 +136,7 @@ export async function POST(req: Request) {
         }, { onConflict: 'company_id' })
 
         if (upsertErr) {
-          logHit(`UPSERT ERROR: ${JSON.stringify(upsertErr)}`)
+          await logWebhook("UPSERT_CREDITS_ERROR", { error: upsertErr })
           return NextResponse.json({ error: "DB Error" }, { status: 500 })
         }
 
@@ -153,18 +150,18 @@ export async function POST(req: Request) {
           stripe_payment_id: session.payment_intent as string,
         })
 
-        if (txErr) logHit(`TX INSERT ERROR: ${JSON.stringify(txErr)}`)
+        if (txErr) await logWebhook("TX_INSERT_ERROR", { error: txErr })
 
-        logHit(`SUCCESSFULLY ADDED ${finalCredits} CREDITS TO ${userId}`)
+        await logWebhook("SUCCESSFULLY_ADDED_CREDITS", { userId, totalAdded: finalCredits })
         return NextResponse.json({ received: true, success: true })
       } else {
-        logHit("WARNING: FINAL CREDITS IS 0. No update performed.")
+        await logWebhook("WARNING: FINAL CREDITS IS 0")
       }
     }
 
     return NextResponse.json({ received: true })
   } catch (error: any) {
-    logHit(`FATAL EXCEPTION: ${error.message}`)
+    await logWebhook("FATAL_EXCEPTION", { message: error.message })
     console.error("[v0] Master Webhook Fatal Exception:", error)
     return NextResponse.json({ error: "Internal error" }, { status: 500 })
   }
