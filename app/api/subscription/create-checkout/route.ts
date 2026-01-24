@@ -170,6 +170,20 @@ export async function POST(req: Request) {
 
     console.log("[v0] Create checkout: Using existing price:", priceId)
 
+    const configData = {
+      customer_email: customerEmail,
+      priceId,
+      mode: "subscription",
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/ajustes?tab=subscription&success=true`,
+      metadata: {
+        user_id: user.id,
+        plan_name: planName,
+        billing_type: billingType,
+      },
+    }
+
+    await logMsg("CREATING_SESSION", configData)
+
     // Crear sesión de checkout
     const session = await stripe.checkout.sessions.create({
       customer_email: customerEmail,
@@ -196,10 +210,11 @@ export async function POST(req: Request) {
       },
     })
 
-    console.log("[v0] Create checkout: Session created:", session.id)
+    await logMsg("SESSION_CREATED", { sessionId: session.id })
 
     return NextResponse.json({ url: session.url })
   } catch (error: any) {
+    await logMsg("FATAL_ERROR", { message: error.message, stack: error.stack })
     console.error("[v0] Create checkout error:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
