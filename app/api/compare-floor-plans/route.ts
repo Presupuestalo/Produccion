@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { generateObject } from "ai"
 import { z } from "zod"
+import { groq, VISION_GROQ_MODEL } from "@/lib/ia/groq"
 
 export const maxDuration = 60
 
@@ -77,8 +78,9 @@ const comparisonSchema = z.object({
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
-
-    console.log("[v0] Starting floor plan comparison...")
+    if (!supabase) {
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
+    }
 
     const {
       data: { session },
@@ -99,7 +101,7 @@ export async function POST(request: Request) {
     console.log("[v0] - After:", afterImageUrl)
 
     const result = await generateObject({
-      model: "anthropic/claude-sonnet-4-20250514",
+      model: groq(VISION_GROQ_MODEL),
       schema: comparisonSchema,
       messages: [
         {

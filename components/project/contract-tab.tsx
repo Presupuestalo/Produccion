@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Plus, Trash2, Download, Loader2, Sparkles, ChevronUp, ChevronDown } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { supabase } from "@/lib/supabase/client"
-import { generateText } from "ai"
 import { getSubscriptionLimits } from "@/lib/services/subscription-limits-service"
 import { AIPriceImportDialog } from "@/components/precios/ai-price-import-dialog"
 import { Badge } from "@/components/ui/badge"
@@ -295,16 +294,23 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
     try {
       setIsGeneratingClause(true)
 
-      const { text } = await generateText({
-        model: "openai/gpt-4o-mini",
-        prompt: `Genera una cláusula de contrato de reforma de obra basada en la siguiente descripción: "${newClausePrompt}". 
-        
-La cláusula debe ser profesional, clara y en español. No incluyas numeración, solo el texto de la cláusula.`,
+      const response = await fetch("/api/ia/generate-clause", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt: newClausePrompt }),
       })
+
+      if (!response.ok) {
+        throw new Error("Error al generar cláusula")
+      }
+
+      const { text } = await response.json()
 
       const newClause: ContractClause = {
         clause_number: clauses.length + 1,
-        clause_text: text.trim(),
+        clause_text: text,
         is_custom: true,
       }
 

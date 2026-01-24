@@ -57,7 +57,11 @@ async function optimizeWithRetry(base64: string, mimeType: string, prompt: strin
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
+    if (!supabase) {
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
+    }
+
     const {
       data: { session },
     } = await supabase.auth.getSession()

@@ -4,12 +4,16 @@ import { generateObject } from "ai"
 import { createClient } from "@/lib/supabase/server"
 import { z } from "zod"
 import { extractText } from "unpdf"
+import { groq, DEFAULT_GROQ_MODEL } from "@/lib/ia/groq"
 
 export async function POST(request: NextRequest) {
   try {
     console.log("[v0] === INICIO DE ANíLISIS DE PRESUPUESTOS ===")
 
     const supabase = await createClient()
+    if (!supabase) {
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
+    }
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -63,7 +67,7 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Enviando al modelo GPT-4o...")
 
     const { object: analysis } = await generateObject({
-      model: "openai/gpt-4o",
+      model: groq(DEFAULT_GROQ_MODEL),
       schema: z.object({
         summary: z.string(),
         budgets: z.array(

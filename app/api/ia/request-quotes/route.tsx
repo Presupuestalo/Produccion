@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { generateText } from "ai"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
+import { groq, FAST_GROQ_MODEL } from "@/lib/ia/groq"
 
 export async function POST(request: Request) {
   try {
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
     if (description) {
       try {
         const { text } = await generateText({
-          model: "openai/gpt-4o-mini",
+          model: groq(FAST_GROQ_MODEL),
           prompt: `Eres un experto en reformas y construcción. Un cliente quiere hacer una reforma de tipo "${reformType}" y ha descrito su proyecto así:
 
 "${description}"
@@ -141,25 +142,23 @@ Sé conciso, práctico y útil. Escribe en español de forma natural y profesion
             <h3>Descripción del Cliente</h3>
             <p>${description}</p>
 
-            ${
-              estimationData.features
-                ? `
+            ${estimationData.features
+              ? `
               <h3>Características Adicionales</h3>
               <p>${estimationData.features}</p>
             `
-                : ""
+              : ""
             }
 
             <h3>Estimación Generada</h3>
             <p><strong>Rango de Precio:</strong> ${estimationResult.priceRange}</p>
 
-            ${
-              aiExplanation
-                ? `
+            ${aiExplanation
+              ? `
               <h3>Análisis y Recomendaciones</h3>
               <p>${aiExplanation.replace(/\n/g, "<br>")}</p>
             `
-                : ""
+              : ""
             }
           `,
         }),

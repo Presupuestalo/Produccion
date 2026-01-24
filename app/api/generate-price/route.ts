@@ -2,6 +2,7 @@
 import { generateObject } from "ai"
 import { NextResponse } from "next/server"
 import { z } from "zod"
+import { groq, FAST_GROQ_MODEL } from "@/lib/ia/groq"
 
 const priceSchema = z.object({
   category: z.string().describe("La categoría más apropiada para este trabajo"),
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
     const categoryList = categories.map((c: { id: string; name: string }) => `${c.id}: ${c.name}`).join(", ")
 
     const { object } = await generateObject({
-      model: "openai/gpt-4o-mini",
+      model: groq(FAST_GROQ_MODEL),
       schema: priceSchema,
       prompt: `Eres un experto en presupuestos de reformas y construcción en España. 
 

@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { generateObject, generateText } from "ai"
 import { z } from "zod"
 import { supabaseAdmin as supabase } from "@/lib/supabase-admin"
+import { groq, DEFAULT_GROQ_MODEL, FAST_GROQ_MODEL } from "@/lib/ia/groq"
 
 export const dynamic = "force-dynamic"
 
@@ -124,7 +125,7 @@ const estimationSchema = z.object({
 async function validateCity(city: string, country: string): Promise<{ isValid: boolean; suggestion?: string }> {
   try {
     const { text } = await generateText({
-      model: "openai/gpt-4o-mini",
+      model: groq(FAST_GROQ_MODEL),
       prompt: `Eres un experto en geografía. Valida si la ciudad "${city}" existe en el país "${country}".
 
 Responde SOLO con un JSON en este formato exacto:
@@ -255,7 +256,7 @@ export async function POST(request: NextRequest) {
     })
 
     const { object: estimation } = await generateObject({
-      model: "openai/gpt-4o",
+      model: groq(DEFAULT_GROQ_MODEL),
       schema: estimationSchema,
       prompt: `Eres un experto en presupuestos de reformas en ${country}.
 

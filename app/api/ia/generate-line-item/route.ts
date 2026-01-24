@@ -1,6 +1,7 @@
 ﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import { generateText } from "ai"
+import { groq, FAST_GROQ_MODEL } from "@/lib/ia/groq"
 
 export async function POST(request: Request) {
   try {
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
     }
 
     const { text } = await generateText({
-      model: "openai/gpt-4o-mini",
+      model: groq(FAST_GROQ_MODEL),
       prompt: `Eres un experto en construcción y reformas. Genera una partida de presupuesto basada en esta descripción: "${prompt}"
 
 Responde SOLO con un objeto JSON válido con esta estructura exacta:

@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { generateObject } from "ai"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
+import { groq, VISION_GROQ_MODEL } from "@/lib/ia/groq"
 
 const floorPlanSchema = z.object({
   rooms: z.array(
@@ -44,7 +45,10 @@ const floorPlanSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
+    if (!supabase) {
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
+    }
 
     const {
       data: { session },
@@ -79,7 +83,7 @@ export async function POST(request: NextRequest) {
     } = supabase.storage.from("pdfs").getPublicUrl(fileName)
 
     const { object } = await generateObject({
-      model: "openai/gpt-4o",
+      model: groq(VISION_GROQ_MODEL),
       schema: floorPlanSchema,
       prompt: `Analiza este plano arquitectónico 2D y extrae la información de las habitaciones, paredes, puertas y ventanas.
 

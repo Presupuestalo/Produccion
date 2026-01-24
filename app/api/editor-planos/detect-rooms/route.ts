@@ -2,6 +2,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
 import { createClient } from "@/lib/supabase/server"
+import { groq, DEFAULT_GROQ_MODEL } from "@/lib/ia/groq"
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     // Usar IA para detectar habitaciones basándose en las paredes
     const { text } = await generateText({
-      model: "openai/gpt-4o",
+      model: groq(DEFAULT_GROQ_MODEL),
       prompt: `Analiza las siguientes paredes, puertas y ventanas de un plano arquitectónico y detecta las habitaciones.
 
 Paredes: ${JSON.stringify(walls)}

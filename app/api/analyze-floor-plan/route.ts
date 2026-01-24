@@ -1,10 +1,11 @@
-﻿export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic"
 import { generateObject } from "ai"
 import { z } from "zod"
+import { groq, VISION_GROQ_MODEL } from "@/lib/ia/groq"
 
 export const maxDuration = 60
 
-const VISION_MODEL = "anthropic/claude-sonnet-4-20250514"
+const VISION_MODEL = groq(VISION_GROQ_MODEL)
 
 const analysisSchema = z.object({
   isValid: z.boolean().describe("Si la imagen es un plano válido"),
