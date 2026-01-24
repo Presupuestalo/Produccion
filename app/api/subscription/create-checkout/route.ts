@@ -82,6 +82,11 @@ export async function POST(req: Request) {
 
     const supabase = await createClient()
 
+    if (!supabase) {
+      console.error("[v0] Create checkout: Supabase client not initialized")
+      return NextResponse.json({ error: "No se pudo conectar con la base de datos" }, { status: 500 })
+    }
+
     const {
       data: { user },
       error: authError,
