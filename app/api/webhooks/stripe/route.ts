@@ -26,6 +26,18 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-01-27.acacia" as any,
 })
 
+export async function GET(req: Request) {
+  await logWebhook("GET_REQUEST_RECEIVED", {
+    url: req.url,
+    note: "Webhook endpoint should only receive POST. If you see this, something is redirecting POST to GET."
+  })
+  return NextResponse.json({
+    message: "Stripe Webhook Endpoint",
+    method: "GET",
+    hint: "Please use POST"
+  })
+}
+
 export async function POST(req: Request) {
   await logWebhook("PING")
 
