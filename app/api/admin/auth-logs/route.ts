@@ -1,18 +1,31 @@
 import { NextResponse } from "next/server"
-import { authLogs } from "@/app/auth/callback/route"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 export const dynamic = "force-dynamic"
 
 export async function GET() {
     try {
-        if (!authLogs || authLogs.length === 0) {
+        const { data: logs, error } = await supabaseAdmin
+            .from("debug_logs")
+            .select("*")
+            .ilike("message", "AUTH:%")
+            .order("created_at", { ascending: false })
+            .limit(100)
+
+        if (error) throw error
+
+        if (!logs || logs.length === 0) {
             return NextResponse.json({
-                message: "No auth attempts recorded in this instance yet.",
-                hint: "Logs are kept in memory and reset on redeploy/cold start. Perform a login attempt then check this page immediately."
+                message: "No auth attempts recorded in DB yet.",
+                hint: "Ensure you have run /api/debug/setup-db once."
             })
         }
 
-        return new NextResponse(authLogs.join("\n"), {
+        const text = logs
+            .map(l => `${l.created_at} - ${l.message} - ${JSON.stringify(l.data)}`)
+            .join("\n")
+
+        return new NextResponse(text, {
             headers: { "Content-Type": "text/plain; charset=utf-8" }
         })
     } catch (error: any) {
