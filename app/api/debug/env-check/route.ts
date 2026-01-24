@@ -9,8 +9,8 @@ export async function GET() {
         "NEXT_PUBLIC_SUPABASE_URL",
         "SUPABASE_URL",
         "SUPABASE_SERVICE_ROLE_KEY",
-        "VERCEL_ENV",
-        "VERCEL_URL"
+        "SUPABASE_SECRET_KEY",
+        "VERCEL_ENV"
     ]
 
     const status: Record<string, string> = {}
@@ -19,8 +19,13 @@ export async function GET() {
         if (!val) {
             status[v] = "MISSING"
         } else {
-            // Show first 6 and last 4 chars
-            status[v] = `${val.substring(0, 6)}...${val.substring(val.length - 4)}`
+            // For URLs, show the last part. For keys, show start/end.
+            if (val.startsWith("http")) {
+                const url = new URL(val)
+                status[v] = `URL: ...${url.hostname}`
+            } else {
+                status[v] = `${val.substring(0, 8)}...${val.substring(val.length - 4)}`
+            }
         }
     })
 
