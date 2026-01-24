@@ -141,7 +141,7 @@ export default function SelectUserTypePage() {
           email: user.email,
           full_name: user.user_metadata?.name || user.user_metadata?.full_name || "",
           user_type: userType,
-          country: countryName,
+          country: selectedCountry,
           accepted_terms: true,
           terms_accepted_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -348,9 +348,8 @@ export default function SelectUserTypePage() {
 
         <div className="grid md:grid-cols-2 gap-6">
           <Card
-            className={`cursor-pointer hover:shadow-lg transition-all ${
-              selectedType === "professional" ? "ring-2 ring-orange-600" : ""
-            }`}
+            className={`cursor-pointer hover:shadow-lg transition-all ${selectedType === "professional" ? "ring-2 ring-orange-600" : ""
+              }`}
             onClick={() => setSelectedType("professional")}
           >
             <CardHeader className="text-center">
@@ -361,9 +360,8 @@ export default function SelectUserTypePage() {
           </Card>
 
           <Card
-            className={`cursor-pointer hover:shadow-lg transition-all ${
-              selectedType === "homeowner" ? "ring-2 ring-orange-600" : ""
-            }`}
+            className={`cursor-pointer hover:shadow-lg transition-all ${selectedType === "homeowner" ? "ring-2 ring-orange-600" : ""
+              }`}
             onClick={() => setSelectedType("homeowner")}
           >
             <CardHeader className="text-center">

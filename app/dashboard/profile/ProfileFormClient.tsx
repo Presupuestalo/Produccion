@@ -135,8 +135,7 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
   const [phoneNumber, setPhoneNumber] = useState(userData.phone_number || userData.phone?.replace("+34", "") || "")
   const [avatarUrl, setAvatarUrl] = useState(userData.avatar_url || "")
   const [province, setProvince] = useState(userData.province || userData.address_province || "")
-  const rawCountry = userData.country || ""
-  const [country, setCountry] = useState(rawCountry === "España" ? "ES" : rawCountry)
+  const [country, setCountry] = useState(userData.country || "ES")
   const [workMode, setWorkMode] = useState(userData.work_mode || "executor")
   const [addressStreet, setAddressStreet] = useState(userData.address_street || "")
   const [addressCity, setAddressCity] = useState(userData.address_city || "")
