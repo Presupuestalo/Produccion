@@ -27,7 +27,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 })
 
 export async function POST(req: Request) {
-  await logWebhook("START")
+  await logWebhook("PING")
 
   try {
     const secret = process.env.STRIPE_WEBHOOK_SECRET
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     const isTest = headersList.get("x-internal-test") === "true"
 
     if (!secret && !isTest) {
-      await logWebhook("CRITICAL: STRIPE_WEBHOOK_SECRET missing")
+      await logWebhook("CRITICAL: STRIPE_WEBHOOK_SECRET missing", { envKeys: Object.keys(process.env).filter(k => k.includes("STRIPE")) })
       return NextResponse.json({ error: "Missing secret" }, { status: 500 })
     }
 
@@ -103,10 +103,10 @@ export async function POST(req: Request) {
       if (finalCredits === 0 && session.amount_total) {
         // Fallback basado en precios de producción (Paquetes en céntimos)
         const amount = session.amount_total
-        if (amount === 2000) finalCredits = 100
-        else if (amount === 5000) finalCredits = 300 // Ajustado según logs previos
-        else if (amount === 10000) finalCredits = 750 // Ajustado según logs previos
-        else if (amount === 1000) finalCredits = 50 // Por si hay paquetes pequeños
+        if (amount === 5000) finalCredits = 500
+        else if (amount === 10000) finalCredits = 1200
+        else if (amount === 20000) finalCredits = 2500
+        else if (amount === 1000) finalCredits = 50
 
         await logWebhook("INFERRED_CREDITS", { amount, finalCredits })
       }
