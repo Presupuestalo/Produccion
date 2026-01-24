@@ -52,11 +52,30 @@ export async function GET(request: Request) {
     await logAuth("INITIALIZING_CLIENTS")
     const cookieStore = await cookies()
 
+    // Preparar variables con fallbacks
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY
+    const supabaseServiceUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      await logAuth("MISSING_AUTH_VARS", {
+        hasUrl: !!supabaseUrl,
+        hasAnonKey: !!supabaseAnonKey
+      })
+      return NextResponse.redirect(`${origin}/auth/login?error=missing_env_vars`)
+    }
+
+    if (!supabaseServiceRoleKey) {
+      await logAuth("MISSING_SERVICE_ROLE_KEY")
+      // No bloqueamos aquí, pero fallará el sync más tarde. Podríamos redirigir si es crítico.
+    }
+
     try {
       // Usar NEXT_PUBLIC_SUPABASE_URL para Auth (dominio personalizado)
       const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        supabaseUrl,
+        supabaseAnonKey,
         {
           cookies: {
             getAll() {
@@ -75,8 +94,8 @@ export async function GET(request: Request) {
 
       // Usar SUPABASE_URL para Base de Datos (URL del proyecto)
       const supabaseAdminClient = createServiceClient(
-        process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        supabaseServiceUrl!,
+        supabaseServiceRoleKey!,
       )
 
       const syncOAuthDataToProfile = async (userId: string, userMetadata: Record<string, unknown>, email: string) => {
