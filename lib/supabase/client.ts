@@ -24,44 +24,43 @@ export async function createClient() {
     return supabaseInstance
   }
 
-  // 1. Try using environment variables directly (Production / Local)
-  if (envUrl && envKey) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (url && anonKey) {
     try {
-      supabaseInstance = createSupabaseBrowserClient(envUrl, envKey)
+      console.log(`[SupabaseClient] Initializing with: ${url}`)
+      supabaseInstance = createSupabaseBrowserClient(url, anonKey)
       return supabaseInstance
     } catch (e) {
       console.error("Error creating Supabase client with env vars:", e)
     }
   }
 
-  // 2. If env vars are missing, try fetching from server API (v0 Preview)
+  // Fallback for v0 preview or misconfigured envs
   try {
-    // Use a relative URL to avoid issues with base URL
     const response = await fetch("/api/supabase-config")
-    if (!response.ok) {
-      console.warn("Failed to fetch Supabase config from server")
-      return null
-    }
-
-    const config = await response.json()
-    if (config.url && config.anonKey) {
-      supabaseInstance = createSupabaseBrowserClient(config.url, config.anonKey)
-      return supabaseInstance
+    if (response.ok) {
+      const config = await response.json()
+      if (config.url && config.anonKey) {
+        console.log(`[SupabaseClient] Initializing from API: ${config.url}`)
+        supabaseInstance = createSupabaseBrowserClient(config.url, config.anonKey)
+        return supabaseInstance
+      }
     }
   } catch (error) {
-    console.error("Error initializing Supabase client:", error)
+    console.error("Error initializing Supabase client from API:", error)
   }
 
   return null
 }
 
-// Export a synchronous client for backward compatibility where possible,
-// but it might be null in v0 preview.
-// We use a try-catch block to prevent module initialization errors
-let syncClient = null
+let syncClient: any = null
 try {
-  if (envUrl && envKey) {
-    syncClient = createSupabaseBrowserClient(envUrl, envKey)
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (url && key) {
+    syncClient = createSupabaseBrowserClient(url, key)
   }
 } catch (e) {
   console.error("Error creating sync Supabase client:", e)

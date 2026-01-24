@@ -161,45 +161,44 @@ export async function GET(request: Request) {
         }
 
         logAuth(`Redirecting to ${next}`)
-        return NextResponse.redirect(buildRedirectUrl(next))
+        const redirectResponse = NextResponse.redirect(buildRedirectUrl(next))
+        return redirectResponse
       }
 
       if (error) {
         logAuth(`Error during code exchange: ${error.message} (Code: ${error.code})`)
-        if (
-          error.message?.includes("already used") ||
-          error.message?.includes("invalid") ||
-          error.code === "bad_oauth_state"
-        ) {
-          logAuth("Checking for existing session...")
-          const {
-            data: { session: existingSession },
-          } = await supabase.auth.getSession()
 
-          if (existingSession?.user) {
-            logAuth(`Existing session found: ${existingSession.user.email}`)
-            await syncOAuthDataToProfile(
-              existingSession.user.id,
-              existingSession.user.user_metadata || {},
-              existingSession.user.email || "",
-            )
+        // Attempt to see if we already have a session despite the code exchange error
+        // (sometimes happens on rapid double-clicks or browser navigation back/forth)
+        const { data: { session: existingSession } } = await supabase.auth.getSession()
 
-            const { data: profile } = await supabaseAdmin
-              .from("profiles")
-              .select("user_type")
-              .eq("id", existingSession.user.id)
-              .single()
+        if (existingSession?.user) {
+          logAuth(`Existing session found after exchange error: ${existingSession.user.email}`)
+          await syncOAuthDataToProfile(
+            existingSession.user.id,
+            existingSession.user.user_metadata || {},
+            existingSession.user.email || "",
+          )
 
-            if (!profile?.user_type) {
-              return NextResponse.redirect(buildRedirectUrl("/auth/select-user-type"))
-            }
+          const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("user_type")
+            .eq("id", existingSession.user.id)
+            .single()
 
-            return NextResponse.redirect(buildRedirectUrl(next))
+          if (!profile?.user_type) {
+            return NextResponse.redirect(buildRedirectUrl("/auth/select-user-type"))
           }
-          logAuth("No existing session found")
+
+          return NextResponse.redirect(buildRedirectUrl(next))
         }
 
-        return NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(error.message)}`)
+        // Si realmente no hay sesión, volver al login con el error
+        const loginUrl = new URL(`${origin}/auth/login`)
+        loginUrl.searchParams.set("error", error.message)
+        loginUrl.searchParams.set("code", error.code || "unknown")
+        loginUrl.searchParams.set("source", "exchange_failure")
+        return NextResponse.redirect(loginUrl.toString())
       }
     } catch (fatal: any) {
       logAuth(`FATAL ERROR IN CALLBACK: ${fatal.message}`)
