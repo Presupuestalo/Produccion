@@ -334,7 +334,7 @@ export async function POST(req: Request) {
       await delay(1500);
 
       // Email 3: To professionals in the province
-      const currentCountry = reformCountry === "ES" ? "España" : (reformCountry === "Spain" ? "España" : reformCountry)
+      const currentCountry = (reformCountry === "España" || reformCountry === "Spain" || !reformCountry) ? "ES" : reformCountry
       await logToDb("Professional Search Started", { country: currentCountry, province: reformProvince })
 
       const { data: professionals, error: profsError } = await supabaseAdmin
