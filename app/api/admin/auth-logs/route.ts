@@ -1,27 +1,21 @@
 import { NextResponse } from "next/server"
-import fs from "fs"
-import path from "path"
+import { authLogs } from "@/app/auth/callback/route"
 
 export const dynamic = "force-dynamic"
 
 export async function GET() {
     try {
-        const logPath = path.join(process.cwd(), "auth_debug.log")
-        console.log("[AuthLogViewer] Accessing path:", logPath)
-
-        if (!fs.existsSync(logPath)) {
-            return NextResponse.json({ message: "No auth attempts recorded yet.", pathSearched: logPath })
+        if (!authLogs || authLogs.length === 0) {
+            return NextResponse.json({
+                message: "No auth attempts recorded in this instance yet.",
+                hint: "Logs are kept in memory and reset on redeploy/cold start. Perform a login attempt then check this page immediately."
+            })
         }
 
-        const content = fs.readFileSync(logPath, "utf8")
-        return new NextResponse(content, {
+        return new NextResponse(authLogs.join("\n"), {
             headers: { "Content-Type": "text/plain; charset=utf-8" }
         })
     } catch (error: any) {
-        return NextResponse.json({
-            error: "Failed to read logs",
-            message: error.message,
-            stack: error.stack
-        }, { status: 500 })
+        return NextResponse.json({ error: error.message }, { status: 500 })
     }
 }

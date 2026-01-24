@@ -2,27 +2,32 @@ import { createServerClient } from "@supabase/ssr"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
-import fs from "fs"
-import path from "path"
+
+// Memory log for production debugging
+let authLogs: string[] = []
 
 function logAuth(msg: string) {
-  try {
-    const logPath = path.join(process.cwd(), "auth_debug.log")
-    const entry = `${new Date().toISOString()} - ${msg}\n`
-    fs.appendFileSync(logPath, entry)
-    console.log(`[AuthDebug] ${msg}`)
-  } catch (e) {
-    console.error("Failed to write to auth_debug.log", e)
-  }
+  const entry = `${new Date().toISOString()} - ${msg}`
+  authLogs.push(entry)
+  if (authLogs.length > 100) authLogs.shift()
+  console.log(`[AuthDebug] ${msg}`)
 }
+
+export { authLogs }
 
 export async function GET(request: Request) {
   console.log("[AuthCallback] Request URL:", request.url)
   logAuth("========== AUTH CALLBACK START ==========")
-  const url = new URL(request.url)
-  const { searchParams, origin } = url
+
+  const requestUrl = new URL(request.url)
+  const { searchParams } = requestUrl
   const code = searchParams.get("code")
   const next = searchParams.get("next") ?? "/dashboard"
+
+  // Determinar el origen correcto de forma robusta
+  const forwardedHost = request.headers.get("x-forwarded-host")
+  const forwardedProto = forwardedHost ? request.headers.get("x-forwarded-proto") || "https" : null
+  const origin = forwardedHost ? `${forwardedProto}://${forwardedHost}` : requestUrl.origin
 
   console.log("[AuthCallback] Parsed URL details:", { origin, codePresent: !!code, next })
   logAuth(`Origin: ${origin}, Code present: ${!!code}, Next: ${next}`)
@@ -38,13 +43,12 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(errorDescription || errorParam)}`)
   }
 
-  console.log("Auth callback triggered with code:", code ? "exists" : "missing")
-
   if (code) {
     logAuth("Initializing clients...")
     const cookieStore = await cookies()
 
     try {
+      // Usar NEXT_PUBLIC_SUPABASE_URL para Auth (dominio personalizado)
       const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -64,8 +68,9 @@ export async function GET(request: Request) {
         },
       )
 
+      // Usar SUPABASE_URL para Base de Datos (URL del proyecto)
       const supabaseAdmin = createServiceClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!,
       )
 
@@ -96,8 +101,11 @@ export async function GET(request: Request) {
           }
 
           if (Object.keys(updates).length > 1) {
-            await supabaseAdmin.from("profiles").update(updates).eq("id", userId)
+            const { error: updateError } = await supabaseAdmin.from("profiles").update(updates).eq("id", userId)
+            if (updateError) throw updateError
             logAuth("Profile updated successfully")
+          } else {
+            logAuth("No profile updates needed")
           }
         } catch (error: any) {
           logAuth(`Error syncing OAuth data: ${error.message}`)
@@ -105,10 +113,12 @@ export async function GET(request: Request) {
       }
 
       const buildRedirectUrl = (path: string) => {
+        const url = new URL(path, origin)
         if (pendingPlan) {
-          return `${origin}${path}?pendingPlan=${pendingPlan}&billingType=${billingType}`
+          url.searchParams.set("pendingPlan", pendingPlan)
+          url.searchParams.set("billingType", billingType)
         }
-        return `${origin}${path}`
+        return url.toString()
       }
 
       logAuth("Exchanging code for session...")
@@ -193,6 +203,7 @@ export async function GET(request: Request) {
       }
     } catch (fatal: any) {
       logAuth(`FATAL ERROR IN CALLBACK: ${fatal.message}`)
+      console.error("[AuthCallback] Fatal error:", fatal)
       return NextResponse.redirect(`${origin}/auth/login?error=callback_fatal_error`)
     }
   }

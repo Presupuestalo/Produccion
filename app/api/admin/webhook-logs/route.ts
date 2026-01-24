@@ -1,19 +1,15 @@
 import { NextResponse } from "next/server"
-import fs from "fs"
-import path from "path"
+import { webhookLogs } from "@/app/api/webhooks/stripe/route"
 
 export const dynamic = "force-dynamic"
 
 export async function GET() {
     try {
-        const logPath = path.join(process.cwd(), "webhook_hits.log")
-
-        if (!fs.existsSync(logPath)) {
-            return NextResponse.json({ message: "No hits recorded yet." })
+        if (!webhookLogs || webhookLogs.length === 0) {
+            return NextResponse.json({ message: "No webhook hits recorded in this instance." })
         }
 
-        const content = fs.readFileSync(logPath, "utf8")
-        return new NextResponse(content, {
+        return new NextResponse(webhookLogs.join("\n"), {
             headers: { "Content-Type": "text/plain; charset=utf-8" }
         })
     } catch (error: any) {
