@@ -4,32 +4,38 @@ import Stripe from "stripe"
 import { createClient } from "@/lib/supabase/server"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-11-20.acacia",
+  apiVersion: "2025-01-27.acacia" as any,
 })
+
+import { supabaseAdmin } from "@/lib/supabase-admin"
+
+async function logMsg(msg: string, data: any = {}) {
+  await supabaseAdmin.from("debug_logs").insert({
+    message: `SUBSCRIPTION: ${msg}`,
+    data: { ...data, timestamp: new Date().toISOString() }
+  })
+}
 
 const PLAN_CONFIG = {
   basic: {
     name: "Plan Básico",
-    stripeName: "Plan Básico", // Nombre exacto en Stripe
-    monthly: 5900, // 59€
-    annual: 59000, // 590€
+    stripeName: "Plan Básico",
+    monthly: 5900,
+    annual: 59000,
   },
   pro: {
     name: "Plan Pro",
-    stripeName: "Plan Pro", // Cambiado de "Plan Profesional" a "Plan Pro" para coincidir con Stripe
-    monthly: 8900, // 89€
-    annual: 89000, // 890€
+    stripeName: "Plan Pro",
+    monthly: 8900,
+    annual: 89000,
   },
   business: {
     name: "Plan Empresa",
-    stripeName: "Plan Empresa", // Nombre exacto en Stripe
-    monthly: 7990, // 79.90€
-    annual: 79900, // 799€
+    stripeName: "Plan Empresa",
+    monthly: 7990,
+    annual: 79900,
   },
 }
-
-// Cache para almacenar los price IDs
-const priceCache: Record<string, Record<string, string>> = {}
 
 async function findExistingProduct(stripeName: string): Promise<Stripe.Product | null> {
   const products = await stripe.products.list({
@@ -41,11 +47,11 @@ async function findExistingProduct(stripeName: string): Promise<Stripe.Product |
   const found = products.data.find((p) => p.name === stripeName || p.name.toLowerCase() === stripeName.toLowerCase())
 
   if (found) {
-    console.log(`[v0] Found existing product "${stripeName}":`, found.id)
+    await logMsg(`Found product "${stripeName}"`, { productId: found.id })
     return found
   }
 
-  console.log(`[v0] Product not found: "${stripeName}"`)
+  await logMsg(`Product NOT FOUND: "${stripeName}"`, { availableProducts: products.data.map(p => p.name) })
   return null
 }
 
@@ -62,10 +68,11 @@ async function findExistingPrice(productId: string, billingType: "monthly" | "an
   const existingPrice = prices.data.find((p) => p.recurring?.interval === interval)
 
   if (existingPrice) {
-    console.log(`[v0] Found existing price for ${billingType}:`, existingPrice.id, `(${existingPrice.unit_amount}c)`)
+    await logMsg(`Found price for ${billingType}`, { productId, priceId: existingPrice.id, amount: existingPrice.unit_amount })
     return existingPrice.id
   }
 
+  await logMsg(`Price NOT FOUND for ${billingType}`, { productId, interval, availablePrices: prices.data.map(p => ({ id: p.id, interval: p.recurring?.interval, amount: p.unit_amount })) })
   return null
 }
 
