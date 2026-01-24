@@ -101,9 +101,36 @@ export async function POST(req: Request) {
         return NextResponse.json({ received: true, warning: "User not found" })
       }
 
-      // 2. DETERMINAR CRÉDITOS
+      // 2. DETERMINAR CRÉDITOS Y PLAN
+      let planName = session.metadata?.plan_name
       const creditsAmount = parseInt(session.metadata?.credits_amount || "0")
       let finalCredits = creditsAmount
+
+      // Si es una suscripción (tiene plan_name)
+      if (planName) {
+        await logWebhook("PLAN_UPGRADE_DETECTED", { planName, userId })
+
+        // Mapeo de créditos por plan
+        if (planName === "basic") finalCredits = 300
+        else if (planName === "pro") finalCredits = 500
+
+        // Actualizar el perfil del usuario con el nuevo plan
+        const { error: profileErr } = await supabaseAdmin
+          .from("profiles")
+          .update({
+            subscription_plan: planName,
+            stripe_customer_id: session.customer as string,
+            stripe_subscription_id: session.subscription as string,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", userId)
+
+        if (profileErr) {
+          await logWebhook("PROFILE_UPDATE_ERROR", { error: profileErr })
+        } else {
+          await logWebhook("PROFILE_UPDATED_WITH_PLAN", { planName, userId })
+        }
+      }
 
       if (finalCredits === 0 && session.amount_total) {
         // Fallback basado en precios de producción (Paquetes en céntimos)
@@ -113,11 +140,15 @@ export async function POST(req: Request) {
         else if (amount === 20000) finalCredits = 2500
         else if (amount === 1000) finalCredits = 50
 
-        await logWebhook("INFERRED_CREDITS", { amount, finalCredits })
+        // Si el precio coincide con un plan mensual pero no venía el plan_name, lo inferimos
+        if (amount === 5900 && !planName) planName = "basic", finalCredits = 300
+        if (amount === 8900 && !planName) planName = "pro", finalCredits = 500
+
+        await logWebhook("INFERRED_DATA", { amount, finalCredits, planName })
       }
 
       if (finalCredits > 0) {
-        await logWebhook("UPDATING_CREDITS_START", { userId, amountToAdd: finalCredits })
+        await logWebhook("UPDATING_CREDITS_START", { userId, amountToAdd: finalCredits, plan: planName })
 
         const { data: current, error: fetchErr } = await supabaseAdmin
           .from("company_credits")
@@ -151,13 +182,15 @@ export async function POST(req: Request) {
           type: "purchase",
           amount: finalCredits,
           payment_amount: (session.amount_total || 0) / 100,
-          description: `Compra de ${finalCredits} créditos (via Master Webhook)`,
-          stripe_payment_id: session.payment_intent as string,
+          description: planName
+            ? `Suscripción al ${planName} (${finalCredits} créditos mensuales)`
+            : `Compra de ${finalCredits} créditos (via Master Webhook)`,
+          stripe_payment_id: (session.payment_intent || session.id) as string,
         })
 
         if (txErr) await logWebhook("TX_INSERT_ERROR", { error: txErr })
 
-        await logWebhook("SUCCESSFULLY_ADDED_CREDITS", { userId, totalAdded: finalCredits })
+        await logWebhook("SUCCESSFULLY_PROCESSED_PAYMENT", { userId, totalAdded: finalCredits, plan: planName })
         return NextResponse.json({ received: true, success: true })
       } else {
         await logWebhook("WARNING: FINAL CREDITS IS 0")
