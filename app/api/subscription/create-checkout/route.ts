@@ -111,9 +111,10 @@ export async function POST(req: Request) {
     }
 
     // Identificar URLs base (Stripe requiere URLs absolutas)
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-      "https://presupuestalo.com"
+    // El encabezado 'origin' es el más fiable ya que indica desde qué dominio se hizo la petición
+    const origin = req.headers.get("origin")
+    const baseUrl = origin || process.env.NEXT_PUBLIC_SITE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://presupuestalo.com")
 
     const { planName, billingType = "monthly" } = await req.json()
 

@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { getPackageById } from "@/lib/credit-packages"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-11-20.acacia",
+  apiVersion: "2025-01-27.acacia" as any,
 })
 
 export async function POST(req: Request) {
@@ -13,6 +13,9 @@ export async function POST(req: Request) {
     console.log("[v0] Credits purchase: Starting...")
 
     const supabase = await createClient()
+    if (!supabase) {
+      return NextResponse.json({ error: "No se pudo conectar con la base de datos" }, { status: 500 })
+    }
 
     // Verificar autenticación
     const {
@@ -99,6 +102,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Error al preparar el pago" }, { status: 500 })
     }
 
+    const origin = req.headers.get("origin")
+    const baseUrl = origin || process.env.NEXT_PUBLIC_SITE_URL || "https://presupuestalo.com"
+
     // Crear sesión de checkout con el precio obtenido/creado
     const session = await stripe.checkout.sessions.create({
       customer_email: profile.email,
@@ -109,8 +115,8 @@ export async function POST(req: Request) {
         },
       ],
       mode: "payment",
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/creditos?purchase=success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/creditos?canceled=true`,
+      success_url: `${baseUrl}/dashboard/creditos?purchase=success`,
+      cancel_url: `${baseUrl}/dashboard/creditos?canceled=true`,
       metadata: {
         user_id: user.id,
         type: "credits_purchase",

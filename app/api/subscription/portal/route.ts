@@ -4,12 +4,15 @@ import { createClient } from "@/lib/supabase/server"
 import Stripe from "stripe"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-11-20.acacia",
+  apiVersion: "2025-01-27.acacia" as any,
 })
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
     const supabase = await createClient()
+    if (!supabase) {
+      return NextResponse.json({ error: "No se pudo conectar con la base de datos" }, { status: 500 })
+    }
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -28,9 +31,12 @@ export async function POST() {
       return NextResponse.json({ error: "No hay cliente de Stripe" }, { status: 400 })
     }
 
+    const origin = req.headers.get("origin")
+    const baseUrl = origin || process.env.NEXT_PUBLIC_SITE_URL || "https://presupuestalo.com"
+
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
-      return_url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/dashboard/ajustes?tab=suscripcion`,
+      return_url: `${baseUrl}/dashboard/ajustes?tab=suscripcion`,
     })
 
     return NextResponse.json({ url: portalSession.url })
