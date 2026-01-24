@@ -2,22 +2,27 @@ import { createServerClient } from "@supabase/ssr"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
-// Memory log for production debugging
-let authLogs: string[] = []
-
-function logAuth(msg: string) {
-  const entry = `${new Date().toISOString()} - ${msg}`
-  authLogs.push(entry)
-  if (authLogs.length > 100) authLogs.shift()
-  console.log(`[AuthDebug] ${msg}`)
+// Persistent log for production debugging (DB based)
+async function logAuth(msg: string, data: any = {}) {
+  console.log(`[AuthDebug] ${msg}`, data)
+  try {
+    await supabaseAdmin.from("debug_logs").insert({
+      message: `AUTH: ${msg}`,
+      data: {
+        ...data,
+        timestamp: new Date().toISOString(),
+      },
+    })
+  } catch (e) {
+    console.error("Failed to write to debug_logs:", e)
+  }
 }
-
-export { authLogs }
 
 export async function GET(request: Request) {
   console.log("[AuthCallback] Request URL:", request.url)
-  logAuth("========== AUTH CALLBACK START ==========")
+  await logAuth("START", { url: request.url })
 
   const requestUrl = new URL(request.url)
   const { searchParams } = requestUrl
@@ -26,11 +31,11 @@ export async function GET(request: Request) {
 
   // Determinar el origen correcto de forma robusta
   const forwardedHost = request.headers.get("x-forwarded-host")
+  const host = request.headers.get("host")
   const forwardedProto = forwardedHost ? request.headers.get("x-forwarded-proto") || "https" : null
   const origin = forwardedHost ? `${forwardedProto}://${forwardedHost}` : requestUrl.origin
 
-  console.log("[AuthCallback] Parsed URL details:", { origin, codePresent: !!code, next })
-  logAuth(`Origin: ${origin}, Code present: ${!!code}, Next: ${next}`)
+  await logAuth("PARSED_URL", { origin, host, forwardedHost, codePresent: !!code, next })
 
   const pendingPlan = searchParams.get("pendingPlan")
   const billingType = searchParams.get("billingType") || "monthly"
@@ -39,12 +44,12 @@ export async function GET(request: Request) {
   const errorDescription = searchParams.get("error_description")
 
   if (errorParam) {
-    logAuth(`OAuth error: ${errorParam} - ${errorDescription}`)
+    await logAuth("OAUTH_ERROR", { errorParam, errorDescription })
     return NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(errorDescription || errorParam)}`)
   }
 
   if (code) {
-    logAuth("Initializing clients...")
+    await logAuth("INITIALIZING_CLIENTS")
     const cookieStore = await cookies()
 
     try {
@@ -69,18 +74,18 @@ export async function GET(request: Request) {
       )
 
       // Usar SUPABASE_URL para Base de Datos (URL del proyecto)
-      const supabaseAdmin = createServiceClient(
+      const supabaseAdminClient = createServiceClient(
         process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!,
       )
 
       const syncOAuthDataToProfile = async (userId: string, userMetadata: Record<string, unknown>, email: string) => {
         try {
-          logAuth(`Syncing data for user: ${userId}`)
+          await logAuth("SYNC_START", { userId, email })
           const googleName = (userMetadata?.name as string) || (userMetadata?.full_name as string) || null
           const googleAvatar = (userMetadata?.picture as string) || (userMetadata?.avatar_url as string) || null
 
-          const { data: currentProfile } = await supabaseAdmin
+          const { data: currentProfile } = await supabaseAdminClient
             .from("profiles")
             .select("full_name, avatar_url, email")
             .eq("id", userId)
@@ -101,14 +106,14 @@ export async function GET(request: Request) {
           }
 
           if (Object.keys(updates).length > 1) {
-            const { error: updateError } = await supabaseAdmin.from("profiles").update(updates).eq("id", userId)
+            const { error: updateError } = await supabaseAdminClient.from("profiles").update(updates).eq("id", userId)
             if (updateError) throw updateError
-            logAuth("Profile updated successfully")
+            await logAuth("SYNC_SUCCESS")
           } else {
-            logAuth("No profile updates needed")
+            await logAuth("SYNC_NO_UPDATES")
           }
         } catch (error: any) {
-          logAuth(`Error syncing OAuth data: ${error.message}`)
+          await logAuth("SYNC_ERROR", { error: error.message })
         }
       }
 
@@ -121,25 +126,25 @@ export async function GET(request: Request) {
         return url.toString()
       }
 
-      logAuth("Exchanging code for session...")
+      await logAuth("EXCHANGE_START")
       const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
       if (!error && data?.user) {
-        logAuth(`Session exchanged successfully for user: ${data.user.email}`)
+        await logAuth("EXCHANGE_SUCCESS", { userEmail: data.user.email })
         await syncOAuthDataToProfile(data.user.id, data.user.user_metadata || {}, data.user.email || "")
 
-        const { data: profile } = await supabaseAdmin
+        const { data: profile } = await supabaseAdminClient
           .from("profiles")
           .select("user_type, full_name")
           .eq("id", data.user.id)
           .single()
 
         const isNewUser = !profile?.user_type
-        logAuth(`Is new user: ${isNewUser}`)
+        await logAuth("PROFILE_CHECK", { isNewUser })
 
         if (isNewUser) {
           try {
-            logAuth("Notifying registration...")
+            await logAuth("NOTIFY_REGISTRATION_START")
             await fetch(`${origin}/api/auth/notify-registration`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -153,34 +158,34 @@ export async function GET(request: Request) {
               }),
             })
           } catch (notifyError: any) {
-            logAuth(`Error sending notification: ${notifyError.message}`)
+            await logAuth("NOTIFY_REGISTRATION_ERROR", { error: notifyError.message })
           }
 
-          logAuth("Redirecting to select-user-type")
-          return NextResponse.redirect(buildRedirectUrl("/auth/select-user-type"))
+          const redirectUrl = buildRedirectUrl("/auth/select-user-type")
+          await logAuth("REDIRECTING_NEW_USER", { redirectUrl })
+          return NextResponse.redirect(redirectUrl)
         }
 
-        logAuth(`Redirecting to ${next}`)
-        const redirectResponse = NextResponse.redirect(buildRedirectUrl(next))
-        return redirectResponse
+        const redirectUrl = buildRedirectUrl(next)
+        await logAuth("REDIRECTING_EXISTING_USER", { redirectUrl })
+        return NextResponse.redirect(redirectUrl)
       }
 
       if (error) {
-        logAuth(`Error during code exchange: ${error.message} (Code: ${error.code})`)
+        await logAuth("EXCHANGE_ERROR_CATCHED", { message: error.message, code: error.code })
 
         // Attempt to see if we already have a session despite the code exchange error
-        // (sometimes happens on rapid double-clicks or browser navigation back/forth)
         const { data: { session: existingSession } } = await supabase.auth.getSession()
 
         if (existingSession?.user) {
-          logAuth(`Existing session found after exchange error: ${existingSession.user.email}`)
+          await logAuth("EXCHANGE_ERROR_EXISTING_SESSION_FOUND", { userEmail: existingSession.user.email })
           await syncOAuthDataToProfile(
             existingSession.user.id,
             existingSession.user.user_metadata || {},
             existingSession.user.email || "",
           )
 
-          const { data: profile } = await supabaseAdmin
+          const { data: profile } = await supabaseAdminClient
             .from("profiles")
             .select("user_type")
             .eq("id", existingSession.user.id)
@@ -198,15 +203,16 @@ export async function GET(request: Request) {
         loginUrl.searchParams.set("error", error.message)
         loginUrl.searchParams.set("code", error.code || "unknown")
         loginUrl.searchParams.set("source", "exchange_failure")
+        await logAuth("REDIRECTING_TO_LOGIN_WITH_ERROR", { loginUrl: loginUrl.toString() })
         return NextResponse.redirect(loginUrl.toString())
       }
     } catch (fatal: any) {
-      logAuth(`FATAL ERROR IN CALLBACK: ${fatal.message}`)
+      await logAuth("FATAL_ERROR", { message: fatal.message, stack: fatal.stack })
       console.error("[AuthCallback] Fatal error:", fatal)
       return NextResponse.redirect(`${origin}/auth/login?error=callback_fatal_error`)
     }
   }
 
-  logAuth("No code provided, redirecting to login")
+  await logAuth("NO_CODE_PROVIDED")
   return NextResponse.redirect(`${origin}/auth/login?error=auth_callback_failed`)
 }

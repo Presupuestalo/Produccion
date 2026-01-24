@@ -32,12 +32,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let authListener: any = null
 
     const initAuth = async () => {
+      console.log("CLIENT: AuthProvider initializing...")
       const supabaseClient = await getSupabase()
 
       if (!mounted) return
 
       if (!supabaseClient) {
-        console.warn("⚠️ Supabase client not available - running without authentication")
+        console.warn("CLIENT: ⚠️ Supabase client not available")
         setSession(null)
         setUser(null)
         setIsLoading(false)
@@ -45,20 +46,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
+        console.log("CLIENT: Getting initial session...")
         const { data, error } = await supabaseClient.auth.getSession()
 
         if (!mounted) return
 
         if (error) {
-          console.error("❌ Error al obtener la sesión inicial:", error)
+          console.error("CLIENT: ❌ Error al obtener la sesión inicial:", error)
         }
 
-        console.log("📋 Sesión inicial:", data.session?.user?.email || "No hay sesión")
+        console.log("CLIENT: Initial session:", data.session?.user?.email || "NONE")
         setSession(data.session)
         setUser(data.session?.user || null)
         setIsLoading(false)
       } catch (error) {
-        console.error("💥 Error al obtener la sesión inicial:", error)
+        console.error("CLIENT: 💥 Fatal error initial session:", error)
         if (mounted) {
           setSession(null)
           setUser(null)
@@ -69,11 +71,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       authListener = supabaseClient.auth.onAuthStateChange(async (event: string, newSession: Session | null) => {
         if (!mounted) return
 
-        console.log("🔄 Auth state changed:", event, newSession?.user?.email || "No user")
+        console.log(`CLIENT: Auth state changed [${event}]:`, newSession?.user?.email || "NO_USER")
 
         // Si es un evento de recuperación de contraseña, redirigir a update-password
         if (event === "PASSWORD_RECOVERY") {
-          console.log("Password recovery event detected, redirecting to update-password")
+          console.log("CLIENT: Password recovery detected")
           router.push("/auth/update-password")
           return
         }
@@ -82,14 +84,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(newSession?.user || null)
         setIsLoading(false)
 
-        // Optimization: only redirect if we were in the middle of a logout or specific auth event
         if (event === "SIGNED_OUT" && pathname?.startsWith("/dashboard")) {
+          console.log("CLIENT: User signed out on protected route, redirecting to login")
           router.push("/auth/login")
-        } else if (event === "SIGNED_IN" && (pathname === "/auth/login" || pathname === "/login" || pathname === "/")) {
-          // If we just signed in and we are on a login/home page, go to dashboard
-          // But check if we have a pending redirect first
-          const redirect = new URLSearchParams(window.location.search).get("redirect")
-          router.push(redirect || "/dashboard")
+        } else if (event === "SIGNED_IN") {
+          console.log("CLIENT: SIGNED_IN event received")
+          if (pathname === "/auth/login" || pathname === "/login" || pathname === "/") {
+            const redirect = new URLSearchParams(window.location.search).get("redirect")
+            console.log(`CLIENT: Redirecting to: ${redirect || "/dashboard"}`)
+            router.push(redirect || "/dashboard")
+          }
         }
       })
     }
