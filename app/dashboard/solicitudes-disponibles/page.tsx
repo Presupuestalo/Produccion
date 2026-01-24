@@ -194,28 +194,24 @@ export default function SolicitudesDisponiblesPage() {
 
       if (profile) {
         setSubscriptionPlan(profile.subscription_plan)
+        setUserPlan((profile.subscription_plan as SubscriptionPlan) || "free")
       }
 
-      const { data: companyCredits, error: creditsError } = await supabase
-        .from("company_credits")
-        .select("credits_balance")
-        .eq("company_id", user.id)
-        .single()
-
-      console.log("[v0] Company credits data:", companyCredits)
-      console.log("[v0] Company credits error:", creditsError)
-
-      if (companyCredits) {
-        setUserCredits(companyCredits.credits_balance || 0)
-        console.log("[v0] userCredits set to:", companyCredits.credits_balance || 0)
-      } else {
-        // Si no hay registro en company_credits, intentar con profiles.credits como fallback
-        const { data: profileCredits } = await supabase.from("profiles").select("credits").eq("id", user.id).single()
-
-        if (profileCredits?.credits) {
-          setUserCredits(profileCredits.credits)
-          console.log("[v0] userCredits set from profiles:", profileCredits.credits)
+      // Obtener créditos a través de la API para evitar problemas de RLS/406 en el navegador
+      try {
+        console.log("[v0] Fetching user credits via API...")
+        const creditsResponse = await fetch("/api/credits/balance")
+        if (creditsResponse.ok) {
+          const creditsData = await creditsResponse.json()
+          console.log("[v0] Credits from API:", creditsData.credits_balance)
+          setUserCredits(creditsData.credits_balance || 0)
+        } else {
+          console.warn("[v0] Failed to fetch credits via API, code:", creditsResponse.status)
+          setUserCredits(0)
         }
+      } catch (creditsError) {
+        console.error("[v0] Error fetching credits via API:", creditsError)
+        setUserCredits(0)
       }
 
       try {
@@ -415,22 +411,15 @@ export default function SolicitudesDisponiblesPage() {
   }
 
   const handleAccessSuccess = async () => {
-    // Recargar créditos
-    if (userId) {
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      )
-
-      const { data: creditsData } = await supabase
-        .from("company_credits")
-        .select("credits_balance")
-        .eq("user_id", userId)
-        .single()
-
-      if (creditsData) {
-        setUserCredits(creditsData.credits_balance)
+    // Recargar créditos a través de la API
+    try {
+      const response = await fetch("/api/credits/balance")
+      if (response.ok) {
+        const data = await response.json()
+        setUserCredits(data.credits_balance || 0)
       }
+    } catch (error) {
+      console.error("[v0] Error reloading credits after access:", error)
     }
 
     // Recargar leads adquiridos
