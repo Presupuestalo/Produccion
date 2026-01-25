@@ -181,6 +181,8 @@ MUY IMPORTANTE - VISIÓN GLOBAL Y CAMBIOS GEOMÉTRICOS:
 3. TABIQUERÍA POR DEFECTO: Considera que toda nueva formación de tabiques es de "placa de yeso laminado" (Pladur) a menos que el plano indique explícitamente ladrillo.
 4. METROS LINEALES (ml): Es OBLIGATORIO proporcionar un valor para 'estimatedLength' > 0 por cada cambio. Usa las escalas y cotas para ser lo más preciso posible (ej: "Pared separadora cocina-baño: 3.20ml").
 
+5. VERIFICACIÓN FINAL: Antes de responder, haz un último barrido visual. ¿Ha cambiado aunque sea un poco el tamaño de una habitación? Si la respuesta es SÍ, debes incluir el derribo del tabique viejo y la construcción del nuevo. La mayoría de errores ocurren por ignorar estos pequeños "desplazamientos" de tabiques.
+
 USA LAS COTAS NUMÉRICAS DEL PLANO (ej: 270 es 2.70m). Si un tabique no tiene cota directa, estima su longitud en metros lineales usando la escala de las habitaciones contiguas.
 REGLA MATEMÁTICA: El perímetro de un rectángulo es siempre 2 * (ancho + largo). No sumes paredes más de una vez.
 TODO EN ESPAÑOL.`,
