@@ -176,7 +176,8 @@ Calcula los metros totales de tabiques eliminados y añadidos.
 MUY IMPORTANTE - CLASIFICACIÓN DE CAMBIOS ESTRUCTURALES:
 - Un tabique es "eliminado" (remove) si aparece en el plano "antes" cerrando un espacio y ya no está en el plano "después".
 - Un tabique es "añadido" (add) si aparece en el plano "después" creando nuevas divisiones que no existían en el "antes".
-- CAMBIO DE TAMAÑO: Si una habitación cambia de metros cuadrados o proporciones, esto IMPLICA NECESARIAMENTE que el tabique que la delimitaba ha sido derribado y se ha construido uno nuevo en la nueva posición. ¡Asegúrate de reportar estos metros lineales!
+- DETECCIÓN POR CAMBIO DE SUPERFICIE: Si una habitación (ej: H1, H2) ha cambiado de tamaño o forma entre planos, esto SIGNIFICA que el tabique se ha movido. Debes reportar la demolición del tabique antiguo y la formación del nuevo en su nueva posición. Estima los metros lineales basándote en la diferencia de geometría.
+- VALOR DE MEDICIÓN: Es OBLIGATORIO que proporciones un valor numérico para 'estimatedLength' mayor que 0 si has detectado un cambio. 0 NO ES UN VALOR VÁLIDO. Usa las cotas o la escala visual para estimar al menos un valor aproximado (ej: 2.5).
 
 USA LAS COTAS NUMÉRICAS DEL PLANO (ej: 270 es 2.70m). Si un tabique no tiene cota directa, estima su longitud en metros lineales usando la escala de las habitaciones contiguas.
 REGLA MATEMÁTICA: El perímetro de un rectángulo es siempre 2 * (ancho + largo). No sumes paredes más de una vez.

@@ -156,10 +156,11 @@ ABREVIACIONES INDIVIDUALES:
 - "WC" = Baño/Aseo → tipo: "baño"
 - "arm", "A", "armario" = Armario empotrado → Repórtalo en el campo 'enclosures'.
 
-=== REGLAS ESTRICTAS PARA HABITÁCULOS (ENCLOSURES) ===
-1. SOLO considera 'enclosure' si tiene una etiqueta EXPLÍCITA escrita en el plano como "arm", "A" o "armario".
-2. NO detectes huecos o espacios vacíos como armarios si no tienen la etiqueta, aunque parezcan serlo. En ese caso, su superficie debe formar parte de la habitación contigua.
-3. NUNCA incluyas armarios como habitaciones independientes en la lista 'rooms'.
+=== REGLAS DE "TOLERANCIA CERO" PARA HABITÁCULOS (ENCLOSURES) ===
+1. ÚNICAMENTE reporta algo en 'enclosures' si el plano tiene la etiqueta TEXTUAL escrita de "arm", "A" o "armario".
+2. SI NO HAY TEXTO, NO ES UN ARMARIO. Es simplemente un saliente o un hueco que forma parte de la superficie de la habitación contigua.
+3. Ignora huecos vacíos por muy parecidos a armarios que parezcan. No queremos "adivinar" armarios.
+4. NUNCA incluyas armarios como habitaciones independientes en la lista 'rooms'.
 
 === REGLA DE DETECCIÓN DE ENTRADA (MANDATORIA) ===
 
