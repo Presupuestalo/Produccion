@@ -173,12 +173,13 @@ EJEMPLOS DE DETECCIí“N:
    → beforeType: "cocina_americana", afterType: "cocina_americana"
 
 Calcula los metros totales de tabiques eliminados y añadidos.
-MUY IMPORTANTE - CLASIFICACIÓN DE CAMBIOS ESTRUCTURALES:
-- Un tabique es "eliminado" (remove) si aparece en el plano "antes" cerrando un espacio y ya no está en el plano "después".
-- Un tabique es "añadido" (add) si aparece en el plano "después" creando nuevas divisiones que no existían en el "antes".
-- DETECCIÓN POR CAMBIO DE SUPERFICIE: Si una habitación (ej: H1, H2) ha cambiado de tamaño o forma entre planos, esto SIGNIFICA que el tabique se ha movido. Debes reportar la demolición del tabique antiguo y la formación del nuevo en su nueva posición. Estima los metros lineales basándote en la diferencia de geometría.
-- TABIQUES COMPARTIDOS/DIVISORIOS: Presta atención especial a las paredes que separan dos habitaciones (ej: entre Cocina y Baño, o Cocina y Salón). Si en el plano "después" esas dos estancias aparecen conectadas, abiertas o han cambiado su linde común, REPORTE la demolición de ese tabique compartido. No omitas derribos por el hecho de que las habitaciones sigan existiendo; si su frontera ha variado, ha habido obra.
-- VALOR DE MEDICIÓN: Es OBLIGATORIO que proporciones un valor numérico para 'estimatedLength' mayor que 0 si has detectado un cambio. 0 NO ES UN VALOR VÁLIDO. Usa las cotas o la escala visual para estimar al menos un valor aproximado (ej: 2.5).
+MUY IMPORTANTE - VISIÓN GLOBAL Y CAMBIOS GEOMÉTRICOS:
+1. EXAMEN HOLÍSTICO: Compara la geometría total de la planta. Si una habitación (ej: H1, Salón, Baño) ha cambiado sus cotas, proporciones o ubicación, esto IMPLICA POR DEFINICIÓN:
+   - El DERRIBO (remove) del tabique original que delimitaba esa zona.
+   - La CONSTRUCCIÓN (add) de un nuevo tabique en la nueva posición.
+2. NUNCA OMITAS DERRIBOS: Si antes había una linde entre dos habitaciones y ahora no está, o está en otro sitio, REPORTA el derribo de la vieja y la construcción de la nueva. No asumas que el tabique "se ha movido" sin obra; en reforma, mover un tabique es siempre derribar + construir.
+3. TABIQUERÍA POR DEFECTO: Considera que toda nueva formación de tabiques es de "placa de yeso laminado" (Pladur) a menos que el plano indique explícitamente ladrillo.
+4. METROS LINEALES (ml): Es OBLIGATORIO proporcionar un valor para 'estimatedLength' > 0 por cada cambio. Usa las escalas y cotas para ser lo más preciso posible (ej: "Pared separadora cocina-baño: 3.20ml").
 
 USA LAS COTAS NUMÉRICAS DEL PLANO (ej: 270 es 2.70m). Si un tabique no tiene cota directa, estima su longitud en metros lineales usando la escala de las habitaciones contiguas.
 REGLA MATEMÁTICA: El perímetro de un rectángulo es siempre 2 * (ancho + largo). No sumes paredes más de una vez.
