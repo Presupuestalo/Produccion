@@ -31,6 +31,7 @@ const analysisSchema = z.object({
             "salon_comedor",
             "comedor",
             "pasillo",
+            "hall",
             "terraza",
             "trastero",
             "otro",
@@ -50,6 +51,15 @@ const analysisSchema = z.object({
     )
     .describe("Lista de habitaciones detectadas"),
   summary: z.string().describe("Resumen del análisis en español"),
+  enclosures: z
+    .array(
+      z.object({
+        type: z.string().describe("Tipo de habitáculo (ej: armario, despensa)"),
+        area: z.number().describe("Área en m²"),
+      }),
+    )
+    .optional()
+    .describe("Pequeños habitáculos detectados que no son habitaciones completas (como armarios empotrados 'arm')"),
   confidence: z.number().min(0).max(100).describe("Nivel de confianza del análisis"),
 })
 
@@ -141,14 +151,18 @@ ABREVIACIONES INDIVIDUALES:
 - "V" = Vestidor → tipo: "otro", nombre: "Vestidor"
 - "L" = Lavadero → tipo: "otro", nombre: "Lavadero"
 - "SD" o "S-D" = Salón-Comedor → tipo: "salon_comedor", nombre: "Salón-Comedor"
-- "HLL" = Hall / Recibidor → tipo: "pasillo", nombre: "Recibidor"
-- "ASEO" = Baño pequeño → tipo: "bano", nombre: "Aseo"
-- "WC" = Baño/Aseo → tipo: "bano"
+- "HLL" = Hall / Recibidor → tipo: "hall", nombre: "Hall"
+- "ASEO" = Baño pequeño → tipo: "baño", nombre: "Aseo"
+- "WC" = Baño/Aseo → tipo: "baño"
+- "arm" = Armario empotrado → NO incluyas como habitación, repórtalo en el campo 'enclosures'.
 
 === REGLA DE DETECCIÓN DE ENTRADA (MANDATORIA) ===
 
-- La habitación más próxima a la puerta principal de la vivienda que no tenga un tipo claro, identifícala como "Recibidor" (tipo: pasillo).
-- Si ves la etiqueta "HLL", es inequívocamente el "Recibidor".
+- La habitación más próxima a la puerta principal de la vivienda que no tenga un tipo claro, identifícala como "Hall" (tipo: hall).
+- Si ves la etiqueta "HLL", es inequívocamente el "Hall".
+
+=== REGLA PARA HABITACIONES DESCONOCIDAS ===
+- Si detectas una habitación pero no puedes determinar su tipo según la lista, asígnale tipo: "otro" y pon el nombre que creas más descriptivo basado en las etiquetas del plano.
 
 === REGLA CRÍTICA DE COHERENCIA ===
 
@@ -184,7 +198,7 @@ CÁLCULOS OBLIGATORIOS:
 1. NUNCA NUMERAR estas habitaciones (solo hay una):
    - "Cocina", "Cocina Americana", "Cocina Abierta"
    - "Salón", "Salón-Comedor"
-   - "Comedor", "Pasillo", "Recibidor"
+   - "Comedor", "Pasillo", "Hall"
 
 2. SIEMPRE NUMERAR cuando hay más de una:
    - "Dormitorio 1", "Dormitorio 2", "Dormitorio 3"
@@ -200,12 +214,13 @@ CÁLCULOS OBLIGATORIOS:
    - "SC" → "Cocina Americana" (tipo: cocina_americana)
    - "B" → "Baño"
    - "S" → "Salón"
+   - "HLL" → "Hall"
 
 === TIPOS DE HABITACIÓN ===
 
 Usa exactamente estos valores:
 - dormitorio, bano, cocina, cocina_americana, cocina_abierta
-- salon, salon_comedor, comedor, pasillo, terraza, trastero, otro
+- salon, salon_comedor, comedor, pasillo, hall, terraza, trastero, otro
 
 === CARACTERÍSTICAS (en español) ===
 "ventana", "balcón", "armario empotrado", "puerta corredera", "bañera", "ducha", "bidé"

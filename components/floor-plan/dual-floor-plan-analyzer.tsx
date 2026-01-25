@@ -58,13 +58,14 @@ const CORRECCIONES_ORTOGRAFICAS: { [key: string]: string } = {
   jardin: "Jardín",
   cocina_americana: "Cocina Americana",
   cocina_abierta: "Cocina Abierta",
-  hall: "Recibidor",
-  hll: "Recibidor",
-  entrada: "Recibidor",
+  hall: "Hall",
+  hll: "Hall",
+  entrada: "Hall",
   dormitorio: "Dormitorio",
   trastero: "Trastero",
   vestidor: "Vestidor",
   pasillo: "Pasillo",
+  otro: "Otro",
 }
 
 function normalizeRoomType(type: string): any {
@@ -75,7 +76,7 @@ function normalizeRoomType(type: string): any {
   if (lowerType.includes("salon")) return "Salón"
   if (lowerType.includes("dormitorio")) return "Dormitorio"
   if (lowerType.includes("pasillo") || lowerType.includes("distribuidor")) return "Pasillo"
-  if (lowerType.includes("entrada") || lowerType.includes("hall") || lowerType.includes("hll")) return "Pasillo"
+  if (lowerType === "hall" || lowerType === "hll" || lowerType.includes("entrada") || lowerType.includes("recibidor")) return "Hall"
   if (lowerType.includes("terraza") || lowerType.includes("balcon")) return "Terraza"
   if (lowerType.includes("trastero")) return "Trastero"
   if (lowerType.includes("vestidor")) return "Vestidor"
@@ -85,7 +86,7 @@ function normalizeRoomType(type: string): any {
     if (lowerType.includes(key)) return value
   }
 
-  return capitalizeWords(type)
+  return "Otro"
 }
 
 function formatRoomName(room: any, index: number, allRooms: any[]): string {
@@ -496,9 +497,12 @@ export function DualFloorPlanAnalyzer({
 
       const defaultMaterials = getDefaultMaterials(room.type)
 
+      const normalizedType = normalizeRoomType(room.type)
+      const roomName = formatRoomName(room, i, filteredBeforeRooms)
+
       return {
         id: crypto.randomUUID(),
-        type: normalizeRoomType(room.type),
+        type: normalizedType as any,
         number: roomTypeCounts[room.type],
         width: room.width || 0,
         length: room.length || 0,
@@ -516,13 +520,14 @@ export function DualFloorPlanAnalyzer({
         demolishCeiling: false,
         removeFloor: true,
         removeWallTiles: false,
-        removeBathroomElements: room.type === "Baño",
-        removeKitchenFurniture: room.type === "Cocina",
+        removeBathroomElements: normalizedType === "Baño",
+        removeKitchenFurniture: normalizedType === "Cocina",
         removeBedroomFurniture: false,
-        removeSewagePipes: room.type === "Baño",
+        removeSewagePipes: normalizedType === "Baño",
         hasRadiator: false,
         measurementMode: "area-perimeter",
-        name: formatRoomName(room, i, filteredBeforeRooms),
+        name: roomName,
+        customRoomType: normalizedType === "Otro" ? room.name : undefined,
       }
     })
 
@@ -559,9 +564,12 @@ export function DualFloorPlanAnalyzer({
 
       const defaultMaterials = getDefaultMaterials(room.type)
 
+      const normalizedType = normalizeRoomType(room.type)
+      const roomName = formatRoomName(room, i, filteredAfterRooms)
+
       return {
         id: crypto.randomUUID(),
-        type: normalizeRoomType(room.type),
+        type: normalizedType as any,
         number: reformTypeCounts[room.type],
         width: room.width || 0,
         length: room.length || 0,
@@ -585,7 +593,8 @@ export function DualFloorPlanAnalyzer({
         removeSewagePipes: false,
         hasRadiator: false,
         measurementMode: "area-perimeter",
-        name: formatRoomName(room, i, filteredAfterRooms),
+        name: roomName,
+        customRoomType: normalizedType === "Otro" ? room.name : undefined,
       }
     })
 
@@ -906,6 +915,39 @@ export function DualFloorPlanAnalyzer({
                 <AlertTitle className="text-sm">Resumen de cambios</AlertTitle>
                 <AlertDescription>{comparison.summary}</AlertDescription>
               </Alert>
+
+              {(beforeAnalysis?.enclosures?.length > 0 || afterAnalysis?.enclosures?.length > 0) && (
+                <Alert className="bg-blue-50 border-blue-200">
+                  <AlertTriangle className="h-4 w-4 text-blue-600" />
+                  <AlertTitle className="text-blue-800 text-sm font-bold">Habitáculos detectados (revisión necesaria)</AlertTitle>
+                  <AlertDescription className="text-blue-700 text-xs">
+                    <p className="mb-2">
+                      Se han detectado huecos que podrían ser armarios o habitáculos auxiliares que no se han incluido automáticamente como habitaciones:
+                    </p>
+                    <ul className="list-disc ml-4 mb-2 space-y-1">
+                      {useSamePlan ? (
+                        // Si se usa el mismo plano, solo mostrar una vez
+                        beforeAnalysis?.enclosures?.map((e: any, i: number) => (
+                          <li key={`s-${i}`}>{e.type} detectado ({Number(e.area).toFixed(2)}m²)</li>
+                        ))
+                      ) : (
+                        // Si son planos distintos, mostrar ambos diferenciados
+                        <>
+                          {beforeAnalysis?.enclosures?.map((e: any, i: number) => (
+                            <li key={`b-${i}`} className="text-red-700/80 italic">Original: {e.type} ({Number(e.area).toFixed(2)}m²)</li>
+                          ))}
+                          {afterAnalysis?.enclosures?.map((e: any, i: number) => (
+                            <li key={`a-${i}`} className="text-green-700 font-medium">Reforma: {e.type} ({Number(e.area).toFixed(2)}m²)</li>
+                          ))}
+                        </>
+                      )}
+                    </ul>
+                    <p>
+                      <strong>Sugerencia:</strong> Comprueba estas zonas en el plano para decidir si deben formar parte de una habitación antes de generar el presupuesto.
+                    </p>
+                  </AlertDescription>
+                </Alert>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card>
