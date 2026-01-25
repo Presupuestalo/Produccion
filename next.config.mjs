@@ -8,6 +8,7 @@ const nextConfig = {
   },
   // Optimizar el output para Vercel
   output: 'standalone',
+  serverExternalPackages: ['@napi-rs/canvas'],
 }
 
 export default nextConfig

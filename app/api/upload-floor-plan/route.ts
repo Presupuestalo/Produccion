@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     const fileExt = file.name.split(".").pop()?.toLowerCase()
     const fileName = `floor-plans/${session.user.id}/${Date.now()}-${file.name.split(".")[0]}.${fileExt}`
 
-    const { data: uploadData, error: uploadError } = await supabase.storage.from("room-photos").upload(fileName, file, {
+    const { data: uploadData, error: uploadError } = await supabase.storage.from("planos-reconocidos").upload(fileName, file, {
       cacheControl: "3600",
       upsert: false,
     })
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
     const {
       data: { publicUrl },
-    } = supabase.storage.from("room-photos").getPublicUrl(fileName)
+    } = supabase.storage.from("planos-reconocidos").getPublicUrl(fileName)
 
     return NextResponse.json({ imageUrl: publicUrl })
   } catch (error: any) {

@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     console.log("[v0] API /room-photos/upload - Subiendo archivo a Storage:", fileName)
 
     // Subir archivo a Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage.from("room-photos").upload(fileName, file, {
+    const { data: uploadData, error: uploadError } = await supabase.storage.from("planos-reconocidos").upload(fileName, file, {
       cacheControl: "3600",
       upsert: false,
     })
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     // Obtener URL pública
     const {
       data: { publicUrl },
-    } = supabase.storage.from("room-photos").getPublicUrl(fileName)
+    } = supabase.storage.from("planos-reconocidos").getPublicUrl(fileName)
 
     console.log("[v0] API /room-photos/upload - URL pública:", publicUrl)
 
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     if (photoError) {
       console.error("[v0] API /room-photos/upload - Error al guardar referencia:", photoError)
       // Intentar eliminar el archivo subido
-      await supabase.storage.from("room-photos").remove([fileName])
+      await supabase.storage.from("pdfs").remove([fileName])
       return NextResponse.json({ error: `Error al guardar la foto: ${photoError.message}` }, { status: 500 })
     }
 

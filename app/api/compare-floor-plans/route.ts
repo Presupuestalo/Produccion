@@ -4,6 +4,7 @@ import { NextResponse } from "next/server"
 import { generateObject } from "ai"
 import { z } from "zod"
 import { groq, VISION_GROQ_MODEL } from "@/lib/ia/groq"
+import { convertPdfToImage, isPdf } from "@/lib/utils/pdf-to-image"
 
 export const maxDuration = 60
 
@@ -106,9 +107,17 @@ export async function POST(request: Request) {
         const response = await fetch(url)
         if (!response.ok) throw new Error(`Status ${response.status}`)
         const arrayBuffer = await response.arrayBuffer()
-        return Buffer.from(arrayBuffer)
+        let buffer = Buffer.from(new Uint8Array(arrayBuffer))
+
+        // Si es PDF, convertir a imagen
+        if (isPdf(buffer) || url.toLowerCase().endsWith(".pdf")) {
+          console.log(`[v0] Se detectó un PDF en ${url}, convirtiendo a imagen...`)
+          buffer = await convertPdfToImage(buffer as any)
+        }
+
+        return buffer
       } catch (err) {
-        console.warn(`[v0] No se pudo descargar imagen de ${url}, se enviará URL original:`, err)
+        console.warn(`[v0] No se pudo descargar o procesar imagen de ${url}, se enviará URL original:`, err)
         return url
       }
     }
@@ -164,6 +173,8 @@ EJEMPLOS DE DETECCIí“N:
    → beforeType: "cocina_americana", afterType: "cocina_americana"
 
 Calcula los metros totales de tabiques eliminados y añadidos.
+USA LAS COTAS NUMÉRICAS DEL PLANO (ej: 270 es 2.70m).
+REGLA MATEMÁTICA: El perímetro de un rectángulo es siempre 2 * (ancho + largo). No sumes paredes más de una vez.
 TODO EN ESPAÑOL.`,
             },
             {

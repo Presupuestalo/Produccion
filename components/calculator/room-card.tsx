@@ -947,6 +947,11 @@ export function RoomCard({
 
   // Formatear el título de la habitación
   const formatRoomTitle = () => {
+    // Si la habitación ya tiene un nombre formateado (ej: de la IA o manual), usarlo
+    if (room.name) {
+      return room.name
+    }
+
     // Para tipos específicos no mostrar número
     if (
       room.type === "Salón" ||

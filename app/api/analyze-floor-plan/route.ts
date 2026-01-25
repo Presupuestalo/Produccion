@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 import { generateObject } from "ai"
 import { z } from "zod"
 import { groq, VISION_GROQ_MODEL } from "@/lib/ia/groq"
+import { convertPdfToImage, isPdf } from "@/lib/utils/pdf-to-image"
 
 export const maxDuration = 60
 
@@ -64,20 +65,33 @@ export async function POST(request: Request) {
     console.log("[v0] Iniciando análisis de plano...")
     console.log("[v0] URL de imagen original:", imageUrl)
 
-    // Convertir imagen a Base64 para asegurar que Groq pueda acceder a ella
-    // Especialmente útil para desarrollo local si la URL es localhost
-    let imageContent: string | Buffer
+    // Descargar imagen y convertir si es PDF
+    let imageContent: Buffer
     try {
       const imageResponse = await fetch(imageUrl)
       if (!imageResponse.ok) {
         throw new Error(`Error al obtener la imagen: ${imageResponse.statusText}`)
       }
       const arrayBuffer = await imageResponse.arrayBuffer()
-      imageContent = Buffer.from(arrayBuffer)
-      console.log("[v0] Imagen descargada correctamente, tamaño:", imageContent.length)
-    } catch (fetchError) {
-      console.error("[v0] Error al descargar imagen, intentando usar URL directamente:", fetchError)
-      imageContent = imageUrl
+      let buffer = Buffer.from(new Uint8Array(arrayBuffer))
+      console.log("[v0] Archivo descargado correctamente, tamaño:", buffer.length, "bytes")
+
+      // Si es PDF, convertir a imagen
+      if (isPdf(buffer) || imageUrl.toLowerCase().endsWith(".pdf")) {
+        console.log("[v0] Se detectó un PDF, convirtiendo a imagen...")
+        buffer = await convertPdfToImage(buffer as any)
+      }
+
+      imageContent = buffer
+    } catch (fetchError: any) {
+      console.error("[v0] Error al procesar imagen:", fetchError)
+      return Response.json(
+        {
+          error: "Error al procesar el archivo del plano",
+          details: fetchError.message || "No se pudo descargar o convertir el archivo"
+        },
+        { status: 500 }
+      )
     }
 
     console.log("[v0] Usando modelo:", VISION_GROQ_MODEL)
@@ -127,9 +141,14 @@ ABREVIACIONES INDIVIDUALES:
 - "V" = Vestidor → tipo: "otro", nombre: "Vestidor"
 - "L" = Lavadero → tipo: "otro", nombre: "Lavadero"
 - "SD" o "S-D" = Salón-Comedor → tipo: "salon_comedor", nombre: "Salón-Comedor"
-- "E" = Entrada/Recibidor → tipo: "pasillo", nombre: "Recibidor"
+- "HLL" = Hall / Recibidor → tipo: "pasillo", nombre: "Recibidor"
 - "ASEO" = Baño pequeño → tipo: "bano", nombre: "Aseo"
 - "WC" = Baño/Aseo → tipo: "bano"
+
+=== REGLA DE DETECCIÓN DE ENTRADA (MANDATORIA) ===
+
+- La habitación más próxima a la puerta principal de la vivienda que no tenga un tipo claro, identifícala como "Recibidor" (tipo: pasillo).
+- Si ves la etiqueta "HLL", es inequívocamente el "Recibidor".
 
 === REGLA CRÍTICA DE COHERENCIA ===
 
@@ -143,12 +162,17 @@ Si no detectas cocina separada, busca si está integrada en otro espacio (SC, sa
 
 === INSTRUCCIONES DE ANÁLISIS ===
 
-1. Identifica TODAS las habitaciones visibles en el plano
-2. Interpreta las abreviaciones según la tabla de arriba
-3. Para cada habitación, estima sus dimensiones (ancho y largo)
-4. CALCULA EL PERÍMETRO: perimeter = 2 * width + 2 * length
+1. Identifica TODAS las habitaciones visibles en el plano.
+2. Interpreta las abreviaciones según la tabla de arriba.
+3. Para cada habitación, usa las MEDIDAS NUMÉRICAS (cotas) escritas en el plano (ej: 270, 330, 495).
+   - Si el plano dice 270, significa 2.70 metros.
+   - Si el plano dice 495, significa 4.95 metros.
+4. REGLA DE ORO PARA EL PERÍMETRO:
+   - Para habitaciones rectangulares: perimeter = 2 * (ancho + largo).
+   - NUNCA sumes paredes laterales más de una vez.
+   - Ejemplo: Si una Cocina mide 2.70 x 3.30, su perímetro es 12.00m. CUALQUIER OTRO RESULTADO ES UN ERROR.
 5. Cuenta puertas y ventanas para cada habitación.
-6. Si hay medidas/cotas visibles, úsalas. Si no, estima basándote en proporciones típicas
+6. Si no hay medidas visibles, estima basándote en proporciones típicas del resto del plano.
 
 CÁLCULOS OBLIGATORIOS:
 - Para cada habitación: perimeter = (2 × ancho) + (2 × largo)

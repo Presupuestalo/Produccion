@@ -58,6 +58,34 @@ const CORRECCIONES_ORTOGRAFICAS: { [key: string]: string } = {
   jardin: "Jardín",
   cocina_americana: "Cocina Americana",
   cocina_abierta: "Cocina Abierta",
+  hall: "Recibidor",
+  hll: "Recibidor",
+  entrada: "Recibidor",
+  dormitorio: "Dormitorio",
+  trastero: "Trastero",
+  vestidor: "Vestidor",
+  pasillo: "Pasillo",
+}
+
+function normalizeRoomType(type: string): any {
+  if (!type) return "Otro"
+  const lowerType = type.toLowerCase().trim()
+  if (lowerType.includes("bano")) return "Baño"
+  if (lowerType.includes("cocina")) return "Cocina"
+  if (lowerType.includes("salon")) return "Salón"
+  if (lowerType.includes("dormitorio")) return "Dormitorio"
+  if (lowerType.includes("pasillo") || lowerType.includes("distribuidor")) return "Pasillo"
+  if (lowerType.includes("entrada") || lowerType.includes("hall") || lowerType.includes("hll")) return "Pasillo"
+  if (lowerType.includes("terraza") || lowerType.includes("balcon")) return "Terraza"
+  if (lowerType.includes("trastero")) return "Trastero"
+  if (lowerType.includes("vestidor")) return "Vestidor"
+
+  // Intentar encontrar en correcciones ortográficas
+  for (const [key, value] of Object.entries(CORRECCIONES_ORTOGRAFICAS)) {
+    if (lowerType.includes(key)) return value
+  }
+
+  return capitalizeWords(type)
 }
 
 function formatRoomName(room: any, index: number, allRooms: any[]): string {
@@ -189,10 +217,10 @@ export function DualFloorPlanAnalyzer({
       return
     }
 
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > 5 * 1024 * 1024) {
       toast({
         title: "Archivo muy grande",
-        description: "El archivo no debe superar los 10MB",
+        description: "El archivo no debe superar los 5MB",
         variant: "destructive",
       })
       return
@@ -470,7 +498,7 @@ export function DualFloorPlanAnalyzer({
 
       return {
         id: crypto.randomUUID(),
-        type: room.type,
+        type: normalizeRoomType(room.type),
         number: roomTypeCounts[room.type],
         width: room.width || 0,
         length: room.length || 0,
@@ -533,7 +561,7 @@ export function DualFloorPlanAnalyzer({
 
       return {
         id: crypto.randomUUID(),
-        type: room.type,
+        type: normalizeRoomType(room.type),
         number: reformTypeCounts[room.type],
         width: room.width || 0,
         length: room.length || 0,

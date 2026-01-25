@@ -54,7 +54,7 @@ export async function DELETE(request: Request) {
     console.log("[v0] API /room-photos/delete - Eliminando archivo de Storage:", photoData.storage_path)
 
     // Eliminar archivo de Storage
-    const { error: storageError } = await supabase.storage.from("room-photos").remove([photoData.storage_path])
+    const { error: storageError } = await supabase.storage.from("planos-reconocidos").remove([photoData.storage_path])
 
     if (storageError) {
       console.error("[v0] API /room-photos/delete - Error al eliminar de Storage:", storageError)
