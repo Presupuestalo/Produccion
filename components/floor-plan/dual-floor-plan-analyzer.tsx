@@ -600,6 +600,38 @@ export function DualFloorPlanAnalyzer({
 
     onRoomsDetected(demolitionRooms, reformRooms)
 
+    // Extraer cambios de tabiquería si existen
+    if (comparison && onPartitionsDetected) {
+      const wallChanges: Array<{ location: string; length: number; type: "remove" | "add" }> = []
+
+      // Procesar tabiques eliminados
+      if (comparison.wallsRemoved && Array.isArray(comparison.wallsRemoved)) {
+        comparison.wallsRemoved.forEach((wall: any) => {
+          wallChanges.push({
+            location: wall.location || "Tabique antes",
+            length: wall.estimatedLength || 0,
+            type: "remove"
+          })
+        })
+      }
+
+      // Procesar tabiques añadidos
+      if (comparison.wallsAdded && Array.isArray(comparison.wallsAdded)) {
+        comparison.wallsAdded.forEach((wall: any) => {
+          wallChanges.push({
+            location: wall.location || "Tabique reforma",
+            length: wall.estimatedLength || 0,
+            type: "add"
+          })
+        })
+      }
+
+      if (wallChanges.length > 0) {
+        console.log("[v0] Enviando cambios de tabiquería detectados:", wallChanges)
+        onPartitionsDetected(wallChanges)
+      }
+    }
+
     toast({
       title: "Importación completada",
       description: `Se han importado ${demolitionRooms.length} habitaciones a demolición y ${reformRooms.length} a reforma`,

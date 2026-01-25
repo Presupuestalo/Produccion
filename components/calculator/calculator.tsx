@@ -1797,18 +1797,51 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       handleRoomsDetectedFromFloorPlan(demolitionRooms, reformRooms)
     },
     handlePartitionsDetectedFromFloorPlan: (detectedPartitions: any[]) => {
-      const formattedPartitions = detectedPartitions.map((p: any) => ({
-        id: crypto.randomUUID(), // Usar crypto.randomUUID para IDs únicos
-        material: p.material || "Placa de yeso laminado",
-        composition: p.composition || "Simple",
-        length: p.length || 0,
-        height: p.height || demolitionConfig.standardHeight || 2.6, // Usar demolitionConfig.standardHeight
-      }))
-      setPartitions((prev: Partition[]) => [...prev, ...formattedPartitions])
-      if (detectedPartitions.length > 0) {
+      // 1. Separar tabiques nuevos (add) de derribos (remove)
+      const newPartitions = detectedPartitions.filter(p => !p.type || p.type === 'add')
+      const removalPartitions = detectedPartitions.filter(p => p.type === 'remove')
+
+      // 2. Procesar Tabiques Nuevos (Construcción)
+      if (newPartitions.length > 0) {
+        const formattedNew = newPartitions.map((p: any) => ({
+          id: crypto.randomUUID(),
+          material: "Placa de yeso laminado",
+          composition: p.composition || "Simple",
+          length: p.length || 0,
+          height: p.height || demolitionConfig.standardHeight || 2.6,
+        }))
+        setPartitions((prev: any[]) => [...prev, ...formattedNew])
+      }
+
+      // 3. Procesar Derribos de Tabiques (Demolición)
+      if (removalPartitions.length > 0) {
+        const formattedRemovals = removalPartitions.map((p: any) => ({
+          id: crypto.randomUUID(),
+          length: p.length || 0,
+          thickness: 10, // Grosor por defecto solicitado
+          wallHeight: demolitionConfig.standardHeight || 2.6,
+        }))
+
+        setDemolitionConfig((prev: any) => ({
+          ...prev,
+          wallDemolitions: [...(prev.wallDemolitions || []), ...formattedRemovals]
+        }))
+      }
+
+      // 4. Mostrar notificaciones de éxito
+      if (newPartitions.length > 0 || removalPartitions.length > 0) {
+        let message = ""
+        if (newPartitions.length > 0 && removalPartitions.length > 0) {
+          message = `Se han detectado ${newPartitions.length} tabiques nuevos y ${removalPartitions.length} derribos.`
+        } else if (newPartitions.length > 0) {
+          message = `Se han detectado ${newPartitions.length} tabiques nuevos.`
+        } else {
+          message = `Se han detectado ${removalPartitions.length} derribos de tabiques.`
+        }
+
         toast({
-          title: "Tabiques detectados",
-          description: `Se han añadido ${formattedPartitions.length} tabiques nuevos.`,
+          title: "Cambios estructurales detectados",
+          description: message,
         })
       }
     },
