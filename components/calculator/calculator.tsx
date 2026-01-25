@@ -1805,9 +1805,8 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       if (newPartitions.length > 0) {
         const formattedNew = newPartitions.map((p: any) => ({
           id: crypto.randomUUID(),
-          material: "Placa de yeso laminado",
-          composition: p.composition || "Simple",
-          length: p.length || 0,
+          type: "placa_yeso",
+          linearMeters: p.length || 0,
           height: p.height || demolitionConfig.standardHeight || 2.6,
         }))
         setPartitions((prev: any[]) => [...prev, ...formattedNew])

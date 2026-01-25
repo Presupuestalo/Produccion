@@ -157,12 +157,9 @@ ABREVIACIONES INDIVIDUALES:
 - "arm", "A", "armario" = Armario empotrado → Repórtalo en el campo 'enclosures'.
 
 === REGLAS ESTRICTAS PARA HABITÁCULOS (ENCLOSURES) ===
-1. SOLO considera 'enclosure' si:
-   - Tiene una etiqueta explícita como "arm", "A" o "armario".
-   - O está DELIMITADO POR 4 LADOS y se encuentra en un Dormitorio, Pasillo o Hall.
-2. NUNCA detectes armarios en Baños o Cocinas a menos que la etiqueta sea explícita. 
-3. Si el hueco no tiene etiqueta y es abierto hacia la habitación, NO es un armario, es parte de la superficie de la habitación.
-4. NUNCA incluyas armarios como habitaciones independientes en la lista 'rooms'.
+1. SOLO considera 'enclosure' si tiene una etiqueta EXPLÍCITA escrita en el plano como "arm", "A" o "armario".
+2. NO detectes huecos o espacios vacíos como armarios si no tienen la etiqueta, aunque parezcan serlo. En ese caso, su superficie debe formar parte de la habitación contigua.
+3. NUNCA incluyas armarios como habitaciones independientes en la lista 'rooms'.
 
 === REGLA DE DETECCIÓN DE ENTRADA (MANDATORIA) ===
 
