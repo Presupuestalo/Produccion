@@ -404,6 +404,7 @@ const REFORM_TYPES = [
   { value: "suelos", label: "Cambio de Suelos / Parquet" },
   { value: "ventanas", label: "Cambio de Ventanas / Cerramientos" },
   { value: "electricidad", label: "Instalación Eléctrica Completa" },
+  { value: "other", label: "Otro (Especificar)" },
 ]
 
 export default function EstimacionRapidaPage() {
@@ -416,6 +417,7 @@ export default function EstimacionRapidaPage() {
 
   const [formData, setFormData] = useState({
     reformType: "integral",
+    customReformType: "",
     squareMeters: "",
     rooms: "",
     bathrooms: "",
@@ -452,6 +454,11 @@ export default function EstimacionRapidaPage() {
       numWindows: "3",
       windowType: "pvc",
     },
+    paintOptions: {
+      hasGotele: true,
+      action: "alisar_paint", // paint_only, alisar_paint
+      hallwayLength: "4", // linear meters
+    },
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -469,11 +476,17 @@ export default function EstimacionRapidaPage() {
     const newErrors: Record<string, string> = {}
 
     if (!formData.reformType) newErrors.reformType = "Selecciona el tipo de reforma"
+    if (formData.reformType === "other" && !formData.customReformType) newErrors.customReformType = "Especifica el tipo de reforma"
     if (!formData.squareMeters) newErrors.squareMeters = "Selecciona los metros cuadrados"
 
     // Solo validar habitaciones y baños si es reforma integral
-    if (formData.reformType === "integral") {
+    // Validar habitaciones si es integral o pintura
+    if (formData.reformType === "integral" || formData.reformType === "pintura") {
       if (!formData.rooms) newErrors.rooms = "Selecciona el número de dormitorios"
+    }
+
+    // Validar baños solo si es integral
+    if (formData.reformType === "integral") {
       if (!formData.bathrooms) newErrors.bathrooms = "Selecciona el número de baños"
     }
 
@@ -648,6 +661,22 @@ export default function EstimacionRapidaPage() {
                 {errors.reformType && <p className="text-red-400 text-xs">{errors.reformType}</p>}
               </div>
 
+              {formData.reformType === "other" && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
+                  <Label htmlFor="customReformType" className="text-white">
+                    Especifica tu tipo de reforma <span className="text-red-400">*</span>
+                  </Label>
+                  <Input
+                    id="customReformType"
+                    placeholder="Ej: Fachada, piscina, garaje..."
+                    value={formData.customReformType}
+                    onChange={(e) => setFormData({ ...formData, customReformType: e.target.value })}
+                    className={`bg-gray-900/50 border-gray-700 text-white ${errors.customReformType ? "border-red-500" : ""}`}
+                  />
+                  {errors.customReformType && <p className="text-red-400 text-xs">{errors.customReformType}</p>}
+                </div>
+              )}
+
               <div className="grid md:grid-cols-2 gap-4">
                 <div className={`space-y-2 ${formData.reformType === "integral" ? "md:col-span-2" : "md:col-span-2"}`}>
                   <Label htmlFor="squareMeters" className="text-white">
@@ -657,7 +686,9 @@ export default function EstimacionRapidaPage() {
                         ? "Superficie de la Cocina"
                         : formData.reformType === "baño"
                           ? "Superficie del Baño"
-                          : "Superficie a Reformar"} <span className="text-red-400">*</span>
+                          : formData.reformType === "pintura"
+                            ? "Superficie de la Vivienda"
+                            : "Superficie a Reformar"} <span className="text-red-400">*</span>
                   </Label>
                   <Select
                     value={formData.squareMeters}
@@ -740,11 +771,12 @@ export default function EstimacionRapidaPage() {
                   {errors.squareMeters && <p className="text-red-400 text-xs">{errors.squareMeters}</p>}
                 </div>
 
-                {formData.reformType === "integral" && (
+                {(formData.reformType === "integral" || formData.reformType === "pintura") && (
                   <>
                     <div className="space-y-2">
                       <Label htmlFor="rooms" className="text-white">
                         Dormitorios <span className="text-red-400">*</span>
+                        {formData.reformType === "pintura" && <span className="text-gray-500 text-[10px] ml-2">(+ Salón asumido)</span>}
                       </Label>
                       <Select
                         value={formData.rooms}
@@ -769,35 +801,37 @@ export default function EstimacionRapidaPage() {
                       {errors.rooms && <p className="text-red-400 text-xs">{errors.rooms}</p>}
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="bathrooms" className="text-white">
-                        Baños <span className="text-red-400">*</span>
-                      </Label>
-                      <Select
-                        value={formData.bathrooms}
-                        onValueChange={(value) => {
-                          setFormData({ ...formData, bathrooms: value })
-                          setErrors({ ...errors, bathrooms: "" })
-                        }}
-                      >
-                        <SelectTrigger
-                          className={`bg-gray-900/50 border-gray-700 text-white ${errors.bathrooms ? "border-red-500" : ""}`}
+                    {formData.reformType === "integral" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="bathrooms" className="text-white">
+                          Baños <span className="text-red-400">*</span>
+                        </Label>
+                        <Select
+                          value={formData.bathrooms}
+                          onValueChange={(value) => {
+                            setFormData({ ...formData, bathrooms: value })
+                            setErrors({ ...errors, bathrooms: "" })
+                          }}
                         >
-                          <SelectValue className="text-white" placeholder="Selecciona" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">1 baño</SelectItem>
-                          <SelectItem value="2">2 baños</SelectItem>
-                          <SelectItem value="3">3 baños</SelectItem>
-                          <SelectItem value="4">4+ baños</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {errors.bathrooms && <p className="text-red-400 text-xs">{errors.bathrooms}</p>}
-                    </div>
+                          <SelectTrigger
+                            className={`bg-gray-900/50 border-gray-700 text-white ${errors.bathrooms ? "border-red-500" : ""}`}
+                          >
+                            <SelectValue className="text-white" placeholder="Selecciona" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1 baño</SelectItem>
+                            <SelectItem value="2">2 baños</SelectItem>
+                            <SelectItem value="3">3 baños</SelectItem>
+                            <SelectItem value="4">4+ baños</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {errors.bathrooms && <p className="text-red-400 text-xs">{errors.bathrooms}</p>}
+                      </div>
+                    )}
                   </>
                 )}
 
-                {formData.reformType === "cocina" && (
+                {(formData.reformType === "cocina" || formData.reformType === "integral") && (
                   <div className="md:col-span-2 space-y-4 p-5 bg-gray-950/80 border border-gray-600 rounded-xl shadow-inner">
                     <h4 className="text-sm font-bold text-green-400 uppercase tracking-wider flex items-center gap-2">
                       <Sparkles className="h-4 w-4" />
@@ -1118,7 +1152,7 @@ export default function EstimacionRapidaPage() {
                   </div>
                 )}
 
-                {formData.reformType === "ventanas" && (
+                {(formData.reformType === "ventanas" || formData.reformType === "integral") && (
                   <div className="md:col-span-2 space-y-4 p-5 bg-gray-950/80 border border-gray-600 rounded-xl shadow-inner text-white">
                     <h4 className="text-sm font-bold text-blue-400 uppercase tracking-wider flex items-center gap-2">
                       <Sparkles className="h-4 w-4" />
@@ -1170,6 +1204,74 @@ export default function EstimacionRapidaPage() {
                         </Select>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {(formData.reformType === "pintura" || formData.reformType === "integral") && (
+                  <div className="md:col-span-2 space-y-4 p-5 bg-gray-950/80 border border-gray-600 rounded-xl shadow-inner text-white">
+                    <h4 className="text-sm font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      Detalles de Pintura y Paredes
+                    </h4>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-xs text-gray-400">Estado Actual de Paredes</Label>
+                        <Select
+                          value={formData.paintOptions.hasGotele ? "gotele" : "smooth"}
+                          onValueChange={(val) => setFormData({
+                            ...formData,
+                            paintOptions: { ...formData.paintOptions, hasGotele: val === "gotele" }
+                          })}
+                        >
+                          <SelectTrigger className="bg-gray-900/50 border-gray-700 text-sm h-8 text-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="gotele">Tiene Gotelé (Paredes con grano)</SelectItem>
+                            <SelectItem value="smooth">Paredes Lisas</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-gray-400">Trabajo a Realizar</Label>
+                        <Select
+                          value={formData.paintOptions.action}
+                          onValueChange={(val) => setFormData({
+                            ...formData,
+                            paintOptions: { ...formData.paintOptions, action: val }
+                          })}
+                        >
+                          <SelectTrigger className="bg-gray-900/50 border-gray-700 text-sm h-8 text-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="paint_only">Solo Pintar (Mismo estado)</SelectItem>
+                            <SelectItem value="alisar_paint">Quitar Gotelé / Alisar + Pintar</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-gray-400">Pasillo (Metros lineales aprox.)</Label>
+                        <div className="flex items-center gap-3">
+                          <Input
+                            type="number"
+                            value={formData.paintOptions.hallwayLength}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              paintOptions: { ...formData.paintOptions, hallwayLength: e.target.value }
+                            })}
+                            className="bg-gray-900/50 border-gray-700 text-sm h-8 text-white w-20"
+                            min="0"
+                            max="50"
+                            step="0.5"
+                          />
+                          <span className="text-xs text-gray-400">metros</span>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-gray-500 italic">
+                      * Nota: Se asume una altura estándar de 2.5m - 2.8m y acabados base en salón.
+                    </p>
                   </div>
                 )}
               </div>
@@ -1359,26 +1461,31 @@ export default function EstimacionRapidaPage() {
                   <div className="space-y-4">
                     {estimation.breakdown
                       ?.filter((item: any) => {
-                        // Extraer números del string (quitar símbolos de moneda, puntos de miles y espacios)
-                        // y verificar si el valor numérico es mayor que cero
                         const numericValue = parseFloat(item.amount.replace(/[^\d]/g, ""))
                         return numericValue > 0
                       })
                       .map((item: any, index: number) => (
                         <div
                           key={index}
-                          className="flex justify-between items-center pb-4 border-b border-gray-700 last:border-0"
+                          className="py-4 border-b border-gray-700 last:border-0"
                         >
-                          <span className="text-gray-300 pr-4">{item.category}</span>
-                          <span className="font-semibold text-white whitespace-nowrap ml-4">
-                            {item.amount}
-                          </span>
+                          <div className="flex justify-between items-start mb-1 gap-4">
+                            <span className="text-gray-200 font-medium">{item.category}</span>
+                            <span className="font-semibold text-white whitespace-nowrap">
+                              {item.amount}
+                            </span>
+                          </div>
+                          {item.description && (
+                            <p className="text-xs text-gray-400 leading-relaxed italic">
+                              {item.description}
+                            </p>
+                          )}
                         </div>
                       ))}
                   </div>
                 </Card>
-                {/* Legal Info */}
-                {estimation.legalInfo && (
+                {/* Legal Info - Only for major reforms */}
+                {estimation.legalInfo && ["integral", "cocina", "baño"].includes(formData.reformType) && (
                   <Card className="bg-gray-800/50 border-blue-500/30 p-8 shadow-lg">
                     <div className="flex items-center gap-3 mb-6">
                       <Gavel className="h-6 w-6 text-blue-400" />
@@ -1410,6 +1517,39 @@ export default function EstimacionRapidaPage() {
                           Consulta trámites en la sede oficial de {formData.city}
                         </p>
                       </div>
+                    </div>
+                  </Card>
+                )}
+
+                {/* Grants Info - Only for Spain */}
+                {estimation.grantsInfo && formData.country.toLowerCase() === "españa" && (
+                  <Card className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border-purple-500/30 p-8 shadow-lg">
+                    <div className="flex items-center gap-3 mb-6">
+                      <Sparkles className="h-6 w-6 text-purple-400" />
+                      <h3 className="text-xl font-bold text-white">Ayudas y Subvenciones</h3>
+                    </div>
+
+                    <div className="space-y-4">
+                      <p className="text-gray-300 text-sm leading-relaxed">
+                        {estimation.grantsInfo.details}
+                      </p>
+
+                      {estimation.grantsInfo.links && estimation.grantsInfo.links.length > 0 && (
+                        <div className="flex flex-wrap gap-3 mt-4">
+                          {estimation.grantsInfo.links.map((link: any, index: number) => (
+                            <Button
+                              key={index}
+                              variant="outline"
+                              size="sm"
+                              className="border-purple-500/50 bg-purple-900/20 text-purple-200 hover:bg-purple-800"
+                              onClick={() => window.open(link.url, '_blank')}
+                            >
+                              <ExternalLink className="mr-2 h-3 w-3" />
+                              {link.label}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </Card>
                 )}
@@ -1599,6 +1739,6 @@ export default function EstimacionRapidaPage() {
         userName={userProfile?.full_name || userProfile?.company_name || ""}
         userPhone={userProfile?.phone || ""}
       />
-    </div>
+    </div >
   )
 }

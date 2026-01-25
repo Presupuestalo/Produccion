@@ -100,6 +100,24 @@ export async function POST(request: Request) {
     console.log("[v0] - Before:", beforeImageUrl)
     console.log("[v0] - After:", afterImageUrl)
 
+    // Descargar imágenes antes de enviarlas a Groq
+    async function fetchImage(url: string) {
+      try {
+        const response = await fetch(url)
+        if (!response.ok) throw new Error(`Status ${response.status}`)
+        const arrayBuffer = await response.arrayBuffer()
+        return Buffer.from(arrayBuffer)
+      } catch (err) {
+        console.warn(`[v0] No se pudo descargar imagen de ${url}, se enviará URL original:`, err)
+        return url
+      }
+    }
+
+    const [beforeContent, afterContent] = await Promise.all([
+      fetchImage(beforeImageUrl),
+      fetchImage(afterImageUrl)
+    ])
+
     const result = await generateObject({
       model: groq(VISION_GROQ_MODEL),
       schema: comparisonSchema,
@@ -112,7 +130,7 @@ export async function POST(request: Request) {
               text: `Eres un arquitecto español experto en reformas. Compara estos dos planos arquitectónicos.
 
 El PRIMER plano es el estado ACTUAL (ANTES de la reforma).
-El SEGUNDO plano es el estado FUTURO (DESPUí‰S de la reforma).
+El SEGUNDO plano es el estado FUTURO (DESPUÉS de la reforma).
 
 ANALIZA DETALLADAMENTE:
 
@@ -122,12 +140,12 @@ ANALIZA DETALLADAMENTE:
 4. **Tabiques eliminados**: Paredes derribadas (estima metros lineales)
 5. **Tabiques añadidos**: Nuevas paredes (estima metros lineales)
 
-MUY IMPORTANTE - TRANSFORMACIí“N DE LA COCINA:
+MUY IMPORTANTE - TRANSFORMACIÓN DE LA COCINA:
 
 Detecta si la cocina cambió de tipo entre el plano "antes" y "después":
 
 - **cocina**: Cocina tradicional, cerrada, separada del resto por paredes
-- **cocina_americana**: Cocina ABIERTA AL SALí“N, sin pared de separación entre cocina y salón. 
+- **cocina_americana**: Cocina ABIERTA AL SALÓN, sin pared de separación entre cocina y salón. 
   Se detecta cuando en el plano "después" se eliminó la pared entre cocina y salón, 
   creando un espacio único donde se ve cocina y salón conectados visualmente.
 - **cocina_abierta**: Cocina AMPLIADA pero que sigue siendo independiente del salón.
@@ -137,24 +155,24 @@ Detecta si la cocina cambió de tipo entre el plano "antes" y "después":
 EJEMPLOS DE DETECCIí“N:
 
 1. Si en "antes" la cocina tenía pared con el salón y en "después" no hay pared:
-   â†’ beforeType: "cocina", afterType: "cocina_americana"
+   → beforeType: "cocina", afterType: "cocina_americana"
    
 2. Si en "antes" la cocina era pequeña y en "después" es más grande pero sigue cerrada:
-   â†’ beforeType: "cocina", afterType: "cocina_abierta"
+   → beforeType: "cocina", afterType: "cocina_abierta"
    
 3. Si en "antes" ya estaba abierta al salón y sigue igual:
-   â†’ beforeType: "cocina_americana", afterType: "cocina_americana"
+   → beforeType: "cocina_americana", afterType: "cocina_americana"
 
 Calcula los metros totales de tabiques eliminados y añadidos.
-TODO EN ESPAí‘OL.`,
+TODO EN ESPAÑOL.`,
             },
             {
               type: "image",
-              image: beforeImageUrl,
+              image: beforeContent,
             },
             {
               type: "image",
-              image: afterImageUrl,
+              image: afterContent,
             },
           ],
         },

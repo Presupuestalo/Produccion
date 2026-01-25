@@ -49,7 +49,7 @@ export function AddressSelector({
   required = false,
   disabled = false,
   showStreet = true,
-  showPostalCode = true,
+  showPostalCode = false,
   countryLabel = "País",
   provinceLabel = "Provincia",
   cityLabel = "Ciudad",

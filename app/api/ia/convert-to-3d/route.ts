@@ -82,11 +82,30 @@ export async function POST(request: NextRequest) {
       data: { publicUrl },
     } = supabase.storage.from("pdfs").getPublicUrl(fileName)
 
+    // Descargar imagen antes de enviarla a Groq
+    let imageContent: string | Buffer
+    try {
+      const imageResponse = await fetch(publicUrl)
+      if (!imageResponse.ok) throw new Error(`Status ${imageResponse.status}`)
+      const arrayBuffer = await imageResponse.arrayBuffer()
+      imageContent = Buffer.from(arrayBuffer)
+      console.log("[v0] Imagen para 3D descargada correctamente")
+    } catch (err) {
+      console.warn("[v0] No se pudo descargar imagen para 3D, usando URL:", err)
+      imageContent = publicUrl
+    }
+
     const { object } = await generateObject({
       model: groq(VISION_GROQ_MODEL),
       schema: floorPlanSchema,
-      prompt: `Analiza este plano arquitectónico 2D y extrae la información de las habitaciones, paredes, puertas y ventanas.
-
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `Analiza este plano arquitectónico 2D y extrae la información de las habitaciones, paredes, puertas y ventanas para convertirlo a un modelo 3D.
+              
 Proporciona la información con la siguiente estructura:
 - rooms: array de habitaciones, cada una con:
   - id: identificador único (ej: "room-1", "room-2")
@@ -95,11 +114,15 @@ Proporciona la información con la siguiente estructura:
   - position: posición x, y, z en el espacio 3D
   - walls: array de paredes con puntos de inicio y fin { x, y }
   - doors: array de puertas con posición { x, y } y ancho
-  - windows: array de ventanas con posición { x, y }, ancho y altura
-
-Imagen del plano: ${publicUrl}
-
-Si no puedes analizar la imagen, crea un ejemplo básico con 2-3 habitaciones.`,
+  - windows: array de ventanas con posición { x, y }, ancho y altura`,
+            },
+            {
+              type: "image",
+              image: imageContent,
+            },
+          ],
+        },
+      ],
     })
 
     console.log("[v0] Floor plan analysis result:", object)

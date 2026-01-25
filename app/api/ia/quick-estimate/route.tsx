@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { generateObject, generateText } from "ai"
+import { generateText } from "ai"
 import { z } from "zod"
 import { supabaseAdmin as supabase } from "@/lib/supabase-admin"
 import { groq, DEFAULT_GROQ_MODEL, FAST_GROQ_MODEL } from "@/lib/ia/groq"
@@ -9,118 +9,55 @@ export const dynamic = "force-dynamic"
 function getCurrencyForCountry(countryInput: string): { code: string; symbol: string } {
   const normalized = countryInput.toLowerCase().trim()
 
-  // Mapa de variantes de nombres de países a moneda
   const countryVariants: Record<string, { code: string; symbol: string }> = {
-    // España
     españa: { code: "EUR", symbol: "€" },
     spain: { code: "EUR", symbol: "€" },
-
-    // Estados Unidos
     eeuu: { code: "USD", symbol: "$" },
     usa: { code: "USD", symbol: "$" },
     "estados unidos": { code: "USD", symbol: "$" },
     "united states": { code: "USD", symbol: "$" },
     us: { code: "USD", symbol: "$" },
     america: { code: "USD", symbol: "$" },
-
-    // México
     méxico: { code: "MXN", symbol: "$" },
     mexico: { code: "MXN", symbol: "$" },
-
-    // Argentina
     argentina: { code: "ARS", symbol: "$" },
-
-    // Colombia
     colombia: { code: "COP", symbol: "$" },
-
-    // Chile
     chile: { code: "CLP", symbol: "$" },
-
-    // Perú
     perú: { code: "PEN", symbol: "S/" },
     peru: { code: "PEN", symbol: "S/" },
-
-    // Francia
     francia: { code: "EUR", symbol: "€" },
     france: { code: "EUR", symbol: "€" },
-
-    // Alemania
     alemania: { code: "EUR", symbol: "€" },
     germany: { code: "EUR", symbol: "€" },
-
-    // Italia
     italia: { code: "EUR", symbol: "€" },
     italy: { code: "EUR", symbol: "€" },
-
-    // Portugal
     portugal: { code: "EUR", symbol: "€" },
-
-    // Reino Unido
     "reino unido": { code: "GBP", symbol: "£" },
     uk: { code: "GBP", symbol: "£" },
     "united kingdom": { code: "GBP", symbol: "£" },
     inglaterra: { code: "GBP", symbol: "£" },
     england: { code: "GBP", symbol: "£" },
-
-    // Brasil
     brasil: { code: "BRL", symbol: "R$" },
     brazil: { code: "BRL", symbol: "R$" },
-
-    // Uruguay
     uruguay: { code: "UYU", symbol: "$" },
-
-    // Venezuela
     venezuela: { code: "VES", symbol: "Bs" },
-
-    // Ecuador
     ecuador: { code: "USD", symbol: "$" },
-
-    // Bolivia
     bolivia: { code: "BOB", symbol: "Bs" },
-
-    // Paraguay
     paraguay: { code: "PYG", symbol: "₲" },
-
-    // Costa Rica
     "costa rica": { code: "CRC", symbol: "₡" },
-
-    // Panamá
     panamá: { code: "USD", symbol: "$" },
     panama: { code: "USD", symbol: "$" },
-
-    // República Dominicana
     "república dominicana": { code: "DOP", symbol: "$" },
     "republica dominicana": { code: "DOP", symbol: "$" },
     "dominican republic": { code: "DOP", symbol: "$" },
-
-    // Guatemala
     guatemala: { code: "GTQ", symbol: "Q" },
-
-    // Honduras
     honduras: { code: "HNL", symbol: "L" },
-
-    // Nicaragua
     nicaragua: { code: "NIO", symbol: "C$" },
-
-    // El Salvador
     "el salvador": { code: "USD", symbol: "$" },
   }
 
   return countryVariants[normalized] || { code: "EUR", symbol: "€" }
 }
-
-const estimationSchema = z.object({
-  priceRange: z.string(),
-  breakdown: z.array(
-    z.object({
-      category: z.string(),
-      amount: z.string(),
-    }),
-  ),
-  recommendations: z.array(z.string()),
-  budgetWarning: z.string().optional(),
-  budgetAdvice: z.array(z.string()).optional(),
-})
 
 async function validateCity(city: string, country: string): Promise<{ isValid: boolean; suggestion?: string }> {
   try {
@@ -134,16 +71,9 @@ Responde SOLO con un JSON en este formato exacto:
   "suggestion": "nombre correcto de la ciudad si hay un error tipográfico, o null si la ciudad no existe"
 }
 
-Ejemplos:
-- Si la ciudad es "chimping" en México: {"isValid": false, "suggestion": null}
-- Si la ciudad es "guanajato" en México: {"isValid": false, "suggestion": "Guanajuato"}
-- Si la ciudad es "Nueva York" en EEUU: {"isValid": true, "suggestion": null}
-- Si la ciudad es "Bilbao" en España: {"isValid": true, "suggestion": null}
-
 Responde SOLO el JSON, sin texto adicional.`,
     })
 
-    // Intentar parsear la respuesta como JSON
     const cleanText = text
       .trim()
       .replace(/```json\n?/g, "")
@@ -152,7 +82,6 @@ Responde SOLO el JSON, sin texto adicional.`,
     return result
   } catch (error) {
     console.error("[v0] Error validando ciudad:", error)
-    // Si hay error, asumimos que la ciudad es válida para no bloquear al usuario
     return { isValid: true }
   }
 }
@@ -200,7 +129,6 @@ async function sendEstimationNotification(data: {
         <p><em>Este email fue generado automáticamente desde Presupuéstalo.</em></p>
       `,
     })
-    console.log("[v0] Email de notificación enviado exitosamente")
   } catch (error) {
     console.error("[v0] Error enviando email de notificación:", error)
   }
@@ -209,7 +137,7 @@ async function sendEstimationNotification(data: {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { reformType, squareMeters, rooms, bathrooms, country, city, heatingType, features, kitchenOptions, bathroomOptions, floorOptions, windowOptions } = body
+    const { reformType, customReformType, squareMeters, rooms, bathrooms, country, city, heatingType, features, kitchenOptions, bathroomOptions, floorOptions, windowOptions, paintOptions } = body
 
     const cityValidation = await validateCity(city, country)
 
@@ -248,17 +176,6 @@ export async function POST(request: NextRequest) {
 
     const heatingDetail = heatingDescriptions[heatingType] || (['suelos', 'pintura', 'ventanas'].includes(reformType) ? 'No relevante para este tipo de obra' : heatingType)
 
-    console.log("[v0] Generando estimación con datos:", {
-      reformType,
-      squareMeters,
-      rooms,
-      bathrooms,
-      country,
-      city,
-      heatingType,
-      currency,
-    })
-
     const { text: estimationText } = await generateText({
       model: groq(DEFAULT_GROQ_MODEL),
       prompt: `Eres un experto en presupuestos de reformas en ${country}.
@@ -283,9 +200,11 @@ export async function POST(request: NextRequest) {
  =================================================
  
  REGLA DE PRECISIÓN SEGÚN TIPO DE REFORMA:
- - Si el tipo es "${reformType}", enfócate en los costes específicos de esa área.
+ - Si el tipo es "${reformType === 'other' ? customReformType : reformType}", enfócate en los costes específicos de esa área.
  - Una reforma "integral" incluye todo. Una reforma de "cocina" o "baño" debe ser mucho más específica en esos m².
- ${reformType === 'cocina' && kitchenOptions ? `
+ - Si el usuario seleccionó "Otro", el tipo específico de reforma es: "${customReformType}". Basa tus cálculos enteramente en esta descripción.
+ 
+  ${(reformType === 'cocina' || reformType === 'integral') && kitchenOptions ? `
  DETALLES ESPECÍFICOS DE LA COCINA:
  - Mobiliario: ${kitchenOptions.cabinets ? 'Incluir armarios nuevos' : 'No incluir armarios'}
  - Isla/Península: ${kitchenOptions.island ? 'Sí, incluir' : 'No'}
@@ -314,53 +233,44 @@ export async function POST(request: NextRequest) {
             bathroomOptions.floorType === 'tile_to_vinyl' ? 'Quitar baldosa y poner vinílico' :
               bathroomOptions.floorType === 'vinyl_overlay' ? 'Poner vinílico sobre la baldosa actual (Sin desescombro)' : 'No tocar'
           }
- - Paredes: ${bathroomOptions.wallType === 'tile_to_tile' ? 'Quitar azulejo y poner nuevo' :
+ - Paredes: ${bathroomOptions.wallType === 'tile_to_tile' ? 'Quitar azulejo actual y poner nuevo' :
             bathroomOptions.wallType === 'tile_to_paint' ? 'Quitar azulejo y pintar' : 'No tocar'
           }
  - Fontanería: ${bathroomOptions.modifyPlumbing ? 'Renovar tuberías y desagües' : 'Mantener existente'}
  - Electricidad: ${bathroomOptions.modifyElectricity ? 'Modificación estándar (puntos de luz y enchufes)' : 'Mantener existente'}
  - Techo: ${bathroomOptions.dropCeiling ? 'Bajar techos con Pladur' : 'Mantener existente'}
  - Ventana: ${bathroomOptions.replaceWindow ? 'Renovar ventana (Pequeña/Oscilobatiente)' : 'No tocar'}
- 
- REGLA DE PINTURA EN BAÑOS/COCINAS:
- - Si las paredes son de azulejo (revestimiento cerámico), la partida de pintura debe limitarse EXCLUSIVAMENTE al techo (los m² de la estancia). No presupuestes pintura para paredes si se indica alicatado.
  ` : ''}
+
+  ${(reformType === 'pintura' || reformType === 'integral') && paintOptions ? `
+  DETALLES ESPECÍFICOS DE PINTURA Y ALISADO:
+  - Dormitorios a pintar: ${rooms}
+  - Otras zonas: Salón/Comedor (siempre incluido) y Pasillo (${paintOptions.hallwayLength}m lineales).
+  - Superficie de la vivienda (para techos): ${squareMeters} m2.
+  - Estado actual: ${paintOptions.hasGotele ? 'Gotelé' : 'Liso'}.
+  - Trabajo: ${paintOptions.action === 'alisar_paint' ? 'Quitar Gotelé / Alisar + Pintar' : 'Solo Pintar'}
+  
+  REGLA DE CÁLCULO ESTRICTA:
+  1. SUPERFICIE DE PAREDES (M2): Estimación técnica basada en dormitorios y zonas.
+  2. SUPERFICIE DE TECHOS (M2): Igual a la superficie de la vivienda (${squareMeters} m2).
+  3. COSTES UNITARIOS (En ${currency.symbol}): Precios competitivos de mercado.
+  ` : ''}
 
  ${reformType === 'suelos' && floorOptions ? `
  DETALLES ESPECÍFICOS DE SUELOS:
- - Demolición: ${floorOptions.liftCurrentFloor ? 'Levantar y retirar suelo actual (genera escombros)' : 'Instalar sobre suelo existente (sin demolición)'}
- - Material Elegido: ${floorOptions.newFloorType === 'laminate' ? 'Parquet Laminado / Flotante (AC4/AC5)' :
-            floorOptions.newFloorType === 'vinyl' ? 'Suelo Vinílico (LVT/SPC resistente al agua)' :
-              floorOptions.newFloorType === 'ceramic' ? 'Baldosa Cerámica o Porcelánico (requiere mortero)' :
-                floorOptions.newFloorType === 'wood' ? 'Madera Natural (Roble o similar)' : 'Estándar'
-          }
- - Rodapiés: ${floorOptions.includeRodapies ? 'Sí, incluir suministro e instalación de nuevos rodapiés' : 'No renovar rodapiés'}
- 
- CONSEJOS ADICIONALES PARA SUELOS:
- - Incluye en tus recomendaciones consejos para elegir el material (ej: vinilo para zonas húmedas, resistencia AC si es laminado).
- - Explica qué sucede si se levanta el suelo (necesidad de nivelar, posibles sorpresas en el forjado).
+ - Demolición: ${floorOptions.liftCurrentFloor ? 'Levantar y retirar suelo actual' : 'Instalar sobre suelo existente'}
+ - Material Elegido: ${floorOptions.newFloorType === 'laminate' ? 'Laminado' : floorOptions.newFloorType === 'vinyl' ? 'Vinílico' : floorOptions.newFloorType === 'ceramic' ? 'Cerámico' : 'Madera'}
+ - Rodapiés: ${floorOptions.includeRodapies ? 'Sí' : 'No'}
  ` : ''}
 
- ${reformType === 'ventanas' && windowOptions ? `
+  ${(reformType === 'ventanas' || reformType === 'integral') && windowOptions ? `
  DETALLES ESPECÍFICOS DE VENTANAS:
  - Número de Ventanas: ${windowOptions.numWindows}
- - Material/Calidad: ${windowOptions.windowType === 'pvc' ? 'PVC (Gama Media, Doble Vidrio 4/16/4)' :
-            windowOptions.windowType === 'pvc_premium' ? 'PVC (Gama Alta, Triple Vidrio + Argón)' :
-              windowOptions.windowType === 'alum' ? 'Aluminio con Rotura de Puente Térmico (RPT)' :
-                windowOptions.windowType === 'wood' ? 'Madera Natural Barnizada' : 'Estándar'
-          }
- 
- CONSEJOS ADICIONALES PARA VENTANAS:
- - Explica la importancia del coeficiente U de transmitancia térmica.
- - Menciona la necesidad de profesionales cualificados para asegurar la estanqueidad.
- - Comenta sobre posibles ayudas o subvenciones por eficiencia energética en ${country}.
+ - Material: ${windowOptions.windowType}
  ` : ''}
 
- REGLA DE COSTES PARA ELECTRICIDAD:
- - Para una sola estancia, NO sobrepases costes excesivos. Una instalación estándar son 400-800 ${currency.symbol} por estancia (1 punto luz, 1 interruptor, 5 enchufes).
- 
- Datos del proyecto:
- - Tipo de reforma: ${reformType}
+  Datos del proyecto:
+ - Tipo de reforma: ${reformType === 'other' ? 'Otro (' + customReformType + ')' : reformType}
  - Metros cuadrados: ${squareMeters}
  - Habitaciones: ${rooms}
  - Baños: ${bathrooms}
@@ -369,59 +279,38 @@ export async function POST(request: NextRequest) {
  - Calefacción (Situación): ${heatingDetail}
  - Características: ${features || "Ninguna especial"}
  
- AJUSTE DE PRECIOS PARA ${city}, ${country}:
- - Investiga y usa precios reales del mercado de construcción en ${country}
- - Considera el costo de vida en ${city}
- - Ajusta según disponibilidad de materiales locales
- - Ten en cuenta el costo de mano de obra en ${country}
- - Usa valores realistas para ${currency.code}
- 
- Proporciona:
- 1. Rango de precio en ${currency.code}: "XXX.XXX ${currency.symbol} - XXX.XXX ${currency.symbol}"
-    - REGLA DE PRECISIÓN: El margen entre el precio mínimo y el máximo NO debe superar el 15%.
-    - REALISMO: Usa precios competitivos de mercado reforma estándar, no de lujo, a menos que se especifique lo contrario.
- 2. Desglose detallado por categorías con precios en ${currency.symbol}:
-    - REGLA MATEMÁTICA OBLIGATORIA: La suma total de los importes del desglose DEBE SER EXACTAMENTE IGUAL al punto medio del rango de precio que has dado arriba.
-    - Categorías a incluir:
-        * Preliminares y Demoliciones
-        * Albañilería y Ayudas
-        * Fontanería y Saneamiento
-        * Electricidad e Iluminación (Puntos estándar)
-        * Climatización y Calefacción
-        * Carpintería Exterior (Ventanas)
-        * Carpintería Interior y Mobiliario (Puertas/Armarios/Muebles Cocina)
-        * Revestimientos (Suelos/Paredes)
-        * Pintura y Acabados
-        * Gestión de Residuos y Limpieza
- 3. 4-5 recomendaciones específicas para ${city}, ${country}
- 4. TRÁMITES Y LICENCIAS:
-    - Tipo de licencia necesaria para esta obra específica en ${country} (ej: Comunicación Previa, Obra Menor, etc.)
-    - Estimación de tasas municipales (ICIO/Tasas) en ${currency.symbol}
-    - URL oficial del Ayuntamiento o sede electrónica de ${city} para gestión de licencias.
- 
- VERIFICACIÓN FINAL ANTES DE RESPONDER:
- - ¿Todos los precios usan ${currency.symbol}?
- - ¿No hay ningún € o símbolo incorrecto?
- - ¿Los montos son realistas para ${country}?
- 
- RESPONDE EXCLUSIVAMENTE CON UN JSON SIGUIENDO ESTE ESQUEMA:
- {
-   "priceRange": "string",
-   "breakdown": [{"category": "string", "amount": "string"}],
-   "recommendations": ["string"],
-   "legalInfo": {
-     "permitType": "string",
-     "estimatedFee": "string",
-     "cityHallUrl": "string"
-   }
- }
- 
- NO incluyas texto antes o después del JSON. Solo el JSON.`,
+  Proporciona:
+  1. Rango de precio en ${currency.code}: "XXX.XXX ${currency.symbol} - XXX.XXX ${currency.symbol}"
+     - REGLA DE PRECISIÓN: El margen entre el precio mínimo y el máximo NO debe superar el 15%.
+  2. Desglose detallado por categorías con precios en ${currency.symbol}:
+     - REGLA MATEMÁTICA: La suma total debe coincidir con el punto medio del rango.
+     - Categorías a incluir:
+          * Preliminares y Demoliciones (si aplica para ${reformType === 'other' ? customReformType : reformType})
+          * Albañilería y Ayudas
+          * Fontanería y Saneamiento
+          * Electricidad e Iluminación
+          * Climatización y Calefacción
+          * Carpintería Exterior
+          * Carpintería Interior y Mobiliario
+          * Revestimientos (Suelos/Paredes)
+          * Pintura y Acabados
+          * Gestión de Residuos y Limpieza
+          * En caso de ser "${customReformType}", añade las partidas específicas necesarias.
+  3. 4-5 recomendaciones específicas
+  4. TRÁMITES Y LICENCIAS para ${city}
+  
+  RESPONDE EXCLUSIVAMENTE CON UN JSON:
+  {
+    "priceRange": "string",
+    "breakdown": [{"category": "string", "amount": "string", "description": "string"}],
+    "recommendations": ["string"],
+    "legalInfo": {"permitType": "string", "estimatedFee": "string", "cityHallUrl": "string"},
+    "grantsInfo": {"available": boolean, "details": "string", "links": [{"label": "string", "url": "string"}]}
+  }
+  
+  NO incluyas texto antes o después del JSON. Solo el JSON.`,
     })
 
-    console.log("[v0] Estimación generada exitosamente")
-
-    // Limpiar y parsear el JSON de la respuesta
     let estimation: any
     try {
       const cleanJson = estimationText
@@ -430,7 +319,7 @@ export async function POST(request: NextRequest) {
         .replace(/```\n?/g, "")
       estimation = JSON.parse(cleanJson)
     } catch (parseError) {
-      console.error("[v0] Error parseando JSON de estimación:", parseError, estimationText)
+      console.error("[v0] Error parseando JSON:", parseError, estimationText)
       throw new Error("Error al procesar la respuesta de la IA")
     }
 
@@ -439,7 +328,7 @@ export async function POST(request: NextRequest) {
 
     try {
       const priceRangeClean = estimation.priceRange
-        .replace(/[€$£R$S/Bs₲₡QLCN$]+/g, "") // Remover símbolos de moneda
+        .replace(/[€$£R$S/Bs₲₡QLCN$]+/g, "")
         .replace(/\s+/g, " ")
         .trim()
 
@@ -459,7 +348,7 @@ export async function POST(request: NextRequest) {
 
     try {
       await supabase.from("quick_estimates").insert({
-        reform_type: reformType,
+        reform_type: reformType === 'other' ? customReformType : reformType,
         square_meters: squareMeters,
         rooms: rooms,
         bathrooms: bathrooms,
@@ -472,7 +361,6 @@ export async function POST(request: NextRequest) {
         estimated_price_range: estimation.priceRange,
         estimated_breakdown: estimation.breakdown,
       })
-      console.log("[v0] Estimación guardada en BD exitosamente")
     } catch (dbError) {
       console.error("[v0] Error al intentar guardar en BD:", dbError)
     }
@@ -487,7 +375,7 @@ export async function POST(request: NextRequest) {
       currency,
       estimatedPriceRange: estimation.priceRange,
     }).catch((error) => {
-      console.error("[v0] Error en notificación por email (no crítico):", error)
+      console.error("[v0] Error en email:", error)
     })
 
     return NextResponse.json({
@@ -497,7 +385,7 @@ export async function POST(request: NextRequest) {
       currency,
     })
   } catch (error) {
-    console.error("[v0] Error generating estimation:", error)
-    return NextResponse.json({ error: "Error al generar estimación. Por favor, intenta de nuevo." }, { status: 500 })
+    console.error("[v0] Error en POST:", error)
+    return NextResponse.json({ error: "Error al generar estimación." }, { status: 500 })
   }
 }

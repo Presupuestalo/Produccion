@@ -1,10 +1,9 @@
 import { COUNTRIES, type Country } from "@/lib/services/currency-service"
 
-export const COUNTRY_FIELD_LABELS: { [key: string]: { province: string; postalCode: string; taxId: string; taxIdDescription: string } } = {
+export const COUNTRY_FIELD_LABELS: { [key: string]: { province: string; taxId: string; taxIdDescription: string } } = {
   // España
   ES: {
     province: "Provincia",
-    postalCode: "Código postal",
     taxId: "CIF/NIF",
     taxIdDescription: "Código de Identificación Fiscal para empresas o NIF para autónomos"
   },
@@ -12,61 +11,51 @@ export const COUNTRY_FIELD_LABELS: { [key: string]: { province: string; postalCo
   // América
   US: {
     province: "Estado",
-    postalCode: "ZIP Code",
     taxId: "EIN",
     taxIdDescription: "Employer Identification Number (Federal Tax ID)"
   },
   CA: {
     province: "Provincia",
-    postalCode: "Postal Code",
     taxId: "BN",
     taxIdDescription: "Business Number (CRA)"
   },
   MX: {
     province: "Estado",
-    postalCode: "Código postal",
     taxId: "RFC",
     taxIdDescription: "Registro Federal de Contribuyentes"
   },
   AR: {
     province: "Provincia",
-    postalCode: "Código postal",
     taxId: "CUIT",
     taxIdDescription: "Clave Única de Identificación Tributaria"
   },
   BR: {
     province: "Estado",
-    postalCode: "CEP",
     taxId: "CNPJ",
     taxIdDescription: "Cadastro Nacional da Pessoa Jurídica"
   },
   CL: {
     province: "Región",
-    postalCode: "Código postal",
     taxId: "RUT",
     taxIdDescription: "Rol Único Tributario"
   },
   CO: {
     province: "Departamento",
-    postalCode: "Código postal",
     taxId: "NIT",
     taxIdDescription: "Número de Identificación Tributaria"
   },
   PE: {
     province: "Departamento",
-    postalCode: "Código postal",
     taxId: "RUC",
     taxIdDescription: "Registro Único de Contribuyentes"
   },
   UY: {
     province: "Departamento",
-    postalCode: "Código postal",
     taxId: "RUT",
     taxIdDescription: "Registro Único Tributario"
   },
   VE: {
     province: "Estado",
-    postalCode: "Código postal",
     taxId: "RIF",
     taxIdDescription: "Registro de Información Fiscal"
   },
@@ -74,103 +63,86 @@ export const COUNTRY_FIELD_LABELS: { [key: string]: { province: string; postalCo
   // Europa
   FR: {
     province: "Región",
-    postalCode: "Code postal",
     taxId: "SIRET",
     taxIdDescription: "Système d'Identification du Répertoire des Établissements"
   },
   DE: {
     province: "Estado",
-    postalCode: "Postleitzahl",
     taxId: "Steuernummer",
     taxIdDescription: "Tax Identification Number (Steuernummer)"
   },
   IT: {
     province: "Provincia",
-    postalCode: "CAP",
     taxId: "Partita IVA",
     taxIdDescription: "Partita IVA (VAT Number)"
   },
   PT: {
     province: "Distrito",
-    postalCode: "Código postal",
     taxId: "NIPC",
     taxIdDescription: "Número de Identificação de Pessoa Coletiva"
   },
   GB: {
     province: "Condado",
-    postalCode: "Postcode",
     taxId: "VAT Number",
     taxIdDescription: "Value Added Tax Registration Number"
   },
   IE: {
     province: "Condado",
-    postalCode: "Eircode",
     taxId: "VAT Number",
     taxIdDescription: "Value Added Tax Registration Number"
   },
   NL: {
     province: "Provincia",
-    postalCode: "Postcode",
     taxId: "BTW-nummer",
     taxIdDescription: "Belasting Toegevoegde Waarde (VAT Number)"
   },
   BE: {
     province: "Provincia",
-    postalCode: "Code postal",
     taxId: "Numéro de TVA",
     taxIdDescription: "Numéro de TVA (VAT Number)"
   },
   CH: {
     province: "Cantón",
-    postalCode: "Code postal",
     taxId: "UID",
     taxIdDescription: "Unternehmens-Identifikationsnummer"
   },
   AT: {
     province: "Estado",
-    postalCode: "Postleitzahl",
     taxId: "UID",
     taxIdDescription: "Umsatzsteuer-Identifikationsnummer (VAT Number)"
   },
   SE: {
     province: "Condado",
-    postalCode: "Postnummer",
     taxId: "Organisationsnummer",
     taxIdDescription: "Swedish Organization Number"
   },
   NO: {
     province: "Condado",
-    postalCode: "Postnummer",
     taxId: "Organisasjonsnummer",
     taxIdDescription: "Norwegian Organization Number"
   },
   DK: {
     province: "Región",
-    postalCode: "Postnummer",
     taxId: "CVR-nummer",
     taxIdDescription: "Det Centrale Virksomhedsregister (Business Registration Number)"
   },
   FI: {
     province: "Región",
-    postalCode: "Postinumero",
     taxId: "Y-tunnus",
     taxIdDescription: "Business ID (Y-tunnus)"
   },
   PL: {
     province: "Voivodato",
-    postalCode: "Kod pocztowy",
     taxId: "NIP",
     taxIdDescription: "Numer Identyfikacji Podatkowej (Tax ID)"
   },
   CZ: {
     province: "Región",
-    postalCode: "PSČ",
     taxId: "IČO",
     taxIdDescription: "Identifikační číslo osoby (Business ID)"
   },
   GR: {
     province: "Región",
-    postalCode: "Ταχυδρομικός κώδικας",
     taxId: "ΑΦΜ",
     taxIdDescription: "Αριθμός Φορολογικού Μητρώου (Tax Registration Number)"
   },
@@ -178,61 +150,51 @@ export const COUNTRY_FIELD_LABELS: { [key: string]: { province: string; postalCo
   // Asia
   CN: {
     province: "Provincia",
-    postalCode: "邮政编码",
     taxId: "统一社会信用代码",
     taxIdDescription: "Unified Social Credit Code"
   },
   JP: {
     province: "Prefectura",
-    postalCode: "郵便番号",
     taxId: "法人番号",
     taxIdDescription: "Corporate Number (Hōjin Bangō)"
   },
   KR: {
     province: "Provincia",
-    postalCode: "우편번호",
     taxId: "사업자등록번호",
     taxIdDescription: "Business Registration Number"
   },
   IN: {
     province: "Estado",
-    postalCode: "PIN Code",
     taxId: "GSTIN",
     taxIdDescription: "Goods and Services Tax Identification Number"
   },
   ID: {
     province: "Provincia",
-    postalCode: "Kode pos",
     taxId: "NPWP",
     taxIdDescription: "Nomor Pokok Wajib Pajak (Tax ID)"
   },
   TH: {
     province: "Provincia",
-    postalCode: "รหัสไปรษณีย์",
     taxId: "เลขประจำตัวผู้เสียภาษี",
     taxIdDescription: "Tax Identification Number"
   },
   VN: {
     province: "Provincia",
-    postalCode: "Mã bưu điện",
     taxId: "Mã số thuế",
     taxIdDescription: "Tax Code (MST)"
   },
   PH: {
     province: "Provincia",
-    postalCode: "ZIP Code",
     taxId: "TIN",
     taxIdDescription: "Tax Identification Number"
   },
   MY: {
     province: "Estado",
-    postalCode: "Poskod",
     taxId: "SSM",
     taxIdDescription: "Companies Commission of Malaysia Registration Number"
   },
   SG: {
     province: "Región",
-    postalCode: "Postal Code",
     taxId: "UEN",
     taxIdDescription: "Unique Entity Number"
   },
@@ -240,13 +202,11 @@ export const COUNTRY_FIELD_LABELS: { [key: string]: { province: string; postalCo
   // Oceanía
   AU: {
     province: "Estado",
-    postalCode: "Postcode",
     taxId: "ABN",
     taxIdDescription: "Australian Business Number"
   },
   NZ: {
     province: "Región",
-    postalCode: "Postcode",
     taxId: "NZBN",
     taxIdDescription: "New Zealand Business Number"
   },
@@ -254,19 +214,16 @@ export const COUNTRY_FIELD_LABELS: { [key: string]: { province: string; postalCo
   // África
   ZA: {
     province: "Provincia",
-    postalCode: "Postal Code",
     taxId: "Tax Reference Number",
     taxIdDescription: "South African Revenue Service Tax Number"
   },
   EG: {
     province: "Gobernación",
-    postalCode: "الرمز البريدي",
     taxId: "الرقم الضريبي",
     taxIdDescription: "Tax Registration Number"
   },
   MA: {
     province: "Región",
-    postalCode: "Code postal",
     taxId: "ICE",
     taxIdDescription: "Identifiant Commun de l'Entreprise"
   },
@@ -274,7 +231,6 @@ export const COUNTRY_FIELD_LABELS: { [key: string]: { province: string; postalCo
   // Default fallback
   DEFAULT: {
     province: "Provincia/Estado/Región",
-    postalCode: "Código postal",
     taxId: "Tax ID / CIF",
     taxIdDescription: "Tax Identification Number or Company Registration Number"
   }

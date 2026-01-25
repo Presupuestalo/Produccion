@@ -14,28 +14,14 @@ import Link from "next/link"
 import { Logo } from "@/components/ui/logo"
 import { spanishProvinces, citiesByProvince } from "@/lib/data/spain-locations"
 
-const COUNTRIES = [
-  {
-    value: "españa",
-    label: "España",
-    cities: [
-      "Madrid",
-      "Barcelona",
-      "Valencia",
-      "Sevilla",
-      "Bilbao",
-      "Málaga",
-      "Zaragoza",
-      "Murcia",
-      "Palma",
-      "Las Palmas",
-      "Alicante",
-      "Córdoba",
-      "Valladolid",
-      "Vigo",
-      "Gijón",
-    ],
-  },
+const REFORM_TYPES = [
+  { value: "integral", label: "Reforma Integral" },
+  { value: "cocina", label: "Reforma de Cocina" },
+  { value: "baño", label: "Reforma de Baño" },
+  { value: "pintura", label: "Pintura y Alisado de Paredes" },
+  { value: "suelos", label: "Cambio de Suelos / Parquet" },
+  { value: "ventanas", label: "Cambio de Ventanas / Cerramientos" },
+  { value: "other", label: "Otro (Especificar)" },
 ]
 
 export default function EstimacionPublicaPage() {
@@ -47,6 +33,8 @@ export default function EstimacionPublicaPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const [formData, setFormData] = useState({
+    reformType: "integral",
+    customReformType: "",
     squareMeters: "",
     rooms: "",
     bathrooms: "",
@@ -75,6 +63,8 @@ export default function EstimacionPublicaPage() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
 
+    if (!formData.reformType) newErrors.reformType = "Campo obligatorio"
+    if (formData.reformType === "other" && !formData.customReformType) newErrors.customReformType = "Por favor especifica el tipo de reforma"
     if (!formData.squareMeters) newErrors.squareMeters = "Campo obligatorio"
     if (!formData.rooms) newErrors.rooms = "Campo obligatorio"
     if (!formData.bathrooms) newErrors.bathrooms = "Campo obligatorio"
@@ -129,72 +119,75 @@ export default function EstimacionPublicaPage() {
     setShowQuoteForm(false)
   }
 
-  const handleVerificationSuccess = async (verificationData: {
+  const handleVerificationSuccess = (verificationData: {
     email: string
     phone: string
     fullName: string
-    acceptedTerms: boolean
-    acceptedPrivacy: boolean
-    acceptedMarketing: boolean
+    verificationCode?: string
+    acceptedTerms?: boolean
+    acceptedPrivacy?: boolean
+    acceptedMarketing?: boolean
   }) => {
-    console.log("[v0] Verification successful, creating landing lead...")
+    const createLead = async () => {
+      console.log("[v0] Verification successful, creating landing lead...")
 
-    try {
-      let minBudget = 0
-      let maxBudget = 0
+      try {
+        let minBudget = 0
+        let maxBudget = 0
 
-      if (estimation?.priceRange) {
-        // priceRange viene como "4.500 € - 7.000 €" o "25.000 € - 35.000 €"
-        const priceMatch = estimation.priceRange.match(/[\d.]+/g)
-        if (priceMatch && priceMatch.length >= 2) {
-          // Eliminar puntos de miles y convertir a número
-          minBudget = Number.parseInt(priceMatch[0].replace(/\./g, ""), 10)
-          maxBudget = Number.parseInt(priceMatch[1].replace(/\./g, ""), 10)
+        if (estimation?.priceRange) {
+          // priceRange viene como "4.500 € - 7.000 €" o "25.000 € - 35.000 €"
+          const priceMatch = estimation.priceRange.match(/[\d.]+/g)
+          if (priceMatch && priceMatch.length >= 2) {
+            // Eliminar puntos de miles y convertir a número
+            minBudget = Number.parseInt(priceMatch[0].replace(/\./g, ""), 10)
+            maxBudget = Number.parseInt(priceMatch[1].replace(/\./g, ""), 10)
+          }
         }
+
+        console.log("[v0] Parsed budget:", { minBudget, maxBudget, original: estimation?.priceRange })
+
+        const response = await fetch("/api/ia/create-landing-lead", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: verificationData.email,
+            fullName: verificationData.fullName,
+            phone: verificationData.phone,
+            acceptedTerms: verificationData.acceptedTerms,
+            acceptedPrivacy: verificationData.acceptedPrivacy,
+            acceptedMarketing: verificationData.acceptedMarketing,
+            estimationData: {
+              ...formData,
+              estimated_budget_min: minBudget,
+              estimated_budget_max: maxBudget,
+            },
+          }),
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.error || "Error al crear la solicitud")
+        }
+
+        console.log("[v0] Landing lead created successfully:", data)
+
+        setShowVerificationModal(false)
+        setQuoteSent(true)
+        setShowQuoteForm(false)
+      } catch (error: any) {
+        console.error("[v0] Error creating landing lead:", error)
+        alert(error.message || "Error al procesar la solicitud")
       }
-
-      console.log("[v0] Parsed budget:", { minBudget, maxBudget, original: estimation?.priceRange })
-
-      const response = await fetch("/api/ia/create-landing-lead", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: verificationData.email,
-          fullName: verificationData.fullName,
-          phone: verificationData.phone,
-          acceptedTerms: verificationData.acceptedTerms,
-          acceptedPrivacy: verificationData.acceptedPrivacy,
-          acceptedMarketing: verificationData.acceptedMarketing,
-          estimationData: {
-            ...formData,
-            estimated_budget_min: minBudget,
-            estimated_budget_max: maxBudget,
-          },
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Error al crear la solicitud")
-      }
-
-      console.log("[v0] Landing lead created successfully:", data)
-
-      setShowVerificationModal(false)
-      setQuoteSent(true)
-      setShowQuoteForm(false)
-    } catch (error: any) {
-      console.error("[v0] Error creating landing lead:", error)
-      alert(error.message || "Error al procesar la solicitud")
     }
+
+    createLead()
   }
 
-  const selectedCountry = COUNTRIES.find((c) => c.value === formData.country)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      {/* Header con logo */}
       <header className="border-b border-gray-800 bg-gray-900/50 backdrop-blur-md sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center">
@@ -227,6 +220,49 @@ export default function EstimacionPublicaPage() {
           {/* Form */}
           <Card className="bg-gray-800/50 border-gray-700 p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="reformType" className="text-white">
+                  Tipo de Reforma <span className="text-red-400">*</span>
+                </Label>
+                <Select
+                  value={formData.reformType}
+                  onValueChange={(value) => {
+                    setFormData({ ...formData, reformType: value })
+                    setErrors({ ...errors, reformType: "", customReformType: "" })
+                  }}
+                >
+                  <SelectTrigger
+                    className={`bg-gray-900/50 border-gray-700 text-white ${errors.reformType ? "border-red-500" : ""}`}
+                  >
+                    <SelectValue placeholder="Selecciona el tipo de reforma" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700">
+                    {REFORM_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value} className="text-white hover:bg-gray-800">
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.reformType && <p className="text-red-400 text-xs">{errors.reformType}</p>}
+              </div>
+
+              {formData.reformType === "other" && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
+                  <Label htmlFor="customReformType" className="text-white">
+                    Especifica tu tipo de reforma <span className="text-red-400">*</span>
+                  </Label>
+                  <Input
+                    id="customReformType"
+                    placeholder="Ej: Reforma de terraza, piscina, oficina..."
+                    value={formData.customReformType}
+                    onChange={(e) => setFormData({ ...formData, customReformType: e.target.value })}
+                    className={`bg-gray-900/50 border-gray-700 text-white ${errors.customReformType ? "border-red-500" : ""}`}
+                  />
+                  {errors.customReformType && <p className="text-red-400 text-xs">{errors.customReformType}</p>}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="province" className="text-white">
@@ -514,10 +550,17 @@ export default function EstimacionPublicaPage() {
                     {estimation.breakdown?.map((item: any, index: number) => (
                       <div
                         key={index}
-                        className="flex justify-between items-center pb-4 border-b border-gray-700 last:border-0"
+                        className="py-4 border-b border-gray-700 last:border-0"
                       >
-                        <span className="text-gray-300">{item.category}</span>
-                        <span className="font-semibold text-white">{item.amount}</span>
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="text-gray-200 font-medium">{item.category}</span>
+                          <span className="font-semibold text-white">{item.amount}</span>
+                        </div>
+                        {item.description && (
+                          <p className="text-xs text-gray-400 leading-relaxed italic">
+                            {item.description}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -580,6 +623,6 @@ export default function EstimacionPublicaPage() {
         onOpenChange={setShowVerificationModal}
         onSuccess={handleVerificationSuccess}
       />
-    </div>
+    </div >
   )
 }

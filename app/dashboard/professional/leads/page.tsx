@@ -120,7 +120,7 @@ export default function ProfessionalLeadsPage() {
                     <CardTitle className="text-xl">Reforma Integral</CardTitle>
                     <CardDescription className="flex items-center gap-2">
                       <MapPin className="h-4 w-4" />
-                      {lead.city}, {lead.province} - CP: {lead.postal_code}
+                      {lead.city}, {lead.province}
                     </CardDescription>
                   </div>
                   <Badge variant="secondary">

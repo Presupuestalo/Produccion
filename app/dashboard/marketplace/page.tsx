@@ -545,7 +545,7 @@ export default function MarketplacePage() {
                         <CardTitle className="text-lg">{lead.reform_types.join(", ")}</CardTitle>
                         <CardDescription className="flex items-center gap-1 mt-1">
                           <MapPin className="h-3 w-3" />
-                          {lead.city}, {lead.province} ({lead.postal_code})
+                          {lead.city}, {lead.province}
                         </CardDescription>
                       </div>
                       {lead.has_accessed ? (

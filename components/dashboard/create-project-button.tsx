@@ -789,18 +789,7 @@ export function CreateProjectButton() {
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="postal_code">Código Postal *</Label>
-                        <Input
-                          id="postal_code"
-                          placeholder="28001"
-                          value={formData.postal_code}
-                          onChange={handleChange}
-                          required
-                        />
-                      </div>
-                    </div>
+
 
                     {userType === "homeowner" && (shouldSyncFiscal || !userProfile?.address_street) && (
                       <div className="flex items-center space-x-2 pt-2 border-t mt-2">
