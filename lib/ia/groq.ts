@@ -6,4 +6,4 @@ export const groq = createGroq({
 
 export const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
 export const FAST_GROQ_MODEL = "llama-3.1-8b-instant"
-export const VISION_GROQ_MODEL = "llama-3.2-11b-vision-preview"
+export const VISION_GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
