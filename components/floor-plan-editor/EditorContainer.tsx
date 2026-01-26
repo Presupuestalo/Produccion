@@ -457,72 +457,70 @@ export const EditorContainer = () => {
     }
 
     const handleMouseDown = (point: Point) => {
-        if (activeTool === "erase" && hoveredWallId) {
-            deleteWall(hoveredWallId)
-            return
-        }
-
-        if (activeTool === "wall") {
-            // Si ya hay una pared en progreso (chaining), el click la "confirma" e inicia la siguiente
-            if (currentWall) {
-                const dist = Math.sqrt(Math.pow(point.x - currentWall.start.x, 2) + Math.pow(point.y - currentWall.start.y, 2))
-                if (dist > 5) {
-                    saveStateToHistory()
-                    const newWall = {
-                        id: `wall-${Date.now()}`,
-                        start: currentWall.start,
-                        end: point,
-                        thickness: 10
-                    }
-                    const newWalls = fragmentWalls([...walls, newWall])
-                    setWalls(newWalls)
-                    const nextRooms = detectRoomsGeometrically(newWalls, rooms)
-                    setRooms(nextRooms)
-
-                    // Si se ha cerrado una habitación, detener el encadenamiento
-                    if (nextRooms.length > rooms.length) {
-                        setCurrentWall(null)
-                    } else {
-                        // Iniciar la siguiente automáticamente desde donde terminó esta
-                        setCurrentWall({ start: point, end: point })
-                    }
+        switch (activeTool) {
+            case "erase":
+                if (hoveredWallId) {
+                    deleteWall(hoveredWallId)
                 }
-            } else {
-                // Inicio normal de la primera pared
-                setCurrentWall({ start: point, end: point })
-            }
-        }
+                break
 
-        if (activeTool === "door") {
-            // Solo colocable en paredes
-            const closest: { wallId: string, t: number, dist: number } | null = findClosestWall(point)
-            if (closest && closest.dist < 20) {
-                saveStateToHistory()
-                setDoors([...doors, {
-                    id: `door-${Date.now()}`,
-                    wallId: closest.wallId,
-                    t: closest.t,
-                    width: 80
-                }])
-            }
-        }
+            case "wall":
+                if (currentWall) {
+                    const dist = Math.sqrt(Math.pow(point.x - currentWall.start.x, 2) + Math.pow(point.y - currentWall.start.y, 2))
+                    if (dist > 5) {
+                        saveStateToHistory()
+                        const newWall = {
+                            id: `wall-${Date.now()}`,
+                            start: currentWall.start,
+                            end: point,
+                            thickness: 10
+                        }
+                        const newWalls = fragmentWalls([...walls, newWall])
+                        setWalls(newWalls)
+                        const nextRooms = detectRoomsGeometrically(newWalls, rooms)
+                        setRooms(nextRooms)
 
-        if (activeTool === "window") {
-            // Solo colocable en paredes
-            const closest: { wallId: string, t: number, dist: number } | null = findClosestWall(point)
-            if (closest && closest.dist < 20) {
-                saveStateToHistory()
-                setWindows([...windows, {
-                    id: `window-${Date.now()}`,
-                    wallId: closest.wallId,
-                    t: closest.t,
-                    width: 100,
-                    height: 10
-                }])
+                        if (nextRooms.length > rooms.length) {
+                            setCurrentWall(null)
+                        } else {
+                            setCurrentWall({ start: point, end: point })
+                        }
+                    }
+                } else {
+                    setCurrentWall({ start: point, end: point })
+                }
+                break
+
+            case "door": {
+                const closest = findClosestWall(point)
+                if (closest && closest.dist < 20) {
+                    saveStateToHistory()
+                    setDoors([...doors, {
+                        id: `door-${Date.now()}`,
+                        wallId: closest.wallId,
+                        t: closest.t,
+                        width: 80
+                    }])
+                }
+                break
+            }
+
+            case "window": {
+                const closest = findClosestWall(point)
+                if (closest && closest.dist < 20) {
+                    saveStateToHistory()
+                    setWindows([...windows, {
+                        id: `window-${Date.now()}`,
+                        wallId: closest.wallId,
+                        t: closest.t,
+                        width: 100,
+                        height: 10
+                    }])
+                }
+                break
             }
         }
     }
-
     const handleMouseMove = (point: Point) => {
         if (activeTool === "wall" && currentWall) {
             setCurrentWall({ ...currentWall, end: point })

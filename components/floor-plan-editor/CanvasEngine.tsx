@@ -804,49 +804,6 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                             )
                         })}
 
-                        {/* Renderizar puertas */}
-                        {doors.map((door: any) => (
-                            <Group key={door.id} x={door.position.x} y={door.position.y} rotation={door.angle}>
-                                <Line
-                                    points={[0, 0, door.width, 0]}
-                                    stroke="#8b5cf6"
-                                    strokeWidth={4}
-                                />
-                                <Line
-                                    points={[0, 0, 0, -door.width]}
-                                    stroke="#8b5cf6"
-                                    strokeWidth={2}
-                                    dash={[2, 2]}
-                                />
-                                <Line
-                                    points={[0, -door.width, door.width, 0]}
-                                    stroke="#8b5cf6"
-                                    strokeWidth={1}
-                                    dash={[4, 4]}
-                                />
-                            </Group>
-                        ))}
-
-                        {/* Renderizar ventanas */}
-                        {windows.map((window: any) => (
-                            <Group key={window.id} x={window.position.x} y={window.position.y} rotation={window.angle}>
-                                <Rect
-                                    x={0}
-                                    y={-5}
-                                    width={window.width}
-                                    height={10}
-                                    fill="#3b82f640"
-                                    stroke="#3b82f6"
-                                    strokeWidth={2}
-                                />
-                                <Line
-                                    points={[0, 0, window.width, 0]}
-                                    stroke="#3b82f6"
-                                    strokeWidth={1}
-                                />
-                            </Group>
-                        ))}
-
                         {/* Renderizar muro actual (fantasma) con medida */}
                         {currentWall && (() => {
                             const dx = currentWall.end.x - currentWall.start.x
