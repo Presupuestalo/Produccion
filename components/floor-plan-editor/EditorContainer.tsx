@@ -261,102 +261,39 @@ export const EditorContainer = () => {
             const isV = Math.abs(wallToMove.start.x - wallToMove.end.x) < 1
 
             const forcedDelta = {
-                x: isV ? delta.x : 0,
-                y: isH ? delta.y : 0
+                x: isV ? delta.x : (isH ? 0 : delta.x),
+                y: isH ? delta.y : (isV ? 0 : delta.y)
             }
 
-            const groupIds = new Set<string>([id])
-            const TOL = 2.0
+            const TOL = 5.0 // Connection tolerance
             const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
 
-            let wallsForState = [...prevWalls]
-            const bridgesToAdd: Wall[] = []
-
-            const pointMap = new Map<string, Point>()
-            groupIds.forEach(gid => {
-                const w = wallsForState.find(x => x.id === gid)!
-                pointMap.set(w.id + "_start", { x: w.start.x + forcedDelta.x, y: w.start.y + forcedDelta.y })
-                pointMap.set(w.id + "_end", { x: w.end.x + forcedDelta.x, y: w.end.y + forcedDelta.y })
-            })
-
-            const updatedWalls = wallsForState.map(w => {
-                if (groupIds.has(w.id)) {
+            return prevWalls.map(w => {
+                if (w.id === id) {
                     return {
                         ...w,
-                        start: pointMap.get(w.id + "_start")!,
-                        end: pointMap.get(w.id + "_end")!
+                        start: { x: w.start.x + forcedDelta.x, y: w.start.y + forcedDelta.y },
+                        end: { x: w.end.x + forcedDelta.x, y: w.end.y + forcedDelta.y }
                     }
                 }
 
                 let newStart = { ...w.start }
                 let newEnd = { ...w.end }
-                let updated = false
+                let changed = false
 
-                const currentWIsH = Math.abs(w.start.y - w.end.y) < 1
-                const currentWIsV = Math.abs(w.start.x - w.end.x) < 1
-
-                groupIds.forEach(gid => {
-                    const gw = wallsForState.find(x => x.id === gid)!
-                    const gNewStart = pointMap.get(gid + "_start")!
-                    const gNewEnd = pointMap.get(gid + "_end")!
-
-                    const isCollinearWithMove = (isH && currentWIsH) || (isV && currentWIsV)
-
-                    if (isSame(w.start, gw.start)) {
-                        if (!isCollinearWithMove) { newStart = gNewStart; updated = true }
-                        else if (Math.abs(forcedDelta.x) > 2 || Math.abs(forcedDelta.y) > 2) {
-                            const bId = `bridge-${w.id}-${gw.id}-s`
-                            if (!prevWalls.find(b => b.id === bId)) {
-                                bridgesToAdd.push({
-                                    id: bId,
-                                    start: { ...w.start },
-                                    end: { ...gNewStart },
-                                    thickness: w.thickness
-                                })
-                            }
-                        }
-                    }
-                    if (isSame(w.start, gw.end)) {
-                        if (!isCollinearWithMove) { newStart = gNewEnd; updated = true }
-                        else if (Math.abs(forcedDelta.x) > 2 || Math.abs(forcedDelta.y) > 2) {
-                            const bId = `bridge-${w.id}-${gw.id}-se`
-                            if (!prevWalls.find(b => b.id === bId)) bridgesToAdd.push({ id: bId, start: { ...w.start }, end: { ...gNewEnd }, thickness: w.thickness })
-                        }
-                    }
-                    if (isSame(w.end, gw.start)) {
-                        if (!isCollinearWithMove) { newEnd = gNewStart; updated = true }
-                        else if (Math.abs(forcedDelta.x) > 2 || Math.abs(forcedDelta.y) > 2) {
-                            const bId = `bridge-${w.id}-${gw.id}-es`
-                            if (!prevWalls.find(b => b.id === bId)) bridgesToAdd.push({ id: bId, start: { ...w.end }, end: { ...gNewStart }, thickness: w.thickness })
-                        }
-                    }
-                    if (isSame(w.end, gw.end)) {
-                        if (!isCollinearWithMove) { newEnd = gNewEnd; updated = true }
-                        else if (Math.abs(forcedDelta.x) > 2 || Math.abs(forcedDelta.y) > 2) {
-                            const bId = `bridge-${w.id}-${gw.id}-ee`
-                            if (!prevWalls.find(b => b.id === bId)) bridgesToAdd.push({ id: bId, start: { ...w.end }, end: { ...gNewEnd }, thickness: w.thickness })
-                        }
-                    }
-                })
-
-                if (updated) return { ...w, start: newStart, end: newEnd }
-
-                if (w.id.startsWith('bridge-')) {
-                    const parts = w.id.split('-')
-                    const gid = parts[2]
-                    const type = parts[3]
-                    const gNewStart = pointMap.get(gid + "_start")
-                    const gNewEnd = pointMap.get(gid + "_end")
-                    if (gNewStart && (type === 's' || type === 'es')) return { ...w, end: gNewStart }
-                    if (gNewEnd && (type === 'se' || type === 'ee')) return { ...w, end: gNewEnd }
+                if (isSame(w.start, wallToMove.start) || isSame(w.start, wallToMove.end)) {
+                    newStart.x += forcedDelta.x
+                    newStart.y += forcedDelta.y
+                    changed = true
+                }
+                if (isSame(w.end, wallToMove.start) || isSame(w.end, wallToMove.end)) {
+                    newEnd.x += forcedDelta.x
+                    newEnd.y += forcedDelta.y
+                    changed = true
                 }
 
-                return w
+                return changed ? { ...w, start: newStart, end: newEnd } : w
             })
-
-            const finalWalls = [...updatedWalls, ...bridgesToAdd]
-            setRooms(detectRoomsGeometrically(finalWalls, rooms))
-            return finalWalls
         })
     }
 
@@ -405,7 +342,6 @@ export const EditorContainer = () => {
                 return changed ? { ...w, start: newStart, end: newEnd } : w
             })
 
-            setRooms(detectRoomsGeometrically(updatedWalls, rooms))
             return updatedWalls
         })
     }

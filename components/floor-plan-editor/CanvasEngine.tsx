@@ -202,71 +202,48 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         setAlignmentGuides(null)
 
         // 1. Snapping a vértices exactos (prioridad máxima pero umbral reducido)
-        const vertexThreshold = 12 / zoom
+        const vertexThreshold = 10 / zoom
         const vertex = findNearestVertex(point, vertexThreshold)
         if (vertex) return vertex
 
         // 2. BLOQUEO ORTOGONAL (Predominancia de líneas rectas)
-        if (activeTool === "wall" && currentWall) {
-            const start = currentWall.start
-            const dx = Math.abs(point.x - start.x)
-            const dy = Math.abs(point.y - start.y)
-            const lockThreshold = 30 / zoom
-            const alignThreshold = 12 / zoom
+        if (activeTool === "wall" && (currentWall || dragStartPos.current)) {
+            // Use currentWall or dragged wall endpoints as anchor
+            const start = currentWall?.start || dragStartPos.current
+            if (start) {
+                const dx = Math.abs(point.x - start.x)
+                const dy = Math.abs(point.y - start.y)
+                const lockThreshold = 25 / zoom
+                const alignThreshold = 12 / zoom
 
-            // Coleccionar candidatos para alineación
-            const candidates: Point[] = []
-            walls.forEach((w: Wall) => { candidates.push(w.start); candidates.push(w.end) })
-            rooms.forEach((r: Room) => r.polygon.forEach((p: Point) => candidates.push(p)))
-
-            if (dy < lockThreshold) {
-                // Forzar Horizontal
-                point.y = start.y
-
-                // Buscar si hay algún vértice con el que alinear en X
-                let snappedX: number | null = null
-                candidates.forEach(p => {
-                    if (Math.abs(point.x - p.x) < alignThreshold) snappedX = p.x
-                })
-
-                if (snappedX !== null) {
-                    point.x = snappedX
-                    setAlignmentGuides({ x: snappedX, y: start.y })
+                if (dy < lockThreshold) {
+                    point.y = start.y
+                    return point
+                } else if (dx < lockThreshold) {
+                    point.x = start.x
+                    return point
                 }
-                return point
-            } else if (dx < lockThreshold) {
-                // Forzar Vertical
-                point.x = start.x
-
-                // Buscar si hay algún vértice con el que alinear en Y
-                let snappedY: number | null = null
-                candidates.forEach(p => {
-                    if (Math.abs(point.y - p.y) < alignThreshold) snappedY = p.y
-                })
-
-                if (snappedY !== null) {
-                    point.y = snappedY
-                    setAlignmentGuides({ x: start.x, y: snappedY })
-                }
-                return point
             }
         }
 
         // 3. FALLBACKS y GUÍAS GENERALES
-        const edgeThreshold = 15 / zoom
-        let nearestEdgePoint: Point | null = null
-        let minEdgeDist = edgeThreshold
-        walls.forEach((w: Wall) => {
-            const projected = projectPointOnSegment(point, w.start, w.end)
-            const d = Math.sqrt(Math.pow(point.x - projected.x, 2) + Math.pow(point.y - projected.y, 2))
-            if (d < minEdgeDist) {
-                minEdgeDist = d
-                nearestEdgePoint = projected
-            }
-        })
-        if (nearestEdgePoint) return nearestEdgePoint
+        // Bypass edge snapping during drag to avoid jitter
+        if (!dragStartPos.current) {
+            const edgeThreshold = 12 / zoom
+            let nearestEdgePoint: Point | null = null
+            let minEdgeDist = edgeThreshold
+            walls.forEach((w: Wall) => {
+                const projected = projectPointOnSegment(point, w.start, w.end)
+                const d = Math.sqrt(Math.pow(point.x - projected.x, 2) + Math.pow(point.y - projected.y, 2))
+                if (d < minEdgeDist) {
+                    minEdgeDist = d
+                    nearestEdgePoint = projected
+                }
+            })
+            if (nearestEdgePoint) return nearestEdgePoint
+        }
 
-        const alignThreshold = 20 / zoom // Increased for better "magnetic" feel
+        const alignThreshold = 12 / zoom
         const candidates: Point[] = []
         walls.forEach((w: Wall) => { candidates.push(w.start); candidates.push(w.end) })
         rooms.forEach((r: Room) => r.polygon.forEach((p: Point) => candidates.push(p)))
