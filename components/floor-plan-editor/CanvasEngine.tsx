@@ -122,6 +122,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     const [alignmentGuides, setAlignmentGuides] = React.useState<{ x?: number, y?: number } | null>(null)
     const [editMode, setEditMode] = React.useState<"menu" | "length" | "thickness" | "room" | null>(null)
     const [editLength, setEditLength] = React.useState<string>("")
+    const [editHeight, setEditHeight] = React.useState<string>("")
     const [editThickness, setEditThickness] = React.useState<string>("")
     const [editFace, setEditFace] = React.useState<"center" | "interior" | "exterior">("center")
     const dragStartPos = React.useRef<Point | null>(null)
@@ -182,7 +183,11 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
             const el = selectedElement.type === "door"
                 ? doors.find(d => d.id === selectedElement.id)
                 : windows.find(w => w.id === selectedElement.id)
-            if (el) setEditLength(el.width.toString())
+            if (el) {
+                setEditLength(el.width.toString())
+                if ('height' in el) setEditHeight(el.height.toString())
+                else setEditHeight("")
+            }
         } else {
             setEditMode(null)
             setMenuDragOffset({ x: 0, y: 0 }) // Reset offset when menu closes/changes
@@ -973,6 +978,20 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                     />
                                     <Line points={[-window.width / 2, 0, window.width / 2, 0]} stroke={isSelected ? "#0ea5e9" : "#334155"} strokeWidth={isSelected ? 2 : 1} />
 
+                                    {/* Etiqueta de Dimensiones (WxH) */}
+                                    <Group x={0} y={0} rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
+                                        <Text
+                                            text={`${window.width}x${window.height}`}
+                                            fontSize={7}
+                                            fill="#475569"
+                                            align="center"
+                                            width={window.width}
+                                            offsetX={window.width / 2}
+                                            offsetY={-2}
+                                            fontStyle="bold"
+                                        />
+                                    </Group>
+
                                     {/* Distancias dinámicas alineadas con el muro */}
                                     <Group rotation={0}>
                                         {d1Val > 5 && (
@@ -1380,23 +1399,60 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                     </>
                                 )}
                                 {selectedElement && (
-                                    <div className="flex items-center gap-2 px-3 py-1.5">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">Ancho</span>
-                                        <input
-                                            type="number"
-                                            autoFocus
-                                            value={editLength}
-                                            onChange={(e) => setEditLength(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    onUpdateElement(selectedElement.type, selectedElement.id, { width: parseInt(editLength) })
-                                                    setEditMode("menu")
-                                                }
-                                                if (e.key === 'Escape') setEditMode("menu")
+                                    <div className="flex flex-col gap-1.5 px-3 py-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Ancho</span>
+                                            <input
+                                                type="number"
+                                                autoFocus
+                                                value={editLength}
+                                                onChange={(e) => setEditLength(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        const updates: any = { width: parseInt(editLength) }
+                                                        if (selectedElement.type === "window" && editHeight) updates.height = parseInt(editHeight)
+                                                        onUpdateElement(selectedElement.type, selectedElement.id, updates)
+                                                        setEditMode("menu")
+                                                    }
+                                                    if (e.key === 'Escape') setEditMode("menu")
+                                                }}
+                                                className="w-16 p-1 border-b border-slate-200 text-center text-xs font-bold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
+                                            />
+                                            <span className="text-[9px] font-bold text-slate-400">cm</span>
+                                        </div>
+                                        {selectedElement.type === "window" && (
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Alto</span>
+                                                <input
+                                                    type="number"
+                                                    value={editHeight}
+                                                    onChange={(e) => setEditHeight(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            onUpdateElement(selectedElement.type, selectedElement.id, {
+                                                                width: parseInt(editLength),
+                                                                height: parseInt(editHeight)
+                                                            })
+                                                            setEditMode("menu")
+                                                        }
+                                                        if (e.key === 'Escape') setEditMode("menu")
+                                                    }}
+                                                    className="w-16 p-1 border-b border-slate-200 text-center text-xs font-bold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
+                                                />
+                                                <span className="text-[9px] font-bold text-slate-400">cm</span>
+                                            </div>
+                                        )}
+                                        <button
+                                            onClick={() => {
+                                                const updates: any = { width: parseInt(editLength) }
+                                                if (selectedElement.type === "window") updates.height = parseInt(editHeight)
+                                                onUpdateElement(selectedElement.type, selectedElement.id, updates)
+                                                setEditMode("menu")
                                             }}
-                                            className="w-16 p-1 border-b-2 border-slate-200 text-center font-bold text-slate-800 focus:outline-none"
-                                        />
-                                        <span className="text-[10px] font-bold text-slate-400">cm</span>
+                                            className="mt-1 w-full py-1 bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold rounded transition-colors"
+                                        >
+                                            Guardar
+                                        </button>
                                     </div>
                                 )}
                             </div>
