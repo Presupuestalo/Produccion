@@ -21,10 +21,11 @@ export const EditorContainer = () => {
     const [rooms, setRooms] = useState<Room[]>([])
     const [currentWall, setCurrentWall] = useState<{ start: Point; end: Point } | null>(null)
     const [hoveredWallId, setHoveredWallId] = useState<string | null>(null)
-    interface Door { id: string; wallId: string; t: number; width: number; flip?: boolean }
-    interface Window { id: string; wallId: string; t: number; width: number; height: number }
+    interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean }
+    interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean }
     const [doors, setDoors] = useState<Door[]>([])
     const [windows, setWindows] = useState<Window[]>([])
+    const [selectedElement, setSelectedElement] = useState<{ type: "door" | "window", id: string } | null>(null)
     const [activeTool, setActiveTool] = useState<"select" | "wall" | "erase" | "door" | "window">("wall")
     const [selectedWallId, setSelectedWallId] = useState<string | null>(null)
     const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
@@ -131,12 +132,14 @@ export const EditorContainer = () => {
             if (e.key === 'Delete' || e.key === 'Backspace') {
                 if (selectedWallId) {
                     deleteWall(selectedWallId)
+                } else if (selectedElement) {
+                    handleDeleteElement(selectedElement.type, selectedElement.id)
                 }
             }
         }
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [selectedWallId, walls, redoHistory])
+    }, [selectedWallId, selectedElement, walls, doors, windows, redoHistory])
 
     const calculateArea = (points: Point[]) => {
         let total = 0
@@ -176,6 +179,22 @@ export const EditorContainer = () => {
         setWalls(newWalls)
         if (selectedWallId === id) setSelectedWallId(null)
         setRooms(detectRoomsGeometrically(newWalls, rooms))
+        setDoors(prev => prev.filter(d => d.wallId !== id))
+        setWindows(prev => prev.filter(w => w.wallId !== id))
+        if (selectedElement?.type === "door" && doors.find(d => d.id === selectedElement.id)?.wallId === id) setSelectedElement(null)
+        if (selectedElement?.type === "window" && windows.find(w => w.id === selectedElement.id)?.wallId === id) setSelectedElement(null)
+    }
+
+    const handleDeleteElement = (type: "door" | "window", id: string) => {
+        saveStateToHistory()
+        if (type === "door") {
+            setDoors(prev => prev.filter(d => d.id !== id))
+        } else {
+            setWindows(prev => prev.filter(w => w.id !== id))
+        }
+        if (selectedElement?.id === id && selectedElement.type === type) {
+            setSelectedElement(null)
+        }
     }
 
     const handleSplitWall = (id: string) => {
@@ -210,14 +229,54 @@ export const EditorContainer = () => {
         setWalls(prev => prev.map(w => w.id === id ? { ...w, thickness } : w))
     }
 
-    const handleDragElement = (type: "door" | "window", id: string, newT: number) => {
+    const handleDragElement = (type: "door" | "window", id: string, pointer: Point) => {
+        const closest = findClosestWall(pointer)
+        if (!closest || closest.dist > 50) return // Umbral para "saltar" entre muros
+
+        const wall = walls.find(w => w.id === closest.wallId)
+        if (!wall) return
+
+        // Lógica de flip dinámico segun lado del muro
+        // Calculamos de qué lado del muro está el puntero
+        const dx = wall.end.x - wall.start.x
+        const dy = wall.end.y - wall.start.y
+        // Cambiamos el signo de det porque el usuario siente que va al revés
+        const det = (pointer.x - wall.start.x) * dy - (pointer.y - wall.start.y) * dx
+        const isFlippedY = det < 0
+
         if (type === "door") {
-            setDoors(prev => prev.map(d => d.id === id ? { ...d, t: newT } : d))
+            setDoors(prev => prev.map(d => d.id === id ? { ...d, t: closest.t, wallId: closest.wallId, flipY: isFlippedY } : d))
         } else {
-            setWindows(prev => prev.map(w => w.id === id ? { ...w, t: newT } : w))
+            setWindows(prev => prev.map(w => w.id === id ? { ...w, t: closest.t, wallId: closest.wallId, flipY: isFlippedY } : w))
+        }
+    }
+    const handleCloneElement = (type: "door" | "window", id: string) => {
+        saveStateToHistory()
+        if (type === "door") {
+            const door = doors.find(d => d.id === id)
+            if (door) {
+                const newDoor = { ...door, id: `door-${Date.now()}`, t: Math.min(0.9, door.t + 0.1) }
+                setDoors([...doors, newDoor])
+                setSelectedElement({ type: "door", id: newDoor.id })
+            }
+        } else {
+            const window = windows.find(w => w.id === id)
+            if (window) {
+                const newWindow = { ...window, id: `window-${Date.now()}`, t: Math.min(0.9, window.t + 0.1) }
+                setWindows([...windows, newWindow])
+                setSelectedElement({ type: "window", id: newWindow.id })
+            }
         }
     }
 
+    const handleUpdateElement = (type: "door" | "window", id: string, updates: any) => {
+        saveStateToHistory()
+        if (type === "door") {
+            setDoors(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d))
+        } else {
+            setWindows(prev => prev.map(w => w.id === id ? { ...w, ...updates } : w))
+        }
+    }
     const handleDragWall = (id: string, totalDelta: Point) => {
         setWalls(prevWalls => {
             if (!wallSnapshot) return prevWalls
@@ -376,8 +435,12 @@ export const EditorContainer = () => {
             const currentLength = Math.sqrt(dx * dx + dy * dy)
             if (currentLength === 0) return prevWalls
 
-            const ux = dx / currentLength
-            const uy = dy / currentLength
+            let ux = dx / currentLength
+            let uy = dy / currentLength
+
+            // Forzar ortogonalidad si el muro ya lo es (evitar acumulación de errores de coma flotante)
+            if (isHorizontal) { ux = Math.sign(dx) || 1; uy = 0 }
+            else if (isVertical) { ux = 0; uy = Math.sign(dy) || 1 }
 
             let newPoint = {
                 x: Math.round(anchorPoint.x + ux * newLength * (movingEnd === "start" ? -1 : 1)),
@@ -406,12 +469,12 @@ export const EditorContainer = () => {
                     if (isSame(w.start, p)) {
                         w.start.x += d.x; w.start.y += d.y
                         if ((isWHorizontal && d.y !== 0) || (isWVertical && d.x !== 0)) {
-                            recursiveMove({ x: w.end.x - d.x, y: w.end.y - d.y }, d)
+                            recursiveMove(w.end, d)
                         }
                     } else if (isSame(w.end, p)) {
                         w.end.x += d.x; w.end.y += d.y
                         if ((isWHorizontal && d.y !== 0) || (isWVertical && d.x !== 0)) {
-                            recursiveMove({ x: w.start.x - d.x, y: w.start.y - d.y }, d)
+                            recursiveMove(w.start, d)
                         }
                     }
                 })
@@ -431,7 +494,7 @@ export const EditorContainer = () => {
         })
     }
 
-    const findClosestWall = (p: Point) => {
+    const findClosestWall = (p: Point): { wallId: string, t: number, dist: number } | null => {
         let best: { wallId: string, t: number, dist: number } | null = null
         let minDist = Infinity
 
@@ -495,12 +558,15 @@ export const EditorContainer = () => {
                 const closest = findClosestWall(point)
                 if (closest && closest.dist < 20) {
                     saveStateToHistory()
+                    const newId = `door-${Date.now()}`
                     setDoors([...doors, {
-                        id: `door-${Date.now()}`,
+                        id: newId,
                         wallId: closest.wallId,
                         t: closest.t,
-                        width: 80
+                        width: 82
                     }])
+                    setActiveTool("select")
+                    setSelectedElement({ type: "door", id: newId })
                 }
                 break
             }
@@ -509,13 +575,16 @@ export const EditorContainer = () => {
                 const closest = findClosestWall(point)
                 if (closest && closest.dist < 20) {
                     saveStateToHistory()
+                    const newId = `window-${Date.now()}`
                     setWindows([...windows, {
-                        id: `window-${Date.now()}`,
+                        id: newId,
                         wallId: closest.wallId,
                         t: closest.t,
                         width: 100,
-                        height: 10
+                        height: 100
                     }])
+                    setActiveTool("select")
+                    setSelectedElement({ type: "window", id: newId })
                 }
                 break
             }
@@ -729,6 +798,11 @@ export const EditorContainer = () => {
                         setWallSnapshot(JSON.parse(JSON.stringify(walls)))
                     }}
                     onDragElement={handleDragElement}
+                    selectedElement={selectedElement}
+                    onSelectElement={setSelectedElement}
+                    onUpdateElement={handleUpdateElement}
+                    onCloneElement={handleCloneElement}
+                    onDeleteElement={handleDeleteElement}
                 />
 
                 <div className="absolute bottom-4 left-4 p-3 bg-white/90 backdrop-blur-sm rounded-lg border border-slate-200 text-[10px] text-slate-500 shadow-sm pointer-events-none">
