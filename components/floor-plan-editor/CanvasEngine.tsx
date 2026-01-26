@@ -77,6 +77,13 @@ interface CanvasEngineProps {
     onCloneElement: (type: "door" | "window", id: string) => void
     onDeleteElement: (type: "door" | "window", id: string) => void
     wallSnapshot: Wall[] | null
+    bgImage?: string | null
+    bgConfig?: { opacity: number, scale: number, x: number, y: number, rotation?: number }
+    onUpdateBgConfig?: (updates: any) => void
+    isCalibrating?: boolean
+    calibrationPoints?: { p1: Point, p2: Point }
+    calibrationTargetValue?: number
+    onUpdateCalibrationPoint?: (id: "p1" | "p2", point: Point) => void
 }
 
 export const CanvasEngine: React.FC<CanvasEngineProps> = ({
@@ -117,7 +124,26 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     onUpdateElement,
     onCloneElement,
     onDeleteElement,
+    bgImage,
+    bgConfig,
+    onUpdateBgConfig,
+    isCalibrating,
+    calibrationPoints,
+    calibrationTargetValue,
+    onUpdateCalibrationPoint
 }) => {
+    const stageRef = React.useRef<any>(null)
+    const [image, setImage] = React.useState<HTMLImageElement | null>(null)
+
+    React.useEffect(() => {
+        if (bgImage) {
+            const img = new Image()
+            img.src = bgImage
+            img.onload = () => setImage(img)
+        } else {
+            setImage(null)
+        }
+    }, [bgImage])
     const [mousePos, setMousePos] = React.useState<Point | null>(null)
     const [alignmentGuides, setAlignmentGuides] = React.useState<{ x?: number, y?: number } | null>(null)
     const [editMode, setEditMode] = React.useState<"menu" | "length" | "thickness" | "room" | null>(null)
@@ -274,13 +300,13 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
         setAlignmentGuides(null)
 
-        // 1. VERTEX SNAP (Prioridad Máxima, Umbral 10)
-        const vertexThreshold = 10 / zoom
+        // 1. VERTEX SNAP (Prioridad Máxima, Umbral 6)
+        const vertexThreshold = 6 / zoom
         const vertex = findNearestVertex(point, vertexThreshold)
         if (vertex) return vertex
 
         // 2. ALINEACIONES Y ORTOGONALIDAD
-        const alignThreshold = 15 / zoom
+        const alignThreshold = 8 / zoom
         const currentWS = wallSnapshot || walls
         const candidates: Point[] = []
         currentWS.forEach(w => { candidates.push(w.start); candidates.push(w.end) })
@@ -320,7 +346,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
         // 3. EDGE SNAP (Si no hay alineación fuerte de ejes)
         if (snappedX === null || snappedY === null) {
-            const edgeThreshold = 15 / zoom
+            const edgeThreshold = 8 / zoom
             let nearestEdge: Point | null = null
             let minEdgeDist = edgeThreshold
             currentWS.forEach(w => {
@@ -358,7 +384,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
         const getFaceOffsetAt = (point: Point, fn: Point, isInteriorFace: boolean) => {
             const neighbors = walls.filter(w => w.id !== wall.id && (isSamePoint(w.start, point) || isSamePoint(w.end, point)))
-            if (neighbors.length === 0) return wall.thickness / 2
+            if (neighbors.length === 0) return 0
 
             const isContinuation = neighbors.some(nw => {
                 const isNWVertical = Math.abs(nw.start.x - nw.end.x) < 1
@@ -374,11 +400,15 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                 return (dir.x * fn.x + dir.y * fn.y) > 5
             })
 
-            if (blocksFace) {
-                // If it's an interior face (points into a room), retreat to show clear space
-                // If it's exterior, we usually stop at the joint cap (0 offset)
-                const maxT = perp.length > 0 ? Math.max(...perp.map(n => n.thickness)) : wall.thickness
-                return isInteriorFace ? -maxT / 2 : 0
+            if (perp.length > 0) {
+                const maxT = Math.max(...perp.map(n => n.thickness))
+
+                // Si la pared perpendicular bloquea esta cara (va en la dirección de fn) -> Retraer (Interior)
+                if (blocksFace) return -maxT / 2
+
+                // Si no bloquea esta cara pero existe (unión en L) -> Extender (Exterior)
+                // Solo si somos la cara exterior
+                if (!isInteriorFace) return maxT / 2
             }
             return 0
         }
@@ -452,18 +482,23 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
             }
         }
 
+        const ux = dx / centerLength
+        const uy = dy / centerLength
         const length = Math.round(totalCenterLength + finalOffStart + finalOffEnd)
 
         const labelX = midX + nx * offsetVal
         const labelY = midY + ny * offsetVal
 
+        // Visual refinement: The thin blue line should also stop at the faces
+        const p1x = (wall.start.x + ux * (-finalOffStart)) + nx * (offsetVal * 0.7)
+        const p1y = (wall.start.y + uy * (-finalOffStart)) + ny * (offsetVal * 0.7)
+        const p2x = (wall.end.x + ux * (finalOffEnd)) + nx * (offsetVal * 0.7)
+        const p2y = (wall.end.y + uy * (finalOffEnd)) + ny * (offsetVal * 0.7)
+
         return (
             <Group>
                 <Line
-                    points={[
-                        wall.start.x + nx * (offsetVal * 0.7), wall.start.y + ny * (offsetVal * 0.7),
-                        wall.end.x + nx * (offsetVal * 0.7), wall.end.y + ny * (offsetVal * 0.7)
-                    ]}
+                    points={[p1x, p1y, p2x, p2y]}
                     stroke={color}
                     strokeWidth={0.5 / zoom}
                     opacity={0.4}
@@ -657,6 +692,79 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                         offsetY={offset.y}
                     />
                     <Group x={offset.x} y={offset.y} scaleX={zoom} scaleY={zoom}>
+                        {/* Imagen de fondo / Plantilla */}
+                        {image && bgConfig && (
+                            <Rect
+                                x={bgConfig.x}
+                                y={bgConfig.y}
+                                width={image.width * bgConfig.scale}
+                                height={image.height * bgConfig.scale}
+                                fillPatternImage={image}
+                                fillPatternScaleX={bgConfig.scale}
+                                fillPatternScaleY={bgConfig.scale}
+                                rotation={bgConfig.rotation || 0}
+                                opacity={bgConfig.opacity}
+                                listening={false}
+                            />
+                        )}
+
+                        {/* Herramienta de Calibración */}
+                        {isCalibrating && calibrationPoints && (
+                            <Group>
+                                <Line
+                                    points={[calibrationPoints.p1.x, calibrationPoints.p1.y, calibrationPoints.p2.x, calibrationPoints.p2.y]}
+                                    stroke="#fbbf24"
+                                    strokeWidth={3 / zoom}
+                                    dash={[10, 5]}
+                                />
+                                <Group
+                                    x={calibrationPoints.p1.x}
+                                    y={calibrationPoints.p1.y}
+                                    draggable
+                                    onDragMove={(e) => onUpdateCalibrationPoint?.("p1", { x: e.target.x(), y: e.target.y() })}
+                                >
+                                    <Circle radius={12 / zoom} fill="white" stroke="#fbbf24" strokeWidth={3 / zoom} shadowBlur={5} shadowOpacity={0.2} />
+                                    <Line points={[-18 / zoom, 0, 18 / zoom, 0]} stroke="#fbbf24" strokeWidth={1.5 / zoom} />
+                                    <Line points={[0, -18 / zoom, 0, 18 / zoom]} stroke="#fbbf24" strokeWidth={1.5 / zoom} />
+                                </Group>
+                                <Group
+                                    x={calibrationPoints.p2.x}
+                                    y={calibrationPoints.p2.y}
+                                    draggable
+                                    onDragMove={(e) => onUpdateCalibrationPoint?.("p2", { x: e.target.x(), y: e.target.y() })}
+                                >
+                                    <Circle radius={12 / zoom} fill="white" stroke="#fbbf24" strokeWidth={3 / zoom} shadowBlur={5} shadowOpacity={0.2} />
+                                    <Line points={[-18 / zoom, 0, 18 / zoom, 0]} stroke="#fbbf24" strokeWidth={1.5 / zoom} />
+                                    <Line points={[0, -18 / zoom, 0, 18 / zoom]} stroke="#fbbf24" strokeWidth={1.5 / zoom} />
+                                </Group>
+                                <Group
+                                    x={(calibrationPoints.p1.x + calibrationPoints.p2.x) / 2}
+                                    y={(calibrationPoints.p1.y + calibrationPoints.p2.y) / 2}
+                                >
+                                    <Rect
+                                        width={80 / zoom}
+                                        height={24 / zoom}
+                                        fill="white"
+                                        stroke="#fbbf24"
+                                        strokeWidth={1 / zoom}
+                                        cornerRadius={4 / zoom}
+                                        offsetX={40 / zoom}
+                                        offsetY={35 / zoom}
+                                    />
+                                    <Text
+                                        text={`${calibrationTargetValue || 0} cm`}
+                                        fontSize={14 / zoom}
+                                        fill="#b45309"
+                                        fontStyle="bold"
+                                        width={80 / zoom}
+                                        align="center"
+                                        offsetX={40 / zoom}
+                                        offsetY={30 / zoom}
+                                    />
+                                </Group>
+                            </Group>
+                        )}
+
                         {/* Renderizar habitaciones detectadas */}
                         {rooms.map((room: Room) => {
                             const points = room.polygon.flatMap((p: Point) => [p.x, p.y])
@@ -718,8 +826,8 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         stroke={isSelected ? "#0ea5e9" : (isHovered ? "#ef4444" : "#334155")}
                                         strokeWidth={wall.thickness}
                                         hitStrokeWidth={30}
-                                        lineCap="round"
-                                        lineJoin="round"
+                                        lineCap="square"
+                                        lineJoin="miter"
                                         draggable={activeTool === "select"}
                                         onClick={() => {
                                             if (activeTool === "select") {
@@ -899,32 +1007,34 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                     />
 
                                     {/* Distancias dinámicas alineadas con el muro (Estilo HomeByMe) */}
-                                    <Group rotation={0}>
-                                        {d1Val > 5 && (
-                                            <Group x={gap1CenterLocalX} y={20 + wall.thickness / 2}>
-                                                <Group rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
-                                                    <Rect
-                                                        width={35} height={16} x={-17.5} y={-8}
-                                                        fill="white" stroke="#0ea5e9" strokeWidth={0.5} cornerRadius={4}
-                                                        shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
-                                                    />
-                                                    <Text text={`${d1} cm`} x={-17.5} y={-5} fontSize={9} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
+                                    {isSelected && (
+                                        <Group rotation={0}>
+                                            {d1Val > 5 && (
+                                                <Group x={gap1CenterLocalX} y={20 + wall.thickness / 2}>
+                                                    <Group rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
+                                                        <Rect
+                                                            width={35} height={16} x={-17.5} y={-8}
+                                                            fill="white" stroke="#0ea5e9" strokeWidth={0.5} cornerRadius={4}
+                                                            shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
+                                                        />
+                                                        <Text text={`${d1} cm`} x={-17.5} y={-5} fontSize={9} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
+                                                    </Group>
                                                 </Group>
-                                            </Group>
-                                        )}
-                                        {d2Val > 5 && (
-                                            <Group x={gap2CenterLocalX} y={20 + wall.thickness / 2}>
-                                                <Group rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
-                                                    <Rect
-                                                        width={35} height={16} x={-17.5} y={-8}
-                                                        fill="white" stroke="#0ea5e9" strokeWidth={0.5} cornerRadius={4}
-                                                        shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
-                                                    />
-                                                    <Text text={`${d2} cm`} x={-17.5} y={-5} fontSize={9} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
+                                            )}
+                                            {d2Val > 5 && (
+                                                <Group x={gap2CenterLocalX} y={20 + wall.thickness / 2}>
+                                                    <Group rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
+                                                        <Rect
+                                                            width={35} height={16} x={-17.5} y={-8}
+                                                            fill="white" stroke="#0ea5e9" strokeWidth={0.5} cornerRadius={4}
+                                                            shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
+                                                        />
+                                                        <Text text={`${d2} cm`} x={-17.5} y={-5} fontSize={9} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
+                                                    </Group>
                                                 </Group>
-                                            </Group>
-                                        )}
-                                    </Group>
+                                            )}
+                                        </Group>
+                                    )}
                                 </Group>
                             )
                         })}
@@ -979,46 +1089,50 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                     <Line points={[-window.width / 2, 0, window.width / 2, 0]} stroke={isSelected ? "#0ea5e9" : "#334155"} strokeWidth={isSelected ? 2 : 1} />
 
                                     {/* Etiqueta de Dimensiones (WxH) */}
-                                    <Group x={0} y={0} rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
-                                        <Text
-                                            text={`${window.width}x${window.height}`}
-                                            fontSize={7}
-                                            fill="#475569"
-                                            align="center"
-                                            width={window.width}
-                                            offsetX={window.width / 2}
-                                            offsetY={-2}
-                                            fontStyle="bold"
-                                        />
-                                    </Group>
+                                    {isSelected && (
+                                        <Group x={0} y={0} rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
+                                            <Text
+                                                text={`${window.width}x${window.height}`}
+                                                fontSize={7}
+                                                fill="#475569"
+                                                align="center"
+                                                width={window.width}
+                                                offsetX={window.width / 2}
+                                                offsetY={-2}
+                                                fontStyle="bold"
+                                            />
+                                        </Group>
+                                    )}
 
                                     {/* Distancias dinámicas alineadas con el muro */}
-                                    <Group rotation={0}>
-                                        {d1Val > 5 && (
-                                            <Group x={gap1CenterLocalX} y={20 + wall.thickness / 2}>
-                                                <Group rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
-                                                    <Rect
-                                                        width={35} height={16} x={-17.5} y={-8}
-                                                        fill="white" stroke="#0ea5e9" strokeWidth={0.5} cornerRadius={4}
-                                                        shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
-                                                    />
-                                                    <Text text={`${d1} cm`} x={-17.5} y={-5} fontSize={9} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
+                                    {isSelected && (
+                                        <Group rotation={0}>
+                                            {d1Val > 5 && (
+                                                <Group x={gap1CenterLocalX} y={20 + wall.thickness / 2}>
+                                                    <Group rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
+                                                        <Rect
+                                                            width={35} height={16} x={-17.5} y={-8}
+                                                            fill="white" stroke="#0ea5e9" strokeWidth={0.5} cornerRadius={4}
+                                                            shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
+                                                        />
+                                                        <Text text={`${d1} cm`} x={-17.5} y={-5} fontSize={9} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
+                                                    </Group>
                                                 </Group>
-                                            </Group>
-                                        )}
-                                        {d2Val > 5 && (
-                                            <Group x={gap2CenterLocalX} y={20 + wall.thickness / 2}>
-                                                <Group rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
-                                                    <Rect
-                                                        width={35} height={16} x={-17.5} y={-8}
-                                                        fill="white" stroke="#0ea5e9" strokeWidth={0.5} cornerRadius={4}
-                                                        shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
-                                                    />
-                                                    <Text text={`${d2} cm`} x={-17.5} y={-5} fontSize={9} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
+                                            )}
+                                            {d2Val > 5 && (
+                                                <Group x={gap2CenterLocalX} y={20 + wall.thickness / 2}>
+                                                    <Group rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
+                                                        <Rect
+                                                            width={35} height={16} x={-17.5} y={-8}
+                                                            fill="white" stroke="#0ea5e9" strokeWidth={0.5} cornerRadius={4}
+                                                            shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
+                                                        />
+                                                        <Text text={`${d2} cm`} x={-17.5} y={-5} fontSize={9} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
+                                                    </Group>
                                                 </Group>
-                                            </Group>
-                                        )}
-                                    </Group>
+                                            )}
+                                        </Group>
+                                    )}
                                 </Group>
                             )
                         })}
@@ -1059,8 +1173,8 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         stroke="#0284c7"
                                         strokeWidth={15}
                                         opacity={0.8}
-                                        lineCap="round"
-                                        lineJoin="round"
+                                        lineCap="square"
+                                        lineJoin="miter"
                                     />
                                     <Text
                                         x={(currentWall.start.x + currentWall.end.x) / 2}
@@ -1172,14 +1286,14 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                         position: 'absolute',
                         left: (selectedRoom
                             ? (calculatePolygonCentroid(selectedRoom.polygon).x * zoom + offset.x)
-                            : selectedElement
-                                ? currentEPos!.x
+                            : (selectedElement && currentEPos)
+                                ? currentEPos.x
                                 : uiPos?.x || 0
                         ) + menuDragOffset.x,
                         top: (selectedRoom
                             ? (calculatePolygonCentroid(selectedRoom.polygon).y * zoom + offset.y - 40)
-                            : selectedElement
-                                ? currentEPos!.y - 80
+                            : (selectedElement && currentEPos)
+                                ? currentEPos.y - 80
                                 : (uiPos ? uiPos.y - 100 : 0)
                         ) + menuDragOffset.y,
                         transform: 'translateX(-50%)',
@@ -1220,8 +1334,8 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                             onClick={() => {
                                                 const el = selectedElement.type === "door"
                                                     ? doors.find(d => d.id === selectedElement.id)
-                                                    : windows.find(w => w.id === selectedElement.id)
-                                                if (el && 'flipX' in el) onUpdateElement(selectedElement.type, el.id, { flipX: !el.flipX })
+                                                    : null
+                                                if (el) onUpdateElement("door", el.id, { flipX: !el.flipX })
                                             }}
                                         />
                                         <MenuButton

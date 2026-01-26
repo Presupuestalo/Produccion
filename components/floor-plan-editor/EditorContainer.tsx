@@ -4,7 +4,7 @@ import dynamic from "next/dynamic"
 const CanvasEngine = dynamic(() => import("./CanvasEngine").then((mod) => mod.CanvasEngine), { ssr: false })
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { MousePointer2, Pencil, Eraser, ZoomIn, ZoomOut, Maximize, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2 } from "lucide-react"
+import { MousePointer2, Pencil, Eraser, ZoomIn, ZoomOut, Maximize, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2, ImagePlus, Sliders, Move } from "lucide-react"
 import { detectRoomsGeometrically, fragmentWalls, getClosestPointOnSegment } from "@/lib/utils/geometry"
 
 export const EditorContainer = () => {
@@ -38,6 +38,13 @@ export const EditorContainer = () => {
     const redoHistoryRef = useRef<any[]>([])
     // Snapshots para arrastre suave y rígido
     const [wallSnapshot, setWallSnapshot] = useState<Wall[] | null>(null)
+
+    // Estado del plano de fondo (Plantilla)
+    const [bgImage, setBgImage] = useState<string | null>(null)
+    const [bgConfig, setBgConfig] = useState({ opacity: 0.5, scale: 1, x: 0, y: 0, rotation: 0 })
+    const [isCalibrating, setIsCalibrating] = useState(false)
+    const [calibrationPoints, setCalibrationPoints] = useState({ p1: { x: 200, y: 200 }, p2: { x: 500, y: 200 } })
+    const [calibrationTargetValue, setCalibrationTargetValue] = useState(500)
 
     // Limpiar estados al cambiar de herramienta o cancelar
     useEffect(() => {
@@ -231,7 +238,7 @@ export const EditorContainer = () => {
 
     const handleDragElement = (type: "door" | "window", id: string, pointer: Point) => {
         const closest = findClosestWall(pointer)
-        if (!closest || closest.dist > 50) return // Umbral para "saltar" entre muros
+        if (!closest || closest.dist > 30) return // Umbral para "saltar" entre muros
 
         const wall = walls.find(w => w.id === closest.wallId)
         if (!wall) return
@@ -338,7 +345,9 @@ export const EditorContainer = () => {
                     }
                 }
             })
-            return workingWalls.concat(addedJogs)
+            const nextWalls = workingWalls.concat(addedJogs)
+            setRooms(detectRoomsGeometrically(nextWalls, rooms))
+            return nextWalls
         })
     }
 
@@ -372,6 +381,7 @@ export const EditorContainer = () => {
                 }
             })
 
+            setRooms(detectRoomsGeometrically(workingWalls, rooms))
             return workingWalls
         })
     }
@@ -534,14 +544,16 @@ export const EditorContainer = () => {
 
             case "door": {
                 const closest = findClosestWall(point)
-                if (closest && closest.dist < 20) {
+                if (closest && closest.dist < 15) {
                     saveStateToHistory()
                     const newId = `door-${Date.now()}`
                     setDoors([...doors, {
                         id: newId,
                         wallId: closest.wallId,
                         t: closest.t,
-                        width: 82
+                        width: 82,
+                        flipX: false,
+                        flipY: false
                     }])
                     setActiveTool("select")
                     setSelectedElement({ type: "door", id: newId })
@@ -551,7 +563,7 @@ export const EditorContainer = () => {
 
             case "window": {
                 const closest = findClosestWall(point)
-                if (closest && closest.dist < 20) {
+                if (closest && closest.dist < 15) {
                     saveStateToHistory()
                     const newId = `window-${Date.now()}`
                     setWindows([...windows, {
@@ -559,7 +571,8 @@ export const EditorContainer = () => {
                         wallId: closest.wallId,
                         t: closest.t,
                         width: 100,
-                        height: 100
+                        height: 100,
+                        flipY: false
                     }])
                     setActiveTool("select")
                     setSelectedElement({ type: "window", id: newId })
@@ -568,6 +581,29 @@ export const EditorContainer = () => {
             }
         }
     }
+
+    const handleApplyCalibration = () => {
+        const dx = calibrationPoints.p2.x - calibrationPoints.p1.x
+        const dy = calibrationPoints.p2.y - calibrationPoints.p1.y
+        const pixelDist = Math.sqrt(dx * dx + dy * dy)
+        if (pixelDist > 0) {
+            const newScale = (calibrationTargetValue / pixelDist) * bgConfig.scale
+            setBgConfig(prev => ({ ...prev, scale: newScale }))
+            setIsCalibrating(false)
+        }
+    }
+
+    const handleImportImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (file) {
+            const reader = new FileReader()
+            reader.onload = (event) => {
+                setBgImage(event.target?.result as string)
+            }
+            reader.readAsDataURL(file)
+        }
+    }
+
     const handleMouseMove = (point: Point) => {
         if (activeTool === "wall" && currentWall) {
             setCurrentWall({ ...currentWall, end: point })
@@ -624,15 +660,15 @@ export const EditorContainer = () => {
                 console.error("[v0] Error al guardar plano:", await response.text())
             }
         } catch (error) {
-            console.error("[v0] Exception saving plan:", error)
+            console.error("[v0] Excepción al guardar:", error)
         } finally {
             setIsSaving(false)
         }
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-120px)] w-full gap-4">
-            <Card className="p-2 flex items-center justify-between bg-white/80 backdrop-blur shadow-sm border-slate-200">
+        <div className="flex flex-col h-full bg-slate-50 p-4 gap-4">
+            <Card className="p-2 flex items-center justify-between bg-white/80 backdrop-blur-md border-slate-200 shadow-lg">
                 <div className="flex items-center gap-1">
                     <Button
                         variant={activeTool === "select" ? "default" : "ghost"}
@@ -676,6 +712,22 @@ export const EditorContainer = () => {
                     >
                         <Eraser className="h-4 w-4" />
                     </Button>
+                    <div className="w-px h-6 bg-slate-200 mx-1" />
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => document.getElementById('bg-import')?.click()}
+                        title="Importar Plano (Plantilla)"
+                    >
+                        <ImagePlus className="h-4 w-4" />
+                    </Button>
+                    <input
+                        type="file"
+                        id="bg-import"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleImportImage}
+                    />
                     <div className="w-px h-6 bg-slate-200 mx-1" />
                     <Button
                         variant="ghost"
@@ -771,6 +823,13 @@ export const EditorContainer = () => {
                     }}
                     onDragVertex={handleDragVertex}
                     wallSnapshot={wallSnapshot}
+                    bgImage={bgImage}
+                    bgConfig={bgConfig}
+                    onUpdateBgConfig={(updates: any) => setBgConfig(prev => ({ ...prev, ...updates }))}
+                    isCalibrating={isCalibrating}
+                    calibrationPoints={calibrationPoints}
+                    calibrationTargetValue={calibrationTargetValue}
+                    onUpdateCalibrationPoint={(id: "p1" | "p2", p: Point) => setCalibrationPoints(prev => ({ ...prev, [id]: p }))}
                     onStartDragWall={() => {
                         saveStateToHistory()
                         setWallSnapshot(JSON.parse(JSON.stringify(walls)))
@@ -782,13 +841,128 @@ export const EditorContainer = () => {
                     onCloneElement={handleCloneElement}
                     onDeleteElement={handleDeleteElement}
                 />
+                {bgImage && (
+                    <div className="absolute top-4 right-4 p-4 bg-white/95 backdrop-blur-md rounded-xl border border-slate-200 shadow-xl w-72 animate-in fade-in slide-in-from-right-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                <Sliders className="h-4 w-4 text-sky-600" />
+                                {isCalibrating ? "Calibrar Escala" : "Ajustar Plantilla"}
+                            </h3>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setBgImage(null); setIsCalibrating(false); }}>
+                                <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                            </Button>
+                        </div>
 
-                <div className="absolute bottom-4 left-4 p-3 bg-white/90 backdrop-blur-sm rounded-lg border border-slate-200 text-[10px] text-slate-500 shadow-sm pointer-events-none">
-                    <p>• Rueda: Zoom</p>
-                    <p>• Click derecho/Arrastrar: Pan</p>
-                    <p>• Click: Dibujar punto</p>
-                </div>
+                        <div className="space-y-4">
+                            {!isCalibrating ? (
+                                <>
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                            <span>Opacidad</span>
+                                            <span>{Math.round(bgConfig.opacity * 100)}%</span>
+                                        </div>
+                                        <input
+                                            type="range" min="0" max="1" step="0.05"
+                                            value={bgConfig.opacity}
+                                            onChange={(e) => setBgConfig(prev => ({ ...prev, opacity: parseFloat(e.target.value) }))}
+                                            className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-sky-600"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                            <span>Rotación</span>
+                                            <span>{bgConfig.rotation || 0}°</span>
+                                        </div>
+                                        <input
+                                            type="range" min="-180" max="180" step="1"
+                                            value={bgConfig.rotation || 0}
+                                            onChange={(e) => setBgConfig(prev => ({ ...prev, rotation: parseInt(e.target.value) }))}
+                                            className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase">Pos X</label>
+                                            <input
+                                                type="number"
+                                                value={Math.round(bgConfig.x)}
+                                                onChange={(e) => setBgConfig(prev => ({ ...prev, x: parseInt(e.target.value) || 0 }))}
+                                                className="w-full px-2 py-1 text-xs border border-slate-200 rounded-md"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase">Pos Y</label>
+                                            <input
+                                                type="number"
+                                                value={Math.round(bgConfig.y)}
+                                                onChange={(e) => setBgConfig(prev => ({ ...prev, y: parseInt(e.target.value) || 0 }))}
+                                                className="w-full px-2 py-1 text-xs border border-slate-200 rounded-md"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full h-8 text-xs font-bold gap-2 bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100"
+                                        onClick={() => setIsCalibrating(true)}
+                                    >
+                                        <Maximize className="h-3.5 w-3.5" />
+                                        Calibrar Escala REAL
+                                    </Button>
+                                </>
+                            ) : (
+                                <div className="space-y-4 animate-in slide-in-from-right-4">
+                                    <p className="text-[11px] text-slate-600 leading-relaxed bg-amber-50 p-2 rounded-lg border border-amber-100">
+                                        Mueve los marcadores sobre una pared o pasillo del que sepas su medida real.
+                                    </p>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase">Medida Real (cm)</label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="number"
+                                                value={calibrationTargetValue}
+                                                onChange={(e) => setCalibrationTargetValue(parseInt(e.target.value) || 0)}
+                                                className="flex-1 px-3 py-2 text-sm font-bold border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500"
+                                            />
+                                            <span className="flex items-center text-xs font-bold text-slate-400">cm</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-2 pt-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="flex-1 text-xs"
+                                            onClick={() => setIsCalibrating(false)}
+                                        >
+                                            Cancelar
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            className="flex-1 bg-sky-600 text-xs text-white"
+                                            onClick={handleApplyCalibration}
+                                        >
+                                            Validar Escala
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {!isCalibrating && (
+                                <p className="text-[10px] text-slate-400 text-center italic mt-2">
+                                    Ajusta la plantilla para que coincida con la cuadrícula
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
+
+
         </div>
     )
 }
