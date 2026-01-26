@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { generateObject } from "ai"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
-import { groq, VISION_GROQ_MODEL } from "@/lib/ia/groq"
+import { groqProvider, VISION_GROQ_MODEL } from "@/lib/ia/groq"
 
 const floorPlanSchema = z.object({
   rooms: z.array(
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { object } = await generateObject({
-      model: groq(VISION_GROQ_MODEL),
+      model: groqProvider(VISION_GROQ_MODEL),
       schema: floorPlanSchema,
       messages: [
         {

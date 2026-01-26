@@ -1,12 +1,12 @@
 export const dynamic = "force-dynamic"
 import { generateObject } from "ai"
 import { z } from "zod"
-import { groq, VISION_GROQ_MODEL } from "@/lib/ia/groq"
+import { groqProvider, VISION_GROQ_MODEL } from "@/lib/ia/groq"
 import { convertPdfToImage, isPdf } from "@/lib/utils/pdf-to-image"
 
 export const maxDuration = 60
 
-const VISION_MODEL = groq(VISION_GROQ_MODEL)
+const VISION_MODEL = groqProvider(VISION_GROQ_MODEL)
 
 const analysisSchema = z.object({
   isValid: z.boolean().describe("Si la imagen es un plano válido"),
@@ -107,7 +107,7 @@ export async function POST(request: Request) {
     console.log("[v0] Usando modelo:", VISION_GROQ_MODEL)
 
     const result = await generateObject({
-      model: groq(VISION_GROQ_MODEL),
+      model: groqProvider(VISION_GROQ_MODEL),
       schema: analysisSchema,
       messages: [
         {

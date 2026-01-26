@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { generateObject } from "ai"
 import { z } from "zod"
-import { groq, VISION_GROQ_MODEL } from "@/lib/ia/groq"
+import { groqProvider, VISION_GROQ_MODEL } from "@/lib/ia/groq"
 import { convertPdfToImage, isPdf } from "@/lib/utils/pdf-to-image"
 
 export const maxDuration = 60
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
     ])
 
     const result = await generateObject({
-      model: groq(VISION_GROQ_MODEL),
+      model: groqProvider(VISION_GROQ_MODEL),
       schema: comparisonSchema,
       messages: [
         {

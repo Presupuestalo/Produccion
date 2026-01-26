@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 import { generateText } from "ai"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
-import { groq, FAST_GROQ_MODEL } from "@/lib/ia/groq"
+import { groqProvider, FAST_GROQ_MODEL } from "@/lib/ia/groq"
 
 export async function POST(request: Request) {
   try {
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     if (description) {
       try {
         const { text } = await generateText({
-          model: groq(FAST_GROQ_MODEL),
+          model: groqProvider(FAST_GROQ_MODEL),
           prompt: `Eres un experto en reformas y construcción. Un cliente quiere hacer una reforma de tipo "${reformType}" y ha descrito su proyecto así:
 
 "${description}"

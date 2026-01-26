@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
 import { z } from "zod"
 import { supabaseAdmin as supabase } from "@/lib/supabase-admin"
-import { groq, DEFAULT_GROQ_MODEL, FAST_GROQ_MODEL } from "@/lib/ia/groq"
+import { groqProvider, DEFAULT_GROQ_MODEL, FAST_GROQ_MODEL } from "@/lib/ia/groq"
 
 export const dynamic = "force-dynamic"
 
@@ -62,7 +62,7 @@ function getCurrencyForCountry(countryInput: string): { code: string; symbol: st
 async function validateCity(city: string, country: string): Promise<{ isValid: boolean; suggestion?: string }> {
   try {
     const { text } = await generateText({
-      model: groq(FAST_GROQ_MODEL),
+      model: groqProvider(FAST_GROQ_MODEL),
       prompt: `Eres un experto en geografía. Valida si la ciudad "${city}" existe en el país "${country}".
 
 Responde SOLO con un JSON en este formato exacto:
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
     const heatingDetail = heatingDescriptions[heatingType] || (['suelos', 'pintura', 'ventanas'].includes(reformType) ? 'No relevante para este tipo de obra' : heatingType)
 
     const { text: estimationText } = await generateText({
-      model: groq(DEFAULT_GROQ_MODEL),
+      model: groqProvider(DEFAULT_GROQ_MODEL),
       prompt: `Eres un experto en presupuestos de reformas en ${country}.
  
  REGLA CRÍTICA SOBRE MONEDA - LEE ESTO PRIMERO:

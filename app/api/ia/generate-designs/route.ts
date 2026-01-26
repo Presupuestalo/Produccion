@@ -2,7 +2,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { generateText } from "ai"
-import { groq, VISION_GROQ_MODEL } from "@/lib/ia/groq"
+import { groqProvider, VISION_GROQ_MODEL } from "@/lib/ia/groq"
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Validando que sea una sola habitación...")
 
     const validationResult = await generateText({
-      model: groq(VISION_GROQ_MODEL),
+      model: groqProvider(VISION_GROQ_MODEL),
       messages: [
         {
           role: "user",

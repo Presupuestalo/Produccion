@@ -4,7 +4,7 @@ import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { generateText } from "ai"
 import { extractText } from "unpdf"
-import { groq, DEFAULT_GROQ_MODEL } from "@/lib/ia/groq"
+import { groqProvider, DEFAULT_GROQ_MODEL } from "@/lib/ia/groq"
 
 function getUserPriceTableByCountry(countryCode: string): string {
   const countryTables: Record<string, string> = {
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Analyzing prices with AI...")
 
     const { text: aiResponse } = await generateText({
-      model: groq(DEFAULT_GROQ_MODEL),
+      model: groqProvider(DEFAULT_GROQ_MODEL),
       prompt: `Analiza este presupuesto de reformas y extrae TODOS los precios en formato JSON.
 
 Devuelve un array JSON con esta estructura exacta:

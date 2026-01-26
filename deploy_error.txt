@@ -1,0 +1,113 @@
+﻿node.exe : > [debug] [2026-01-25T20:44:50.333Z] 
+Found config in file 
+"F:\PRESUPUESTALO\WEB-PRODUCCI├ôN\vercel.json"
+En C:\Users\barak\AppData\Roaming\npm\vercel.ps1: 
+24 Carácter: 5
++     & "node$exe"  
+"$basedir/node_modules/vercel/dist/vc.js" $args
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (> [d 
+   ebug] [2026...ôN\vercel.json":String) [], Rem  
+  oteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Vercel CLI 48.0.0
+> [debug] [2026-01-25T20:44:50.339Z] user 
+supplied a possible target for deployment or an 
+extension
+> [debug] [2026-01-25T20:44:50.358Z] failed to 
+find extension command with name "vercel---prod"
+> [debug] [2026-01-25T20:44:50.432Z] Setting 
+target to production
+> [debug] [2026-01-25T20:44:50.545Z] Found 
+".git\config" - detected 
+"F:\PRESUPUESTALO\WEB-PRODUCCI├ôN" as repo root
+> [debug] [2026-01-25T20:44:50.546Z] Spinner 
+invoked (Loading scopesÔÇª) with a 1000ms delay
+> [debug] [2026-01-25T20:44:50.547Z] Valid access 
+token, skipping token refresh.
+> [debug] [2026-01-25T20:44:50.548Z] Valid access 
+token, skipping token refresh.
+> [debug] [2026-01-25T20:44:50.572Z] #1 ÔåÆ GET 
+https://api.vercel.com/v2/user
+> [debug] [2026-01-25T20:44:50.576Z] #2 ÔåÆ GET 
+https://api.vercel.com/v1/teams
+> [debug] [2026-01-25T20:44:51.169Z] #1 ÔåÉ 200 
+OK: sfo1::g2ntv-1769373889954-fc36bceba63c [597ms]
+> [debug] [2026-01-25T20:44:51.182Z] #2 ÔåÉ 200 
+OK: sfo1::hf5c8-1769373889957-7c57606b6607 [606ms]
+> [debug] [2026-01-25T20:44:51.188Z] Spinner 
+invoked (Searching for existing projectsÔÇª) with 
+a 1000ms delay
+> [debug] [2026-01-25T20:44:51.188Z] Valid access 
+token, skipping token refresh.
+> [debug] [2026-01-25T20:44:51.188Z] Valid access 
+token, skipping token refresh.
+> [debug] [2026-01-25T20:44:51.190Z] #3 ÔåÆ GET ht
+tps://api.vercel.com/v9/projects/WEB-PRODUCCI%C3%9
+3N?teamId=team_Uf5LqwNuvKJ3flYLQdmWASLU
+> [debug] [2026-01-25T20:44:51.191Z] #4 ÔåÆ GET ht
+tps://api.vercel.com/v9/projects/web-produccion?te
+amId=team_Uf5LqwNuvKJ3flYLQdmWASLU
+> [debug] [2026-01-25T20:44:51.394Z] #4 ÔåÉ 404 
+Not Found: sfo1::g2ntv-1769373890173-7bbab9b09834 
+[203ms]
+> [debug] [2026-01-25T20:44:51.399Z] #3 ÔåÉ 404 
+Not Found: sfo1::hf5c8-1769373890172-c25826e25853 
+[209ms]
+Local settings detected in vercel.json:
+Auto-detected Project Settings (Next.js):
+- Build Command: next build
+- Development Command: next dev --port $PORT
+- Install Command: `yarn install`, `pnpm 
+install`, `npm install`, or `bun install`
+- Output Directory: Next.js default
+> [debug] [2026-01-25T20:44:51.712Z] Valid access 
+token, skipping token refresh.
+> [debug] [2026-01-25T20:44:51.713Z] #5 ÔåÆ POST h
+ttps://api.vercel.com/v1/projects?teamId=team_Uf5L
+qwNuvKJ3flYLQdmWASLU
+> [debug] [2026-01-25T20:44:51.924Z] #5 ÔåÉ 400 
+Bad Request: 
+sfo1::hf5c8-1769373890694-2da1e352d29f [211ms]
+> [debug] [2026-01-25T20:44:51.925Z] handling 
+error: Error: Project names can be up to 100 
+characters long and must be lowercase. They can 
+include letters, digits, and the following 
+characters: '.', '_', '-'. However, they cannot 
+contain the sequence '---'. (400)
+    at responseError (C:\Users\barak\AppData\Roami
+ng\npm\node_modules\vercel\dist\index.js:41538:10)
+    at process.processTicksAndRejections 
+(node:internal/process/task_queues:105:5)
+    at async C:\Users\barak\AppData\Roaming\npm\no
+de_modules\vercel\dist\index.js:63824:28
+    at async createProject (C:\Users\barak\AppData
+\Roaming\npm\node_modules\vercel\dist\index.js:109
+273:19)
+    at async setupAndLink (C:\Users\barak\AppData\
+Roaming\npm\node_modules\vercel\dist\index.js:1458
+63:21)
+    at async ensureLink (C:\Users\barak\AppData\Ro
+aming\npm\node_modules\vercel\dist\index.js:145923
+:13)
+    at async deploy_default (C:\Users\barak\AppDat
+a\Roaming\npm\node_modules\vercel\dist\index.js:15
+0166:21)
+    at async main17 (C:\Users\barak\AppData\Roamin
+g\npm\node_modules\vercel\dist\index.js:185804:19)
+Error: Project names can be up to 100 characters 
+long and must be lowercase. They can include 
+letters, digits, and the following characters: 
+'.', '_', '-'. However, they cannot contain the 
+sequence '---'. (400)
+Learn More: https://vercel.com/docs/projects/overv
+iew#project-name
+> [debug] [2026-01-25T20:44:52.255Z] Vercel CLI 
+48.0.0
+
+> [debug] [2026-01-25T20:44:52.633Z] Telemetry 
+event tracked
+> [debug] [2026-01-25T20:44:52.845Z] Telemetry 
+subprocess exited with code 0

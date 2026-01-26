@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import { generateText } from "ai"
-import { groq, FAST_GROQ_MODEL } from "@/lib/ia/groq"
+import { groqProvider, FAST_GROQ_MODEL } from "@/lib/ia/groq"
 
 export async function POST(request: Request) {
     try {
@@ -12,7 +12,7 @@ export async function POST(request: Request) {
         }
 
         const { text } = await generateText({
-            model: groq(FAST_GROQ_MODEL),
+            model: groqProvider(FAST_GROQ_MODEL),
             prompt: `Genera una cláusula de contrato de reforma de obra basada en la siguiente descripción: "${prompt}". 
       
 La cláusula debe ser profesional, clara y en español. No incluyas numeración, solo el texto de la cláusula.`,

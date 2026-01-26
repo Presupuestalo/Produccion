@@ -4,7 +4,7 @@ import { generateObject } from "ai"
 import { createClient } from "@/lib/supabase/server"
 import { z } from "zod"
 import { extractText } from "unpdf"
-import { groq, DEFAULT_GROQ_MODEL } from "@/lib/ia/groq"
+import { groqProvider, DEFAULT_GROQ_MODEL } from "@/lib/ia/groq"
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Enviando al modelo GPT-4o...")
 
     const { object: analysis } = await generateObject({
-      model: groq(DEFAULT_GROQ_MODEL),
+      model: groqProvider(DEFAULT_GROQ_MODEL),
       schema: z.object({
         summary: z.string(),
         budgets: z.array(
