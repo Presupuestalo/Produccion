@@ -250,8 +250,8 @@ export function detectRoomsGeometrically(walls: Wall[], previousRooms: Room[] = 
     const usedNames = new Set(finalRooms.map(r => r.name).filter(n => n !== ""))
 
     finalRooms.forEach((room, idx) => {
-        if (room.id === "") {
-            room.id = `room-${Date.now()}-${idx}`
+        if (room.name === "") {
+            room.id = room.id || `room-${Date.now()}-${idx}-${Math.random()}`
 
             let n = 1
             while (usedNames.has(`Habitación ${n}`)) {
