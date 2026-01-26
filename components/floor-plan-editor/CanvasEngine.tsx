@@ -275,7 +275,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         if (vertex) return vertex
 
         // 2. ALINEACIONES Y ORTOGONALIDAD
-        const alignThreshold = 35 / zoom
+        const alignThreshold = 15 / zoom
         const currentWS = wallSnapshot || walls
         const candidates: Point[] = []
         currentWS.forEach(w => { candidates.push(w.start); candidates.push(w.end) })
@@ -383,12 +383,71 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
         const pointSlightlyOff = { x: midX + nx * Math.sign(offsetVal) * 5, y: midY + ny * Math.sign(offsetVal) * 5 }
         const pointsIntoRoom = isPointInAnyRoom(pointSlightlyOff)
-
-        // Final face type and offset calculation
         const faceType: "interior" | "exterior" = pointsIntoRoom ? "interior" : "exterior"
-        const offStart = getFaceOffsetAt(wall.start, faceNormal, pointsIntoRoom)
-        const offEnd = getFaceOffsetAt(wall.end, faceNormal, pointsIntoRoom)
-        const length = Math.round(centerLength + offStart + offEnd)
+
+        // CÁLCULO DE LONGITUD TOTAL COLINEAL (Habitación de lado a lado)
+        let totalCenterLength = centerLength
+        let finalOffStart = getFaceOffsetAt(wall.start, faceNormal, pointsIntoRoom)
+        let finalOffEnd = getFaceOffsetAt(wall.end, faceNormal, pointsIntoRoom)
+
+        if (faceType === "interior") {
+            // Buscamos hacia atrás (hacia start)
+            let currS = wall.start
+            let visitedStart = new Set([wall.id])
+            while (true) {
+                const neighbors = walls.filter(w => !visitedStart.has(w.id) && (isSamePoint(w.start, currS) || isSamePoint(w.end, currS)))
+                const cont = neighbors.find(nw => {
+                    const isNWV = Math.abs(nw.start.x - nw.end.x) < 2; const isWV = Math.abs(wall.start.x - wall.end.x) < 2
+                    return isNWV === isWV && !isConnectedPerpendicular(wall, nw)
+                })
+                if (!cont) break
+                // Comprobar si hay una pared perpendicular que CORTA la habitación en este punto
+                const isBlocked = neighbors.some(nw => {
+                    if (!isConnectedPerpendicular(wall, nw)) return false
+                    const pOther = isSamePoint(nw.start, currS) ? nw.end : nw.start
+                    const dir = { x: pOther.x - currS.x, y: pOther.y - currS.y }
+                    return (dir.x * faceNormal.x + dir.y * faceNormal.y) > 5
+                })
+                if (isBlocked) {
+                    finalOffStart = getFaceOffsetAt(currS, faceNormal, true)
+                    break
+                }
+                visitedStart.add(cont.id)
+                const cLen = Math.sqrt(Math.pow(cont.end.x - cont.start.x, 2) + Math.pow(cont.end.y - cont.start.y, 2))
+                totalCenterLength += cLen
+                currS = isSamePoint(cont.start, currS) ? cont.end : cont.start
+                finalOffStart = getFaceOffsetAt(currS, faceNormal, true)
+            }
+
+            // Buscamos hacia adelante (hacia end)
+            let currE = wall.end
+            let visitedEnd = new Set([wall.id])
+            while (true) {
+                const neighbors = walls.filter(w => !visitedEnd.has(w.id) && (isSamePoint(w.start, currE) || isSamePoint(w.end, currE)))
+                const cont = neighbors.find(nw => {
+                    const isNWV = Math.abs(nw.start.x - nw.end.x) < 2; const isWV = Math.abs(wall.start.x - wall.end.x) < 2
+                    return isNWV === isWV && !isConnectedPerpendicular(wall, nw)
+                })
+                if (!cont) break
+                const isBlocked = neighbors.some(nw => {
+                    if (!isConnectedPerpendicular(wall, nw)) return false
+                    const pOther = isSamePoint(nw.start, currE) ? nw.end : nw.start
+                    const dir = { x: pOther.x - currE.x, y: pOther.y - currE.y }
+                    return (dir.x * faceNormal.x + dir.y * faceNormal.y) > 5
+                })
+                if (isBlocked) {
+                    finalOffEnd = getFaceOffsetAt(currE, faceNormal, true)
+                    break
+                }
+                visitedEnd.add(cont.id)
+                const cLen = Math.sqrt(Math.pow(cont.end.x - cont.start.x, 2) + Math.pow(cont.end.y - cont.start.y, 2))
+                totalCenterLength += cLen
+                currE = isSamePoint(cont.start, currE) ? cont.end : cont.start
+                finalOffEnd = getFaceOffsetAt(currE, faceNormal, true)
+            }
+        }
+
+        const length = Math.round(totalCenterLength + finalOffStart + finalOffEnd)
 
         const labelX = midX + nx * offsetVal
         const labelY = midY + ny * offsetVal

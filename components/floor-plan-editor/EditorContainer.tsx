@@ -353,13 +353,22 @@ export const EditorContainer = () => {
             const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
 
             workingWalls.forEach(w => {
+                const isH = Math.abs(w.start.y - w.end.y) < 2
+                const isV = Math.abs(w.start.x - w.end.x) < 2
+
                 if (isSame(w.start, originalPoint)) {
                     w.start.x += totalDelta.x
                     w.start.y += totalDelta.y
+                    // Propagación rígida para mantener ortogonalidad
+                    if (isV) w.end.x += totalDelta.x
+                    if (isH) w.end.y += totalDelta.y
                 }
                 if (isSame(w.end, originalPoint)) {
                     w.end.x += totalDelta.x
                     w.end.y += totalDelta.y
+                    // Propagación rígida para mantener ortogonalidad
+                    if (isV) w.start.x += totalDelta.x
+                    if (isH) w.start.y += totalDelta.y
                 }
             })
 
