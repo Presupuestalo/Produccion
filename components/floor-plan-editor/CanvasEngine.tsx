@@ -266,7 +266,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         })
         if (nearestEdgePoint) return nearestEdgePoint
 
-        const alignThreshold = 12 / zoom
+        const alignThreshold = 20 / zoom // Increased for better "magnetic" feel
         const candidates: Point[] = []
         walls.forEach((w: Wall) => { candidates.push(w.start); candidates.push(w.end) })
         rooms.forEach((r: Room) => r.polygon.forEach((p: Point) => candidates.push(p)))
@@ -285,7 +285,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
             return point
         }
 
-        // Grid snap (1px = 1cm)
+        // Grid snap (1px = 1cm) or higher threshold if needed
         return {
             x: Math.round(point.x),
             y: Math.round(point.y)
@@ -664,15 +664,11 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                             const pointer = stage?.getPointerPosition()
                                             if (!dragStartPos.current || !stage || !pointer) return
 
-                                            const currentPos = {
-                                                x: (pointer.x - offset.x) / zoom,
-                                                y: (pointer.y - offset.y) / zoom
-                                            }
-
-                                            // Delta acumulado desde el inicio del drag
-                                            let delta = {
-                                                x: Math.round(currentPos.x - dragStartPos.current.x),
-                                                y: Math.round(currentPos.y - dragStartPos.current.y)
+                                            const pos = getRelativePointerPosition(stage)
+                                            // delta from snapped position
+                                            const delta = {
+                                                x: Math.round(pos.x - dragStartPos.current.x),
+                                                y: Math.round(pos.y - dragStartPos.current.y)
                                             }
 
                                             if (isHorizontal) delta.x = 0
@@ -680,14 +676,10 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
                                             if (delta.x !== 0 || delta.y !== 0) {
                                                 onDragWall(wall.id, delta)
-                                                // Una vez aplicado el delta, el wall en el estado cambia.
-                                                // Resetear el punto de inicio para que el siguiente movimiento sea incremental
-                                                // y evitar el efecto "doble" si el estado tarda en actualizar.
                                                 dragStartPos.current.x += delta.x
                                                 dragStartPos.current.y += delta.y
                                             }
 
-                                            // Resetear posición visual de Konva para que no se desplace el objeto
                                             e.target.position({ x: 0, y: 0 })
                                         }}
                                         onDragEnd={() => {
@@ -726,14 +718,10 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                                         const pointer = stage?.getPointerPosition()
                                                         if (!dragStartPos.current || !pointer) return
 
-                                                        const currentPos = {
-                                                            x: (pointer.x - offset.x) / zoom,
-                                                            y: (pointer.y - offset.y) / zoom
-                                                        }
-
+                                                        const pos = getRelativePointerPosition(stage)
                                                         const delta = {
-                                                            x: Math.round(currentPos.x - dragStartPos.current.x),
-                                                            y: Math.round(currentPos.y - dragStartPos.current.y)
+                                                            x: Math.round(pos.x - dragStartPos.current.x),
+                                                            y: Math.round(pos.y - dragStartPos.current.y)
                                                         }
 
                                                         if (delta.x !== 0 || delta.y !== 0) {
