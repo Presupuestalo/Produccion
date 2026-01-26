@@ -710,60 +710,10 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                     )}
                                     {/* Medida durante el arrastre (si no está seleccionada por algún motivo) */}
                                     {dragStartPos.current && isHovered && !isSelected && renderWallMeasurement(wall, 25 / zoom)}
-
-                                    {/* TIRADORES DE VERTICES (Solo si está seleccionada) */}
-                                    {isSelected && onDragVertex && (
-                                        <>
-                                            {[wall.start, wall.end].map((p, i) => (
-                                                <Circle
-                                                    key={`handle - ${wall.id} -${i} `}
-                                                    x={p.x}
-                                                    y={p.y}
-                                                    radius={6 / zoom}
-                                                    fill="#0ea5e9"
-                                                    stroke="white"
-                                                    strokeWidth={2 / zoom}
-                                                    draggable
-                                                    onDragStart={() => {
-                                                        onStartDragWall()
-                                                        dragStartPos.current = { ...p }
-                                                    }}
-                                                    onDragMove={(e) => {
-                                                        const stage = e.target.getStage()
-                                                        if (!stage || !dragStartPos.current || !wallSnapshot) return
-
-                                                        const pos = getRelativePointerPosition(stage)
-                                                        const totalDelta = {
-                                                            x: Math.round(pos.x - dragStartPos.current.x),
-                                                            y: Math.round(pos.y - dragStartPos.current.y)
-                                                        }
-
-                                                        if (totalDelta.x !== 0 || totalDelta.y !== 0) {
-                                                            onDragVertex(p, totalDelta)
-                                                        }
-                                                        e.target.position({ x: 0, y: 0 })
-                                                    }}
-                                                    onDragEnd={() => {
-                                                        dragStartPos.current = null
-                                                        onDragEnd()
-                                                    }}
-                                                    onMouseEnter={(e: any) => {
-                                                        const container = e.target.getStage().container()
-                                                        container.style.cursor = "nwse-resize"
-                                                    }}
-                                                    onMouseLeave={(e: any) => {
-                                                        const container = e.target.getStage().container()
-                                                        container.style.cursor = "default"
-                                                    }}
-                                                />
-                                            ))}
-                                        </>
-                                    )}
-
                                     {/* MEDIDAS PERPENDICULARES DINÁMICAS */}
                                     {(isSelected || dragStartPos.current) && (
                                         walls.filter(otherW => isConnectedPerpendicular(wall, otherW)).map(perpWall => (
-                                            <React.Fragment key={`perp - ${perpWall.id} `}>
+                                            <React.Fragment key={`perp-${perpWall.id}`}>
                                                 {renderWallMeasurement(perpWall, 25 / zoom, "#0284c7")}
                                             </React.Fragment>
                                         ))
@@ -771,6 +721,57 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                 </Group>
                             )
                         })}
+
+                        {/* Pass final para Tiradores de selección (siempre encima) */}
+                        {walls.filter(w => w.id === selectedWallId).map(wall => (
+                            <Group key={`handles-${wall.id}`}>
+                                {[wall.start, wall.end].map((p, i) => (
+                                    <Circle
+                                        key={`handle-${wall.id}-${i}`}
+                                        x={p.x}
+                                        y={p.y}
+                                        radius={7 / zoom}
+                                        fill="#0ea5e9"
+                                        stroke="white"
+                                        strokeWidth={2 / zoom}
+                                        shadowBlur={5 / zoom}
+                                        shadowColor="rgba(0,0,0,0.2)"
+                                        draggable
+                                        onDragStart={() => {
+                                            onStartDragWall()
+                                            dragStartPos.current = { ...p }
+                                        }}
+                                        onDragMove={(e) => {
+                                            const stage = e.target.getStage()
+                                            if (!stage || !dragStartPos.current || !wallSnapshot) return
+
+                                            const pos = getRelativePointerPosition(stage)
+                                            const totalDelta = {
+                                                x: Math.round(pos.x - dragStartPos.current.x),
+                                                y: Math.round(pos.y - dragStartPos.current.y)
+                                            }
+
+                                            if (totalDelta.x !== 0 || totalDelta.y !== 0) {
+                                                onDragVertex(p, totalDelta)
+                                            }
+                                            e.target.position({ x: 0, y: 0 })
+                                        }}
+                                        onDragEnd={() => {
+                                            dragStartPos.current = null
+                                            onDragEnd()
+                                        }}
+                                        onMouseEnter={(e: any) => {
+                                            const stage = e.target.getStage()
+                                            if (stage) stage.container().style.cursor = 'nwse-resize'
+                                        }}
+                                        onMouseLeave={(e: any) => {
+                                            const stage = e.target.getStage()
+                                            if (stage) stage.container().style.cursor = 'default'
+                                        }}
+                                    />
+                                ))}
+                            </Group>
+                        ))}
 
                         {/* Renderizar puertas y ventanas SOBRE los muros */}
                         {doors.map(door => {

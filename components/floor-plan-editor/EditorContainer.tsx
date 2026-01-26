@@ -349,50 +349,19 @@ export const EditorContainer = () => {
             let workingWalls = JSON.parse(JSON.stringify(wallSnapshot)) as Wall[]
             const movedNodes = new Set<string>()
 
-            const recursivePush = (p: Point, d: Point) => {
-                const key = `${Math.round(p.x)},${Math.round(p.y)}`
-                if (movedNodes.has(key)) return
-                movedNodes.add(key)
+            const TOL = 5.0
+            const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
 
-                const TOL = 5.0
-                const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
-
-                workingWalls.forEach(w => {
-                    const isWH = Math.abs(w.start.y - w.end.y) < 1.0
-                    const isWV = Math.abs(w.start.x - w.end.x) < 1.0
-
-                    if (isSame(w.start, p)) {
-                        if (isWV && d.x !== 0) {
-                            w.start.x += d.x
-                            recursivePush({ x: w.end.x - d.x, y: w.end.y }, { x: d.x, y: 0 })
-                            w.end.x += d.x
-                        } else if (isWH && d.y !== 0) {
-                            w.start.y += d.y
-                            recursivePush({ x: w.end.x, y: w.end.y - d.y }, { x: 0, y: d.y })
-                            w.end.y += d.y
-                        } else {
-                            w.start.x += d.x
-                            w.start.y += d.y
-                        }
-                    } else if (isSame(w.end, p)) {
-                        if (isWV && d.x !== 0) {
-                            w.end.x += d.x
-                            recursivePush({ x: w.start.x - d.x, y: w.start.y }, { x: d.x, y: 0 })
-                            w.start.x += d.x
-                        } else if (isWH && d.y !== 0) {
-                            w.end.y += d.y
-                            recursivePush({ x: w.start.x, y: w.start.y - d.y }, { x: 0, y: d.y })
-                            w.start.y += d.y
-                        } else {
-                            w.end.x += d.x
-                            w.end.y += d.y
-                        }
-                    }
-                })
-            }
-
-            // Iniciamos la propagación desde el vértice arrastrado
-            recursivePush(originalPoint, totalDelta)
+            workingWalls.forEach(w => {
+                if (isSame(w.start, originalPoint)) {
+                    w.start.x += totalDelta.x
+                    w.start.y += totalDelta.y
+                }
+                if (isSame(w.end, originalPoint)) {
+                    w.end.x += totalDelta.x
+                    w.end.y += totalDelta.y
+                }
+            })
 
             return workingWalls
         })
