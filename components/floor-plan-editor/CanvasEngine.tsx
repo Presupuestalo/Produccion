@@ -39,6 +39,8 @@ interface CanvasEngineProps {
     selectedWallId: string | null
     selectedRoomId: string | null
     onSelectRoom: (id: string | null) => void
+    onStartDragWall: () => void
+    wallSnapshot: Wall[] | null
 }
 
 export const CanvasEngine: React.FC<CanvasEngineProps> = ({
@@ -71,6 +73,8 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     selectedRoomId,
     onSelectRoom,
     onDragVertex,
+    wallSnapshot,
+    onStartDragWall,
 }) => {
     const [mousePos, setMousePos] = React.useState<Point | null>(null)
     const [alignmentGuides, setAlignmentGuides] = React.useState<{ x?: number, y?: number } | null>(null)
@@ -142,13 +146,14 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         y: ((selectedWall.start.y + selectedWall.end.y) / 2 * zoom) + offset.y
     } : null
 
-    const findNearestVertex = (point: Point, threshold: number = 12): Point | null => {
+    const findNearestVertex = (point: Point, threshold: number = 15): Point | null => {
         let nearest: Point | null = null
         let minDist = threshold
 
-        // Coleccionar todos los puntos potenciales (extremos de muros y esquinas de recintos)
+        // Usar snapshot si existe para que los puntos de imán sean estáticos durante el arrastre
         const candidates: Point[] = []
-        walls.forEach((w: Wall) => {
+        const snapshotWalls = wallSnapshot || walls
+        snapshotWalls.forEach((w: Wall) => {
             candidates.push(w.start)
             candidates.push(w.end)
         })
@@ -194,75 +199,73 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         const pointer = stage.getPointerPosition()
         if (!pointer) return { x: 0, y: 0 }
 
-        // Transformar coordenada de pantalla a coordenada del mundo
         const rawX = (pointer.x - offset.x) / zoom
         const rawY = (pointer.y - offset.y) / zoom
-
         let point = { x: rawX, y: rawY }
+
         setAlignmentGuides(null)
 
-        // 1. Snapping a vértices exactos (prioridad máxima pero umbral reducido)
+        // 1. VERTEX SNAP (Prioridad Máxima, Umbral 10)
         const vertexThreshold = 10 / zoom
         const vertex = findNearestVertex(point, vertexThreshold)
         if (vertex) return vertex
 
-        // 2. BLOQUEO ORTOGONAL (Predominancia de líneas rectas)
-        if (activeTool === "wall" && (currentWall || dragStartPos.current)) {
-            // Use currentWall or dragged wall endpoints as anchor
-            const start = currentWall?.start || dragStartPos.current
-            if (start) {
-                const dx = Math.abs(point.x - start.x)
-                const dy = Math.abs(point.y - start.y)
-                const lockThreshold = 25 / zoom
-                const alignThreshold = 12 / zoom
-
-                if (dy < lockThreshold) {
-                    point.y = start.y
-                    return point
-                } else if (dx < lockThreshold) {
-                    point.x = start.x
-                    return point
-                }
-            }
-        }
-
-        // 3. FALLBACKS y GUÍAS GENERALES
-        // Bypass edge snapping during drag to avoid jitter
-        if (!dragStartPos.current) {
-            const edgeThreshold = 12 / zoom
-            let nearestEdgePoint: Point | null = null
-            let minEdgeDist = edgeThreshold
-            walls.forEach((w: Wall) => {
-                const projected = projectPointOnSegment(point, w.start, w.end)
-                const d = Math.sqrt(Math.pow(point.x - projected.x, 2) + Math.pow(point.y - projected.y, 2))
-                if (d < minEdgeDist) {
-                    minEdgeDist = d
-                    nearestEdgePoint = projected
-                }
-            })
-            if (nearestEdgePoint) return nearestEdgePoint
-        }
-
-        const alignThreshold = 12 / zoom
+        // 2. ALINEACIONES Y ORTOGONALIDAD
+        const alignThreshold = 35 / zoom
+        const currentWS = wallSnapshot || walls
         const candidates: Point[] = []
-        walls.forEach((w: Wall) => { candidates.push(w.start); candidates.push(w.end) })
-        rooms.forEach((r: Room) => r.polygon.forEach((p: Point) => candidates.push(p)))
+        currentWS.forEach(w => { candidates.push(w.start); candidates.push(w.end) })
+        rooms.forEach(r => r.polygon.forEach(p => candidates.push(p)))
 
-        let snappedX: number | null = null
-        let snappedY: number | null = null
-        candidates.forEach((p: Point) => {
-            if (Math.abs(point.x - p.x) < alignThreshold) snappedX = p.x
-            if (Math.abs(point.y - p.y) < alignThreshold) snappedY = p.y
+        // También alinear con el punto de inicio de la acción actual
+        const startPoint = currentWall?.start || dragStartPos.current
+        if (startPoint) {
+            candidates.push(startPoint)
+        }
+
+        let sX: number | null = null
+        let sY: number | null = null
+
+        if (startPoint) {
+            if (Math.abs(point.x - startPoint.x) < alignThreshold) sX = startPoint.x
+            if (Math.abs(point.y - startPoint.y) < alignThreshold) sY = startPoint.y
+        }
+
+        candidates.forEach(p => {
+            if (sX === null && Math.abs(point.x - p.x) < alignThreshold) sX = p.x
+            if (sY === null && Math.abs(point.y - p.y) < alignThreshold) sY = p.y
         })
 
+        const snappedX = sX
+        const snappedY = sY
+
+        // Aplicar alineaciones
         if (snappedX !== null || snappedY !== null) {
             setAlignmentGuides({ x: snappedX ?? undefined, y: snappedY ?? undefined })
             if (snappedX !== null) point.x = snappedX
             if (snappedY !== null) point.y = snappedY
-            return point
+
+            // Si snapamos ambos ejes es virtualmente un vértice, retornamos ya
+            if (snappedX !== null && snappedY !== null) return point
         }
 
-        // Grid snap (1px = 1cm) or higher threshold if needed
+        // 3. EDGE SNAP (Si no hay alineación fuerte de ejes)
+        if (snappedX === null || snappedY === null) {
+            const edgeThreshold = 15 / zoom
+            let nearestEdge: Point | null = null
+            let minEdgeDist = edgeThreshold
+            currentWS.forEach(w => {
+                const projected = projectPointOnSegment(point, w.start, w.end)
+                const d = Math.sqrt(Math.pow(point.x - projected.x, 2) + Math.pow(point.y - projected.y, 2))
+                if (d < minEdgeDist) {
+                    minEdgeDist = d
+                    nearestEdge = projected
+                }
+            })
+            if (nearestEdge) return nearestEdge
+        }
+
+        // 4. ROUNDING FINAL (1cm grid)
         return {
             x: Math.round(point.x),
             y: Math.round(point.y)
@@ -627,34 +630,26 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                                 if (room) onSelectRoom(room.id)
                                             }
                                         }}
-                                        onMouseDown={(e) => {
-                                            // No llamamos a stopPropagation para permitir el drag
-                                            // Pero seleccionamos para feedback inmediato
-                                            if (activeTool === "select") {
-                                                onSelectWall(wall.id)
-                                            }
+                                        onDragStart={(e) => {
+                                            const stage = e.target.getStage()
+                                            if (stage) dragStartPos.current = getRelativePointerPosition(stage)
+                                            onStartDragWall()
                                         }}
-                                        onMouseEnter={() => activeTool === "erase" && onHoverWall(wall.id)}
-                                        onMouseLeave={() => activeTool === "erase" && onHoverWall(null)}
                                         onDragMove={(e) => {
                                             const stage = e.target.getStage()
-                                            const pointer = stage?.getPointerPosition()
-                                            if (!dragStartPos.current || !stage || !pointer) return
+                                            if (!stage || !dragStartPos.current || !wallSnapshot) return
 
                                             const pos = getRelativePointerPosition(stage)
-                                            // delta from snapped position
-                                            const delta = {
+                                            const totalDelta = {
                                                 x: Math.round(pos.x - dragStartPos.current.x),
                                                 y: Math.round(pos.y - dragStartPos.current.y)
                                             }
 
-                                            if (isHorizontal) delta.x = 0
-                                            else if (isVertical) delta.y = 0
+                                            if (isHorizontal) totalDelta.x = 0
+                                            else if (isVertical) totalDelta.y = 0
 
-                                            if (delta.x !== 0 || delta.y !== 0) {
-                                                onDragWall(wall.id, delta)
-                                                dragStartPos.current.x += delta.x
-                                                dragStartPos.current.y += delta.y
+                                            if (totalDelta.x !== 0 || totalDelta.y !== 0) {
+                                                onDragWall(wall.id, totalDelta)
                                             }
 
                                             e.target.position({ x: 0, y: 0 })
@@ -688,23 +683,21 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                                     strokeWidth={2 / zoom}
                                                     draggable
                                                     onDragStart={() => {
+                                                        onStartDragWall()
                                                         dragStartPos.current = { ...p }
                                                     }}
                                                     onDragMove={(e) => {
                                                         const stage = e.target.getStage()
-                                                        const pointer = stage?.getPointerPosition()
-                                                        if (!dragStartPos.current || !pointer) return
+                                                        if (!stage || !dragStartPos.current || !wallSnapshot) return
 
                                                         const pos = getRelativePointerPosition(stage)
-                                                        const delta = {
+                                                        const totalDelta = {
                                                             x: Math.round(pos.x - dragStartPos.current.x),
                                                             y: Math.round(pos.y - dragStartPos.current.y)
                                                         }
 
-                                                        if (delta.x !== 0 || delta.y !== 0) {
-                                                            onDragVertex(p, delta)
-                                                            dragStartPos.current.x += delta.x
-                                                            dragStartPos.current.y += delta.y
+                                                        if (totalDelta.x !== 0 || totalDelta.y !== 0) {
+                                                            onDragVertex(p, totalDelta)
                                                         }
                                                         e.target.position({ x: 0, y: 0 })
                                                     }}
@@ -838,19 +831,19 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                 {alignmentGuides.x !== undefined && (
                                     <Line
                                         points={[alignmentGuides.x, -5000, alignmentGuides.x, 5000]}
-                                        stroke="#0284c7"
-                                        strokeWidth={1 / zoom}
-                                        dash={[5, 5]}
-                                        opacity={0.4}
+                                        stroke="#0ea5e9"
+                                        strokeWidth={1.5 / zoom}
+                                        dash={[10, 5]}
+                                        opacity={0.8}
                                     />
                                 )}
                                 {alignmentGuides.y !== undefined && (
                                     <Line
                                         points={[-5000, alignmentGuides.y, 5000, alignmentGuides.y]}
-                                        stroke="#0284c7"
-                                        strokeWidth={1 / zoom}
-                                        dash={[5, 5]}
-                                        opacity={0.4}
+                                        stroke="#0ea5e9"
+                                        strokeWidth={1.5 / zoom}
+                                        dash={[10, 5]}
+                                        opacity={0.8}
                                     />
                                 )}
                             </Group>
@@ -858,22 +851,56 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
                         {/* Indicador visual de Snapping */}
                         {(() => {
-                            if (!mousePos || activeTool !== "wall") return null
+                            const p = mousePos
+                            if (!p) return null
+                            const isWallTool = activeTool === "wall"
+                            const isDragging = !!wallSnapshot
 
-                            // Verificar si el punto actual está "snappeado" a un vértice
-                            const vertexThreshold = 12 / zoom
-                            const vertex = findNearestVertex(mousePos, vertexThreshold)
+                            if (!isWallTool && !isDragging) return null
 
+                            // 1. Prioridad: Vértice
+                            const vertex = findNearestVertex(p, 15 / zoom)
                             if (vertex) {
                                 return (
                                     <Circle
                                         x={vertex.x}
                                         y={vertex.y}
                                         radius={8 / zoom}
-                                        stroke="#0284c7"
+                                        stroke="#0ea5e9"
+                                        strokeWidth={3 / zoom}
+                                        fill="white"
+                                        opacity={0.9}
+                                        listening={false}
+                                    />
+                                )
+                            }
+
+                            // 2. Fallback: Edge (Borde de muro)
+                            const edgeThreshold = 15 / zoom
+                            let nearestEdge: Point | null = null
+                            const snapWS = wallSnapshot || walls
+                            snapWS.forEach(w => {
+                                const projected = projectPointOnSegment(p, w.start, w.end)
+                                const d = Math.sqrt(Math.pow(p.x - projected.x, 2) + Math.pow(p.y - projected.y, 2))
+                                if (d < edgeThreshold) nearestEdge = projected
+                            })
+
+                            if (nearestEdge) {
+                                const ne = nearestEdge as Point
+                                return (
+                                    <Rect
+                                        x={ne.x - 5 / zoom}
+                                        y={ne.y - 5 / zoom}
+                                        width={10 / zoom}
+                                        height={10 / zoom}
+                                        stroke="#0ea5e9"
                                         strokeWidth={2 / zoom}
                                         fill="white"
+                                        rotation={45}
+                                        offsetX={0}
+                                        offsetY={0}
                                         opacity={0.8}
+                                        listening={false}
                                     />
                                 )
                             }

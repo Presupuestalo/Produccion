@@ -33,6 +33,8 @@ export const EditorContainer = () => {
     const historyRef = useRef<any[]>([])
     const [redoHistory, setRedoHistory] = useState<any[]>([])
     const redoHistoryRef = useRef<any[]>([])
+    // Snapshots para arrastre suave y rígido
+    const [wallSnapshot, setWallSnapshot] = useState<Wall[] | null>(null)
 
     // Limpiar estados al cambiar de herramienta o cancelar
     useEffect(() => {
@@ -108,6 +110,8 @@ export const EditorContainer = () => {
     // Atajos de teclado
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return
+
             if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
                 e.preventDefault()
                 if (e.shiftKey) handleRedo()
@@ -130,7 +134,7 @@ export const EditorContainer = () => {
         }
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [])
+    }, [selectedWallId, walls, redoHistory])
 
     const calculateArea = (points: Point[]) => {
         let total = 0
@@ -252,98 +256,142 @@ export const EditorContainer = () => {
         setWalls(prev => prev.map(w => w.id === id ? { ...w, thickness } : w))
     }
 
-    const handleDragWall = (id: string, delta: Point) => {
+    const handleDragWall = (id: string, totalDelta: Point) => {
         setWalls(prevWalls => {
-            const wallToMove = prevWalls.find(w => w.id === id)
+            if (!wallSnapshot) return prevWalls
+            const wallToMove = wallSnapshot.find(w => w.id === id)
             if (!wallToMove) return prevWalls
 
             const isH = Math.abs(wallToMove.start.y - wallToMove.end.y) < 1
             const isV = Math.abs(wallToMove.start.x - wallToMove.end.x) < 1
 
-            const forcedDelta = {
-                x: isV ? delta.x : (isH ? 0 : delta.x),
-                y: isH ? delta.y : (isV ? 0 : delta.y)
+            const cleanDelta = {
+                x: (isV || (!isH && !isV)) ? totalDelta.x : 0,
+                y: (isH || (!isH && !isV)) ? totalDelta.y : 0
             }
 
-            const TOL = 5.0 // Connection tolerance
-            const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
+            let workingWalls = JSON.parse(JSON.stringify(wallSnapshot)) as Wall[]
+            const addedJogs: Wall[] = []
 
-            return prevWalls.map(w => {
-                if (w.id === id) {
-                    return {
-                        ...w,
-                        start: { x: w.start.x + forcedDelta.x, y: w.start.y + forcedDelta.y },
-                        end: { x: w.end.x + forcedDelta.x, y: w.end.y + forcedDelta.y }
-                    }
-                }
-
-                let newStart = { ...w.start }
-                let newEnd = { ...w.end }
-                let changed = false
-
-                if (isSame(w.start, wallToMove.start) || isSame(w.start, wallToMove.end)) {
-                    newStart.x += forcedDelta.x
-                    newStart.y += forcedDelta.y
-                    changed = true
-                }
-                if (isSame(w.end, wallToMove.start) || isSame(w.end, wallToMove.end)) {
-                    newEnd.x += forcedDelta.x
-                    newEnd.y += forcedDelta.y
-                    changed = true
-                }
-
-                return changed ? { ...w, start: newStart, end: newEnd } : w
-            })
-        })
-    }
-
-    const handleDragVertex = (originalPoint: Point, delta: Point) => {
-        setWalls(prevWalls => {
             const TOL = 5.0
             const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
 
-            const updatedWalls = prevWalls.map(w => {
-                let newStart = { ...w.start }
-                let newEnd = { ...w.end }
-                let changed = false
+            // Movemos el muro principal
+            const wTarget = workingWalls.find(w => w.id === id)!
+            wTarget.start.x += cleanDelta.x; wTarget.start.y += cleanDelta.y
+            wTarget.end.x += cleanDelta.x; wTarget.end.y += cleanDelta.y
 
-                const isWHorizontal = Math.abs(w.start.y - w.end.y) < 1.0
-                const isWVertical = Math.abs(w.start.x - w.end.x) < 1.0
+            // Procesamos el resto de muros
+            workingWalls.forEach(w => {
+                if (w.id === id) return
+                const isWH = Math.abs(w.start.y - w.end.y) < 2
+                const isWV = Math.abs(w.start.x - w.end.x) < 2
 
-                if (isSame(w.start, originalPoint)) {
-                    if (isWHorizontal) newStart.y += delta.y // Si es horizontal y muevo en Y, muevo toda la línea? No, eso es dragWall.
-                    // En estirar vértice:
-                    // Si la pared es HORIZONTAL, el vértice solo puede moverse en X para estirar?
-                    // No, si muevo el vértice en Y, la pared se inclinaría.
-                    // Para SEGUIR siendo horizontal, si muevo el vértice en Y debo mover el otro punto también? No, eso es mover la pared.
-                    // El usuario dice "estirar". 
-                    if (isWHorizontal) {
-                        newStart.x += delta.x
-                    } else if (isWVertical) {
-                        newStart.y += delta.y
-                    } else {
-                        newStart.x += delta.x
-                        newStart.y += delta.y
+                // Conexiones al INICIO del muro arrastrado
+                if (isSame(w.start, wallToMove.start)) {
+                    if ((isV && isWH) || (isH && isWV)) {
+                        w.start.x += cleanDelta.x; w.start.y += cleanDelta.y
+                    } else if ((isV && isWV) || (isH && isWH)) {
+                        addedJogs.push({ id: `jog-s-${id}-${w.id}`, start: { ...w.start }, end: { ...wTarget.start }, thickness: wTarget.thickness })
                     }
-                    changed = true
-                }
-                if (isSame(w.end, originalPoint)) {
-                    if (isWHorizontal) {
-                        newEnd.x += delta.x
-                    } else if (isWVertical) {
-                        newEnd.y += delta.y
-                    } else {
-                        newEnd.x += delta.x
-                        newEnd.y += delta.y
+                } else if (isSame(w.end, wallToMove.start)) {
+                    if ((isV && isWH) || (isH && isWV)) {
+                        w.end.x += cleanDelta.x; w.end.y += cleanDelta.y
+                    } else if ((isV && isWV) || (isH && isWH)) {
+                        addedJogs.push({ id: `jog-e-${id}-${w.id}`, start: { ...w.end }, end: { ...wTarget.start }, thickness: wTarget.thickness })
                     }
-                    changed = true
                 }
 
-                return changed ? { ...w, start: newStart, end: newEnd } : w
+                // Conexiones al FINAL del muro arrastrado
+                if (isSame(w.start, wallToMove.end)) {
+                    if ((isV && isWH) || (isH && isWV)) {
+                        w.start.x += cleanDelta.x; w.start.y += cleanDelta.y
+                    } else if ((isV && isWV) || (isH && isWH)) {
+                        addedJogs.push({ id: `jog-fs-${id}-${w.id}`, start: { ...w.start }, end: { ...wTarget.end }, thickness: wTarget.thickness })
+                    }
+                } else if (isSame(w.end, wallToMove.end)) {
+                    if ((isV && isWH) || (isH && isWV)) {
+                        w.end.x += cleanDelta.x; w.end.y += cleanDelta.y
+                    } else if ((isV && isWV) || (isH && isWH)) {
+                        addedJogs.push({ id: `jog-fe-${id}-${w.id}`, start: { ...w.end }, end: { ...wTarget.end }, thickness: wTarget.thickness })
+                    }
+                }
             })
-
-            return updatedWalls
+            return workingWalls.concat(addedJogs)
         })
+    }
+
+    const handleDragVertex = (originalPoint: Point, totalDelta: Point) => {
+        setWalls(prevWalls => {
+            if (!wallSnapshot) return prevWalls
+
+            let workingWalls = JSON.parse(JSON.stringify(wallSnapshot)) as Wall[]
+            const movedNodes = new Set<string>()
+
+            const recursivePush = (p: Point, d: Point) => {
+                const key = `${Math.round(p.x)},${Math.round(p.y)}`
+                if (movedNodes.has(key)) return
+                movedNodes.add(key)
+
+                const TOL = 5.0
+                const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
+
+                workingWalls.forEach(w => {
+                    const isWH = Math.abs(w.start.y - w.end.y) < 1.0
+                    const isWV = Math.abs(w.start.x - w.end.x) < 1.0
+
+                    if (isSame(w.start, p)) {
+                        if (isWV && d.x !== 0) {
+                            w.start.x += d.x
+                            recursivePush({ x: w.end.x - d.x, y: w.end.y }, { x: d.x, y: 0 })
+                            w.end.x += d.x
+                        } else if (isWH && d.y !== 0) {
+                            w.start.y += d.y
+                            recursivePush({ x: w.end.x, y: w.end.y - d.y }, { x: 0, y: d.y })
+                            w.end.y += d.y
+                        } else {
+                            w.start.x += d.x
+                            w.start.y += d.y
+                        }
+                    } else if (isSame(w.end, p)) {
+                        if (isWV && d.x !== 0) {
+                            w.end.x += d.x
+                            recursivePush({ x: w.start.x - d.x, y: w.start.y }, { x: d.x, y: 0 })
+                            w.start.x += d.x
+                        } else if (isWH && d.y !== 0) {
+                            w.end.y += d.y
+                            recursivePush({ x: w.start.x, y: w.start.y - d.y }, { x: 0, y: d.y })
+                            w.start.y += d.y
+                        } else {
+                            w.end.x += d.x
+                            w.end.y += d.y
+                        }
+                    }
+                })
+            }
+
+            // Iniciamos la propagación desde el vértice arrastrado
+            recursivePush(originalPoint, totalDelta)
+
+            return workingWalls
+        })
+    }
+
+    const handleDragEnd = () => {
+        setWallSnapshot(null)
+        setWalls(prev => {
+            // Limpiamos los IDs temporales de los jogs
+            const processed = prev.map(w => {
+                if (w.id.startsWith('jog-')) {
+                    return { ...w, id: `w-${Math.random().toString(36).substr(2, 9)}` }
+                }
+                return w
+            })
+            const splitResult = splitWallsAtIntersections(processed)
+            setRooms(detectRoomsGeometrically(splitResult, rooms))
+            return splitResult
+        })
+        saveStateToHistory()
     }
 
     const handleUpdateWallLength = (id: string, newLength: number, side: "left" | "right") => {
@@ -523,11 +571,6 @@ export const EditorContainer = () => {
         }
     }
 
-    const handleDragEnd = () => {
-        const splitResult = splitWallsAtIntersections(walls)
-        setWalls(splitResult)
-        setRooms(detectRoomsGeometrically(splitResult, rooms))
-    }
 
     const handleSave = async () => {
         setIsSaving(true)
@@ -685,7 +728,7 @@ export const EditorContainer = () => {
                         setSelectedWallId(id)
                         // No limpiamos el roomId si se selecciona un wall, es útil para el contexto
                     }}
-                    onDragWall={(id: string, delta: Point) => handleDragWall(id, delta)}
+                    onDragWall={(id: string, totalDelta: Point) => handleDragWall(id, totalDelta)}
                     onDragEnd={handleDragEnd}
                     onUpdateWallLength={handleUpdateWallLength}
                     onDeleteWall={deleteWall}
@@ -695,9 +738,13 @@ export const EditorContainer = () => {
                     selectedRoomId={selectedRoomId}
                     onSelectRoom={(id: string | null) => {
                         setSelectedRoomId(id)
-                        // No limpiamos el wallId si se selecciona un room, es útil para el contexto
                     }}
                     onDragVertex={handleDragVertex}
+                    wallSnapshot={wallSnapshot}
+                    onStartDragWall={() => {
+                        saveStateToHistory()
+                        setWallSnapshot(JSON.parse(JSON.stringify(walls)))
+                    }}
                 />
 
                 <div className="absolute bottom-4 left-4 p-3 bg-white/90 backdrop-blur-sm rounded-lg border border-slate-200 text-[10px] text-slate-500 shadow-sm pointer-events-none">
