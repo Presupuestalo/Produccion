@@ -5,7 +5,7 @@ const CanvasEngine = dynamic(() => import("./CanvasEngine").then((mod) => mod.Ca
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { MousePointer2, Pencil, Eraser, ZoomIn, ZoomOut, Maximize, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2 } from "lucide-react"
-import { detectRoomsGeometrically } from "@/lib/utils/geometry"
+import { detectRoomsGeometrically, fragmentWalls } from "@/lib/utils/geometry"
 
 export const EditorContainer = () => {
     const containerRef = useRef<HTMLDivElement>(null)
@@ -167,54 +167,6 @@ export const EditorContainer = () => {
         setOffset({ x: 0, y: 0 })
     }
 
-    const splitWallsAtIntersections = (wallsToProcess: Wall[]) => {
-        let result = [...wallsToProcess]
-        let changed = true
-
-        while (changed) {
-            changed = false
-            for (let i = 0; i < result.length; i++) {
-                const w1 = result[i]
-                let splitPoint: Point | null = null
-                let wallToSplitIndex = -1
-
-                for (let j = 0; j < result.length; j++) {
-                    if (i === j) continue
-                    const w2 = result[j]
-
-                    const TOL = 2.0
-                    const onSegment = (p: Point, s: Point, e: Point) => {
-                        const d = Math.sqrt(Math.pow(e.x - s.x, 2) + Math.pow(e.y - s.y, 2))
-                        if (d < 1) return false
-                        const d1 = Math.sqrt(Math.pow(p.x - s.x, 2) + Math.pow(p.y - s.y, 2))
-                        const d2 = Math.sqrt(Math.pow(p.x - e.x, 2) + Math.pow(p.y - e.y, 2))
-                        return Math.abs(d - (d1 + d2)) < TOL && d1 > TOL && d2 > TOL
-                    }
-
-                    if (onSegment(w2.start, w1.start, w1.end)) {
-                        splitPoint = w2.start
-                        wallToSplitIndex = i
-                        break
-                    }
-                    if (onSegment(w2.end, w1.start, w1.end)) {
-                        splitPoint = w2.end
-                        wallToSplitIndex = i
-                        break
-                    }
-                }
-
-                if (splitPoint && wallToSplitIndex !== -1) {
-                    const original = result[wallToSplitIndex]
-                    const part1 = { ...original, id: `wall-${original.id}-p1-${Date.now()}`, end: splitPoint }
-                    const part2 = { ...original, id: `wall-${original.id}-p2-${Date.now()}`, start: splitPoint }
-                    result.splice(wallToSplitIndex, 1, part1, part2)
-                    changed = true
-                    break
-                }
-            }
-        }
-        return result
-    }
 
     const deleteWall = (id: string) => {
         saveStateToHistory()
@@ -380,14 +332,13 @@ export const EditorContainer = () => {
     const handleDragEnd = () => {
         setWallSnapshot(null)
         setWalls(prev => {
-            // Limpiamos los IDs temporales de los jogs
             const processed = prev.map(w => {
                 if (w.id.startsWith('jog-')) {
                     return { ...w, id: `w-${Math.random().toString(36).substr(2, 9)}` }
                 }
                 return w
             })
-            const splitResult = splitWallsAtIntersections(processed)
+            const splitResult = fragmentWalls(processed)
             setRooms(detectRoomsGeometrically(splitResult, rooms))
             return splitResult
         })
@@ -464,7 +415,7 @@ export const EditorContainer = () => {
                 end: { x: Math.round(w.end.x), y: Math.round(w.end.y) }
             }))
 
-            const splitResult = splitWallsAtIntersections(finalWalls)
+            const splitResult = fragmentWalls(finalWalls)
             setRooms(detectRoomsGeometrically(splitResult, rooms))
             return splitResult
         })
@@ -498,7 +449,7 @@ export const EditorContainer = () => {
                         end: point,
                         thickness: 10
                     }
-                    const newWalls = splitWallsAtIntersections([...walls, newWall])
+                    const newWalls = fragmentWalls([...walls, newWall])
                     setWalls(newWalls)
                     const nextRooms = detectRoomsGeometrically(newWalls, rooms)
                     setRooms(nextRooms)
@@ -555,7 +506,7 @@ export const EditorContainer = () => {
                     end: point,
                     thickness: 10
                 }
-                const newWalls = splitWallsAtIntersections([...walls, newWall])
+                const newWalls = fragmentWalls([...walls, newWall])
                 setWalls(newWalls)
                 const nextRooms = detectRoomsGeometrically(newWalls, rooms)
                 setRooms(nextRooms)

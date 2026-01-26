@@ -56,25 +56,23 @@ function isPointOnSegment(p: Point, a: Point, b: Point, tolerance = 1.0): boolea
 }
 
 /**
- * Divide un conjunto de muros en segmentos más pequeños allí donde se intersectan o tocan.
+ * Fragmenta un conjunto de muros en segmentos independientes en cada punto de intersección o unión.
  */
-function splitWalls(walls: Wall[]): { start: Point, end: Point }[] {
-    const segments: { start: Point, end: Point }[] = walls.map(w => ({ start: w.start, end: w.end }))
+export function fragmentWalls(walls: Wall[]): Wall[] {
     const TOLERANCE = 1.0
+    const result: Wall[] = []
 
-    const result: { start: Point, end: Point }[] = []
+    walls.forEach((wall, i) => {
+        const splitPoints: Point[] = [wall.start, wall.end]
 
-    segments.forEach((seg, i) => {
-        const splitPoints: Point[] = [seg.start, seg.end]
-
-        segments.forEach((other, j) => {
+        walls.forEach((other, j) => {
             if (i === j) return
 
-            const intersect = getLineIntersection(seg.start, seg.end, other.start, other.end)
+            const intersect = getLineIntersection(wall.start, wall.end, other.start, other.end)
             if (intersect) splitPoints.push(intersect)
 
-            if (isPointOnSegment(other.start, seg.start, seg.end, TOLERANCE)) splitPoints.push(other.start)
-            if (isPointOnSegment(other.end, seg.start, seg.end, TOLERANCE)) splitPoints.push(other.end)
+            if (isPointOnSegment(other.start, wall.start, wall.end, TOLERANCE)) splitPoints.push(other.start)
+            if (isPointOnSegment(other.end, wall.start, wall.end, TOLERANCE)) splitPoints.push(other.end)
         })
 
         const uniquePoints: Point[] = []
@@ -84,8 +82,8 @@ function splitWalls(walls: Wall[]): { start: Point, end: Point }[] {
             }
         })
 
-        const dx = seg.end.x - seg.start.x
-        const dy = seg.end.y - seg.start.y
+        const dx = wall.end.x - wall.start.x
+        const dy = wall.end.y - wall.start.y
         if (Math.abs(dx) > Math.abs(dy)) {
             uniquePoints.sort((a, b) => a.x - b.x)
             if (dx < 0) uniquePoints.reverse()
@@ -98,7 +96,12 @@ function splitWalls(walls: Wall[]): { start: Point, end: Point }[] {
             const p1 = uniquePoints[k]
             const p2 = uniquePoints[k + 1]
             if (Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)) > TOLERANCE) {
-                result.push({ start: p1, end: p2 })
+                result.push({
+                    ...wall,
+                    id: `w-${Math.random().toString(36).substr(2, 9)}`,
+                    start: p1,
+                    end: p2
+                })
             }
         }
     })
@@ -112,7 +115,7 @@ function splitWalls(walls: Wall[]): { start: Point, end: Point }[] {
 export function detectRoomsGeometrically(walls: Wall[], previousRooms: Room[] = []): Room[] {
     if (walls.length < 3) return []
 
-    const processedEdges = splitWalls(walls)
+    const processedWalls = fragmentWalls(walls)
     const nodes: Point[] = []
     const TOLERANCE = 1.0
 
@@ -132,7 +135,7 @@ export function detectRoomsGeometrically(walls: Wall[], previousRooms: Room[] = 
     }
 
     const edges: { u: number; v: number }[] = []
-    processedEdges.forEach((e) => {
+    processedWalls.forEach((e: Wall) => {
         const u = getPointId(e.start)
         const v = getPointId(e.end)
         if (u === v) return
@@ -215,6 +218,7 @@ export function detectRoomsGeometrically(walls: Wall[], previousRooms: Room[] = 
     foundRooms.forEach(room => {
         const centroid = calculatePolygonCentroid(room.polygon)
         let bestMatch: Room | null = null
+
         let minDist = 50
 
         previousRooms.forEach(prev => {
@@ -228,16 +232,17 @@ export function detectRoomsGeometrically(walls: Wall[], previousRooms: Room[] = 
         })
 
         if (bestMatch) {
-            usedPrevIds.add(bestMatch.id)
+            const bm = bestMatch as Room
+            usedPrevIds.add(bm.id)
             finalRooms.push({
                 ...room,
-                id: bestMatch.id,
-                name: bestMatch.name,
-                color: bestMatch.color,
+                id: bm.id,
+                name: bm.name,
+                color: bm.color,
                 visualCenter: room.visualCenter
             })
         } else {
-            finalRooms.push({ ...room, id: "", name: "" })
+            finalRooms.push({ ...room, id: `room-${Date.now()}-${Math.random()}`, name: "" })
         }
     })
 
