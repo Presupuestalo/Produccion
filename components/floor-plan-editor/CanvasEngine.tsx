@@ -297,26 +297,20 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         const dy = wall.end.y - wall.start.y
         const centerLength = Math.sqrt(dx * dx + dy * dy)
 
-        if (centerLength < 5) return null // Ignorar segmentos invisibles
+        if (centerLength < 5) return null
 
-        // Ocultar etiquetas automáticas para segmentos pequeños (ruido visual)
         if (selectedWallId !== wall.id && !dragStartPos.current && centerLength < 30) return null
 
         const isSamePoint = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < 1.0
 
         const nx = -dy / centerLength
         const ny = dx / centerLength
-
-        // La normal hacia la cara que estamos midiendo
         const faceNormal = { x: nx * Math.sign(offsetVal), y: ny * Math.sign(offsetVal) }
 
-        const getFaceOffsetAt = (point: Point, fn: Point) => {
+        const getFaceOffsetAt = (point: Point, fn: Point, isInteriorFace: boolean) => {
             const neighbors = walls.filter(w => w.id !== wall.id && (isSamePoint(w.start, point) || isSamePoint(w.end, point)))
-
-            // 1. Standalone wall / Free end (measures to structural boundary)
             if (neighbors.length === 0) return wall.thickness / 2
 
-            // 2. Wall continuation (stays on same line)
             const isContinuation = neighbors.some(nw => {
                 const isNWVertical = Math.abs(nw.start.x - nw.end.x) < 1
                 const isWVertical = Math.abs(wall.start.x - wall.end.x) < 1
@@ -325,8 +319,6 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
             if (isContinuation) return 0
 
             const perp = neighbors.filter(nw => isConnectedPerpendicular(wall, nw))
-
-            // 3. Corner/T-junction blocking detection
             const blocksFace = perp.some(nw => {
                 const otherP = isSamePoint(nw.start, point) ? nw.end : nw.start
                 const dir = { x: otherP.x - point.x, y: otherP.y - point.y }
@@ -334,48 +326,28 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
             })
 
             if (blocksFace) {
-                // Inner Corner / T-junction blocked side: Retreat to clear space
+                // If it's an interior face (points into a room), retreat to show clear space
+                // If it's exterior, we usually stop at the joint cap (0 offset)
                 const maxT = perp.length > 0 ? Math.max(...perp.map(n => n.thickness)) : wall.thickness
-                return offsetVal < 0 ? -maxT / 2 : 0
-            } else {
-                // Outer Corner / Joint cap: User says it "stops" if there's a wall
-                return 0
+                return isInteriorFace ? -maxT / 2 : 0
             }
+            return 0
         }
-
-        const offStart = getFaceOffsetAt(wall.start, faceNormal)
-        const offEnd = getFaceOffsetAt(wall.end, faceNormal)
-
-        const length = Math.round(centerLength + offStart + offEnd)
-        const faceType = offsetVal > 0 ? "exterior" : "interior"
 
         const midX = (wall.start.x + wall.end.x) / 2
         const midY = (wall.start.y + wall.end.y) / 2
 
-        const labelX = midX + nx * offsetVal
-        const labelY = midY + ny * offsetVal
-
-        // Logic to resolve conflicting measurements (e.g., 226 vs 221 on shared walls)
-        // If this face points into ANY room, it's an interior face.
-        // We only show "structural" (exterior) measurements if the face points to empty space.
         const pointSlightlyOff = { x: midX + nx * Math.sign(offsetVal) * 5, y: midY + ny * Math.sign(offsetVal) * 5 }
         const pointsIntoRoom = isPointInAnyRoom(pointSlightlyOff)
 
-        const faceType = pointsIntoRoom ? "interior" : "exterior"
+        // Final face type and offset calculation
+        const faceType: "interior" | "exterior" = pointsIntoRoom ? "interior" : "exterior"
+        const offStart = getFaceOffsetAt(wall.start, faceNormal, pointsIntoRoom)
+        const offEnd = getFaceOffsetAt(wall.end, faceNormal, pointsIntoRoom)
+        const length = Math.round(centerLength + offStart + offEnd)
 
-        // If the user is measuring "exterior" but we found a room there, 
-        // OR if there's no room but we are showing "interior" logic, we might need to adjust.
-        // However, the simplest fix for the user's "226 vs 221" is:
-        // IF pointsIntoRoom is true, always force the measure to be "Interior" (clear space).
-        const finalOffStart = pointsIntoRoom ? (offsetVal < 0 ? offStart : -offStart) : offStart
-        const finalOffEnd = pointsIntoRoom ? (offsetVal < 0 ? offEnd : -offEnd) : offEnd
-
-        // To precisely match the user's "221" (interior clear space), we need to ensure 
-        // that if pointsIntoRoom is true, the length calculation uses the "blocked" logic.
-
-        // Actually, let's just use the pointsIntoRoom to decide if we RENDER it.
-        // The user says: "pq me vas a crear un conflicto y gordo... si ya existe otra [habitación]"
-        if (pointsIntoRoom && Math.abs(offsetVal) > wall.thickness / 2) return null
+        const labelX = midX + nx * offsetVal
+        const labelY = midY + ny * offsetVal
 
         return (
             <Group>
@@ -431,7 +403,6 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
             </Group>
         )
     }
-
     const isConnectedPerpendicular = (w1: Wall, w2: Wall) => {
         const isW1Horizontal = Math.abs(w1.start.y - w1.end.y) < 1
         const isW1Vertical = Math.abs(w1.start.x - w1.end.x) < 1
