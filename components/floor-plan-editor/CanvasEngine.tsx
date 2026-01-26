@@ -1,13 +1,17 @@
 "use client"
 import React from "react"
-import { Stage, Layer, Group, Line, Rect, Text, Circle } from "react-konva"
+import { Stage, Layer, Group, Line, Rect, Text, Circle, Arc } from "react-konva"
 import { Grid } from "./Grid"
+import { getClosestPointOnSegment } from "@/lib/utils/geometry"
 import { Scissors, Plus, Pencil, Trash2, X } from "lucide-react"
 
 interface Point { x: number; y: number }
 interface Wall { id: string; start: Point; end: Point; thickness: number }
 
 interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point }
+
+interface Door { id: string; wallId: string; t: number; width: number; flip?: boolean }
+interface Window { id: string; wallId: string; t: number; width: number; height: number }
 
 interface CanvasEngineProps {
     width: number
@@ -16,8 +20,8 @@ interface CanvasEngineProps {
     offset: { x: number; y: number }
     walls: Wall[]
     rooms: Room[]
-    doors: any[]
-    windows: any[]
+    doors: Door[]
+    windows: Window[]
     currentWall: { start: Point; end: Point } | null
     activeTool: string
     hoveredWallId: string | null
@@ -40,6 +44,7 @@ interface CanvasEngineProps {
     selectedRoomId: string | null
     onSelectRoom: (id: string | null) => void
     onStartDragWall: () => void
+    onDragElement: (type: "door" | "window", id: string, newT: number) => void
     wallSnapshot: Wall[] | null
 }
 
@@ -75,6 +80,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     onDragVertex,
     wallSnapshot,
     onStartDragWall,
+    onDragElement,
 }) => {
     const [mousePos, setMousePos] = React.useState<Point | null>(null)
     const [alignmentGuides, setAlignmentGuides] = React.useState<{ x?: number, y?: number } | null>(null)
@@ -574,6 +580,98 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                             )
                         })}
 
+                        {/* Renderizar puertas y ventanas */}
+                        {doors.map(door => {
+                            const wall = walls.find(w => w.id === door.wallId)
+                            if (!wall) return null
+                            const wallAngle = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x) * (180 / Math.PI)
+                            const pos = {
+                                x: wall.start.x + door.t * (wall.end.x - wall.start.x),
+                                y: wall.start.y + door.t * (wall.end.y - wall.start.y)
+                            }
+
+                            const wallLen = Math.sqrt(Math.pow(wall.end.x - wall.start.x, 2) + Math.pow(wall.end.y - wall.start.y, 2))
+                            const d1 = (door.t * wallLen).toFixed(0)
+                            const d2 = ((1 - door.t) * wallLen).toFixed(0)
+
+                            return (
+                                <Group
+                                    key={door.id}
+                                    x={pos.x} y={pos.y}
+                                    rotation={wallAngle}
+                                    draggable={activeTool === "select"}
+                                    onDragMove={(e) => {
+                                        const stage = e.target.getStage()
+                                        if (!stage) return
+                                        const pointer = getRelativePointerPosition(stage)
+                                        const { t } = getClosestPointOnSegment(pointer, wall.start, wall.end)
+                                        onDragElement("door", door.id, t)
+                                        // Reset position to override Konva's default drag behavior
+                                        e.target.x(pos.x)
+                                        e.target.y(pos.y)
+                                    }}
+                                >
+                                    {/* Símbolo de puerta */}
+                                    <Rect width={door.width} height={wall.thickness} x={-door.width / 2} y={-wall.thickness / 2} fill="#ffffff" stroke="#334155" strokeWidth={1} />
+                                    <Arc
+                                        x={door.width / 2} y={-wall.thickness / 2}
+                                        innerRadius={0} outerRadius={door.width}
+                                        angle={90} rotation={-180}
+                                        stroke="#334155" strokeWidth={1}
+                                    />
+
+                                    {/* Distancias a los lados en tiempo real */}
+                                    <Group rotation={-wallAngle}>
+                                        <Text text={`${d1} cm`} x={-50} y={20} fontSize={10} fill="#0ea5e9" align="center" width={100} />
+                                        <Text text={`${d2} cm`} x={-50} y={-30} fontSize={10} fill="#0ea5e9" align="center" width={100} />
+                                    </Group>
+                                </Group>
+                            )
+                        })}
+
+                        {windows.map(window => {
+                            const wall = walls.find(w => w.id === window.wallId)
+                            if (!wall) return null
+                            const wallAngle = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x) * (180 / Math.PI)
+                            const pos = {
+                                x: wall.start.x + window.t * (wall.end.x - wall.start.x),
+                                y: wall.start.y + window.t * (wall.end.y - wall.start.y)
+                            }
+
+                            const wallLen = Math.sqrt(Math.pow(wall.end.x - wall.start.x, 2) + Math.pow(wall.end.y - wall.start.y, 2))
+                            const d1 = (window.t * wallLen).toFixed(0)
+                            const d2 = ((1 - window.t) * wallLen).toFixed(0)
+
+                            return (
+                                <Group
+                                    key={window.id}
+                                    x={pos.x} y={pos.y}
+                                    rotation={wallAngle}
+                                    draggable={activeTool === "select"}
+                                    onDragMove={(e) => {
+                                        const stage = e.target.getStage()
+                                        if (!stage) return
+                                        const pointer = getRelativePointerPosition(stage)
+                                        const { t } = getClosestPointOnSegment(pointer, wall.start, wall.end)
+                                        onDragElement("window", window.id, t)
+                                        // Reset position to override Konva's default drag behavior
+                                        e.target.x(pos.x)
+                                        e.target.y(pos.y)
+                                    }}
+                                >
+                                    {/* Símbolo de ventana */}
+                                    <Rect width={window.width} height={wall.thickness} x={-window.width / 2} y={-wall.thickness / 2} fill="#ffffff" stroke="#334155" strokeWidth={1} />
+                                    <Line points={[-window.width / 2, 0, window.width / 2, 0]} stroke="#334155" strokeWidth={1} />
+
+                                    {/* Distancias a los lados en tiempo real */}
+                                    <Group rotation={-wallAngle}>
+                                        <Text text={`${d1} cm`} x={-50} y={20} fontSize={10} fill="#0ea5e9" align="center" width={100} />
+                                        <Text text={`${d2} cm`} x={-50} y={-30} fontSize={10} fill="#0ea5e9" align="center" width={100} />
+                                    </Group>
+                                </Group>
+                            )
+                        })}
+
                         {/* Renderizar muros guardados */}
                         {walls.map((wall: Wall) => {
                             const isHovered = hoveredWallId === wall.id
@@ -591,30 +689,6 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         lineCap="round"
                                         lineJoin="round"
                                         draggable={activeTool === "select"}
-                                        onDragStart={(e) => {
-                                            const stage = e.target.getStage()
-                                            const pointer = stage?.getPointerPosition()
-                                            if (stage && pointer) {
-                                                dragStartPos.current = {
-                                                    x: (pointer.x - offset.x) / zoom,
-                                                    y: (pointer.y - offset.y) / zoom
-                                                }
-                                            }
-                                            // Asegurar que la pared esté seleccionada al arrastrar
-                                            if (selectedWallId !== wall.id) {
-                                                onSelectWall(wall.id)
-                                                const room = rooms.find(r =>
-                                                    r.polygon.some((p, i) => {
-                                                        const next = r.polygon[(i + 1) % r.polygon.length]
-                                                        const TOL = 3.0
-                                                        const isShared = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
-                                                        return (isShared(p, wall.start) && isShared(next, wall.end)) ||
-                                                            (isShared(p, wall.end) && isShared(next, wall.start))
-                                                    })
-                                                )
-                                                if (room) onSelectRoom(room.id)
-                                            }
-                                        }}
                                         onClick={() => {
                                             if (activeTool === "select") {
                                                 onSelectWall(wall.id)

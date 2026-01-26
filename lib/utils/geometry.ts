@@ -55,6 +55,34 @@ function isPointOnSegment(p: Point, a: Point, b: Point, tolerance = 1.0): boolea
     return true
 }
 
+export function getClosestPointOnSegment(p: Point, a: Point, b: Point): { point: Point, t: number } {
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const lenSq = dx * dx + dy * dy
+    if (lenSq === 0) return { point: a, t: 0 }
+
+    let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq
+    t = Math.max(0, Math.min(1, t))
+
+    return {
+        point: {
+            x: a.x + t * dx,
+            y: a.y + t * dy
+        },
+        t
+    }
+}
+
+export function getWallAngle(start: Point, end: Point): number {
+    return (Math.atan2(end.y - start.y, end.x - start.x) * 180) / Math.PI
+}
+
+export function getPointOnWall(t: number, start: Point, end: Point): Point {
+    return {
+        x: start.x + t * (end.x - start.x),
+        y: start.y + t * (end.y - start.y)
+    }
+}
 /**
  * Fragmenta un conjunto de muros en segmentos independientes en cada punto de intersección o unión.
  */

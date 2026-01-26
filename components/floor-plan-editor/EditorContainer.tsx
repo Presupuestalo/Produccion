@@ -5,7 +5,7 @@ const CanvasEngine = dynamic(() => import("./CanvasEngine").then((mod) => mod.Ca
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { MousePointer2, Pencil, Eraser, ZoomIn, ZoomOut, Maximize, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2 } from "lucide-react"
-import { detectRoomsGeometrically, fragmentWalls } from "@/lib/utils/geometry"
+import { detectRoomsGeometrically, fragmentWalls, getClosestPointOnSegment } from "@/lib/utils/geometry"
 
 export const EditorContainer = () => {
     const containerRef = useRef<HTMLDivElement>(null)
@@ -21,8 +21,10 @@ export const EditorContainer = () => {
     const [rooms, setRooms] = useState<Room[]>([])
     const [currentWall, setCurrentWall] = useState<{ start: Point; end: Point } | null>(null)
     const [hoveredWallId, setHoveredWallId] = useState<string | null>(null)
-    const [doors, setDoors] = useState<any[]>([])
-    const [windows, setWindows] = useState<any[]>([])
+    interface Door { id: string; wallId: string; t: number; width: number; flip?: boolean }
+    interface Window { id: string; wallId: string; t: number; width: number; height: number }
+    const [doors, setDoors] = useState<Door[]>([])
+    const [windows, setWindows] = useState<Window[]>([])
     const [activeTool, setActiveTool] = useState<"select" | "wall" | "erase" | "door" | "window">("wall")
     const [selectedWallId, setSelectedWallId] = useState<string | null>(null)
     const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
@@ -206,6 +208,14 @@ export const EditorContainer = () => {
     const handleUpdateWallThickness = (id: string, thickness: number) => {
         saveStateToHistory()
         setWalls(prev => prev.map(w => w.id === id ? { ...w, thickness } : w))
+    }
+
+    const handleDragElement = (type: "door" | "window", id: string, newT: number) => {
+        if (type === "door") {
+            setDoors(prev => prev.map(d => d.id === id ? { ...d, t: newT } : d))
+        } else {
+            setWindows(prev => prev.map(w => w.id === id ? { ...w, t: newT } : w))
+        }
     }
 
     const handleDragWall = (id: string, totalDelta: Point) => {
@@ -421,6 +431,21 @@ export const EditorContainer = () => {
         })
     }
 
+    const findClosestWall = (p: Point) => {
+        let best: { wallId: string, t: number, dist: number } | null = null
+        let minDist = Infinity
+
+        walls.forEach(w => {
+            const { point: snapPoint, t } = getClosestPointOnSegment(p, w.start, w.end)
+            const dist = Math.sqrt(Math.pow(p.x - snapPoint.x, 2) + Math.pow(p.y - snapPoint.y, 2))
+            if (dist < minDist) {
+                minDist = dist
+                best = { wallId: w.id, t, dist }
+            }
+        })
+        return best
+    }
+
     const handleClearPlan = () => {
         if (window.confirm("¿Estás seguro de que quieres limpiar todo el plano?")) {
             saveStateToHistory()
@@ -469,23 +494,32 @@ export const EditorContainer = () => {
         }
 
         if (activeTool === "door") {
-            saveStateToHistory()
-            setDoors([...doors, {
-                id: `door-${Date.now()}`,
-                position: point,
-                width: 40,
-                angle: 0
-            }])
+            // Solo colocable en paredes
+            const closest: { wallId: string, t: number, dist: number } | null = findClosestWall(point)
+            if (closest && closest.dist < 20) {
+                saveStateToHistory()
+                setDoors([...doors, {
+                    id: `door-${Date.now()}`,
+                    wallId: closest.wallId,
+                    t: closest.t,
+                    width: 80
+                }])
+            }
         }
 
         if (activeTool === "window") {
-            saveStateToHistory()
-            setWindows([...windows, {
-                id: `window-${Date.now()}`,
-                position: point,
-                width: 60,
-                angle: 0
-            }])
+            // Solo colocable en paredes
+            const closest: { wallId: string, t: number, dist: number } | null = findClosestWall(point)
+            if (closest && closest.dist < 20) {
+                saveStateToHistory()
+                setWindows([...windows, {
+                    id: `window-${Date.now()}`,
+                    wallId: closest.wallId,
+                    t: closest.t,
+                    width: 100,
+                    height: 10
+                }])
+            }
         }
     }
 
@@ -696,6 +730,7 @@ export const EditorContainer = () => {
                         saveStateToHistory()
                         setWallSnapshot(JSON.parse(JSON.stringify(walls)))
                     }}
+                    onDragElement={handleDragElement}
                 />
 
                 <div className="absolute bottom-4 left-4 p-3 bg-white/90 backdrop-blur-sm rounded-lg border border-slate-200 text-[10px] text-slate-500 shadow-sm pointer-events-none">
