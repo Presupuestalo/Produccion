@@ -389,12 +389,12 @@ export const EditorContainer = () => {
     const handleDragEnd = () => {
         setWallSnapshot(null)
         setWalls(prev => {
-            const processed = prev.map(w => {
-                if (w.id.startsWith('jog-')) {
-                    return { ...w, id: `w-${Math.random().toString(36).substr(2, 9)}` }
-                }
-                return w
-            })
+            const processed = prev.map(w => ({
+                ...w,
+                id: w.id.startsWith('jog-') ? `w-${Math.random().toString(36).substr(2, 9)}` : w.id,
+                start: { x: Math.round(w.start.x), y: Math.round(w.start.y) },
+                end: { x: Math.round(w.end.x), y: Math.round(w.end.y) }
+            }))
             const splitResult = fragmentWalls(processed)
             setRooms(detectRoomsGeometrically(splitResult, rooms))
             return splitResult
@@ -451,17 +451,20 @@ export const EditorContainer = () => {
                 const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
 
                 workingWalls.forEach(w => {
-                    const isWHorizontal = Math.abs(w.start.y - w.end.y) < 1.0
-                    const isWVertical = Math.abs(w.start.x - w.end.x) < 1.0
+                    const isWHorizontal = Math.abs(w.start.y - w.end.y) < 2.0
+                    const isWVertical = Math.abs(w.start.x - w.end.x) < 2.0
 
                     if (isSame(w.start, p)) {
-                        w.start.x += d.x; w.start.y += d.y
-                        if ((isWHorizontal && d.y !== 0) || (isWVertical && d.x !== 0)) {
+                        w.start.x = Math.round(w.start.x + d.x)
+                        w.start.y = Math.round(w.start.y + d.y)
+                        // Propagar desplazamiento a todo el tabique si se mueve perpendicularmente (Mantenimiento de ortogonalidad)
+                        if ((isWHorizontal && Math.abs(d.y) > 0.1) || (isWVertical && Math.abs(d.x) > 0.1)) {
                             recursiveMove(w.end, d)
                         }
                     } else if (isSame(w.end, p)) {
-                        w.end.x += d.x; w.end.y += d.y
-                        if ((isWHorizontal && d.y !== 0) || (isWVertical && d.x !== 0)) {
+                        w.end.x = Math.round(w.end.x + d.x)
+                        w.end.y = Math.round(w.end.y + d.y)
+                        if ((isWHorizontal && Math.abs(d.y) > 0.1) || (isWVertical && Math.abs(d.x) > 0.1)) {
                             recursiveMove(w.start, d)
                         }
                     }
@@ -470,13 +473,7 @@ export const EditorContainer = () => {
 
             recursiveMove(movingPoint, delta)
 
-            let finalWalls = workingWalls.map(w => ({
-                ...w,
-                start: { x: Math.round(w.start.x), y: Math.round(w.start.y) },
-                end: { x: Math.round(w.end.x), y: Math.round(w.end.y) }
-            }))
-
-            const splitResult = fragmentWalls(finalWalls)
+            const splitResult = fragmentWalls(workingWalls)
             setRooms(detectRoomsGeometrically(splitResult, rooms))
             return splitResult
         })

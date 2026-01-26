@@ -895,16 +895,16 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                         })}
 
                         {/* Pass final para Tiradores de selección (siempre encima) */}
-                        {walls.filter(w => w.id === selectedWallId).map(wall => (
+                        {walls.filter(w => w.id === selectedWallId || w.id === hoveredWallId).map(wall => (
                             <Group key={`handles-${wall.id}`}>
                                 {[wall.start, wall.end].map((p, i) => (
                                     <Circle
                                         key={`handle-${wall.id}-${i}`}
                                         x={p.x}
                                         y={p.y}
-                                        radius={7 / zoom}
-                                        fill="#0ea5e9"
-                                        stroke="white"
+                                        radius={wall.id === selectedWallId ? 8 / zoom : 6 / zoom}
+                                        fill={wall.id === selectedWallId ? "#0ea5e9" : "#ffffff"}
+                                        stroke={wall.id === selectedWallId ? "white" : "#0ea5e9"}
                                         strokeWidth={2 / zoom}
                                         shadowBlur={5 / zoom}
                                         shadowColor="rgba(0,0,0,0.2)"
@@ -934,7 +934,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         }}
                                         onMouseEnter={(e: any) => {
                                             const stage = e.target.getStage()
-                                            if (stage) stage.container().style.cursor = 'nwse-resize'
+                                            if (stage) stage.container().style.cursor = 'move'
                                         }}
                                         onMouseLeave={(e: any) => {
                                             const stage = e.target.getStage()
