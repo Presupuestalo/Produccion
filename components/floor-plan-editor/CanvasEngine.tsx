@@ -21,22 +21,21 @@ function calculatePolygonCentroid(points: Point[]): Point {
 
 interface MenuButtonProps {
     icon: React.ReactNode
-    label: string
+    label?: string
     onClick: () => void
     variant?: "default" | "danger"
 }
 
-const MenuButton: React.FC<MenuButtonProps> = ({ icon, label, onClick, variant = "default" }) => (
+const MenuButton: React.FC<MenuButtonProps> = ({ icon, onClick, variant = "default" }) => (
     <button
         onClick={onClick}
         onMouseDown={(e) => e.stopPropagation()}
-        className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all duration-200 ${variant === "danger"
+        className={`flex items-center justify-center p-1.5 rounded-lg transition-all duration-200 ${variant === "danger"
             ? "text-red-500 hover:bg-red-50"
             : "text-slate-600 hover:bg-slate-50 hover:text-sky-600"
             }`}
     >
-        <div className="p-0.5">{icon}</div>
-        <span className="text-[9px] font-medium uppercase tracking-wider">{label}</span>
+        {icon}
     </button>
 )
 
@@ -1107,28 +1106,27 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                         transform: 'translateX(-50%)',
                         backgroundColor: 'rgba(255, 255, 255, 0.9)',
                         backdropFilter: 'blur(12px)',
-                        padding: '4px',
-                        borderRadius: '12px',
+                        padding: '2px',
+                        borderRadius: '10px',
                         boxShadow: '0 10px 30px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)',
                         zIndex: 1000,
                         pointerEvents: 'auto',
                         cursor: isDraggingMenuState ? 'grabbing' : 'grab',
                         animation: 'fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                        minWidth: '120px'
+                        minWidth: 'auto'
                     }}
                 >
                     {/* Drag Handle Bar */}
-                    <div className="w-full h-1.5 flex justify-center items-center mb-1 group cursor-grab">
-                        <div className="w-8 h-1 bg-slate-200 rounded-full group-hover:bg-slate-300 transition-colors" />
+                    <div className="w-full h-1 flex justify-center items-center mb-0.5 group cursor-grab">
+                        <div className="w-6 h-0.5 bg-slate-200 rounded-full group-hover:bg-slate-300 transition-colors" />
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-0.5">
                         {editMode === "menu" ? (
                             <>
                                 {selectedWall && (
                                     <MenuButton
                                         icon={<Scissors className="h-3.5 w-3.5" />}
-                                        label="Split"
                                         onClick={() => onSplitWall?.(selectedWall.id)}
                                     />
                                 )}
@@ -1136,20 +1134,19 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                     <>
                                         <MenuButton
                                             icon={<Copy className="h-3.5 w-3.5" />}
-                                            label="Clone"
                                             onClick={() => onCloneElement(selectedElement.type, selectedElement.id)}
                                         />
                                         <MenuButton
                                             icon={<FlipHorizontal className="h-3.5 w-3.5" />}
-                                            label="Flip X"
                                             onClick={() => {
-                                                const el = selectedElement.type === "door" ? doors.find(d => d.id === selectedElement.id) : null
-                                                if (el) onUpdateElement("door", el.id, { flipX: !el.flipX })
+                                                const el = selectedElement.type === "door"
+                                                    ? doors.find(d => d.id === selectedElement.id)
+                                                    : windows.find(w => w.id === selectedElement.id)
+                                                if (el && 'flipX' in el) onUpdateElement(selectedElement.type, el.id, { flipX: !el.flipX })
                                             }}
                                         />
                                         <MenuButton
                                             icon={<FlipVertical className="h-3.5 w-3.5" />}
-                                            label="Flip Y"
                                             onClick={() => {
                                                 const el = selectedElement.type === "door"
                                                     ? doors.find(d => d.id === selectedElement.id)
@@ -1161,14 +1158,12 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                 )}
                                 <MenuButton
                                     icon={<Pencil className="h-3.5 w-3.5" />}
-                                    label="Editar"
                                     onClick={() => setEditMode(selectedWall ? "thickness" : selectedElement ? "length" : "room")}
                                 />
-                                <div className="w-px h-6 bg-slate-100 mx-1" />
+                                <div className="w-px h-4 bg-slate-100 mx-0.5" />
                                 {(selectedWall || selectedElement) && (
                                     <MenuButton
                                         icon={<Trash2 className="h-3.5 w-3.5" />}
-                                        label="Delete"
                                         onClick={() => {
                                             if (selectedWall) onDeleteWall(selectedWall.id)
                                             else if (selectedElement) onDeleteElement(selectedElement.type, selectedElement.id)
@@ -1176,6 +1171,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         variant="danger"
                                     />
                                 )}
+                                <div className="w-px h-4 bg-slate-100 mx-0.5" />
                                 <button
                                     onClick={() => {
                                         onSelectWall(null)
@@ -1183,9 +1179,9 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         onSelectElement(null)
                                     }}
                                     onMouseDown={(e) => e.stopPropagation()}
-                                    className="p-1 px-2 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"
+                                    className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"
                                 >
-                                    <X className="h-3.5 w-3.5" />
+                                    <X className="h-3 w-3" />
                                 </button>
                             </>
                         ) : editMode === "room" ? (
