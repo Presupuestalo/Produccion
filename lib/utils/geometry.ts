@@ -108,7 +108,6 @@ function splitWalls(walls: Wall[]): { start: Point, end: Point }[] {
 
 /**
  * Detecta ciclos cerrados (habitaciones) en un conjunto de muros usando un algoritmo de caras de grafo planar.
- * @param previousRooms Opcional. Habitaciones de la captura anterior para mantener estabilidad visual (colores/IDs).
  */
 export function detectRoomsGeometrically(walls: Wall[], previousRooms: Room[] = []): Room[] {
     if (walls.length < 3) return []
@@ -198,27 +197,28 @@ export function detectRoomsGeometrically(walls: Wall[], previousRooms: Room[] = 
 
             if (area > 0.01) {
                 foundRooms.push({
-                    id: `room-${Date.now()}-${foundRooms.length}`,
-                    name: `Habitación ${foundRooms.length + 1}`,
+                    id: "", // Temporary
+                    name: "", // Temporary
                     polygon,
                     area: Math.abs(area),
-                    color: getRandomColor(),
-                    visualCenter: polylabel(polygon) // Nuevo: Centro visual para la etiqueta
+                    color: "", // Temporary
+                    visualCenter: polylabel(polygon)
                 })
             }
         }
     }
 
-    // Estabilidad visual: hacer coincidir con habitaciones anteriores
-    const usedIds = new Set<string>()
-    const finalRooms: Room[] = foundRooms.map(room => {
-        const centroid = calculatePolygonCentroid(room.polygon)
+    const finalRooms: Room[] = []
+    const usedPrevIds = new Set<string>()
 
+    // Pass 1: Strict matching with previous rooms for stability
+    foundRooms.forEach(room => {
+        const centroid = calculatePolygonCentroid(room.polygon)
         let bestMatch: Room | null = null
         let minDist = 50
 
         previousRooms.forEach(prev => {
-            if (usedIds.has(prev.id)) return // No repetir ID en el mismo batch
+            if (usedPrevIds.has(prev.id)) return
             const prevCentroid = calculatePolygonCentroid(prev.polygon)
             const d = Math.sqrt(Math.pow(centroid.x - prevCentroid.x, 2) + Math.pow(centroid.y - prevCentroid.y, 2))
             if (d < minDist) {
@@ -228,17 +228,34 @@ export function detectRoomsGeometrically(walls: Wall[], previousRooms: Room[] = 
         })
 
         if (bestMatch) {
-            const match = bestMatch as Room
-            usedIds.add(match.id)
-            return {
+            usedPrevIds.add(bestMatch.id)
+            finalRooms.push({
                 ...room,
-                id: match.id,
-                name: match.name,
-                color: match.color,
+                id: bestMatch.id,
+                name: bestMatch.name,
+                color: bestMatch.color,
                 visualCenter: room.visualCenter
-            }
+            })
+        } else {
+            finalRooms.push({ ...room, id: "", name: "" })
         }
-        return room
+    })
+
+    // Pass 2: Assign unique names and IDs to new/unmatched rooms
+    const usedNames = new Set(finalRooms.map(r => r.name).filter(n => n !== ""))
+
+    finalRooms.forEach((room, idx) => {
+        if (room.id === "") {
+            room.id = `room-${Date.now()}-${idx}`
+
+            let n = 1
+            while (usedNames.has(`Habitación ${n}`)) {
+                n++
+            }
+            room.name = `Habitación ${n}`
+            usedNames.add(room.name)
+            room.color = getRandomColor()
+        }
     })
 
     return finalRooms
@@ -260,22 +277,7 @@ function calculatePolygonSignedArea(points: Point[]): number {
     return (area / 2) / 10000
 }
 
-function calculatePolygonArea(points: Point[]): number {
-    let area = 0
-    for (let i = 0; i < points.length; i++) {
-        const j = (i + 1) % points.length
-        area += points[i].x * points[j].y
-        area -= points[j].x * points[i].y
-    }
-    return (Math.abs(area) / 2) / 10000
-}
-
-/**
- * Implementación de Polylabel para encontrar el polo de inaccesibilidad (centro visual).
- * Utiliza una rejilla recursiva para refinar el punto más alejado de los bordes.
- */
 export function polylabel(polygon: Point[], precision = 1.0): Point {
-    // 1. Bounding Box
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
     polygon.forEach(p => {
         minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x)
@@ -302,7 +304,6 @@ export function polylabel(polygon: Point[], precision = 1.0): Point {
         return (inside ? 1 : -1) * Math.sqrt(minDistSq)
     }
 
-    // Centroid como fallback inicial
     let cx = 0, cy = 0
     polygon.forEach(p => { cx += p.x; cy += p.y })
     cx /= polygon.length; cy /= polygon.length
@@ -310,7 +311,6 @@ export function polylabel(polygon: Point[], precision = 1.0): Point {
     let bestPoint = { x: cx, y: cy }
     let maxDist = pointToPolygonDist(cx, cy, polygon)
 
-    // Búsqueda por rejilla con refinamiento (Adaptive Grid Search)
     const search = (cellX: number, cellY: number, size: number) => {
         const steps = 8
         const step = size / steps
@@ -323,20 +323,17 @@ export function polylabel(polygon: Point[], precision = 1.0): Point {
                 }
             }
         }
-        // Si el tamaño sigue siendo mayor que la precisión, refinamos alrededor del mejor
         if (size > precision) {
             search(bestPoint.x - size / steps, bestPoint.y - size / steps, (size / steps) * 2)
         }
     }
 
-    // Empezar con la caja completa
     let currentSize = maxDim
     const divisions = 4
     const step = currentSize / divisions
     for (let x = minX; x < maxX; x += step) {
         for (let y = minY; y < maxY; y += step) {
             const dist = pointToPolygonDist(x + step / 2, y + step / 2, polygon)
-            // Solo si el centro de esta celda + su radio es prometedor
             if (dist + (step * 1.4) > maxDist) {
                 search(x, y, step)
             }

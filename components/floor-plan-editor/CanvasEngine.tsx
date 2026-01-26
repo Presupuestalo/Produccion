@@ -168,6 +168,17 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         return nearest
     }
 
+    const isPointInPolygon = (p: Point, poly: Point[]) => {
+        let inside = false
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+            const pi = poly[i], pj = poly[j]
+            if (((pi.y > p.y) !== (pj.y > p.y)) && (p.x < (pj.x - pi.x) * (p.y - pi.y) / (pj.y - pi.y) + pi.x)) inside = !inside
+        }
+        return inside
+    }
+
+    const isPointInAnyRoom = (p: Point) => rooms.some(r => isPointInPolygon(p, r.polygon))
+
     const projectPointOnSegment = (p: Point, a: Point, b: Point): Point => {
         const l2 = Math.pow(b.x - a.x, 2) + Math.pow(b.y - a.y, 2)
         if (l2 === 0) return a
@@ -343,6 +354,28 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
         const labelX = midX + nx * offsetVal
         const labelY = midY + ny * offsetVal
+
+        // Logic to resolve conflicting measurements (e.g., 226 vs 221 on shared walls)
+        // If this face points into ANY room, it's an interior face.
+        // We only show "structural" (exterior) measurements if the face points to empty space.
+        const pointSlightlyOff = { x: midX + nx * Math.sign(offsetVal) * 5, y: midY + ny * Math.sign(offsetVal) * 5 }
+        const pointsIntoRoom = isPointInAnyRoom(pointSlightlyOff)
+
+        const faceType = pointsIntoRoom ? "interior" : "exterior"
+
+        // If the user is measuring "exterior" but we found a room there, 
+        // OR if there's no room but we are showing "interior" logic, we might need to adjust.
+        // However, the simplest fix for the user's "226 vs 221" is:
+        // IF pointsIntoRoom is true, always force the measure to be "Interior" (clear space).
+        const finalOffStart = pointsIntoRoom ? (offsetVal < 0 ? offStart : -offStart) : offStart
+        const finalOffEnd = pointsIntoRoom ? (offsetVal < 0 ? offEnd : -offEnd) : offEnd
+
+        // To precisely match the user's "221" (interior clear space), we need to ensure 
+        // that if pointsIntoRoom is true, the length calculation uses the "blocked" logic.
+
+        // Actually, let's just use the pointsIntoRoom to decide if we RENDER it.
+        // The user says: "pq me vas a crear un conflicto y gordo... si ya existe otra [habitación]"
+        if (pointsIntoRoom && Math.abs(offsetVal) > wall.thickness / 2) return null
 
         return (
             <Group>
