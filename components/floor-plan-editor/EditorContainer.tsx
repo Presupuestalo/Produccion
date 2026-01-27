@@ -4,8 +4,8 @@ import dynamic from "next/dynamic"
 const CanvasEngine = dynamic(() => import("./CanvasEngine").then((mod) => mod.CanvasEngine), { ssr: false })
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler } from "lucide-react"
-import { detectRoomsGeometrically, fragmentWalls, getClosestPointOnSegment, isPointOnSegment } from "@/lib/utils/geometry"
+import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2 } from "lucide-react"
+import { detectRoomsGeometrically, fragmentWalls, getClosestPointOnSegment, isPointOnSegment, isSamePoint, cleanupAndMergeWalls } from "@/lib/utils/geometry"
 
 export const EditorContainer = forwardRef((props, ref) => {
     const containerRef = useRef<HTMLDivElement>(null)
@@ -535,6 +535,35 @@ export const EditorContainer = forwardRef((props, ref) => {
         saveStateToHistory()
     }
 
+    const applyPerimeterThickness = () => {
+        saveStateToHistory()
+        setWalls(prevWalls => {
+            const fragmented = fragmentWalls(prevWalls)
+            const detectedRooms = detectRoomsGeometrically(fragmented)
+
+            const updatedWalls = fragmented.map(w => {
+                let count = 0
+                for (const room of detectedRooms) {
+                    for (let i = 0; i < room.polygon.length; i++) {
+                        const p1 = room.polygon[i]
+                        const p2 = room.polygon[(i + 1) % room.polygon.length]
+                        if ((isSamePoint(w.start, p1) && isSamePoint(w.end, p2)) ||
+                            (isSamePoint(w.start, p2) && isSamePoint(w.end, p1))) {
+                            count++
+                        }
+                    }
+                }
+
+                if (count === 1) {
+                    return { ...w, thickness: 20 }
+                }
+                return w
+            })
+
+            return cleanupAndMergeWalls(updatedWalls)
+        })
+    }
+
     const handleUpdateWallLength = (id: string, newLength: number, side: "left" | "right") => {
         saveStateToHistory()
         setWalls(prevWalls => {
@@ -952,6 +981,16 @@ export const EditorContainer = forwardRef((props, ref) => {
                         className={!snappingEnabled ? "text-slate-400" : ""}
                     >
                         <Magnet className="h-4 w-4" />
+                    </Button>
+                    <div className="w-px h-6 bg-slate-200 mx-1" />
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={applyPerimeterThickness}
+                        title="Auto-Fachada (20cm contorno)"
+                        className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                    >
+                        <Building2 className="h-4 w-4" />
                     </Button>
                 </div>
 

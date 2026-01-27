@@ -20,6 +20,10 @@ export interface Room {
     visualCenter?: Point
 }
 
+export function isSamePoint(p1: Point, p2: Point, tolerance = 1.0): boolean {
+    return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < tolerance
+}
+
 /**
  * Utilidades geométricas para intersecciones
  */
@@ -152,8 +156,6 @@ export function cleanupAndMergeWalls(walls: Wall[]): Wall[] {
         const len = Math.sqrt(Math.pow(w.end.x - w.start.x, 2) + Math.pow(w.end.y - w.start.y, 2))
         return len > TOLERANCE
     })
-
-    const isSamePoint = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOLERANCE
 
     let merged = true
     while (merged) {
