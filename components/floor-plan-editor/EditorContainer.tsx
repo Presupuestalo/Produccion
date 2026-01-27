@@ -1,13 +1,13 @@
 "use client"
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react"
 import dynamic from "next/dynamic"
 const CanvasEngine = dynamic(() => import("./CanvasEngine").then((mod) => mod.CanvasEngine), { ssr: false })
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { MousePointer2, Pencil, Eraser, ZoomIn, ZoomOut, Maximize, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2, ImagePlus, Sliders, Move } from "lucide-react"
-import { detectRoomsGeometrically, fragmentWalls, getClosestPointOnSegment } from "@/lib/utils/geometry"
+import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler } from "lucide-react"
+import { detectRoomsGeometrically, fragmentWalls, getClosestPointOnSegment, isPointOnSegment } from "@/lib/utils/geometry"
 
-export const EditorContainer = () => {
+export const EditorContainer = forwardRef((props, ref) => {
     const containerRef = useRef<HTMLDivElement>(null)
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
     const [zoom, setZoom] = useState(1)
@@ -26,8 +26,8 @@ export const EditorContainer = () => {
     const [doors, setDoors] = useState<Door[]>([])
     const [windows, setWindows] = useState<Window[]>([])
     const [selectedElement, setSelectedElement] = useState<{ type: "door" | "window", id: string } | null>(null)
-    const [activeTool, setActiveTool] = useState<"select" | "wall" | "erase" | "door" | "window">("wall")
-    const [selectedWallId, setSelectedWallId] = useState<string | null>(null)
+    const [activeTool, setActiveTool] = useState<"select" | "wall" | "door" | "window" | "ruler">("wall")
+    const [selectedWallIds, setSelectedWallIds] = useState<string[]>([])
     const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
     const [isSaving, setIsSaving] = useState(false)
 
@@ -45,12 +45,19 @@ export const EditorContainer = () => {
     const [isCalibrating, setIsCalibrating] = useState(false)
     const [calibrationPoints, setCalibrationPoints] = useState({ p1: { x: 200, y: 200 }, p2: { x: 500, y: 200 } })
     const [calibrationTargetValue, setCalibrationTargetValue] = useState(500)
+    const [snappingEnabled, setSnappingEnabled] = useState(true)
+    const [rulerState, setRulerState] = useState<{ start: Point | null, end: Point | null, active: boolean }>({ start: null, end: null, active: false })
+
+    useImperativeHandle(ref, () => ({
+        clearPlan: handleClearPlan
+    }))
 
     // Limpiar estados al cambiar de herramienta o cancelar
     useEffect(() => {
         setCurrentWall(null)
-        setSelectedWallId(null)
+        setSelectedWallIds([])
         setSelectedRoomId(null)
+        setRulerState({ start: null, end: null, active: false })
     }, [activeTool])
 
     const saveStateToHistory = () => {
@@ -133,12 +140,13 @@ export const EditorContainer = () => {
             }
             if (e.key === 'Escape') {
                 setCurrentWall(null)
-                setSelectedWallId(null)
+                setSelectedWallIds([])
                 setSelectedRoomId(null)
+                setRulerState({ start: null, end: null, active: false })
             }
             if (e.key === 'Delete' || e.key === 'Backspace') {
-                if (selectedWallId) {
-                    deleteWall(selectedWallId)
+                if (selectedWallIds.length > 0) {
+                    selectedWallIds.forEach(id => deleteWall(id))
                 } else if (selectedElement) {
                     handleDeleteElement(selectedElement.type, selectedElement.id)
                 }
@@ -146,7 +154,7 @@ export const EditorContainer = () => {
         }
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [selectedWallId, selectedElement, walls, doors, windows, redoHistory])
+    }, [selectedWallIds, selectedElement, walls, doors, windows, redoHistory])
 
     const calculateArea = (points: Point[]) => {
         let total = 0
@@ -184,7 +192,7 @@ export const EditorContainer = () => {
         saveStateToHistory()
         const newWalls = walls.filter(w => w.id !== id)
         setWalls(newWalls)
-        if (selectedWallId === id) setSelectedWallId(null)
+        setSelectedWallIds(prev => prev.filter(wid => wid !== id))
         setRooms(detectRoomsGeometrically(newWalls, rooms))
         setDoors(prev => prev.filter(d => d.wallId !== id))
         setWindows(prev => prev.filter(w => w.wallId !== id))
@@ -204,7 +212,7 @@ export const EditorContainer = () => {
         }
     }
 
-    const handleSplitWall = (id: string) => {
+    const handleSplitWall = (id: string, atPoint?: Point) => {
         saveStateToHistory()
         const now = Date.now()
         const p1Id = `wall-${id}-p1-${now}`
@@ -213,17 +221,22 @@ export const EditorContainer = () => {
         setWalls(prev => {
             const wall = prev.find(w => w.id === id)
             if (!wall) return prev
-            const mid = {
-                x: (wall.start.x + wall.end.x) / 2,
-                y: (wall.start.y + wall.end.y) / 2
+            let splitPoint: Point
+            if (atPoint) {
+                splitPoint = getClosestPointOnSegment(atPoint, wall.start, wall.end).point
+            } else {
+                splitPoint = {
+                    x: (wall.start.x + wall.end.x) / 2,
+                    y: (wall.start.y + wall.end.y) / 2
+                }
             }
-            const p1 = { ...wall, id: p1Id, end: mid }
-            const p2 = { ...wall, id: p2Id, start: mid }
+            const p1: Wall = { ...wall, id: p1Id, end: splitPoint }
+            const p2: Wall = { ...wall, id: p2Id, start: splitPoint }
             const newWalls = prev.filter(w => w.id !== id).concat([p1, p2])
             setRooms(detectRoomsGeometrically(newWalls, rooms))
             return newWalls
         })
-        setSelectedWallId(p1Id)
+        setSelectedWallIds([p1Id])
     }
 
     const handleUpdateRoom = (id: string, updates: Partial<Room>) => {
@@ -396,6 +409,49 @@ export const EditorContainer = () => {
                 end: { x: Math.round(w.end.x), y: Math.round(w.end.y) }
             }))
             const splitResult = fragmentWalls(processed)
+
+            // Re-vincular puertas y ventanas
+            setDoors(prevDoors => prevDoors.map(door => {
+                const oldWall = processed.find(w => w.id === door.wallId)
+                if (!oldWall) return door
+                const p = {
+                    x: oldWall.start.x + door.t * (oldWall.end.x - oldWall.start.x),
+                    y: oldWall.start.y + door.t * (oldWall.end.y - oldWall.start.y)
+                }
+                const bestWall = splitResult.find(nw => isPointOnSegment(p, nw.start, nw.end, 2.0))
+                if (bestWall) {
+                    const dx = bestWall.end.x - bestWall.start.x
+                    const dy = bestWall.end.y - bestWall.start.y
+                    const lenSq = dx * dx + dy * dy
+                    const t = lenSq === 0 ? 0 : ((p.x - bestWall.start.x) * dx + (p.y - bestWall.start.y) * dy) / lenSq
+                    return { ...door, wallId: bestWall.id, t: Math.max(0, Math.min(1, t)) }
+                }
+                return door
+            }))
+
+            setWindows(prevWindows => prevWindows.map(win => {
+                const oldWall = processed.find(w => w.id === win.wallId)
+                if (!oldWall) return win
+                const p = {
+                    x: oldWall.start.x + win.t * (oldWall.end.x - oldWall.start.x),
+                    y: oldWall.start.y + win.t * (oldWall.end.y - oldWall.start.y)
+                }
+                const bestWall = splitResult.find(nw => isPointOnSegment(p, nw.start, nw.end, 2.0))
+                if (bestWall) {
+                    const dx = bestWall.end.x - bestWall.start.x
+                    const dy = bestWall.end.y - bestWall.start.y
+                    const lenSq = dx * dx + dy * dy
+                    const t = lenSq === 0 ? 0 : ((p.x - bestWall.start.x) * dx + (p.y - bestWall.start.y) * dy) / lenSq
+                    return { ...win, wallId: bestWall.id, t: Math.max(0, Math.min(1, t)) }
+                }
+                return win
+            }))
+
+            setSelectedWallIds(swIds => swIds.map(oldId => {
+                const found = splitResult.find(nw => nw.id === oldId || nw.id === `${oldId}-s0`)
+                return found ? found.id : oldId
+            }).filter(id => splitResult.some(nw => nw.id === id)))
+
             setRooms(detectRoomsGeometrically(splitResult, rooms))
             return splitResult
         })
@@ -408,15 +464,15 @@ export const EditorContainer = () => {
             const wall = prevWalls.find(w => w.id === id)
             if (!wall) return prevWalls
 
-            const isHorizontal = Math.abs(wall.start.y - wall.end.y) < 1
-            const isVertical = Math.abs(wall.start.x - wall.end.x) < 1
+            const isHorizontal = Math.abs(wall.start.y - wall.end.y) < 1.5
+            const isVertical = Math.abs(wall.start.x - wall.end.x) < 1.5
 
             let startIsMin = isHorizontal ? (wall.start.x < wall.end.x) : (wall.start.y < wall.end.y)
             let anchorEnd = (side === "left" ? (startIsMin ? "end" : "start") : (startIsMin ? "start" : "end"))
             let movingEnd = (side === "left" ? (startIsMin ? "start" : "end") : (startIsMin ? "end" : "start"))
 
-            const anchorPoint = anchorEnd === "start" ? wall.start : wall.end
-            const movingPoint = movingEnd === "start" ? wall.start : wall.end
+            const anchorPoint = { x: Math.round(anchorEnd === "start" ? wall.start.x : wall.end.x), y: Math.round(anchorEnd === "start" ? wall.start.y : wall.end.y) }
+            const movingPoint = { x: Math.round(movingEnd === "start" ? wall.start.x : wall.end.x), y: Math.round(movingEnd === "start" ? wall.start.y : wall.end.y) }
 
             const dx = wall.end.x - wall.start.x
             const dy = wall.end.y - wall.start.y
@@ -426,24 +482,29 @@ export const EditorContainer = () => {
             let ux = dx / currentLength
             let uy = dy / currentLength
 
-            // Forzar ortogonalidad si el muro ya lo es (evitar acumulación de errores de coma flotante)
             if (isHorizontal) { ux = Math.sign(dx) || 1; uy = 0 }
             else if (isVertical) { ux = 0; uy = Math.sign(dy) || 1 }
 
-            let newPoint = {
+            const newPos = {
                 x: Math.round(anchorPoint.x + ux * newLength * (movingEnd === "start" ? -1 : 1)),
                 y: Math.round(anchorPoint.y + uy * newLength * (movingEnd === "start" ? -1 : 1))
             }
 
-            const delta = { x: newPoint.x - movingPoint.x, y: newPoint.y - movingPoint.y }
+            const delta = { x: newPos.x - movingPoint.x, y: newPos.y - movingPoint.y }
 
             let workingWalls = JSON.parse(JSON.stringify(prevWalls)) as Wall[]
-            const movedVertices = new Set<string>()
+            // Round all working walls to integer grid first to ensure consistency
+            workingWalls.forEach(w => {
+                w.start.x = Math.round(w.start.x); w.start.y = Math.round(w.start.y)
+                w.end.x = Math.round(w.end.x); w.end.y = Math.round(w.end.y)
+            })
 
-            const recursiveMove = (p: Point, d: Point) => {
-                const rx = Math.round(p.x)
-                const ry = Math.round(p.y)
-                const pKey = `${rx},${ry}`
+            const movedVertices = new Set<string>()
+            // PROTECT ANCHOR: mark it as moved to prevent recursion logic from shifting it
+            movedVertices.add(`${anchorPoint.x},${anchorPoint.y}`)
+
+            const recursiveMove = (oldP: Point, d: Point, newP: Point) => {
+                const pKey = `${oldP.x},${oldP.y}`
                 if (movedVertices.has(pKey)) return
                 movedVertices.add(pKey)
 
@@ -451,30 +512,76 @@ export const EditorContainer = () => {
                 const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
 
                 workingWalls.forEach(w => {
-                    const isWHorizontal = Math.abs(w.start.y - w.end.y) < 2.0
-                    const isWVertical = Math.abs(w.start.x - w.end.x) < 2.0
+                    const isWH = Math.abs(w.start.y - w.end.y) < 2
+                    const isWV = Math.abs(w.start.x - w.end.x) < 2
 
-                    if (isSame(w.start, p)) {
-                        w.start.x = Math.round(w.start.x + d.x)
-                        w.start.y = Math.round(w.start.y + d.y)
-                        // Propagar desplazamiento a todo el tabique si se mueve perpendicularmente (Mantenimiento de ortogonalidad)
-                        if ((isWHorizontal && Math.abs(d.y) > 0.1) || (isWVertical && Math.abs(d.x) > 0.1)) {
-                            recursiveMove(w.end, d)
+                    if (isSame(w.start, oldP)) {
+                        const nextOld = { ...w.end }
+                        w.start.x = newP.x; w.start.y = newP.y // Use exact SNAP destination
+                        // Rigid propagation for orthogonal integrity
+                        if ((isWH && Math.abs(d.y) > 0.1) || (isWV && Math.abs(d.x) > 0.1)) {
+                            recursiveMove(nextOld, d, { x: nextOld.x + d.x, y: nextOld.y + d.y })
                         }
-                    } else if (isSame(w.end, p)) {
-                        w.end.x = Math.round(w.end.x + d.x)
-                        w.end.y = Math.round(w.end.y + d.y)
-                        if ((isWHorizontal && Math.abs(d.y) > 0.1) || (isWVertical && Math.abs(d.x) > 0.1)) {
-                            recursiveMove(w.start, d)
+                    } else if (isSame(w.end, oldP)) {
+                        const nextOld = { ...w.start }
+                        w.end.x = newP.x; w.end.y = newP.y
+                        if ((isWH && Math.abs(d.y) > 0.1) || (isWV && Math.abs(d.x) > 0.1)) {
+                            recursiveMove(nextOld, d, { x: nextOld.x + d.x, y: nextOld.y + d.y })
                         }
                     }
                 })
             }
 
-            recursiveMove(movingPoint, delta)
+            recursiveMove(movingPoint, delta, newPos)
 
             const splitResult = fragmentWalls(workingWalls)
-            setRooms(detectRoomsGeometrically(splitResult, rooms))
+
+            // Mantener selección si el ID cambió pero el muro es el mismo (o el primer segmento)
+            setSelectedWallIds(prev => prev.map(oldId => {
+                const found = splitResult.find(nw => nw.id === oldId || nw.id === `${oldId}-s0`)
+                return found ? found.id : oldId
+            }).filter(id => splitResult.some(nw => nw.id === id)))
+
+            // Re-vincular puertas y ventanas
+            const updatedDoors = doors.map(door => {
+                const oldWall = prevWalls.find(w => w.id === door.wallId)
+                if (!oldWall) return door
+                const p = {
+                    x: oldWall.start.x + door.t * (oldWall.end.x - oldWall.start.x),
+                    y: oldWall.start.y + door.t * (oldWall.end.y - oldWall.start.y)
+                }
+                const bestWall = splitResult.find(nw => isPointOnSegment(p, nw.start, nw.end, 2.0))
+                if (bestWall) {
+                    const dx = bestWall.end.x - bestWall.start.x
+                    const dy = bestWall.end.y - bestWall.start.y
+                    const lenSq = dx * dx + dy * dy
+                    const t = lenSq === 0 ? 0 : ((p.x - bestWall.start.x) * dx + (p.y - bestWall.start.y) * dy) / lenSq
+                    return { ...door, wallId: bestWall.id, t: Math.max(0, Math.min(1, t)) }
+                }
+                return door
+            })
+            setDoors(updatedDoors)
+
+            const updatedWindows = windows.map(win => {
+                const oldWall = prevWalls.find(w => w.id === win.wallId)
+                if (!oldWall) return win
+                const p = {
+                    x: oldWall.start.x + win.t * (oldWall.end.x - oldWall.start.x),
+                    y: oldWall.start.y + win.t * (oldWall.end.y - oldWall.start.y)
+                }
+                const bestWall = splitResult.find(nw => isPointOnSegment(p, nw.start, nw.end, 2.0))
+                if (bestWall) {
+                    const dx = bestWall.end.x - bestWall.start.x
+                    const dy = bestWall.end.y - bestWall.start.y
+                    const lenSq = dx * dx + dy * dy
+                    const t = lenSq === 0 ? 0 : ((p.x - bestWall.start.x) * dx + (p.y - bestWall.start.y) * dy) / lenSq
+                    return { ...win, wallId: bestWall.id, t: Math.max(0, Math.min(1, t)) }
+                }
+                return win
+            })
+            setWindows(updatedWindows)
+
+            setRooms(detectRoomsGeometrically(splitResult, (rooms || [])))
             return splitResult
         })
     }
@@ -501,16 +608,19 @@ export const EditorContainer = () => {
             setRooms([])
             setDoors([])
             setWindows([])
+            setSelectedWallIds([])
+            setSelectedRoomId(null)
+            setSelectedElement(null)
+            setCurrentWall(null)
+            setRulerState({ start: null, end: null, active: false })
+            setBgImage(null)
+            setIsCalibrating(false)
         }
     }
 
     const handleMouseDown = (point: Point) => {
+        if (isCalibrating) return
         switch (activeTool) {
-            case "erase":
-                if (hoveredWallId) {
-                    deleteWall(hoveredWallId)
-                }
-                break
 
             case "wall":
                 if (currentWall) {
@@ -576,6 +686,10 @@ export const EditorContainer = () => {
                 }
                 break
             }
+
+            case "ruler":
+                setRulerState({ start: point, end: point, active: true })
+                break
         }
     }
 
@@ -602,12 +716,17 @@ export const EditorContainer = () => {
     }
 
     const handleMouseMove = (point: Point) => {
+        if (isCalibrating) return
         if (activeTool === "wall" && currentWall) {
             setCurrentWall({ ...currentWall, end: point })
+        }
+        if (activeTool === "ruler" && rulerState.active) {
+            setRulerState(prev => ({ ...prev, end: point }))
         }
     }
 
     const handleMouseUp = (point: Point) => {
+        if (isCalibrating) return
         if (activeTool === "wall" && currentWall) {
             const dist = Math.sqrt(Math.pow(point.x - currentWall.start.x, 2) + Math.pow(point.y - currentWall.start.y, 2))
             if (dist > 5) {
@@ -631,6 +750,9 @@ export const EditorContainer = () => {
                     setCurrentWall({ start: point, end: point })
                 }
             }
+        }
+        if (activeTool === "ruler" && rulerState.active) {
+            setRulerState(prev => ({ ...prev, end: point, active: false }))
         }
     }
 
@@ -702,12 +824,12 @@ export const EditorContainer = () => {
                     </Button>
                     <div className="w-px h-6 bg-slate-200 mx-1" />
                     <Button
-                        variant={activeTool === "erase" ? "default" : "ghost"}
+                        variant={activeTool === "ruler" ? "default" : "ghost"}
                         size="icon"
-                        onClick={() => setActiveTool("erase")}
-                        title="Borrar (E)"
+                        onClick={() => setActiveTool("ruler")}
+                        title="Regla (M)"
                     >
-                        <Eraser className="h-4 w-4" />
+                        <Ruler className="h-4 w-4" />
                     </Button>
                     <div className="w-px h-6 bg-slate-200 mx-1" />
                     <Button
@@ -729,16 +851,6 @@ export const EditorContainer = () => {
                     <Button
                         variant="ghost"
                         size="icon"
-                        onClick={handleClearPlan}
-                        title="Limpiar Todo"
-                        className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
-                    <div className="w-px h-6 bg-slate-200 mx-1" />
-                    <Button
-                        variant="ghost"
-                        size="icon"
                         onClick={handleUndo}
                         disabled={history.length === 0}
                         title="Deshacer (Ctrl+Z)"
@@ -753,6 +865,16 @@ export const EditorContainer = () => {
                         title="Rehacer (Ctrl+Y)"
                     >
                         <Redo2 className="h-4 w-4" />
+                    </Button>
+                    <div className="w-px h-6 bg-slate-200 mx-1" />
+                    <Button
+                        variant={snappingEnabled ? "default" : "ghost"}
+                        size="icon"
+                        onClick={() => setSnappingEnabled(!snappingEnabled)}
+                        title={snappingEnabled ? "Desactivar Imanes" : "Activar Imanes"}
+                        className={!snappingEnabled ? "text-slate-400" : ""}
+                    >
+                        <Magnet className="h-4 w-4" />
                     </Button>
                 </div>
 
@@ -794,18 +916,30 @@ export const EditorContainer = () => {
                     doors={doors}
                     windows={windows}
                     currentWall={currentWall}
+                    rulerPoints={rulerState.active || (rulerState.start && rulerState.end) ? { start: rulerState.start!, end: rulerState.end! } : null}
                     activeTool={activeTool}
                     hoveredWallId={hoveredWallId}
-                    selectedWallId={selectedWallId}
+                    selectedWallIds={selectedWallIds}
                     onPan={(x: number, y: number) => setOffset({ x, y })}
                     onZoom={setZoom}
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
                     onHoverWall={setHoveredWallId}
-                    onSelectWall={(id: string | null) => {
-                        setSelectedWallId(id)
-                        // No limpiamos el roomId si se selecciona un wall, es útil para el contexto
+                    onSelectWall={(id: string | null, isMultiSelect: boolean = false) => {
+                        if (!id) {
+                            setSelectedWallIds([])
+                            return
+                        }
+                        if (isMultiSelect) {
+                            setSelectedWallIds(prev =>
+                                prev.includes(id) ? prev.filter(wid => wid !== id) : [...prev, id]
+                            )
+                        } else {
+                            setSelectedWallIds([id])
+                        }
+                        setSelectedRoomId(null)
+                        setSelectedElement(null)
                     }}
                     onDragWall={(id: string, totalDelta: Point) => handleDragWall(id, totalDelta)}
                     onDragEnd={handleDragEnd}
@@ -815,6 +949,7 @@ export const EditorContainer = () => {
                     onUpdateWallThickness={handleUpdateWallThickness}
                     onUpdateRoom={handleUpdateRoom}
                     selectedRoomId={selectedRoomId}
+                    snappingEnabled={activeTool === "ruler" ? false : snappingEnabled}
                     onSelectRoom={(id: string | null) => {
                         setSelectedRoomId(id)
                     }}
@@ -962,4 +1097,6 @@ export const EditorContainer = () => {
 
         </div>
     )
-}
+})
+
+EditorContainer.displayName = "EditorContainer"

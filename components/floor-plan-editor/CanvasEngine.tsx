@@ -1,6 +1,6 @@
 "use client"
 import React from "react"
-import { Stage, Layer, Group, Line, Rect, Text, Circle, Arc } from "react-konva"
+import { Stage, Layer, Group, Line, Rect, Text, Circle, Arc, Arrow } from "react-konva"
 import { Grid } from "./Grid"
 import { getClosestPointOnSegment } from "@/lib/utils/geometry"
 import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical } from "lucide-react"
@@ -57,16 +57,16 @@ interface CanvasEngineProps {
     onMouseMove: (point: Point) => void
     onMouseUp: (point: Point) => void
     onHoverWall: (id: string | null) => void
-    onSelectWall: (id: string | null) => void
+    onSelectWall: (id: string | null, isMultiSelect?: boolean) => void
     onDragWall: (id: string, delta: { x: number; y: number }) => void
     onDragVertex: (originalPoint: Point, delta: Point) => void
     onDragEnd: () => void
     onUpdateWallLength: (id: string, length: number, side: "left" | "right") => void
     onDeleteWall: (id: string) => void
-    onSplitWall?: (id: string) => void
+    onSplitWall?: (id: string, point?: Point) => void,
     onUpdateWallThickness: (id: string, thickness: number) => void
     onUpdateRoom: (id: string, updates: Partial<Room>) => void
-    selectedWallId: string | null
+    selectedWallIds: string[]
     selectedRoomId: string | null
     onSelectRoom: (id: string | null) => void
     onStartDragWall: () => void
@@ -84,6 +84,8 @@ interface CanvasEngineProps {
     calibrationPoints?: { p1: Point, p2: Point }
     calibrationTargetValue?: number
     onUpdateCalibrationPoint?: (id: "p1" | "p2", point: Point) => void
+    snappingEnabled?: boolean
+    rulerPoints?: { start: Point, end: Point } | null
 }
 
 export const CanvasEngine: React.FC<CanvasEngineProps> = ({
@@ -112,7 +114,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     onSplitWall,
     onUpdateWallThickness,
     onUpdateRoom,
-    selectedWallId,
+    selectedWallIds,
     selectedRoomId,
     onSelectRoom,
     onDragVertex,
@@ -130,10 +132,13 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     isCalibrating,
     calibrationPoints,
     calibrationTargetValue,
-    onUpdateCalibrationPoint
+    onUpdateCalibrationPoint,
+    snappingEnabled = true,
+    rulerPoints
 }) => {
     const stageRef = React.useRef<any>(null)
     const [image, setImage] = React.useState<HTMLImageElement | null>(null)
+    const isSamePoint = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < 5.0
 
     React.useEffect(() => {
         if (bgImage) {
@@ -154,6 +159,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     const dragStartPos = React.useRef<Point | null>(null)
     const lastPointerPos = React.useRef<Point | null>(null) // Para el panning
     const isPanning = React.useRef(false)
+    const [isPanningState, setIsPanningState] = React.useState(false)
     const [menuDragOffset, setMenuDragOffset] = React.useState<Point>({ x: 0, y: 0 })
     const [isDraggingMenuState, setIsDraggingMenuState] = React.useState(false) // State version for Effect
     const menuDragStart = React.useRef<Point | null>(null)
@@ -185,7 +191,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         }
     }, [isDraggingMenuState])
 
-    const selectedWall = walls.find(w => w.id === selectedWallId)
+    const selectedWall = selectedWallIds.length === 1 ? walls.find(w => w.id === selectedWallIds[0]) : null
     const selectedRoom = rooms.find(r => r.id === selectedRoomId)
 
     const roomTypes = [
@@ -193,8 +199,8 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     ]
 
     React.useEffect(() => {
-        if (selectedWallId) {
-            const wall = walls.find(w => w.id === selectedWallId)
+        if (selectedWallIds.length === 1) {
+            const wall = walls.find(w => w.id === selectedWallIds[0])
             if (wall) {
                 const dx = wall.end.x - wall.start.x
                 const dy = wall.end.y - wall.start.y
@@ -202,6 +208,9 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                 setEditThickness(wall.thickness.toString())
                 if (!editMode) setEditMode("menu")
             }
+        } else if (selectedWallIds.length > 1) {
+            // Multi-selection: typically hide property menu or show batch actions
+            setEditMode(null)
         } else if (selectedRoomId) {
             if (!editMode) setEditMode("menu")
         } else if (selectedElement) {
@@ -216,9 +225,9 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
             }
         } else {
             setEditMode(null)
-            setMenuDragOffset({ x: 0, y: 0 }) // Reset offset when menu closes/changes
+            setMenuDragOffset({ x: 0, y: 0 })
         }
-    }, [selectedWallId, selectedRoomId, selectedElement, walls, doors, windows])
+    }, [selectedWallIds, selectedRoomId, selectedElement, walls, doors, windows])
 
     const getElementPos = () => {
         if (!selectedElement) return null
@@ -300,7 +309,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
         setAlignmentGuides(null)
 
-        // 1. VERTEX SNAP (Prioridad Máxima, Umbral 6)
+        if (!snappingEnabled) return point
         const vertexThreshold = 6 / zoom
         const vertex = findNearestVertex(point, vertexThreshold)
         if (vertex) return vertex
@@ -367,6 +376,123 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         }
     }
 
+    const findTerminal = (startWall: Wall, startP: Point, visited: Set<string>, faceNormal: Point) => {
+        const TOL = 5.0
+        let curr = startP
+        let addedLen = 0
+        let terminalWallId = startWall.id
+        while (true) {
+            const neighbors = walls.filter(w => !visited.has(w.id) && (
+                Math.sqrt(Math.pow(w.start.x - curr.x, 2) + Math.pow(w.start.y - curr.y, 2)) < TOL ||
+                Math.sqrt(Math.pow(w.end.x - curr.x, 2) + Math.pow(w.end.y - curr.y, 2)) < TOL
+            ))
+
+            // Buscar un muro que sea continuación colineal
+            const cont = neighbors.find(nw => {
+                const nwHorizontal = Math.abs(nw.start.y - nw.end.y) < 2.0
+                const nwVertical = Math.abs(nw.start.x - nw.end.x) < 2.0
+                const wallHorizontal = Math.abs(startWall.start.y - startWall.end.y) < 2.0
+                const wallVertical = Math.abs(startWall.start.x - startWall.end.x) < 2.0
+                const isCollinear = (nwHorizontal === wallHorizontal && nwVertical === wallVertical)
+                return isCollinear && !isConnectedPerpendicular(startWall, nw)
+            })
+
+            if (!cont) return { terminal: curr, addedLen, terminalWallId }
+
+            // Check if ANY other neighbor (perpendicular) blocks this specific face
+            const isBlocked = neighbors.some(nw => {
+                const pOther = Math.sqrt(Math.pow(nw.start.x - curr.x, 2) + Math.pow(nw.start.y - curr.y, 2)) < TOL ? nw.end : nw.start
+                const dir = { x: pOther.x - curr.x, y: pOther.y - curr.y }
+                const dotFace = dir.x * faceNormal.x + dir.y * faceNormal.y
+                return dotFace > 0.5 // Si un muro perpendicular sale hacia este lado, bloquea la cadena de medida
+            })
+
+            if (isBlocked) return { terminal: curr, addedLen, terminalWallId }
+
+            visited.add(cont.id)
+            const segmentLen = Math.sqrt(Math.pow(cont.end.x - cont.start.x, 2) + Math.pow(cont.end.y - cont.start.y, 2))
+            addedLen += segmentLen
+            terminalWallId = cont.id
+            curr = Math.sqrt(Math.pow(cont.start.x - curr.x, 2) + Math.pow(cont.start.y - curr.y, 2)) < TOL ? cont.end : cont.start
+        }
+    }
+
+    const getFaceOffsetAt = (wall: Wall, point: Point, faceNormal: Point, ignoreIds: Set<string> = new Set()) => {
+        const TOL = 5.0
+        const neighbors = walls.filter(w => !ignoreIds.has(w.id) && w.id !== wall.id && (() => {
+            const closestObj = getClosestPointOnSegment(point, w.start, w.end)
+            const dist = Math.sqrt(Math.pow(closestObj.point.x - point.x, 2) + Math.pow(closestObj.point.y - point.y, 2))
+            return dist < TOL
+        })())
+
+        const dx = wall.end.x - wall.start.x
+        const dy = wall.end.y - wall.start.y
+        const centerLength = Math.max(0.1, Math.sqrt(dx * dx + dy * dy))
+        const ux = dx / centerLength
+        const uy = dy / centerLength
+
+        // Recolectamos todas las influencias de los vecinos
+        const retractions: number[] = [];
+        const extensions: number[] = [];
+        let hasContinuation = false;
+
+        neighbors.forEach(nw => {
+            const nwDx = nw.end.x - nw.start.x
+            const nwDy = nw.end.y - nw.start.y
+            const nL = Math.max(0.1, Math.sqrt(nwDx * nwDx + nwDy * nwDy))
+            const nux = nwDx / nL
+            const nuy = nwDy / nL
+
+            const cross = ux * nuy - uy * nux
+
+            // Si son colineales, no hay offset (es una continuación)
+            if (Math.abs(cross) < 0.05) {
+                const dot = ux * nux + uy * nuy
+                if (Math.abs(dot) > 0.95) hasContinuation = true
+                return
+            }
+
+            // Caso 2: Perpendiculares o Angulados
+            const isAtStart = Math.sqrt(Math.pow(nw.start.x - point.x, 2) + Math.pow(nw.start.y - point.y, 2)) < TOL
+            const isAtEnd = Math.sqrt(Math.pow(nw.end.x - point.x, 2) + Math.pow(nw.end.y - point.y, 2)) < TOL
+
+            let blocksFace = false
+            let localDotFace = 0
+            if (!isAtStart && !isAtEnd) {
+                // T-Junction: el punto está en medio del muro vecino
+                blocksFace = true
+            } else {
+                const otherP = isAtStart ? nw.end : nw.start
+                const dir = { x: otherP.x - point.x, y: otherP.y - point.y }
+                localDotFace = dir.x * faceNormal.x + dir.y * faceNormal.y
+                blocksFace = localDotFace > 0.5
+            }
+
+            if (blocksFace) {
+                const D = wall.thickness / 2
+                const K = nw.thickness / 2
+                const nnx = -nuy, nny = nux
+
+                const solveS = (targetK: number) => {
+                    const rx = targetK * nnx - D * faceNormal.x
+                    const ry = targetK * nny - D * faceNormal.y
+                    return (rx * nuy - ry * nux) / cross
+                }
+                const s1 = solveS(K), s2 = solveS(-K)
+                retractions.push(Math.min(s1, s2))
+            } else if (isConnectedPerpendicular(wall, nw) && localDotFace < -0.5) {
+                extensions.push(wall.thickness / 2)
+            }
+        })
+
+        // Aplicamos prioridad: Retracción > Continuación > Extensión > Punta libre
+        if (retractions.length > 0) return Math.min(...retractions)
+        if (hasContinuation) return 0
+        if (extensions.length > 0) return Math.max(...extensions)
+
+        return wall.thickness / 2
+    }
+
     const renderWallMeasurement = (wall: Wall, offsetVal: number, color: string = "#64748b", isInteractive: boolean = false) => {
         const dx = wall.end.x - wall.start.x
         const dy = wall.end.y - wall.start.y
@@ -374,141 +500,89 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
         if (centerLength < 5) return null
 
-        if (selectedWallId !== wall.id && !dragStartPos.current && centerLength < 30) return null
+        if (!selectedWallIds.includes(wall.id) && !dragStartPos.current && centerLength < 30) return null
 
-        const isSamePoint = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < 5.0
 
         const nx = -dy / centerLength
         const ny = dx / centerLength
         const faceNormal = { x: nx * Math.sign(offsetVal), y: ny * Math.sign(offsetVal) }
 
-        const getFaceOffsetAt = (point: Point, fn: Point, isInteriorFace: boolean) => {
-            const neighbors = walls.filter(w => w.id !== wall.id && (isSamePoint(w.start, point) || isSamePoint(w.end, point)))
-            if (neighbors.length === 0) return 0
-
-            const isContinuation = neighbors.some(nw => {
-                const isNWVertical = Math.abs(nw.start.x - nw.end.x) < 1
-                const isWVertical = Math.abs(wall.start.x - wall.end.x) < 1
-                return isNWVertical === isWVertical && !isConnectedPerpendicular(wall, nw)
-            })
-            if (isContinuation) return 0
-
-            const perp = neighbors.filter(nw => isConnectedPerpendicular(wall, nw))
-            const blocksFace = perp.some(nw => {
-                const otherP = isSamePoint(nw.start, point) ? nw.end : nw.start
-                const dir = { x: otherP.x - point.x, y: otherP.y - point.y }
-                return (dir.x * fn.x + dir.y * fn.y) > 5
-            })
-
-            if (perp.length > 0) {
-                const maxT = Math.max(...perp.map(n => n.thickness))
-
-                // Si la pared perpendicular bloquea esta cara (va en la dirección de fn) -> Retraer (Interior)
-                if (blocksFace) return -maxT / 2
-
-                // Si no bloquea esta cara pero existe (unión en L) -> Extender (Exterior)
-                // Solo si somos la cara exterior
-                if (!isInteriorFace) return maxT / 2
-            }
-            return 0
-        }
-
         const midX = (wall.start.x + wall.end.x) / 2
         const midY = (wall.start.y + wall.end.y) / 2
 
-        const pointSlightlyOff = { x: midX + nx * Math.sign(offsetVal) * 5, y: midY + ny * Math.sign(offsetVal) * 5 }
+        const probeDist = 8.0 // coordinate-fixed probe (8cm)
+        const pointSlightlyOff = { x: midX + nx * Math.sign(offsetVal) * probeDist, y: midY + ny * Math.sign(offsetVal) * probeDist }
         const pointsIntoRoom = isPointInAnyRoom(pointSlightlyOff)
         const faceType: "interior" | "exterior" = pointsIntoRoom ? "interior" : "exterior"
 
-        // CÁLCULO DE LONGITUD TOTAL COLINEAL (Habitación de lado a lado)
-        let totalCenterLength = centerLength
-        let finalOffStart = getFaceOffsetAt(wall.start, faceNormal, pointsIntoRoom)
-        let finalOffEnd = getFaceOffsetAt(wall.end, faceNormal, pointsIntoRoom)
+        // COLLINEAR CHAIN SEARCH
+        const chainIds = new Set([wall.id])
+        const back = findTerminal(wall, wall.start, chainIds, faceNormal)
+        const forward = findTerminal(wall, wall.end, chainIds, faceNormal)
 
-        if (faceType === "interior") {
-            // Buscamos hacia atrás (hacia start)
-            let currS = wall.start
-            let visitedStart = new Set([wall.id])
-            while (true) {
-                const neighbors = walls.filter(w => !visitedStart.has(w.id) && (isSamePoint(w.start, currS) || isSamePoint(w.end, currS)))
-                const cont = neighbors.find(nw => {
-                    const isNWV = Math.abs(nw.start.x - nw.end.x) < 2; const isWV = Math.abs(wall.start.x - wall.end.x) < 2
-                    return isNWV === isWV && !isConnectedPerpendicular(wall, nw)
-                })
-                if (!cont) break
-                // Comprobar si hay una pared perpendicular que CORTA la habitación en este punto
-                const isBlocked = neighbors.some(nw => {
-                    if (!isConnectedPerpendicular(wall, nw)) return false
-                    const pOther = isSamePoint(nw.start, currS) ? nw.end : nw.start
-                    const dir = { x: pOther.x - currS.x, y: pOther.y - currS.y }
-                    return (dir.x * faceNormal.x + dir.y * faceNormal.y) > 5
-                })
-                if (isBlocked) {
-                    finalOffStart = getFaceOffsetAt(currS, faceNormal, true)
-                    break
-                }
-                visitedStart.add(cont.id)
-                const cLen = Math.sqrt(Math.pow(cont.end.x - cont.start.x, 2) + Math.pow(cont.end.y - cont.start.y, 2))
-                totalCenterLength += cLen
-                currS = isSamePoint(cont.start, currS) ? cont.end : cont.start
-                finalOffStart = getFaceOffsetAt(currS, faceNormal, true)
-            }
+        const totalChainCenter = centerLength + back.addedLen + forward.addedLen
+        const finalOffStart = getFaceOffsetAt(wall, back.terminal, faceNormal, chainIds)
+        const finalOffEnd = getFaceOffsetAt(wall, forward.terminal, faceNormal, chainIds)
 
-            // Buscamos hacia adelante (hacia end)
-            let currE = wall.end
-            let visitedEnd = new Set([wall.id])
-            while (true) {
-                const neighbors = walls.filter(w => !visitedEnd.has(w.id) && (isSamePoint(w.start, currE) || isSamePoint(w.end, currE)))
-                const cont = neighbors.find(nw => {
-                    const isNWV = Math.abs(nw.start.x - nw.end.x) < 2; const isWV = Math.abs(wall.start.x - wall.end.x) < 2
-                    return isNWV === isWV && !isConnectedPerpendicular(wall, nw)
-                })
-                if (!cont) break
-                const isBlocked = neighbors.some(nw => {
-                    if (!isConnectedPerpendicular(wall, nw)) return false
-                    const pOther = isSamePoint(nw.start, currE) ? nw.end : nw.start
-                    const dir = { x: pOther.x - currE.x, y: pOther.y - currE.y }
-                    return (dir.x * faceNormal.x + dir.y * faceNormal.y) > 5
-                })
-                if (isBlocked) {
-                    finalOffEnd = getFaceOffsetAt(currE, faceNormal, true)
-                    break
-                }
-                visitedEnd.add(cont.id)
-                const cLen = Math.sqrt(Math.pow(cont.end.x - cont.start.x, 2) + Math.pow(cont.end.y - cont.start.y, 2))
-                totalCenterLength += cLen
-                currE = isSamePoint(cont.start, currE) ? cont.end : cont.start
-                finalOffEnd = getFaceOffsetAt(currE, faceNormal, true)
-            }
-        }
+        const sortedIds = Array.from(chainIds).sort()
+        const isLeader = wall.id === sortedIds[0]
+        const shouldShowLabel = isLeader
+
+        // Interior length is segment-specific (face-to-face inside room)
+        // Exterior length is chain-specific (total facade)
+        const displayLength = Math.round(totalChainCenter + finalOffStart + finalOffEnd)
+
+        if (!shouldShowLabel) return null
 
         const ux = dx / centerLength
         const uy = dy / centerLength
-        const length = Math.round(totalCenterLength + finalOffStart + finalOffEnd)
 
-        const labelX = midX + nx * offsetVal
-        const labelY = midY + ny * offsetVal
+        // Offset visual de la línea de medida
+        const visualOff = offsetVal * 0.8
+        const p1x = (back.terminal.x + ux * (-finalOffStart)) + nx * visualOff
+        const p1y = (back.terminal.y + uy * (-finalOffStart)) + ny * visualOff
+        const p2x = (forward.terminal.x + ux * (finalOffEnd)) + nx * visualOff
+        const p2y = (forward.terminal.y + uy * (finalOffEnd)) + ny * visualOff
 
-        // Visual refinement: The thin blue line should also stop at the faces
-        const p1x = (wall.start.x + ux * (-finalOffStart)) + nx * (offsetVal * 0.7)
-        const p1y = (wall.start.y + uy * (-finalOffStart)) + ny * (offsetVal * 0.7)
-        const p2x = (wall.end.x + ux * (finalOffEnd)) + nx * (offsetVal * 0.7)
-        const p2y = (wall.end.y + uy * (finalOffEnd)) + ny * (offsetVal * 0.7)
+        const labelX = (p1x + p2x) / 2
+        const labelY = (p1y + p2y) / 2
+
+        // Líneas de testigo (Witness lines / Caps)
+        const capSize = 6 / zoom
+        const capP1A = { x: p1x + nx * capSize, y: p1y + ny * capSize }
+        const capP1B = { x: p1x - nx * capSize, y: p1y - ny * capSize }
+        const capP2A = { x: p2x + nx * capSize, y: p2y + ny * capSize }
+        const capP2B = { x: p2x - nx * capSize, y: p2y - ny * capSize }
 
         return (
             <Group>
+                {/* Línea principal */}
                 <Line
                     points={[p1x, p1y, p2x, p2y]}
                     stroke={color}
-                    strokeWidth={0.5 / zoom}
-                    opacity={0.4}
+                    strokeWidth={1 / zoom}
+                    opacity={isInteractive ? 1 : 0.6}
                 />
+                {/* Caps (Testigos) */}
+                <Line
+                    points={[capP1A.x, capP1A.y, capP1B.x, capP1B.y]}
+                    stroke={color}
+                    strokeWidth={1 / zoom}
+                    opacity={isInteractive ? 1 : 0.6}
+                />
+                <Line
+                    points={[capP2A.x, capP2A.y, capP2B.x, capP2B.y]}
+                    stroke={color}
+                    strokeWidth={1 / zoom}
+                    opacity={isInteractive ? 1 : 0.6}
+                />
+
                 <Group
                     onClick={(e) => {
                         if (isInteractive) {
                             e.cancelBubble = true
                             setEditFace(faceType)
-                            setEditLength(length.toString())
+                            setEditLength(displayLength.toString())
                             setEditMode("length")
                         }
                     }}
@@ -516,51 +590,53 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                         if (isInteractive) {
                             e.cancelBubble = true
                             setEditFace(faceType)
-                            setEditLength(length.toString())
+                            setEditLength(displayLength.toString())
                             setEditMode("length")
                         }
                     }}
                 >
                     <Rect
                         x={labelX - 25 / zoom}
-                        y={labelY - 15 / zoom}
+                        y={labelY - 10 / zoom}
                         width={50 / zoom}
                         height={20 / zoom}
                         fill="white"
                         stroke={isInteractive && editMode === "length" && editFace === faceType ? "#0ea5e9" : "#e2e8f0"}
-                        strokeWidth={isInteractive ? 1 / zoom : 0}
+                        strokeWidth={isInteractive ? 1 / zoom : 0.5 / zoom}
                         cornerRadius={4 / zoom}
-                        opacity={isInteractive ? 1 : 0}
                     />
                     <Text
                         x={labelX}
                         y={labelY - 5 / zoom}
-                        text={`${length} cm`}
+                        text={`${displayLength} cm`}
                         fontSize={10 / zoom}
                         fill={isInteractive && editMode === "length" && editFace === faceType ? "#0ea5e9" : color}
                         align="center"
-                        offsetX={20 / zoom}
+                        offsetX={25 / zoom}
                         fontStyle={isInteractive ? "bold" : "normal"}
+                        width={50 / zoom}
                     />
                 </Group>
             </Group>
         )
     }
     const isConnectedPerpendicular = (w1: Wall, w2: Wall) => {
-        const isW1Horizontal = Math.abs(w1.start.y - w1.end.y) < 1
-        const isW1Vertical = Math.abs(w1.start.x - w1.end.x) < 1
-        const isW2Horizontal = Math.abs(w2.start.y - w2.end.y) < 1
-        const isW2Vertical = Math.abs(w2.start.x - w2.end.x) < 1
+        const dx1 = w1.end.x - w1.start.x
+        const dy1 = w1.end.y - w1.start.y
+        const dx2 = w2.end.x - w2.start.x
+        const dy2 = w2.end.y - w2.start.y
+        const L1 = Math.max(0.1, Math.sqrt(dx1 * dx1 + dy1 * dy1))
+        const L2 = Math.max(0.1, Math.sqrt(dx2 * dx2 + dy2 * dy2))
 
         const TOL = 5.0
         const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
-
         const shareVertex = isSame(w1.start, w2.start) || isSame(w1.start, w2.end) ||
             isSame(w1.end, w2.start) || isSame(w1.end, w2.end)
-
         if (!shareVertex) return false
 
-        return (isW1Horizontal && isW2Vertical) || (isW1Vertical && isW2Horizontal)
+        // Dot product of directions near 0 means they are perpendicular
+        const dot = (dx1 / L1) * (dx2 / L2) + (dy1 / L1) * (dy2 / L2)
+        return Math.abs(dot) < 0.2 // Supports near-perpendicular inclined walls
     }
 
     const handleStageMouseDown = (e: any) => {
@@ -569,14 +645,17 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         const isRightClick = e.evt.button === 2
         const isMiddleClick = e.evt.button === 1
         const isBackground = e.target === stage
+        const targetName = e.target.name() || ""
+        const isRoom = targetName.startsWith("room-")
 
-        if (isRightClick || isMiddleClick || (activeTool === "select" && isBackground)) {
+        if (isRightClick || isMiddleClick || (activeTool === "select" && (isBackground || isRoom))) {
             if (isBackground) {
                 onSelectWall(null)
                 onSelectRoom(null)
                 onSelectElement(null)
             }
             isPanning.current = true
+            setIsPanningState(true)
             lastPointerPos.current = stage.getPointerPosition()
             return
         }
@@ -591,7 +670,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
             onSelectElement(null)
         }
 
-        if (activeTool !== "wall" && activeTool !== "door" && activeTool !== "window") return
+        if (activeTool !== "wall" && activeTool !== "door" && activeTool !== "window" && activeTool !== "ruler") return
 
         const pos = getRelativePointerPosition(stage)
         onMouseDown(pos)
@@ -612,7 +691,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
         const pos = getRelativePointerPosition(stage)
         setMousePos(pos)
-        if (activeTool === "wall" && currentWall) {
+        if ((activeTool === "wall" && currentWall) || (activeTool === "ruler")) {
             onMouseMove(pos)
         }
     }
@@ -620,10 +699,11 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     const handleStageMouseUp = (e: any) => {
         if (isPanning.current) {
             isPanning.current = false
+            setIsPanningState(false)
             return
         }
 
-        if (activeTool === "wall" && currentWall) {
+        if ((activeTool === "wall" && currentWall) || activeTool === "ruler") {
             const stage = e.target?.getStage?.()
             if (!stage) return
             const pos = getRelativePointerPosition(stage)
@@ -633,6 +713,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
     const handleMouseLeave = () => {
         isPanning.current = false
+        setIsPanningState(false)
         setMousePos(null)
         setAlignmentGuides(null)
     }
@@ -680,7 +761,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                 onMouseUp={handleStageMouseUp}
                 onMouseLeave={handleMouseLeave}
                 onContextMenu={(e: any) => e.evt.preventDefault()}
-                style={{ cursor: activeTool === "wall" ? 'crosshair' : 'default' }}
+                style={{ cursor: isPanningState ? 'grabbing' : activeTool === "wall" ? 'crosshair' : 'default' }}
             >
                 <Layer>
                     <Grid
@@ -708,62 +789,6 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                             />
                         )}
 
-                        {/* Herramienta de Calibración */}
-                        {isCalibrating && calibrationPoints && (
-                            <Group>
-                                <Line
-                                    points={[calibrationPoints.p1.x, calibrationPoints.p1.y, calibrationPoints.p2.x, calibrationPoints.p2.y]}
-                                    stroke="#fbbf24"
-                                    strokeWidth={3 / zoom}
-                                    dash={[10, 5]}
-                                />
-                                <Group
-                                    x={calibrationPoints.p1.x}
-                                    y={calibrationPoints.p1.y}
-                                    draggable
-                                    onDragMove={(e) => onUpdateCalibrationPoint?.("p1", { x: e.target.x(), y: e.target.y() })}
-                                >
-                                    <Circle radius={12 / zoom} fill="white" stroke="#fbbf24" strokeWidth={3 / zoom} shadowBlur={5} shadowOpacity={0.2} />
-                                    <Line points={[-18 / zoom, 0, 18 / zoom, 0]} stroke="#fbbf24" strokeWidth={1.5 / zoom} />
-                                    <Line points={[0, -18 / zoom, 0, 18 / zoom]} stroke="#fbbf24" strokeWidth={1.5 / zoom} />
-                                </Group>
-                                <Group
-                                    x={calibrationPoints.p2.x}
-                                    y={calibrationPoints.p2.y}
-                                    draggable
-                                    onDragMove={(e) => onUpdateCalibrationPoint?.("p2", { x: e.target.x(), y: e.target.y() })}
-                                >
-                                    <Circle radius={12 / zoom} fill="white" stroke="#fbbf24" strokeWidth={3 / zoom} shadowBlur={5} shadowOpacity={0.2} />
-                                    <Line points={[-18 / zoom, 0, 18 / zoom, 0]} stroke="#fbbf24" strokeWidth={1.5 / zoom} />
-                                    <Line points={[0, -18 / zoom, 0, 18 / zoom]} stroke="#fbbf24" strokeWidth={1.5 / zoom} />
-                                </Group>
-                                <Group
-                                    x={(calibrationPoints.p1.x + calibrationPoints.p2.x) / 2}
-                                    y={(calibrationPoints.p1.y + calibrationPoints.p2.y) / 2}
-                                >
-                                    <Rect
-                                        width={80 / zoom}
-                                        height={24 / zoom}
-                                        fill="white"
-                                        stroke="#fbbf24"
-                                        strokeWidth={1 / zoom}
-                                        cornerRadius={4 / zoom}
-                                        offsetX={40 / zoom}
-                                        offsetY={35 / zoom}
-                                    />
-                                    <Text
-                                        text={`${calibrationTargetValue || 0} cm`}
-                                        fontSize={14 / zoom}
-                                        fill="#b45309"
-                                        fontStyle="bold"
-                                        width={80 / zoom}
-                                        align="center"
-                                        offsetX={40 / zoom}
-                                        offsetY={30 / zoom}
-                                    />
-                                </Group>
-                            </Group>
-                        )}
 
                         {/* Renderizar habitaciones detectadas */}
                         {rooms.map((room: Room) => {
@@ -777,6 +802,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                             return (
                                 <Group key={room.id}>
                                     <Line
+                                        name="room-poly"
                                         points={points}
                                         fill={selectedRoomId === room.id ? room.color + "60" : room.color + "40"}
                                         stroke={selectedRoomId === room.id ? room.color : "transparent"}
@@ -786,11 +812,13 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         onTap={() => onSelectRoom(room.id)}
                                     />
                                     <Group
+                                        name="room-label"
                                         x={labelPos.x} y={labelPos.y}
                                         onClick={() => onSelectRoom(room.id)}
                                         onTap={() => onSelectRoom(room.id)}
                                     >
                                         <Text
+                                            name="room-label-text"
                                             y={-10}
                                             text={room.name}
                                             fontSize={12}
@@ -800,6 +828,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                             offsetX={30}
                                         />
                                         <Text
+                                            name="room-label-text"
                                             y={5}
                                             text={`${room.area.toFixed(2)} m²`}
                                             fontSize={10}
@@ -815,7 +844,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                         {/* Renderizar muros guardados - AHORA ANTES de puertas/ventanas para que estas se puedan seleccionar mejor */}
                         {walls.map((wall: Wall) => {
                             const isHovered = hoveredWallId === wall.id
-                            const isSelected = selectedWallId === wall.id
+                            const isSelected = selectedWallIds.includes(wall.id)
                             const isHorizontal = Math.abs(wall.start.y - wall.end.y) < 1
                             const isVertical = Math.abs(wall.start.x - wall.end.x) < 1
 
@@ -823,15 +852,16 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                 <Group key={wall.id}>
                                     <Line
                                         points={[wall.start.x, wall.start.y, wall.end.x, wall.end.y]}
-                                        stroke={isSelected ? "#0ea5e9" : (isHovered ? "#ef4444" : "#334155")}
+                                        stroke={isHovered && !isSelected ? "#ef4444" : "#334155"}
                                         strokeWidth={wall.thickness}
                                         hitStrokeWidth={30}
-                                        lineCap="square"
-                                        lineJoin="miter"
+                                        lineCap="round"
+                                        lineJoin="round"
                                         draggable={activeTool === "select"}
-                                        onClick={() => {
+                                        onClick={(e) => {
                                             if (activeTool === "select") {
-                                                onSelectWall(wall.id)
+                                                onSelectWall(wall.id, e.evt.ctrlKey)
+                                                // @ts-ignore
                                                 const room = rooms.find(r =>
                                                     r.polygon.some((p, i) => {
                                                         const next = r.polygon[(i + 1) % r.polygon.length]
@@ -842,6 +872,15 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                                     })
                                                 )
                                                 if (room) onSelectRoom(room.id)
+                                            }
+                                        }}
+                                        onDblClick={(e) => {
+                                            if (activeTool === "select" && onSplitWall) {
+                                                const stage = e.target.getStage()
+                                                if (stage) {
+                                                    const pos = getRelativePointerPosition(stage)
+                                                    onSplitWall(wall.id, pos)
+                                                }
                                             }
                                         }}
                                         onDragStart={(e) => {
@@ -873,6 +912,69 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                             onDragEnd()
                                         }}
                                     />
+                                    {/* Trimmed Selection Highlight (HomeByMe Style) */}
+                                    {isSelected && (() => {
+                                        const midX = (wall.start.x + wall.end.x) / 2
+                                        const midY = (wall.start.y + wall.end.y) / 2
+                                        const dx = wall.end.x - wall.start.x
+                                        const dy = wall.end.y - wall.start.y
+                                        const len = Math.sqrt(dx * dx + dy * dy)
+                                        if (len === 0) return null
+                                        const ux = dx / len
+                                        const uy = dy / len
+                                        const nx = -uy
+                                        const ny = ux
+
+                                        // Use the exact same logic as interior measurements for the highlight
+                                        const pointSlightlyOff = { x: midX + nx * 5, y: midY + ny * 5 }
+                                        const pointsIntoRoom = isPointInAnyRoom(pointSlightlyOff)
+                                        const faceNormal = { x: nx * (pointsIntoRoom ? 1 : -1), y: ny * (pointsIntoRoom ? 1 : -1) }
+
+                                        const getCornerAdjustment = (p: Point) => {
+                                            const TOL = 5.0
+                                            const neighbors = walls.filter(w => w.id !== wall.id && (
+                                                Math.sqrt(Math.pow(w.start.x - p.x, 2) + Math.pow(w.start.y - p.y, 2)) < TOL ||
+                                                Math.sqrt(Math.pow(w.end.x - p.x, 2) + Math.pow(w.end.y - p.y, 2)) < TOL
+                                            ))
+                                            const perps = neighbors.filter(nw => isConnectedPerpendicular(wall, nw))
+                                            const maxT = perps.length > 0 ? Math.max(...perps.map(nw => nw.thickness)) : 0
+
+                                            const blocksThisFace = perps.some(nw => {
+                                                const otherP = Math.sqrt(Math.pow(nw.start.x - p.x, 2) + Math.pow(nw.start.y - p.y, 2)) < TOL ? nw.end : nw.start
+                                                const dir = { x: otherP.x - p.x, y: otherP.y - p.y }
+                                                return (dir.x * faceNormal.x + dir.y * faceNormal.y) > 0.5
+                                            })
+
+                                            if (blocksThisFace && maxT > 0) return maxT / 2
+
+                                            const isContinuation = neighbors.some(nw => {
+                                                const nwHorizontal = Math.abs(nw.start.y - nw.end.y) < 5.0
+                                                const nwVertical = Math.abs(nw.start.x - nw.end.x) < 5.0
+                                                const wallHorizontal = Math.abs(wall.start.y - wall.end.y) < 5.0
+                                                const wallVertical = Math.abs(wall.start.x - wall.end.x) < 5.0
+                                                return (nwHorizontal === wallHorizontal && nwVertical === wallVertical) && !isConnectedPerpendicular(wall, nw)
+                                            })
+                                            if (isContinuation) return 0
+
+                                            return maxT > 0 ? -maxT / 2 : 0
+                                        }
+
+                                        const adjStart = getCornerAdjustment(wall.start)
+                                        const adjEnd = getCornerAdjustment(wall.end)
+
+                                        const trimmedStart = { x: wall.start.x + ux * adjStart, y: wall.start.y + uy * adjStart }
+                                        const trimmedEnd = { x: wall.end.x - ux * adjEnd, y: wall.end.y - uy * adjEnd }
+
+                                        return (
+                                            <Line
+                                                points={[trimmedStart.x, trimmedStart.y, trimmedEnd.x, trimmedEnd.y]}
+                                                stroke="#0ea5e9"
+                                                strokeWidth={wall.thickness + 0.5}
+                                                lineCap="butt"
+                                                listening={false}
+                                            />
+                                        )
+                                    })()}
                                     {/* Medidas duales para pared seleccionada */}
                                     {isSelected && (
                                         <>
@@ -894,56 +996,6 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                             )
                         })}
 
-                        {/* Pass final para Tiradores de selección (siempre encima) */}
-                        {walls.filter(w => w.id === selectedWallId || w.id === hoveredWallId).map(wall => (
-                            <Group key={`handles-${wall.id}`}>
-                                {[wall.start, wall.end].map((p, i) => (
-                                    <Circle
-                                        key={`handle-${wall.id}-${i}`}
-                                        x={p.x}
-                                        y={p.y}
-                                        radius={wall.id === selectedWallId ? 8 / zoom : 6 / zoom}
-                                        fill={wall.id === selectedWallId ? "#0ea5e9" : "#ffffff"}
-                                        stroke={wall.id === selectedWallId ? "white" : "#0ea5e9"}
-                                        strokeWidth={2 / zoom}
-                                        shadowBlur={5 / zoom}
-                                        shadowColor="rgba(0,0,0,0.2)"
-                                        draggable
-                                        onDragStart={() => {
-                                            onStartDragWall()
-                                            dragStartPos.current = { ...p }
-                                        }}
-                                        onDragMove={(e) => {
-                                            const stage = e.target.getStage()
-                                            if (!stage || !dragStartPos.current || !wallSnapshot) return
-
-                                            const pos = getRelativePointerPosition(stage)
-                                            const totalDelta = {
-                                                x: Math.round(pos.x - dragStartPos.current.x),
-                                                y: Math.round(pos.y - dragStartPos.current.y)
-                                            }
-
-                                            if (totalDelta.x !== 0 || totalDelta.y !== 0) {
-                                                onDragVertex(p, totalDelta)
-                                            }
-                                            e.target.position({ x: 0, y: 0 })
-                                        }}
-                                        onDragEnd={() => {
-                                            dragStartPos.current = null
-                                            onDragEnd()
-                                        }}
-                                        onMouseEnter={(e: any) => {
-                                            const stage = e.target.getStage()
-                                            if (stage) stage.container().style.cursor = 'move'
-                                        }}
-                                        onMouseLeave={(e: any) => {
-                                            const stage = e.target.getStage()
-                                            if (stage) stage.container().style.cursor = 'default'
-                                        }}
-                                    />
-                                ))}
-                            </Group>
-                        ))}
 
                         {/* Renderizar puertas y ventanas SOBRE los muros */}
                         {doors.map(door => {
@@ -1173,8 +1225,8 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         stroke="#0284c7"
                                         strokeWidth={15}
                                         opacity={0.8}
-                                        lineCap="square"
-                                        lineJoin="miter"
+                                        lineCap="round"
+                                        lineJoin="round"
                                     />
                                     <Text
                                         x={(currentWall.start.x + currentWall.end.x) / 2}
@@ -1220,7 +1272,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                             const isWallTool = activeTool === "wall"
                             const isDragging = !!wallSnapshot
 
-                            if (!isWallTool && !isDragging) return null
+                            if (!snappingEnabled || (!isWallTool && !isDragging)) return null
 
                             // 1. Prioridad: Vértice
                             const vertex = findNearestVertex(p, 15 / zoom)
@@ -1270,283 +1322,491 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                             }
                             return null
                         })()}
+                        {/* Prop cursor */}
+                        {activeTool === "ruler" && mousePos && (
+                            <Circle x={mousePos.x} y={mousePos.y} radius={2 / zoom} fill="#f97316" listening={false} />
+                        )}
+
+                        {/* RENDERIZAR REGLA (RULER) */}
+                        {rulerPoints && (
+                            <Group>
+                                <Arrow
+                                    points={[rulerPoints.start.x, rulerPoints.start.y, rulerPoints.end.x, rulerPoints.end.y]}
+                                    stroke="#f97316"
+                                    strokeWidth={2 / zoom}
+                                    pointerLength={10 / zoom}
+                                    pointerWidth={10 / zoom}
+                                    fill="#f97316"
+                                    pointerAtBeginning={true}
+                                    dash={[10, 5]}
+                                />
+                                {(() => {
+                                    const dist = Math.round(Math.sqrt(
+                                        Math.pow(rulerPoints.end.x - rulerPoints.start.x, 2) +
+                                        Math.pow(rulerPoints.end.y - rulerPoints.start.y, 2)
+                                    ))
+                                    const midX = (rulerPoints.start.x + rulerPoints.end.x) / 2
+                                    const midY = (rulerPoints.start.y + rulerPoints.end.y) / 2
+                                    return (
+                                        <Group x={midX} y={midY - 15 / zoom}>
+                                            <Rect
+                                                width={60 / zoom}
+                                                height={20 / zoom}
+                                                fill="#f97316"
+                                                cornerRadius={4 / zoom}
+                                                offsetX={30 / zoom}
+                                                offsetY={10 / zoom}
+                                            />
+                                            <Text
+                                                text={`${dist} cm`}
+                                                fontSize={12 / zoom}
+                                                fill="white"
+                                                fontStyle="bold"
+                                                width={60 / zoom}
+                                                align="center"
+                                                offsetX={30 / zoom}
+                                                offsetY={6 / zoom}
+                                            />
+                                        </Group>
+                                    )
+                                })()}
+                            </Group>
+                        )}
+
+                        {/* ================================================================== */}
+                        {/* CAPA FINAL: TIRADORES Y CALIBRACIÓN (SIEMPRE ENCIMA DE TODO) */}
+                        {/* ================================================================== */}
+
+                        {/* 1. Tiradores de selección de muros */}
+                        {/* 1. Tiradores de selección de muros (Agrupados y con mejor hit-area) */}
+                        {(() => {
+                            const uniqueVertices = new Map<string, { point: Point, connectedWalls: Wall[] }>();
+
+                            walls.forEach(w => {
+                                [w.start, w.end].forEach(p => {
+                                    const key = `${Math.round(p.x)},${Math.round(p.y)}`;
+                                    if (!uniqueVertices.has(key)) {
+                                        uniqueVertices.set(key, { point: p, connectedWalls: [] });
+                                    }
+                                    uniqueVertices.get(key)!.connectedWalls.push(w);
+                                });
+                            });
+
+                            return Array.from(uniqueVertices.values()).filter(({ connectedWalls }) => {
+                                return connectedWalls.some(w => selectedWallIds.includes(w.id) || w.id === hoveredWallId);
+                            }).map(({ point, connectedWalls }, idx) => {
+                                const isSelected = connectedWalls.some(w => selectedWallIds.includes(w.id));
+
+                                return (
+                                    <Circle
+                                        key={`v-handle-${idx}`}
+                                        x={point.x}
+                                        y={point.y}
+                                        radius={(isSelected ? 10 : 7) / zoom}
+                                        fill="#1e293b"
+                                        stroke="#ffffff"
+                                        strokeWidth={2 / zoom}
+                                        hitStrokeWidth={20 / zoom}
+                                        draggable
+                                        onDragStart={(e) => {
+                                            e.cancelBubble = true;
+                                            onStartDragWall();
+                                            dragStartPos.current = { ...point };
+                                        }}
+                                        onDragMove={(e) => {
+                                            const stage = e.target.getStage();
+                                            if (!stage || !dragStartPos.current || !wallSnapshot) return;
+
+                                            const pos = getRelativePointerPosition(stage);
+                                            const totalDelta = {
+                                                x: Math.round(pos.x - dragStartPos.current.x),
+                                                y: Math.round(pos.y - dragStartPos.current.y)
+                                            };
+
+                                            if (totalDelta.x !== 0 || totalDelta.y !== 0) {
+                                                onDragVertex(point, totalDelta);
+                                            }
+                                            e.target.position({ x: 0, y: 0 });
+                                        }}
+                                        onDragEnd={() => {
+                                            dragStartPos.current = null;
+                                            onDragEnd();
+                                        }}
+                                        onMouseEnter={(e: any) => {
+                                            const stage = e.target.getStage();
+                                            if (stage) stage.container().style.cursor = 'move';
+                                        }}
+                                        onMouseLeave={(e: any) => {
+                                            const stage = e.target.getStage();
+                                            if (stage) stage.container().style.cursor = 'default';
+                                        }}
+                                    />
+                                );
+                            });
+                        })()}
+
+                        {/* 2. Herramienta de Calibración (Ultima posición para máxima visibilidad) */}
+                        {isCalibrating && calibrationPoints && (
+                            <Group>
+                                <Line
+                                    points={[calibrationPoints.p1.x, calibrationPoints.p1.y, calibrationPoints.p2.x, calibrationPoints.p2.y]}
+                                    stroke="#fbbf24"
+                                    strokeWidth={4 / zoom}
+                                    dash={[10, 5]}
+                                    shadowBlur={4 / zoom}
+                                    shadowColor="rgba(0,0,0,0.3)"
+                                />
+                                <Group
+                                    x={calibrationPoints.p1.x}
+                                    y={calibrationPoints.p1.y}
+                                    draggable
+                                    onDragMove={(e) => onUpdateCalibrationPoint?.("p1", { x: e.target.x(), y: e.target.y() })}
+                                >
+                                    <Circle
+                                        radius={15 / zoom}
+                                        fill="white"
+                                        stroke="#fbbf24"
+                                        strokeWidth={4 / zoom}
+                                        shadowBlur={10 / zoom}
+                                        shadowOpacity={0.4}
+                                        shadowColor="rgba(0,0,0,0.5)"
+                                    />
+                                    <Line points={[-22 / zoom, 0, 22 / zoom, 0]} stroke="#fbbf24" strokeWidth={2 / zoom} />
+                                    <Line points={[0, -22 / zoom, 0, 22 / zoom]} stroke="#fbbf24" strokeWidth={2 / zoom} />
+                                </Group>
+                                <Group
+                                    x={calibrationPoints.p2.x}
+                                    y={calibrationPoints.p2.y}
+                                    draggable
+                                    onDragMove={(e) => onUpdateCalibrationPoint?.("p2", { x: e.target.x(), y: e.target.y() })}
+                                >
+                                    <Circle
+                                        radius={15 / zoom}
+                                        fill="white"
+                                        stroke="#fbbf24"
+                                        strokeWidth={4 / zoom}
+                                        shadowBlur={10 / zoom}
+                                        shadowOpacity={0.4}
+                                        shadowColor="rgba(0,0,0,0.5)"
+                                    />
+                                    <Line points={[-22 / zoom, 0, 22 / zoom, 0]} stroke="#fbbf24" strokeWidth={2 / zoom} />
+                                    <Line points={[0, -22 / zoom, 0, 22 / zoom]} stroke="#fbbf24" strokeWidth={2 / zoom} />
+                                </Group>
+                                <Group
+                                    x={(calibrationPoints.p1.x + calibrationPoints.p2.x) / 2}
+                                    y={(calibrationPoints.p1.y + calibrationPoints.p2.y) / 2}
+                                >
+                                    <Rect
+                                        width={100 / zoom}
+                                        height={28 / zoom}
+                                        fill="#fbbf24"
+                                        cornerRadius={6 / zoom}
+                                        offsetX={50 / zoom}
+                                        offsetY={45 / zoom}
+                                        shadowBlur={10 / zoom}
+                                        shadowOpacity={0.2}
+                                    />
+                                    <Text
+                                        text={`${calibrationTargetValue || 0} cm`}
+                                        fontSize={16 / zoom}
+                                        fill="white"
+                                        fontStyle="bold"
+                                        width={100 / zoom}
+                                        align="center"
+                                        offsetX={50 / zoom}
+                                        offsetY={39 / zoom}
+                                    />
+                                </Group>
+                            </Group>
+                        )}
                     </Group>
                 </Layer>
             </Stage>
 
-            {((selectedWall && uiPos) || selectedRoom || (selectedElement && currentEPos)) && editMode && (
-                <div
-                    onMouseDown={(e) => {
-                        e.stopPropagation()
-                        setIsDraggingMenuState(true)
-                        menuDragStart.current = { x: e.clientX - menuDragOffset.x, y: e.clientY - menuDragOffset.y }
-                    }}
-                    className="flex flex-col"
-                    style={{
-                        position: 'absolute',
-                        left: (selectedRoom
-                            ? (calculatePolygonCentroid(selectedRoom.polygon).x * zoom + offset.x)
-                            : (selectedElement && currentEPos)
-                                ? currentEPos.x
-                                : uiPos?.x || 0
-                        ) + menuDragOffset.x,
-                        top: (selectedRoom
-                            ? (calculatePolygonCentroid(selectedRoom.polygon).y * zoom + offset.y - 40)
-                            : (selectedElement && currentEPos)
-                                ? currentEPos.y - 80
-                                : (uiPos ? uiPos.y - 100 : 0)
-                        ) + menuDragOffset.y,
-                        transform: 'translateX(-50%)',
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        backdropFilter: 'blur(12px)',
-                        padding: '2px',
-                        borderRadius: '10px',
-                        boxShadow: '0 10px 30px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)',
-                        zIndex: 1000,
-                        pointerEvents: 'auto',
-                        cursor: isDraggingMenuState ? 'grabbing' : 'grab',
-                        animation: 'fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                        minWidth: 'auto'
-                    }}
-                >
-                    {/* Drag Handle Bar */}
-                    <div className="w-full h-1 flex justify-center items-center mb-0.5 group cursor-grab">
-                        <div className="w-6 h-0.5 bg-slate-200 rounded-full group-hover:bg-slate-300 transition-colors" />
-                    </div>
+            {
+                ((selectedWall && uiPos) || selectedRoom || (selectedElement && currentEPos)) && editMode && (
+                    <div
+                        onMouseDown={(e) => {
+                            e.stopPropagation()
+                            setIsDraggingMenuState(true)
+                            menuDragStart.current = { x: e.clientX - menuDragOffset.x, y: e.clientY - menuDragOffset.y }
+                        }}
+                        className="flex flex-col"
+                        style={{
+                            position: 'absolute',
+                            left: (selectedRoom
+                                ? (calculatePolygonCentroid(selectedRoom.polygon).x * zoom + offset.x)
+                                : (selectedElement && currentEPos)
+                                    ? currentEPos.x
+                                    : uiPos?.x || 0
+                            ) + menuDragOffset.x,
+                            top: (selectedRoom
+                                ? (calculatePolygonCentroid(selectedRoom.polygon).y * zoom + offset.y - 40)
+                                : (selectedElement && currentEPos)
+                                    ? currentEPos.y - 80
+                                    : (uiPos ? uiPos.y - 100 : 0)
+                            ) + menuDragOffset.y,
+                            transform: 'translateX(-50%)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            backdropFilter: 'blur(12px)',
+                            padding: '2px',
+                            borderRadius: '10px',
+                            boxShadow: '0 10px 30px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)',
+                            zIndex: 1000,
+                            pointerEvents: 'auto',
+                            cursor: isDraggingMenuState ? 'grabbing' : 'grab',
+                            animation: 'fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                            minWidth: 'auto'
+                        }}
+                    >
+                        {/* Drag Handle Bar */}
+                        <div className="w-full h-1 flex justify-center items-center mb-0.5 group cursor-grab">
+                            <div className="w-6 h-0.5 bg-slate-200 rounded-full group-hover:bg-slate-300 transition-colors" />
+                        </div>
 
-                    <div className="flex items-center gap-0.5">
-                        {editMode === "menu" ? (
-                            <>
-                                {selectedWall && (
+                        <div className="flex items-center gap-0.5">
+                            {editMode === "menu" ? (
+                                <>
+                                    {selectedWall && (
+                                        <MenuButton
+                                            icon={<Scissors className="h-3.5 w-3.5" />}
+                                            onClick={() => onSplitWall?.(selectedWall.id)}
+                                        />
+                                    )}
+                                    {selectedElement && (
+                                        <>
+                                            <MenuButton
+                                                icon={<Copy className="h-3.5 w-3.5" />}
+                                                onClick={() => onCloneElement(selectedElement.type, selectedElement.id)}
+                                            />
+                                            {selectedElement.type === "door" && (
+                                                <>
+                                                    <MenuButton
+                                                        icon={<FlipHorizontal className="h-3.5 w-3.5" />}
+                                                        onClick={() => {
+                                                            const el = doors.find(d => d.id === selectedElement.id)
+                                                            if (el) onUpdateElement("door", el.id, { flipX: !el.flipX })
+                                                        }}
+                                                    />
+                                                    <MenuButton
+                                                        icon={<FlipVertical className="h-3.5 w-3.5" />}
+                                                        onClick={() => {
+                                                            const el = doors.find(d => d.id === selectedElement.id)
+                                                            if (el) onUpdateElement("door", el.id, { flipY: !el.flipY })
+                                                        }}
+                                                    />
+                                                </>
+                                            )}
+                                        </>
+                                    )}
                                     <MenuButton
-                                        icon={<Scissors className="h-3.5 w-3.5" />}
-                                        onClick={() => onSplitWall?.(selectedWall.id)}
+                                        icon={<Pencil className="h-3.5 w-3.5" />}
+                                        onClick={() => setEditMode(selectedWall ? "thickness" : selectedElement ? "length" : "room")}
                                     />
-                                )}
-                                {selectedElement && (
-                                    <>
+                                    <div className="w-px h-4 bg-slate-100 mx-0.5" />
+                                    {(selectedWall || selectedElement) && (
                                         <MenuButton
-                                            icon={<Copy className="h-3.5 w-3.5" />}
-                                            onClick={() => onCloneElement(selectedElement.type, selectedElement.id)}
-                                        />
-                                        <MenuButton
-                                            icon={<FlipHorizontal className="h-3.5 w-3.5" />}
+                                            icon={<Trash2 className="h-3.5 w-3.5" />}
                                             onClick={() => {
-                                                const el = selectedElement.type === "door"
-                                                    ? doors.find(d => d.id === selectedElement.id)
-                                                    : null
-                                                if (el) onUpdateElement("door", el.id, { flipX: !el.flipX })
+                                                if (selectedWall) onDeleteWall(selectedWall.id)
+                                                else if (selectedElement) onDeleteElement(selectedElement.type, selectedElement.id)
                                             }}
+                                            variant="danger"
                                         />
-                                        <MenuButton
-                                            icon={<FlipVertical className="h-3.5 w-3.5" />}
-                                            onClick={() => {
-                                                const el = selectedElement.type === "door"
-                                                    ? doors.find(d => d.id === selectedElement.id)
-                                                    : windows.find(w => w.id === selectedElement.id)
-                                                if (el) onUpdateElement(selectedElement.type, el.id, { flipY: !el.flipY })
-                                            }}
-                                        />
-                                    </>
-                                )}
-                                <MenuButton
-                                    icon={<Pencil className="h-3.5 w-3.5" />}
-                                    onClick={() => setEditMode(selectedWall ? "thickness" : selectedElement ? "length" : "room")}
-                                />
-                                <div className="w-px h-4 bg-slate-100 mx-0.5" />
-                                {(selectedWall || selectedElement) && (
-                                    <MenuButton
-                                        icon={<Trash2 className="h-3.5 w-3.5" />}
+                                    )}
+                                    <div className="w-px h-4 bg-slate-100 mx-0.5" />
+                                    <button
                                         onClick={() => {
-                                            if (selectedWall) onDeleteWall(selectedWall.id)
-                                            else if (selectedElement) onDeleteElement(selectedElement.type, selectedElement.id)
+                                            onSelectWall(null)
+                                            onSelectRoom(null)
+                                            onSelectElement(null)
                                         }}
-                                        variant="danger"
-                                    />
-                                )}
-                                <div className="w-px h-4 bg-slate-100 mx-0.5" />
-                                <button
-                                    onClick={() => {
-                                        onSelectWall(null)
-                                        onSelectRoom(null)
-                                        onSelectElement(null)
-                                    }}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"
-                                >
-                                    <X className="h-3 w-3" />
-                                </button>
-                            </>
-                        ) : editMode === "room" ? (
-                            <div className="flex flex-col gap-2 p-2 min-w-[150px]">
-                                <div className="flex items-center justify-between mb-1">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase">Tipo de Habitación</span>
-                                    <button onClick={() => setEditMode("menu")} className="text-slate-400 hover:text-slate-600">
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                        className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"
+                                    >
                                         <X className="h-3 w-3" />
                                     </button>
-                                </div>
-                                <div className="grid grid-cols-2 gap-1">
-                                    {roomTypes.map(type => (
-                                        <button
-                                            key={type}
-                                            onClick={() => {
-                                                if (selectedRoomId) {
-                                                    const currentMatch = selectedRoom?.name.match(/\d+$/)
-                                                    const roomNumber = currentMatch ? currentMatch[0] : (rooms.indexOf(selectedRoom!) + 1)
-                                                    onUpdateRoom(selectedRoomId, { name: `${type} ${roomNumber}` })
-                                                    setEditMode(null)
-                                                    onSelectRoom(null)
-                                                }
-                                            }}
-                                            className="text-[11px] px-2 py-1.5 bg-slate-50 hover:bg-sky-50 hover:text-sky-600 rounded-md text-left transition-colors"
-                                        >
-                                            {type}
+                                </>
+                            ) : editMode === "room" ? (
+                                <div className="flex flex-col gap-2 p-2 min-w-[150px]">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Tipo de Habitación</span>
+                                        <button onClick={() => setEditMode("menu")} className="text-slate-400 hover:text-slate-600">
+                                            <X className="h-3 w-3" />
                                         </button>
-                                    ))}
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-1">
+                                        {roomTypes.map(type => (
+                                            <button
+                                                key={type}
+                                                onClick={() => {
+                                                    if (selectedRoomId) {
+                                                        const currentMatch = selectedRoom?.name.match(/\d+$/)
+                                                        const roomNumber = currentMatch ? currentMatch[0] : (rooms.indexOf(selectedRoom!) + 1)
+                                                        onUpdateRoom(selectedRoomId, { name: `${type} ${roomNumber}` })
+                                                        setEditMode(null)
+                                                        onSelectRoom(null)
+                                                    }
+                                                }}
+                                                className="text-[11px] px-2 py-1.5 bg-slate-50 hover:bg-sky-50 hover:text-sky-600 rounded-md text-left transition-colors"
+                                            >
+                                                {type}
+                                            </button>
+                                        ))}
+                                        <button
+                                            onClick={() => setEditMode("menu")}
+                                            className="text-[11px] font-medium text-sky-600 hover:text-sky-700 underline"
+                                        >
+                                            Volver al menú
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : editMode === "thickness" ? (
+                                <div className="flex items-center gap-3 px-3 py-1.5">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">Grosor pared</span>
+                                    <div className="flex items-center gap-1">
+                                        <input
+                                            type="number"
+                                            autoFocus
+                                            value={editThickness}
+                                            onChange={(e) => setEditThickness(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && selectedWall) {
+                                                    onUpdateWallThickness(selectedWall.id, parseInt(editThickness))
+                                                    setEditMode("menu")
+                                                }
+                                                if (e.key === 'Escape') setEditMode("menu")
+                                            }}
+                                            className="w-14 p-1.5 border-2 border-slate-200 rounded-lg text-center text-sm font-bold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
+                                        />
+                                        <span className="text-[10px] font-semibold text-slate-400">cm</span>
+                                    </div>
                                     <button
                                         onClick={() => setEditMode("menu")}
-                                        className="text-[11px] font-medium text-sky-600 hover:text-sky-700 underline"
+                                        className="p-1 hover:bg-slate-100 rounded-full text-slate-400"
                                     >
-                                        Volver al menú
+                                        <X className="h-3.5 w-3.5" />
                                     </button>
                                 </div>
-                            </div>
-                        ) : editMode === "thickness" ? (
-                            <div className="flex items-center gap-3 px-3 py-1.5">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">Grosor pared</span>
-                                <div className="flex items-center gap-1">
-                                    <input
-                                        type="number"
-                                        autoFocus
-                                        value={editThickness}
-                                        onChange={(e) => setEditThickness(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && selectedWallId) {
-                                                onUpdateWallThickness(selectedWallId, parseInt(editThickness))
-                                                setEditMode("menu")
-                                            }
-                                            if (e.key === 'Escape') setEditMode("menu")
-                                        }}
-                                        className="w-14 p-1.5 border-2 border-slate-200 rounded-lg text-center text-sm font-bold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
-                                    />
-                                    <span className="text-[10px] font-semibold text-slate-400">cm</span>
-                                </div>
-                                <button
-                                    onClick={() => setEditMode("menu")}
-                                    className="p-1 hover:bg-slate-100 rounded-full text-slate-400"
-                                >
-                                    <X className="h-3.5 w-3.5" />
-                                </button>
-                            </div>
-                        ) : editMode === "length" ? (
-                            <div className="flex flex-col items-center gap-1 min-w-[160px]">
-                                {selectedWall && (
-                                    <>
-                                        <div className="flex items-center justify-between w-full px-2 mb-1">
-                                            <span className="text-[9px] font-bold text-slate-400 uppercase">Cota {editFace}</span>
-                                            <div className="flex gap-1">
-                                                <button onClick={() => setEditFace("interior")} className={`w-3 h-3 rounded-full border ${editFace === 'interior' ? 'bg-sky-500 border-sky-600' : 'bg-slate-200 border-slate-300'}`} title="Cara Interior" />
-                                                <button onClick={() => setEditFace("center")} className={`w-3 h-3 rounded-full border ${editFace === 'center' ? 'bg-slate-400 border-slate-500' : 'bg-slate-200 border-slate-300'}`} title="Eje Central" />
-                                                <button onClick={() => setEditFace("exterior")} className={`w-3 h-3 rounded-full border ${editFace === 'exterior' ? 'bg-amber-500 border-amber-600' : 'bg-slate-200 border-slate-300'}`} title="Cara Exterior" />
+                            ) : editMode === "length" ? (
+                                <div className="flex flex-col items-center gap-1 min-w-[160px]">
+                                    {selectedWall && (
+                                        <>
+                                            <div className="flex items-center justify-between w-full px-2 mb-1">
+                                                <span className="text-[9px] font-bold text-slate-400 uppercase">Cota {editFace}</span>
+                                                <div className="flex gap-1">
+                                                    <button onClick={() => setEditFace("interior")} className={`w-3 h-3 rounded-full border ${editFace === 'interior' ? 'bg-sky-500 border-sky-600' : 'bg-slate-200 border-slate-300'}`} title="Cara Interior" />
+                                                    <button onClick={() => setEditFace("center")} className={`w-3 h-3 rounded-full border ${editFace === 'center' ? 'bg-slate-400 border-slate-500' : 'bg-slate-200 border-slate-300'}`} title="Eje Central" />
+                                                    <button onClick={() => setEditFace("exterior")} className={`w-3 h-3 rounded-full border ${editFace === 'exterior' ? 'bg-amber-500 border-amber-600' : 'bg-slate-200 border-slate-300'}`} title="Cara Exterior" />
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 px-2 py-1">
-                                            <button
-                                                onClick={() => {
-                                                    const targetLen = parseInt(editLength)
-                                                    if (isNaN(targetLen)) return
-                                                    let centerAdj = 0
-                                                    if (editFace !== "center") {
-                                                        const isSameP = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < 1.0
-                                                        const getPThickness = (p: Point) => {
-                                                            if (!selectedWall) return 0
-                                                            const neighbors = walls.filter(w => w.id !== selectedWall.id && (isSameP(w.start, p) || isSameP(w.end, p)))
-                                                            const perp = neighbors.filter(nw => isConnectedPerpendicular(selectedWall, nw))
-                                                            return perp.length > 0 ? Math.max(...perp.map(n => n.thickness)) : 0
-                                                        }
-                                                        const sumThick = (getPThickness(selectedWall.start) / 2 + getPThickness(selectedWall.end) / 2)
-                                                        centerAdj = editFace === "exterior" ? -sumThick : sumThick
-                                                    }
-                                                    if (selectedWall) onUpdateWallLength(selectedWall.id, targetLen + centerAdj, "left")
+                                            <div className="flex items-center gap-2 px-2 py-1">
+                                                <button
+                                                    onClick={() => {
+                                                        const targetLen = parseInt(editLength)
+                                                        if (isNaN(targetLen)) return
 
-                                                    setEditMode("menu")
-                                                }}
-                                                className="p-1.5 bg-slate-100 text-slate-600 hover:bg-sky-100 hover:text-sky-600 rounded-md transition-all"
-                                            >
-                                                {Math.abs(selectedWall.start.y - selectedWall.end.y) < 1 ? "←" : "↑"}
-                                            </button>
-                                            <div className="flex items-center gap-1 bg-white border-2 border-slate-100 rounded-lg px-2 py-1">
+                                                        // Accurate terminal/chain detection for menu update logic
+                                                        const chainIds = new Set([selectedWall.id])
+                                                        const dx = selectedWall.end.x - selectedWall.start.x
+                                                        const dy = selectedWall.end.y - selectedWall.start.y
+                                                        const centerLength = Math.sqrt(dx * dx + dy * dy)
+                                                        const nx = -dy / centerLength
+                                                        const ny = dx / centerLength
+                                                        const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
+
+                                                        const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal)
+                                                        const fwd = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal)
+                                                        const totalChainCenter = centerLength + back.addedLen + fwd.addedLen
+
+                                                        let currentTotal = totalChainCenter
+                                                        if (editFace !== "center") {
+                                                            currentTotal += getFaceOffsetAt(selectedWall, back.terminal, faceNormal, chainIds) +
+                                                                getFaceOffsetAt(selectedWall, fwd.terminal, faceNormal, chainIds)
+                                                        }
+
+                                                        const delta = targetLen - currentTotal
+                                                        if (selectedWall && Math.abs(delta) > 0.01) {
+                                                            const targetWall = walls.find(w => w.id === back.terminalWallId) || selectedWall
+                                                            const isTerminalStart = Math.sqrt(Math.pow(targetWall.start.x - back.terminal.x, 2) + Math.pow(targetWall.start.y - back.terminal.y, 2)) < 5.0
+                                                            const side = isTerminalStart ? "left" : "right"
+                                                            const currentTargetLen = Math.sqrt(Math.pow(targetWall.start.x - targetWall.end.x, 2) + Math.pow(targetWall.start.y - targetWall.end.y, 2))
+                                                            onUpdateWallLength(targetWall.id, currentTargetLen + delta, side)
+                                                        }
+
+                                                        setEditMode("menu")
+                                                    }}
+                                                    className="p-1.5 bg-slate-100 text-slate-600 hover:bg-sky-100 hover:text-sky-600 rounded-md transition-all"
+                                                >
+                                                    {Math.abs(selectedWall.start.y - selectedWall.end.y) < 1 ? "←" : "↑"}
+                                                </button>
+                                                <div className="flex items-center gap-1 bg-white border-2 border-slate-100 rounded-lg px-2 py-1">
+                                                    <input
+                                                        type="number"
+                                                        autoFocus
+                                                        value={editLength}
+                                                        onChange={(e) => setEditLength(e.target.value)}
+                                                        className="w-16 text-center text-lg font-bold text-slate-800 focus:outline-none"
+                                                    />
+                                                    <span className="text-[10px] font-bold text-slate-400">cm</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        const targetLen = parseInt(editLength)
+                                                        if (isNaN(targetLen)) return
+
+                                                        // Accurate terminal/chain detection for menu update logic
+                                                        const chainIds = new Set([selectedWall.id])
+                                                        const dx = selectedWall.end.x - selectedWall.start.x
+                                                        const dy = selectedWall.end.y - selectedWall.start.y
+                                                        const centerLength = Math.sqrt(dx * dx + dy * dy)
+                                                        const nx = -dy / centerLength
+                                                        const ny = dx / centerLength
+                                                        const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
+
+
+                                                        const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal)
+                                                        const fwd = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal)
+                                                        const totalChainCenter = centerLength + back.addedLen + fwd.addedLen
+
+                                                        let currentTotal = totalChainCenter
+                                                        if (editFace !== "center") {
+                                                            currentTotal += getFaceOffsetAt(selectedWall, back.terminal, faceNormal, chainIds) +
+                                                                getFaceOffsetAt(selectedWall, fwd.terminal, faceNormal, chainIds)
+                                                        }
+
+                                                        const delta = targetLen - currentTotal
+                                                        if (selectedWall && Math.abs(delta) > 0.01) {
+                                                            const targetWall = walls.find(w => w.id === fwd.terminalWallId) || selectedWall
+                                                            const isTerminalStart = Math.sqrt(Math.pow(targetWall.start.x - fwd.terminal.x, 2) + Math.pow(targetWall.start.y - fwd.terminal.y, 2)) < 5.0
+                                                            const side = isTerminalStart ? "left" : "right"
+                                                            const currentTargetLen = Math.sqrt(Math.pow(targetWall.start.x - targetWall.end.x, 2) + Math.pow(targetWall.start.y - targetWall.end.y, 2))
+                                                            onUpdateWallLength(targetWall.id, currentTargetLen + delta, side)
+                                                        }
+
+                                                        setEditMode("menu")
+                                                    }}
+                                                    className="p-1.5 bg-slate-100 text-slate-600 hover:bg-sky-100 hover:text-sky-600 rounded-md transition-all"
+                                                >
+                                                    {Math.abs(selectedWall.start.y - selectedWall.end.y) < 1 ? "→" : "↓"}
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                    {selectedElement && (
+                                        <div className="flex flex-col gap-1.5 px-3 py-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Ancho</span>
                                                 <input
                                                     type="number"
                                                     autoFocus
                                                     value={editLength}
                                                     onChange={(e) => setEditLength(e.target.value)}
-                                                    className="w-16 text-center text-lg font-bold text-slate-800 focus:outline-none"
-                                                />
-                                                <span className="text-[10px] font-bold text-slate-400">cm</span>
-                                            </div>
-                                            <button
-                                                onClick={() => {
-                                                    const targetLen = parseInt(editLength)
-                                                    if (isNaN(targetLen)) return
-                                                    let centerAdj = 0
-                                                    if (editFace !== "center") {
-                                                        const isSameP = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < 1.0
-                                                        const getPThickness = (p: Point) => {
-                                                            if (!selectedWall) return 0
-                                                            const neighbors = walls.filter(w => w.id !== selectedWall.id && (isSameP(w.start, p) || isSameP(w.end, p)))
-                                                            const perp = neighbors.filter(nw => isConnectedPerpendicular(selectedWall, nw))
-                                                            return perp.length > 0 ? Math.max(...perp.map(n => n.thickness)) : 0
-                                                        }
-                                                        const sumThick = (getPThickness(selectedWall.start) / 2 + getPThickness(selectedWall.end) / 2)
-                                                        centerAdj = editFace === "exterior" ? -sumThick : sumThick
-                                                    }
-                                                    if (selectedWall) onUpdateWallLength(selectedWall.id, targetLen + centerAdj, "right")
-
-                                                    setEditMode("menu")
-                                                }}
-                                                className="p-1.5 bg-slate-100 text-slate-600 hover:bg-sky-100 hover:text-sky-600 rounded-md transition-all"
-                                            >
-                                                {Math.abs(selectedWall.start.y - selectedWall.end.y) < 1 ? "→" : "↓"}
-                                            </button>
-                                        </div>
-                                    </>
-                                )}
-                                {selectedElement && (
-                                    <div className="flex flex-col gap-1.5 px-3 py-2">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Ancho</span>
-                                            <input
-                                                type="number"
-                                                autoFocus
-                                                value={editLength}
-                                                onChange={(e) => setEditLength(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        const updates: any = { width: parseInt(editLength) }
-                                                        if (selectedElement.type === "window" && editHeight) updates.height = parseInt(editHeight)
-                                                        onUpdateElement(selectedElement.type, selectedElement.id, updates)
-                                                        setEditMode("menu")
-                                                    }
-                                                    if (e.key === 'Escape') setEditMode("menu")
-                                                }}
-                                                className="w-16 p-1 border-b border-slate-200 text-center text-xs font-bold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
-                                            />
-                                            <span className="text-[9px] font-bold text-slate-400">cm</span>
-                                        </div>
-                                        {selectedElement.type === "window" && (
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Alto</span>
-                                                <input
-                                                    type="number"
-                                                    value={editHeight}
-                                                    onChange={(e) => setEditHeight(e.target.value)}
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter') {
-                                                            onUpdateElement(selectedElement.type, selectedElement.id, {
-                                                                width: parseInt(editLength),
-                                                                height: parseInt(editHeight)
-                                                            })
+                                                            const updates: any = { width: parseInt(editLength) }
+                                                            if (selectedElement.type === "window" && editHeight) updates.height = parseInt(editHeight)
+                                                            onUpdateElement(selectedElement.type, selectedElement.id, updates)
                                                             setEditMode("menu")
                                                         }
                                                         if (e.key === 'Escape') setEditMode("menu")
@@ -1555,31 +1815,53 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                                 />
                                                 <span className="text-[9px] font-bold text-slate-400">cm</span>
                                             </div>
-                                        )}
-                                        <button
-                                            onClick={() => {
-                                                const updates: any = { width: parseInt(editLength) }
-                                                if (selectedElement.type === "window") updates.height = parseInt(editHeight)
-                                                onUpdateElement(selectedElement.type, selectedElement.id, updates)
-                                                setEditMode("menu")
-                                            }}
-                                            className="mt-1 w-full py-1 bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold rounded transition-colors"
-                                        >
-                                            Guardar
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        ) : null}
-                    </div>
-                    <style>{`
+                                            {selectedElement.type === "window" && (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Alto</span>
+                                                    <input
+                                                        type="number"
+                                                        value={editHeight}
+                                                        onChange={(e) => setEditHeight(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                onUpdateElement(selectedElement.type, selectedElement.id, {
+                                                                    width: parseInt(editLength),
+                                                                    height: parseInt(editHeight)
+                                                                })
+                                                                setEditMode("menu")
+                                                            }
+                                                            if (e.key === 'Escape') setEditMode("menu")
+                                                        }}
+                                                        className="w-16 p-1 border-b border-slate-200 text-center text-xs font-bold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
+                                                    />
+                                                    <span className="text-[9px] font-bold text-slate-400">cm</span>
+                                                </div>
+                                            )}
+                                            <button
+                                                onClick={() => {
+                                                    const updates: any = { width: parseInt(editLength) }
+                                                    if (selectedElement.type === "window") updates.height = parseInt(editHeight)
+                                                    onUpdateElement(selectedElement.type, selectedElement.id, updates)
+                                                    setEditMode("menu")
+                                                }}
+                                                className="mt-1 w-full py-1 bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold rounded transition-colors"
+                                            >
+                                                Guardar
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : null}
+                        </div>
+                        <style>{`
                         @keyframes fadeIn {
                             from { opacity: 0; transform: translate(-50%, 15px) scale(0.95); }
                             to { opacity: 1; transform: translate(-50%, 0) scale(1); }
                         }
                     `}</style>
-                </div>
-            )}
-        </div>
+                    </div>
+                )
+            }
+        </div >
     )
 }

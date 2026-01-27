@@ -23,30 +23,75 @@ export const Grid: React.FC<GridProps> = ({ width, height, cellSize, zoom, offse
     const startY = (offsetY % scaledCellSize) - scaledCellSize
 
     const lines = []
+    const showSubdivisions = zoom > 1.5
+    const majorCellSize = cellSize // 100
+    const minorCellSize = cellSize / 10 // 10
 
-    // Líneas verticales
+    // 1. Minor Lines (10cm) - Only if zoomed in
+    if (showSubdivisions) {
+        const scaledMinorSize = minorCellSize * zoom
+        const numMinorX = Math.ceil(width / scaledMinorSize) + 2
+        const numMinorY = Math.ceil(height / scaledMinorSize) + 2
+        const minorStartX = (offsetX % scaledMinorSize) - scaledMinorSize
+        const minorStartY = (offsetY % scaledMinorSize) - scaledMinorSize
+
+        for (let i = 0; i <= numMinorX; i++) {
+            const x = minorStartX + i * scaledMinorSize
+            // Skip if it coincides with a major line to avoid double rendering
+            if (Math.round((i * minorCellSize) % majorCellSize) === 0) continue
+
+            lines.push(
+                <Line
+                    key={`v-minor-${i}`}
+                    points={[x, 0, x, height]}
+                    stroke="#e2e8f0"
+                    strokeWidth={0.5}
+                    opacity={0.4}
+                    listening={false}
+                />
+            )
+        }
+        for (let i = 0; i <= numMinorY; i++) {
+            const y = minorStartY + i * scaledMinorSize
+            if (Math.round((i * minorCellSize) % majorCellSize) === 0) continue
+
+            lines.push(
+                <Line
+                    key={`h-minor-${i}`}
+                    points={[0, y, width, y]}
+                    stroke="#e2e8f0"
+                    strokeWidth={0.5}
+                    opacity={0.4}
+                    listening={false}
+                />
+            )
+        }
+    }
+
+    // 2. Major Lines (1m)
     for (let i = 0; i <= numLinesX; i++) {
         const x = startX + i * scaledCellSize
         lines.push(
             <Line
-                key={`v-${i}`}
+                key={`v-major-${i}`}
                 points={[x, 0, x, height]}
-                stroke="#e2e8f0"
+                stroke="#cbd5e1"
                 strokeWidth={1}
+                opacity={0.6}
                 listening={false}
             />
         )
     }
 
-    // Líneas horizontales
     for (let i = 0; i <= numLinesY; i++) {
         const y = startY + i * scaledCellSize
         lines.push(
             <Line
-                key={`h-${i}`}
+                key={`h-major-${i}`}
                 points={[0, y, width, y]}
-                stroke="#e2e8f0"
+                stroke="#cbd5e1"
                 strokeWidth={1}
+                opacity={0.6}
                 listening={false}
             />
         )
@@ -55,19 +100,6 @@ export const Grid: React.FC<GridProps> = ({ width, height, cellSize, zoom, offse
     return (
         <Group>
             {lines}
-            {/* Tapiz de 10x10m (1000x1000px) */}
-            <Group x={offsetX} y={offsetY} scaleX={zoom} scaleY={zoom}>
-                <Rect
-                    x={0}
-                    y={0}
-                    width={1000}
-                    height={1000}
-                    stroke="#cbd5e1"
-                    strokeWidth={2 / zoom}
-                    dash={[10, 5]}
-                    listening={false}
-                />
-            </Group>
         </Group>
     )
 }

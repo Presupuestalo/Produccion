@@ -39,7 +39,7 @@ function getLineIntersection(p1: Point, p2: Point, p3: Point, p4: Point): Point 
     return null
 }
 
-function isPointOnSegment(p: Point, a: Point, b: Point, tolerance = 1.0): boolean {
+export function isPointOnSegment(p: Point, a: Point, b: Point, tolerance = 1.0): boolean {
     const dist = Math.sqrt(Math.pow(b.x - a.x, 2) + Math.pow(b.y - a.y, 2))
     if (dist < 0.1) return false
 
@@ -124,9 +124,11 @@ export function fragmentWalls(walls: Wall[]): Wall[] {
             const p1 = uniquePoints[k]
             const p2 = uniquePoints[k + 1]
             if (Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)) > TOLERANCE) {
+                // Stable ID: if only one segment, keep original ID. If multiple, append index.
+                const newId = uniquePoints.length === 2 ? wall.id : `${wall.id}-s${k}`
                 result.push({
                     ...wall,
-                    id: `w-${Math.random().toString(36).substr(2, 9)}`,
+                    id: newId,
                     start: p1,
                     end: p2
                 })
@@ -134,7 +136,87 @@ export function fragmentWalls(walls: Wall[]): Wall[] {
         }
     })
 
-    return result
+    const fragmented = result
+    return cleanupAndMergeWalls(fragmented)
+}
+
+/**
+ * Removes zero-length walls and merges collinear adjacent walls that share 
+ * a vertex with no other connections.
+ */
+export function cleanupAndMergeWalls(walls: Wall[]): Wall[] {
+    const TOLERANCE = 1.0
+    // 1. Remove zero-length walls
+    let processed = walls.filter(w => {
+        const len = Math.sqrt(Math.pow(w.end.x - w.start.x, 2) + Math.pow(w.end.y - w.start.y, 2))
+        return len > TOLERANCE
+    })
+
+    const isSamePoint = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOLERANCE
+
+    let merged = true
+    while (merged) {
+        merged = false
+        for (let i = 0; i < processed.length; i++) {
+            for (let j = i + 1; j < processed.length; j++) {
+                const w1 = processed[i]
+                const w2 = processed[j]
+
+                // Must have same thickness
+                if (w1.thickness !== w2.thickness) continue
+
+                // Must be collinear
+                const dx1 = w1.end.x - w1.start.x
+                const dy1 = w1.end.y - w1.start.y
+                const dx2 = w2.end.x - w2.start.x
+                const dy2 = w2.end.y - w2.start.y
+
+                const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1)
+                const len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2)
+                const ux1 = dx1 / len1, uy1 = dy1 / len1
+                const ux2 = dx2 / len2, uy2 = dy2 / len2
+
+                // Check dot product (approx 1 or -1 for collinearity)
+                const dot = Math.abs(ux1 * ux2 + uy1 * uy2)
+                if (dot < 0.999) continue
+
+                // Must share exactly one vertex
+                let shared: Point | null = null
+                let p1: Point | null = null
+                let p2: Point | null = null
+
+                if (isSamePoint(w1.end, w2.start)) { shared = w1.end; p1 = w1.start; p2 = w2.end }
+                else if (isSamePoint(w1.start, w2.end)) { shared = w1.start; p1 = w1.end; p2 = w2.start }
+                else if (isSamePoint(w1.end, w2.end)) { shared = w1.end; p1 = w1.start; p2 = w2.start }
+                else if (isSamePoint(w1.start, w2.start)) { shared = w1.start; p1 = w1.end; p2 = w2.end }
+
+                if (shared && p1 && p2) {
+                    // CRITICAL: The shared vertex must NOT have other wall connections
+                    const otherConnections = processed.filter(w =>
+                        w.id !== w1.id && w.id !== w2.id &&
+                        (isSamePoint(w.start, shared!) || isSamePoint(w.end, shared!))
+                    )
+
+                    if (otherConnections.length === 0) {
+                        // Merge them!
+                        const newWall: Wall = {
+                            ...w1,
+                            id: w1.id.includes("-s") ? w1.id : w2.id, // Prefer original or first segment ID
+                            start: p1,
+                            end: p2
+                        }
+                        processed.splice(j, 1)
+                        processed.splice(i, 1, newWall)
+                        merged = true
+                        break
+                    }
+                }
+            }
+            if (merged) break
+        }
+    }
+
+    return processed
 }
 
 /**

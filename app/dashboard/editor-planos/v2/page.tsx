@@ -1,11 +1,12 @@
 "use client"
-import React from "react"
+import React, { useRef } from "react"
 import { EditorContainer } from "@/components/floor-plan-editor/EditorContainer"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
 export default function EditorPlanosV2Page() {
+    const editorRef = useRef<any>(null)
     return (
         <div className="h-screen flex flex-col bg-slate-50">
             {/* Header Estrecho */}
@@ -22,13 +23,13 @@ export default function EditorPlanosV2Page() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm">Limpiar</Button>
+                    <Button variant="outline" size="sm" onClick={() => editorRef.current?.clearPlan()}>Limpiar</Button>
                     <Button size="sm" className="bg-orange-600 hover:bg-orange-700">Guardar Plano</Button>
                 </div>
             </header>
 
             <main className="flex-1 p-4 md:p-6 overflow-hidden">
-                <EditorContainer />
+                <EditorContainer ref={editorRef} />
             </main>
         </div>
     )
