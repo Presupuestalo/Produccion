@@ -8,6 +8,7 @@ export interface Wall {
     start: Point
     end: Point
     thickness: number
+    isInvisible?: boolean
 }
 
 export interface Room {

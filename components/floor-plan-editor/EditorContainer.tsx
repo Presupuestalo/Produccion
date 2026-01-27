@@ -13,7 +13,7 @@ export const EditorContainer = forwardRef((props, ref) => {
     const [zoom, setZoom] = useState(1)
     const [offset, setOffset] = useState({ x: 0, y: 0 })
     interface Point { x: number; y: number }
-    interface Wall { id: string; start: Point; end: Point; thickness: number }
+    interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean }
 
     interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point }
 
@@ -38,6 +38,8 @@ export const EditorContainer = forwardRef((props, ref) => {
     const redoHistoryRef = useRef<any[]>([])
     // Snapshots para arrastre suave y rígido
     const [wallSnapshot, setWallSnapshot] = useState<Wall[] | null>(null)
+    const wallSnapshotRef = useRef<Wall[] | null>(null)
+    const lastRoomDetectionTime = useRef<number>(0)
 
     // Estado del plano de fondo (Plantilla)
     const [bgImage, setBgImage] = useState<string | null>(null)
@@ -244,6 +246,40 @@ export const EditorContainer = forwardRef((props, ref) => {
         setRooms(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r))
     }
 
+    const getIntelligentRoomName = (area: number, existingRooms: Room[]) => {
+        const smallRooms = ["Baño", "Hall", "Terraza", "Trastero"]
+        const largeRooms = ["Salón", "Dormitorio", "Cocina"]
+        const candidates = area < 6 ? smallRooms : largeRooms
+        const baseName = candidates[Math.floor(Math.random() * candidates.length)]
+
+        let n = 1
+        while (existingRooms.some(r => r.name === `${baseName} ${n}`)) {
+            n++
+        }
+        return `${baseName} ${n}`
+    }
+
+    const detectAndNameRooms = (newWalls: Wall[], currentRooms: Room[]) => {
+        const detected = detectRoomsGeometrically(newWalls, currentRooms)
+        return detected.map(room => {
+            // Si es una habitación nueva (geometry.ts le pone "Habitación X" por defecto)
+            // o si no tiene nombre, le aplicamos la heurística.
+            if (room.name.startsWith("Habitación")) {
+                return { ...room, name: getIntelligentRoomName(room.area, detected) }
+            }
+            return room
+        })
+    }
+
+    const handleUpdateWallInvisible = (id: string, isInvisible: boolean) => {
+        saveStateToHistory()
+        setWalls(prev => {
+            const next = prev.map(w => w.id === id ? { ...w, isInvisible } : w)
+            setRooms(detectAndNameRooms(next, rooms))
+            return next
+        })
+    }
+
     const handleUpdateWallThickness = (id: string, thickness: number) => {
         saveStateToHistory()
         setWalls(prev => prev.map(w => w.id === id ? { ...w, thickness } : w))
@@ -365,34 +401,25 @@ export const EditorContainer = forwardRef((props, ref) => {
     }
 
     const handleDragVertex = (originalPoint: Point, totalDelta: Point, activeIds?: string[]) => {
-        setWalls(prevWalls => {
-            if (!wallSnapshot) return prevWalls
+        const SNAP_THRESHOLD = 6 // Reduced even further for fine-grained control
+        const snapshot = wallSnapshotRef.current
+        if (!snapshot) return
 
-            const TOL = 1.0 // Use much tighter tolerance for identifying the vertex in snapshot
+        setWalls(prevWalls => {
+            const TOL = 1.0
             const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
             const idsToMove = activeIds || (selectedWallIds.length > 0 ? selectedWallIds : (hoveredWallId ? [hoveredWallId] : []))
-
             const idsToMoveSet = new Set(idsToMove)
 
-            // 1. Shallow copy walls (only clone the ones that move)
-            let workingWalls = wallSnapshot.map(w => {
-                if (!idsToMoveSet.has(w.id)) return w
-                return { ...w, start: { ...w.start }, end: { ...w.end } }
-            })
-
-            // 2. Target position (raw float)
+            // 1. Calculate TARGET position (snapped or raw)
             let tx = originalPoint.x + totalDelta.x
             let ty = originalPoint.y + totalDelta.y
 
-            // --- Snapping ---
-            const SNAP_THRESHOLD = 15 // 15cm
-
             if (snappingEnabled) {
-                // 1. Snapping a otros vértices (prioridad alta)
                 let vertexSnapped = false
-                for (const w of wallSnapshot) {
+                // Snap only to vertices NOT currently being moved
+                for (const w of snapshot) {
                     for (const p of [w.start, w.end]) {
-                        // Saltar el mismo vértice que estamos moviendo
                         if (isSame(p, originalPoint)) continue
                         const d = Math.sqrt(Math.pow(p.x - tx, 2) + Math.pow(p.y - ty, 2))
                         if (d < SNAP_THRESHOLD) {
@@ -404,47 +431,47 @@ export const EditorContainer = forwardRef((props, ref) => {
                     if (vertexSnapped) break
                 }
 
-                // 2. Snapping Ortogonal
+                // Snap significantly less aggressively for orthogonality during inclining
                 if (!vertexSnapped) {
                     for (const id of idsToMove) {
-                        const w = wallSnapshot.find(sw => sw.id === id)
+                        const w = snapshot.find(sw => sw.id === id)
                         if (!w) continue
                         const fixedP = isSame(w.start, originalPoint) ? w.end : w.start
-
-                        let snappedX = false
-                        let snappedY = false
-
-                        if (Math.abs(tx - fixedP.x) < SNAP_THRESHOLD) {
-                            tx = fixedP.x
-                            snappedX = true
-                        }
-                        if (Math.abs(ty - fixedP.y) < SNAP_THRESHOLD) {
-                            ty = fixedP.y
-                            snappedY = true
-                        }
-
-                        // Si hemos hecho snap a los ejes de un tabique relevante, paramos de buscar
-                        if (snappedX || snappedY) break
+                        // Use a smaller threshold for axis-snapping to allow free rotation/inclination
+                        const AXIS_SNAP = 4
+                        if (Math.abs(tx - fixedP.x) < AXIS_SNAP) tx = fixedP.x
+                        if (Math.abs(ty - fixedP.y) < AXIS_SNAP) ty = fixedP.y
                     }
                 }
             }
 
-            // 3. Final quantization (Data integrity)
             tx = Math.round(tx)
             ty = Math.round(ty)
 
-            // Aplicar movimiento
-            workingWalls.forEach(w => {
-                if (!idsToMoveSet.has(w.id)) return
-                if (isSame(w.start, originalPoint)) {
-                    w.start.x = tx; w.start.y = ty
+            // 2. Build the new walls using SNAPSHOT as the pivot base
+            const workingWalls = prevWalls.map(w => {
+                const snapW = snapshot.find(sw => sw.id === w.id)
+                if (!idsToMoveSet.has(w.id) || !snapW) return w
+
+                // We ALWAYS start from the snapshot's coordinates to ensure the PIVOT stays fixed
+                const newW = { ...w, start: { ...snapW.start }, end: { ...snapW.end } }
+
+                if (isSame(snapW.start, originalPoint)) {
+                    newW.start.x = tx; newW.start.y = ty
                 }
-                if (isSame(w.end, originalPoint)) {
-                    w.end.x = tx; w.end.y = ty
+                if (isSame(snapW.end, originalPoint)) {
+                    newW.end.x = tx; newW.end.y = ty
                 }
+                return newW
             })
 
-            setRooms(detectRoomsGeometrically(workingWalls, rooms))
+            // Throttled room detection
+            const now = Date.now()
+            if (now - lastRoomDetectionTime.current > 100) {
+                setRooms(detectAndNameRooms(workingWalls, rooms))
+                lastRoomDetectionTime.current = now
+            }
+
             return workingWalls
         })
     }
@@ -631,7 +658,7 @@ export const EditorContainer = forwardRef((props, ref) => {
             })
             setWindows(updatedWindows)
 
-            setRooms(detectRoomsGeometrically(splitResult, (rooms || [])))
+            setRooms(detectAndNameRooms(splitResult, (rooms || [])))
             return splitResult
         })
     }
@@ -685,7 +712,7 @@ export const EditorContainer = forwardRef((props, ref) => {
                         }
                         const newWalls = fragmentWalls([...walls, newWall])
                         setWalls(newWalls)
-                        const nextRooms = detectRoomsGeometrically(newWalls, rooms)
+                        const nextRooms = detectAndNameRooms(newWalls, rooms)
                         setRooms(nextRooms)
 
                         if (nextRooms.length > rooms.length) {
@@ -789,7 +816,7 @@ export const EditorContainer = forwardRef((props, ref) => {
                 }
                 const newWalls = fragmentWalls([...walls, newWall])
                 setWalls(newWalls)
-                const nextRooms = detectRoomsGeometrically(newWalls, rooms)
+                const nextRooms = detectAndNameRooms(newWalls, rooms)
                 setRooms(nextRooms)
 
                 // Si se ha cerrado una habitación (figura completa), detener el encadenamiento
@@ -997,6 +1024,7 @@ export const EditorContainer = forwardRef((props, ref) => {
                     onDeleteWall={deleteWall}
                     onSplitWall={handleSplitWall}
                     onUpdateWallThickness={handleUpdateWallThickness}
+                    onUpdateWallInvisible={handleUpdateWallInvisible}
                     onUpdateRoom={handleUpdateRoom}
                     selectedRoomId={selectedRoomId}
                     snappingEnabled={activeTool === "ruler" ? false : snappingEnabled}
@@ -1014,7 +1042,9 @@ export const EditorContainer = forwardRef((props, ref) => {
                     onUpdateCalibrationPoint={(id: "p1" | "p2", p: Point) => setCalibrationPoints(prev => ({ ...prev, [id]: p }))}
                     onStartDragWall={() => {
                         saveStateToHistory()
-                        setWallSnapshot(JSON.parse(JSON.stringify(walls)))
+                        const snapshot = JSON.parse(JSON.stringify(walls))
+                        setWallSnapshot(snapshot)
+                        wallSnapshotRef.current = snapshot
                     }}
                     onDragElement={handleDragElement}
                     selectedElement={selectedElement}

@@ -3,10 +3,10 @@ import React from "react"
 import { Stage, Layer, Group, Line, Rect, Text, Circle, Arc, Arrow } from "react-konva"
 import { Grid } from "./Grid"
 import { getClosestPointOnSegment } from "@/lib/utils/geometry"
-import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical } from "lucide-react"
+import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical, SquareDashed } from "lucide-react"
 
 interface Point { x: number; y: number }
-interface Wall { id: string; start: Point; end: Point; thickness: number }
+interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean }
 
 interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point }
 
@@ -24,12 +24,14 @@ interface MenuButtonProps {
     label?: string
     onClick: () => void
     variant?: "default" | "danger"
+    title?: string
 }
 
-const MenuButton: React.FC<MenuButtonProps> = ({ icon, onClick, variant = "default" }) => (
+const MenuButton: React.FC<MenuButtonProps> = ({ icon, onClick, variant = "default", title }) => (
     <button
         onClick={onClick}
         onMouseDown={(e) => e.stopPropagation()}
+        title={title}
         className={`flex items-center justify-center p-1.5 rounded-lg transition-all duration-200 ${variant === "danger"
             ? "text-red-500 hover:bg-red-50"
             : "text-slate-600 hover:bg-slate-50 hover:text-sky-600"
@@ -65,6 +67,7 @@ interface CanvasEngineProps {
     onDeleteWall: (id: string) => void
     onSplitWall?: (id: string, point?: Point) => void,
     onUpdateWallThickness: (id: string, thickness: number) => void
+    onUpdateWallInvisible: (id: string, isInvisible: boolean) => void
     onUpdateRoom: (id: string, updates: Partial<Room>) => void
     selectedWallIds: string[]
     selectedRoomId: string | null
@@ -113,6 +116,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     onDeleteWall,
     onSplitWall,
     onUpdateWallThickness,
+    onUpdateWallInvisible,
     onUpdateRoom,
     selectedWallIds,
     selectedRoomId,
@@ -151,7 +155,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     }, [bgImage])
     const [mousePos, setMousePos] = React.useState<Point | null>(null)
     const [alignmentGuides, setAlignmentGuides] = React.useState<{ x?: number, y?: number } | null>(null)
-    const [editMode, setEditMode] = React.useState<"menu" | "length" | "thickness" | "room" | null>(null)
+    const [editMode, setEditMode] = React.useState<"menu" | "length" | "thickness" | "room" | "room-custom" | null>(null)
     const [editLength, setEditLength] = React.useState<string>("")
     const [editHeight, setEditHeight] = React.useState<string>("")
     const [editThickness, setEditThickness] = React.useState<string>("")
@@ -196,7 +200,9 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     const selectedRoom = rooms.find(r => r.id === selectedRoomId)
 
     const roomTypes = [
-        "Salón", "Cocina", "Dormitorio", "Baño", "Pasillo", "Terraza", "Lavadero", "Entrada"
+        "Salón", "Cocina", "Cocina Abierta", "Cocina Americana",
+        "Baño", "Dormitorio", "Pasillo", "Hall", "Terraza",
+        "Trastero", "Vestidor", "Otro"
     ]
 
     React.useEffect(() => {
@@ -300,6 +306,15 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         }
     }
 
+    const getRawPointerPosition = (stage: any) => {
+        const pointer = stage.getPointerPosition()
+        if (!pointer) return { x: 0, y: 0 }
+        return {
+            x: (pointer.x - offset.x) / zoom,
+            y: (pointer.y - offset.y) / zoom
+        }
+    }
+
     const getRelativePointerPosition = (stage: any) => {
         const pointer = stage.getPointerPosition()
         if (!pointer) return { x: 0, y: 0 }
@@ -383,7 +398,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         let addedLen = 0
         let terminalWallId = startWall.id
         while (true) {
-            const neighbors = walls.filter(w => !visited.has(w.id) && (
+            const neighbors = walls.filter(w => !visited.has(w.id) && !w.isInvisible && (
                 Math.sqrt(Math.pow(w.start.x - curr.x, 2) + Math.pow(w.start.y - curr.y, 2)) < TOL ||
                 Math.sqrt(Math.pow(w.end.x - curr.x, 2) + Math.pow(w.end.y - curr.y, 2)) < TOL
             ))
@@ -497,9 +512,8 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     const renderWallMeasurement = (wall: Wall, offsetVal: number, color: string = "#64748b", isInteractive: boolean = false) => {
         const dx = wall.end.x - wall.start.x
         const dy = wall.end.y - wall.start.y
+        if (wall.isInvisible) return null
         const centerLength = Math.sqrt(dx * dx + dy * dy)
-
-        if (centerLength < 5) return null
 
         if (!selectedWallIds.includes(wall.id) && !dragStartPos.current && centerLength < 30) return null
 
@@ -649,16 +663,18 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         const targetName = e.target.name() || ""
         const isRoom = targetName.startsWith("room-")
 
-        if (isRightClick || isMiddleClick || (activeTool === "select" && (isBackground || isRoom))) {
+        if (isRightClick || isMiddleClick || isBackground) {
             if (isBackground) {
                 onSelectWall(null)
                 onSelectRoom(null)
                 onSelectElement(null)
             }
-            isPanning.current = true
-            setIsPanningState(true)
-            lastPointerPos.current = stage.getPointerPosition()
-            return
+            if (isRightClick || isMiddleClick || activeTool === "select") {
+                isPanning.current = true
+                setIsPanningState(true)
+                lastPointerPos.current = stage.getPointerPosition()
+                return
+            }
         }
 
         // Solo dibujar con click izquierdo y herramienta correcta que inicie acción al pulsar
@@ -809,14 +825,14 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         stroke={selectedRoomId === room.id ? room.color : "transparent"}
                                         strokeWidth={2}
                                         closed={true}
-                                        onClick={() => onSelectRoom(room.id)}
-                                        onTap={() => onSelectRoom(room.id)}
+                                        onClick={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
+                                        onTap={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
                                     />
                                     <Group
                                         name="room-label"
                                         x={labelPos.x} y={labelPos.y}
-                                        onClick={() => onSelectRoom(room.id)}
-                                        onTap={() => onSelectRoom(room.id)}
+                                        onClick={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
+                                        onTap={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
                                     >
                                         <Text
                                             name="room-label-text"
@@ -853,13 +869,15 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                 <Group key={wall.id}>
                                     <Line
                                         points={[wall.start.x, wall.start.y, wall.end.x, wall.end.y]}
-                                        stroke={isHovered && !isSelected ? "#ef4444" : "#334155"}
-                                        strokeWidth={wall.thickness}
+                                        stroke={wall.isInvisible ? "#0ea5e9" : (isHovered && !isSelected ? "#ef4444" : "#334155")}
+                                        strokeWidth={wall.isInvisible ? (isSelected ? 4 : 2) : wall.thickness}
+                                        dash={wall.isInvisible ? [5, 5] : undefined}
                                         hitStrokeWidth={30}
                                         lineCap="round"
                                         lineJoin="round"
                                         draggable={activeTool === "select"}
                                         onClick={(e) => {
+                                            e.cancelBubble = true
                                             if (activeTool === "select") {
                                                 onSelectWall(wall.id, e.evt.ctrlKey)
                                                 // @ts-ignore
@@ -914,7 +932,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         }}
                                     />
                                     {/* Trimmed Selection Highlight (HomeByMe Style) */}
-                                    {isSelected && (() => {
+                                    {isSelected && !wall.isInvisible && (() => {
                                         const midX = (wall.start.x + wall.end.x) / 2
                                         const midY = (wall.start.y + wall.end.y) / 2
                                         const dx = wall.end.x - wall.start.x
@@ -1027,7 +1045,8 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                     x={pos.x} y={pos.y}
                                     rotation={wallAngle}
                                     draggable={activeTool === "select"}
-                                    onClick={() => onSelectElement({ type: "door", id: door.id })}
+                                    onClick={(e) => { e.cancelBubble = true; onSelectElement({ type: "door", id: door.id }) }}
+                                    onTap={(e) => { e.cancelBubble = true; onSelectElement({ type: "door", id: door.id }) }}
                                     onDragMove={(e) => {
                                         const stage = e.target.getStage()
                                         if (!stage) return
@@ -1120,7 +1139,8 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                     x={pos.x} y={pos.y}
                                     rotation={wallAngle}
                                     draggable={activeTool === "select"}
-                                    onClick={() => onSelectElement({ type: "window", id: window.id })}
+                                    onClick={(e) => { e.cancelBubble = true; onSelectElement({ type: "window", id: window.id }) }}
+                                    onTap={(e) => { e.cancelBubble = true; onSelectElement({ type: "window", id: window.id }) }}
                                     onDragMove={(e) => {
                                         const stage = e.target.getStage()
                                         if (!stage) return
@@ -1381,24 +1401,24 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                         {/* 1. Tiradores de selección de muros */}
                         {/* 1. Tiradores de selección de muros (Agrupados y con mejor hit-area) */}
                         {(() => {
-                            const uniqueVertices = new Map<string, { point: Point, connectedWalls: Wall[] }>();
+                            const uniqueVertices = new Map<string, { point: Point, connections: { wallId: string, type: 's' | 'e' }[] }>();
 
                             walls.forEach(w => {
-                                [w.start, w.end].forEach(p => {
+                                [{ p: w.start, type: 's' as const }, { p: w.end, type: 'e' as const }].forEach(({ p, type }) => {
                                     const key = `${Math.round(p.x)},${Math.round(p.y)}`;
                                     if (!uniqueVertices.has(key)) {
-                                        uniqueVertices.set(key, { point: p, connectedWalls: [] });
+                                        uniqueVertices.set(key, { point: p, connections: [] });
                                     }
-                                    uniqueVertices.get(key)!.connectedWalls.push(w);
+                                    uniqueVertices.get(key)!.connections.push({ wallId: w.id, type });
                                 });
                             });
 
-                            return Array.from(uniqueVertices.values()).filter(({ connectedWalls }) => {
-                                return connectedWalls.some(w => selectedWallIds.includes(w.id) || w.id === hoveredWallId);
-                            }).map(({ point, connectedWalls }, idx) => {
-                                const isSelected = connectedWalls.some(w => selectedWallIds.includes(w.id));
-                                // Stable key based on vertex coordinate (rounded to prevent minor float drift)
-                                const vertexKey = `v-${Math.round(point.x)}-${Math.round(point.y)}`;
+                            return Array.from(uniqueVertices.values()).filter(({ connections }) => {
+                                return connections.some(c => selectedWallIds.includes(c.wallId) || c.wallId === hoveredWallId);
+                            }).map(({ point, connections }, idx) => {
+                                const isSelected = connections.some(c => selectedWallIds.includes(c.wallId));
+                                // Generate a stable and unique key using sorted connections
+                                const vertexKey = `v-${connections.map(c => `${c.wallId}-${c.type}`).sort().join('-')}`;
 
                                 return (
                                     <Circle
@@ -1418,17 +1438,17 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
                                             // Si no hay selección, movemos todos los tabiques conectados.
                                             // Si hay selección, solo los tabiques seleccionados que compartan este vértice.
-                                            const movingWalls = selectedWallIds.length > 0
-                                                ? connectedWalls.filter(w => selectedWallIds.includes(w.id))
-                                                : connectedWalls;
+                                            const movingIds = selectedWallIds.length > 0
+                                                ? connections.map(c => c.wallId).filter(id => selectedWallIds.includes(id))
+                                                : connections.map(c => c.wallId);
 
-                                            draggingVertexWallIds.current = movingWalls.map(w => w.id);
+                                            draggingVertexWallIds.current = movingIds;
                                         }}
                                         onDragMove={(e) => {
                                             const stage = e.target.getStage();
                                             if (!stage || !dragStartPos.current || !wallSnapshot) return;
 
-                                            const pos = getRelativePointerPosition(stage);
+                                            const pos = getRawPointerPosition(stage);
                                             const totalDelta = {
                                                 x: pos.x - dragStartPos.current.x,
                                                 y: pos.y - dragStartPos.current.y
@@ -1579,10 +1599,18 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                             {editMode === "menu" ? (
                                 <>
                                     {selectedWall && (
-                                        <MenuButton
-                                            icon={<Scissors className="h-3.5 w-3.5" />}
-                                            onClick={() => onSplitWall?.(selectedWall.id)}
-                                        />
+                                        <>
+                                            <MenuButton
+                                                icon={<Scissors className="h-3.5 w-3.5" />}
+                                                onClick={() => onSplitWall?.(selectedWall.id)}
+                                                title="Dividir tabique"
+                                            />
+                                            <MenuButton
+                                                icon={<SquareDashed className={`h-3.5 w-3.5 ${selectedWall.isInvisible ? 'text-sky-500 fill-sky-50' : ''}`} />}
+                                                onClick={() => onUpdateWallInvisible(selectedWall.id, !selectedWall.isInvisible)}
+                                                title="Separador de estancias"
+                                            />
+                                        </>
                                     )}
                                     {selectedElement && (
                                         <>
@@ -1613,6 +1641,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                     <MenuButton
                                         icon={<Pencil className="h-3.5 w-3.5" />}
                                         onClick={() => setEditMode(selectedWall ? "thickness" : selectedElement ? "length" : "room")}
+                                        title="Editar"
                                     />
                                     <div className="w-px h-4 bg-slate-100 mx-0.5" />
                                     {(selectedWall || selectedElement) && (
@@ -1623,6 +1652,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                                 else if (selectedElement) onDeleteElement(selectedElement.type, selectedElement.id)
                                             }}
                                             variant="danger"
+                                            title="Eliminar"
                                         />
                                     )}
                                     <div className="w-px h-4 bg-slate-100 mx-0.5" />
@@ -1638,39 +1668,89 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         <X className="h-3 w-3" />
                                     </button>
                                 </>
-                            ) : editMode === "room" ? (
-                                <div className="flex flex-col gap-2 p-2 min-w-[150px]">
+                            ) : editMode === "room" || editMode === "room-custom" ? (
+                                <div className="flex flex-col gap-2 p-2 min-w-[180px]">
                                     <div className="flex items-center justify-between mb-1">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Tipo de Habitación</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase">{editMode === "room-custom" ? "Nombre Personalizado" : "Tipo de Habitación"}</span>
                                         <button onClick={() => setEditMode("menu")} className="text-slate-400 hover:text-slate-600">
                                             <X className="h-3 w-3" />
                                         </button>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-1">
-                                        {roomTypes.map(type => (
-                                            <button
-                                                key={type}
-                                                onClick={() => {
-                                                    if (selectedRoomId) {
-                                                        const currentMatch = selectedRoom?.name.match(/\d+$/)
-                                                        const roomNumber = currentMatch ? currentMatch[0] : (rooms.indexOf(selectedRoom!) + 1)
-                                                        onUpdateRoom(selectedRoomId, { name: `${type} ${roomNumber}` })
+
+                                    {editMode === "room" ? (
+                                        <div className="grid grid-cols-2 gap-1">
+                                            {roomTypes.map(type => (
+                                                <button
+                                                    key={type}
+                                                    onClick={() => {
+                                                        if (selectedRoomId) {
+                                                            if (type === "Otro") {
+                                                                setEditMode("room-custom")
+                                                                setEditLength("") // Usamos editLength para el nombre personalizado
+                                                                return
+                                                            }
+                                                            const currentMatch = selectedRoom?.name.match(/\d+$/)
+                                                            const roomNumber = currentMatch ? currentMatch[0] : (rooms.indexOf(selectedRoom!) + 1)
+                                                            onUpdateRoom(selectedRoomId, { name: `${type} ${roomNumber}` })
+                                                            setEditMode(null)
+                                                            onSelectRoom(null)
+                                                        }
+                                                    }}
+                                                    className="text-[11px] px-2 py-1.5 bg-slate-50 hover:bg-sky-50 hover:text-sky-600 rounded-md text-left transition-colors"
+                                                >
+                                                    {type}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col gap-2">
+                                            <input
+                                                type="text"
+                                                autoFocus
+                                                value={editLength}
+                                                placeholder="Ej: Despensa..."
+                                                onChange={(e) => setEditLength(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && selectedRoomId) {
+                                                        onUpdateRoom(selectedRoomId, { name: editLength })
                                                         setEditMode(null)
                                                         onSelectRoom(null)
                                                     }
+                                                    if (e.key === 'Escape') setEditMode("room")
                                                 }}
-                                                className="text-[11px] px-2 py-1.5 bg-slate-50 hover:bg-sky-50 hover:text-sky-600 rounded-md text-left transition-colors"
-                                            >
-                                                {type}
-                                            </button>
-                                        ))}
+                                                className="w-full p-2 border-2 border-slate-200 rounded-lg text-sm font-semibold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
+                                            />
+                                            <div className="flex gap-1 justify-end">
+                                                <button
+                                                    onClick={() => setEditMode("room")}
+                                                    className="text-[10px] px-2 py-1 text-slate-400 hover:text-slate-600"
+                                                >
+                                                    Cancelar
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        if (selectedRoomId) {
+                                                            onUpdateRoom(selectedRoomId, { name: editLength })
+                                                            setEditMode(null)
+                                                            onSelectRoom(null)
+                                                        }
+                                                    }}
+                                                    className="text-[10px] bg-sky-500 text-white px-2 py-1 rounded-md font-bold"
+                                                >
+                                                    Guardar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {editMode === "room" && (
                                         <button
                                             onClick={() => setEditMode("menu")}
-                                            className="text-[11px] font-medium text-sky-600 hover:text-sky-700 underline"
+                                            className="mt-1 text-[11px] font-medium text-sky-600 hover:text-sky-700 underline text-center"
                                         >
                                             Volver al menú
                                         </button>
-                                    </div>
+                                    )}
                                 </div>
                             ) : editMode === "thickness" ? (
                                 <div className="flex items-center gap-3 px-3 py-1.5">
