@@ -59,7 +59,7 @@ interface CanvasEngineProps {
     onHoverWall: (id: string | null) => void
     onSelectWall: (id: string | null, isMultiSelect?: boolean) => void
     onDragWall: (id: string, delta: { x: number; y: number }) => void
-    onDragVertex: (originalPoint: Point, delta: Point) => void
+    onDragVertex: (originalPoint: Point, delta: Point, activeIds?: string[]) => void
     onDragEnd: () => void
     onUpdateWallLength: (id: string, length: number, side: "left" | "right") => void
     onDeleteWall: (id: string) => void
@@ -159,6 +159,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     const dragStartPos = React.useRef<Point | null>(null)
     const lastPointerPos = React.useRef<Point | null>(null) // Para el panning
     const isPanning = React.useRef(false)
+    const draggingVertexWallIds = React.useRef<string[]>([])
     const [isPanningState, setIsPanningState] = React.useState(false)
     const [menuDragOffset, setMenuDragOffset] = React.useState<Point>({ x: 0, y: 0 })
     const [isDraggingMenuState, setIsDraggingMenuState] = React.useState(false) // State version for Effect
@@ -1396,10 +1397,12 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                 return connectedWalls.some(w => selectedWallIds.includes(w.id) || w.id === hoveredWallId);
                             }).map(({ point, connectedWalls }, idx) => {
                                 const isSelected = connectedWalls.some(w => selectedWallIds.includes(w.id));
+                                // Stable key based on vertex coordinate (rounded to prevent minor float drift)
+                                const vertexKey = `v-${Math.round(point.x)}-${Math.round(point.y)}`;
 
                                 return (
                                     <Circle
-                                        key={`v-handle-${idx}`}
+                                        key={vertexKey}
                                         x={point.x}
                                         y={point.y}
                                         radius={(isSelected ? 10 : 7) / zoom}
@@ -1412,6 +1415,9 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                             e.cancelBubble = true;
                                             onStartDragWall();
                                             dragStartPos.current = { ...point };
+                                            draggingVertexWallIds.current = connectedWalls
+                                                .filter(w => selectedWallIds.includes(w.id) || w.id === hoveredWallId)
+                                                .map(w => w.id);
                                         }}
                                         onDragMove={(e) => {
                                             const stage = e.target.getStage();
@@ -1424,10 +1430,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                             };
 
                                             if (totalDelta.x !== 0 || totalDelta.y !== 0) {
-                                                const movingWallIds = connectedWalls
-                                                    .filter(w => selectedWallIds.includes(w.id) || w.id === hoveredWallId)
-                                                    .map(w => w.id);
-                                                onDragVertex(point, totalDelta, movingWallIds);
+                                                onDragVertex(dragStartPos.current, totalDelta, draggingVertexWallIds.current);
                                             }
                                             e.target.position({ x: 0, y: 0 });
                                         }}

@@ -368,12 +368,19 @@ export const EditorContainer = forwardRef((props, ref) => {
         setWalls(prevWalls => {
             if (!wallSnapshot) return prevWalls
 
-            let workingWalls = JSON.parse(JSON.stringify(wallSnapshot)) as Wall[]
             const TOL = 5.0
             const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
-
             const idsToMove = activeIds || (selectedWallIds.length > 0 ? selectedWallIds : (hoveredWallId ? [hoveredWallId] : []))
 
+            // 1. Shallow copy walls (only clone the ones that move)
+            let workingWalls = wallSnapshot.map(w => {
+                if (!idsToMove.includes(w.id)) return w
+                return { ...w, start: { ...w.start }, end: { ...w.end } }
+            })
+
+            const idsToMoveSet = new Set(idsToMove)
+
+            // 2. Identify vertex in snapshot
             let tx = originalPoint.x + totalDelta.x
             let ty = originalPoint.y + totalDelta.y
 
@@ -408,9 +415,9 @@ export const EditorContainer = forwardRef((props, ref) => {
                 }
             }
 
-            // Aplicar movimiento solo a los tabiques indicados
+            // Aplicar movimiento
             workingWalls.forEach(w => {
-                if (!idsToMove.includes(w.id)) return
+                if (!idsToMoveSet.has(w.id)) return
                 if (isSame(w.start, originalPoint)) {
                     w.start.x = tx; w.start.y = ty
                 }
