@@ -1424,7 +1424,10 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                             };
 
                                             if (totalDelta.x !== 0 || totalDelta.y !== 0) {
-                                                onDragVertex(point, totalDelta);
+                                                const movingWallIds = connectedWalls
+                                                    .filter(w => selectedWallIds.includes(w.id) || w.id === hoveredWallId)
+                                                    .map(w => w.id);
+                                                onDragVertex(point, totalDelta, movingWallIds);
                                             }
                                             e.target.position({ x: 0, y: 0 });
                                         }}

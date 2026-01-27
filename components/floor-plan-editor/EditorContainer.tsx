@@ -364,33 +364,58 @@ export const EditorContainer = forwardRef((props, ref) => {
         })
     }
 
-    const handleDragVertex = (originalPoint: Point, totalDelta: Point) => {
+    const handleDragVertex = (originalPoint: Point, totalDelta: Point, activeIds?: string[]) => {
         setWalls(prevWalls => {
             if (!wallSnapshot) return prevWalls
 
             let workingWalls = JSON.parse(JSON.stringify(wallSnapshot)) as Wall[]
-            const movedNodes = new Set<string>()
-
             const TOL = 5.0
             const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
 
-            workingWalls.forEach(w => {
-                const isH = Math.abs(w.start.y - w.end.y) < 2
-                const isV = Math.abs(w.start.x - w.end.x) < 2
+            const idsToMove = activeIds || (selectedWallIds.length > 0 ? selectedWallIds : (hoveredWallId ? [hoveredWallId] : []))
 
+            let tx = originalPoint.x + totalDelta.x
+            let ty = originalPoint.y + totalDelta.y
+
+            // --- Snapping ---
+            const SNAP_THRESHOLD = 15 // 15cm
+            let snapped = false
+
+            // 1. Snapping a otros vértices
+            if (snappingEnabled) {
+                for (const w of wallSnapshot) {
+                    for (const p of [w.start, w.end]) {
+                        if (isSame(p, originalPoint)) continue
+                        const d = Math.sqrt(Math.pow(p.x - tx, 2) + Math.pow(p.y - ty, 2))
+                        if (d < SNAP_THRESHOLD) {
+                            tx = p.x; ty = p.y
+                            snapped = true
+                            break
+                        }
+                    }
+                    if (snapped) break
+                }
+
+                // 2. Snapping Ortogonal (si no hay snap a vértice)
+                if (!snapped) {
+                    idsToMove.forEach(id => {
+                        const w = wallSnapshot.find(sw => sw.id === id)
+                        if (!w) return
+                        const fixedP = isSame(w.start, originalPoint) ? w.end : w.start
+                        if (Math.abs(tx - fixedP.x) < SNAP_THRESHOLD) tx = fixedP.x
+                        if (Math.abs(ty - fixedP.y) < SNAP_THRESHOLD) ty = fixedP.y
+                    })
+                }
+            }
+
+            // Aplicar movimiento solo a los tabiques indicados
+            workingWalls.forEach(w => {
+                if (!idsToMove.includes(w.id)) return
                 if (isSame(w.start, originalPoint)) {
-                    w.start.x += totalDelta.x
-                    w.start.y += totalDelta.y
-                    // Propagación rígida para mantener ortogonalidad
-                    if (isV) w.end.x += totalDelta.x
-                    if (isH) w.end.y += totalDelta.y
+                    w.start.x = tx; w.start.y = ty
                 }
                 if (isSame(w.end, originalPoint)) {
-                    w.end.x += totalDelta.x
-                    w.end.y += totalDelta.y
-                    // Propagación rígida para mantener ortogonalidad
-                    if (isV) w.start.x += totalDelta.x
-                    if (isH) w.start.y += totalDelta.y
+                    w.end.x = tx; w.end.y = ty
                 }
             })
 
