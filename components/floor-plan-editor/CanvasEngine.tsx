@@ -1078,6 +1078,22 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         fill={isSelected ? "#0ea5e920" : "transparent"}
                                     />
 
+                                    {/* Etiqueta de Dimensiones (Ancho) */}
+                                    {isSelected && (
+                                        <Group x={0} y={0} rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
+                                            <Text
+                                                text={`${door.width} cm`}
+                                                fontSize={7}
+                                                fill="#475569"
+                                                align="center"
+                                                width={door.width}
+                                                offsetX={door.width / 2}
+                                                offsetY={-2}
+                                                fontStyle="bold"
+                                            />
+                                        </Group>
+                                    )}
+
                                     {/* Distancias dinámicas alineadas con el muro (Estilo HomeByMe) */}
                                     {isSelected && (
                                         <Group rotation={0}>
