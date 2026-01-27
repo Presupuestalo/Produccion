@@ -368,52 +368,70 @@ export const EditorContainer = forwardRef((props, ref) => {
         setWalls(prevWalls => {
             if (!wallSnapshot) return prevWalls
 
-            const TOL = 5.0
+            const TOL = 1.0 // Use much tighter tolerance for identifying the vertex in snapshot
             const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
             const idsToMove = activeIds || (selectedWallIds.length > 0 ? selectedWallIds : (hoveredWallId ? [hoveredWallId] : []))
 
+            const idsToMoveSet = new Set(idsToMove)
+
             // 1. Shallow copy walls (only clone the ones that move)
             let workingWalls = wallSnapshot.map(w => {
-                if (!idsToMove.includes(w.id)) return w
+                if (!idsToMoveSet.has(w.id)) return w
                 return { ...w, start: { ...w.start }, end: { ...w.end } }
             })
 
-            const idsToMoveSet = new Set(idsToMove)
-
-            // 2. Identify vertex in snapshot
+            // 2. Target position (raw float)
             let tx = originalPoint.x + totalDelta.x
             let ty = originalPoint.y + totalDelta.y
 
             // --- Snapping ---
             const SNAP_THRESHOLD = 15 // 15cm
-            let snapped = false
 
-            // 1. Snapping a otros vértices
             if (snappingEnabled) {
+                // 1. Snapping a otros vértices (prioridad alta)
+                let vertexSnapped = false
                 for (const w of wallSnapshot) {
                     for (const p of [w.start, w.end]) {
+                        // Saltar el mismo vértice que estamos moviendo
                         if (isSame(p, originalPoint)) continue
                         const d = Math.sqrt(Math.pow(p.x - tx, 2) + Math.pow(p.y - ty, 2))
                         if (d < SNAP_THRESHOLD) {
                             tx = p.x; ty = p.y
-                            snapped = true
+                            vertexSnapped = true
                             break
                         }
                     }
-                    if (snapped) break
+                    if (vertexSnapped) break
                 }
 
-                // 2. Snapping Ortogonal (si no hay snap a vértice)
-                if (!snapped) {
-                    idsToMove.forEach(id => {
+                // 2. Snapping Ortogonal
+                if (!vertexSnapped) {
+                    for (const id of idsToMove) {
                         const w = wallSnapshot.find(sw => sw.id === id)
-                        if (!w) return
+                        if (!w) continue
                         const fixedP = isSame(w.start, originalPoint) ? w.end : w.start
-                        if (Math.abs(tx - fixedP.x) < SNAP_THRESHOLD) tx = fixedP.x
-                        if (Math.abs(ty - fixedP.y) < SNAP_THRESHOLD) ty = fixedP.y
-                    })
+
+                        let snappedX = false
+                        let snappedY = false
+
+                        if (Math.abs(tx - fixedP.x) < SNAP_THRESHOLD) {
+                            tx = fixedP.x
+                            snappedX = true
+                        }
+                        if (Math.abs(ty - fixedP.y) < SNAP_THRESHOLD) {
+                            ty = fixedP.y
+                            snappedY = true
+                        }
+
+                        // Si hemos hecho snap a los ejes de un tabique relevante, paramos de buscar
+                        if (snappedX || snappedY) break
+                    }
                 }
             }
+
+            // 3. Final quantization (Data integrity)
+            tx = Math.round(tx)
+            ty = Math.round(ty)
 
             // Aplicar movimiento
             workingWalls.forEach(w => {

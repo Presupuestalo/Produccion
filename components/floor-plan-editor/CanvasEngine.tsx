@@ -1415,9 +1415,14 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                             e.cancelBubble = true;
                                             onStartDragWall();
                                             dragStartPos.current = { ...point };
-                                            draggingVertexWallIds.current = connectedWalls
-                                                .filter(w => selectedWallIds.includes(w.id) || w.id === hoveredWallId)
-                                                .map(w => w.id);
+
+                                            // Si no hay selección, movemos todos los tabiques conectados.
+                                            // Si hay selección, solo los tabiques seleccionados que compartan este vértice.
+                                            const movingWalls = selectedWallIds.length > 0
+                                                ? connectedWalls.filter(w => selectedWallIds.includes(w.id))
+                                                : connectedWalls;
+
+                                            draggingVertexWallIds.current = movingWalls.map(w => w.id);
                                         }}
                                         onDragMove={(e) => {
                                             const stage = e.target.getStage();
@@ -1425,11 +1430,11 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
                                             const pos = getRelativePointerPosition(stage);
                                             const totalDelta = {
-                                                x: Math.round(pos.x - dragStartPos.current.x),
-                                                y: Math.round(pos.y - dragStartPos.current.y)
+                                                x: pos.x - dragStartPos.current.x,
+                                                y: pos.y - dragStartPos.current.y
                                             };
 
-                                            if (totalDelta.x !== 0 || totalDelta.y !== 0) {
+                                            if (Math.abs(totalDelta.x) > 0.01 || Math.abs(totalDelta.y) > 0.01) {
                                                 onDragVertex(dragStartPos.current, totalDelta, draggingVertexWallIds.current);
                                             }
                                             e.target.position({ x: 0, y: 0 });
