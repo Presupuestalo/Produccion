@@ -162,6 +162,12 @@ export function DashboardSidebar() {
         icon: FileText,
         comingSoon: false,
       },
+      {
+        name: "Editor 2D",
+        href: "/dashboard/editor-planos",
+        icon: Sparkles, // Or any appropriate icon like Layout, PenTool, etc.
+        comingSoon: false,
+      },
     ]
 
     if (userType === "homeowner" || userType === "propietario") {

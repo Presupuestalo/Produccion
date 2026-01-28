@@ -1,9 +1,9 @@
 "use client"
 import React from "react"
-import { Stage, Layer, Group, Line, Rect, Text, Circle, Arc, Arrow } from "react-konva"
+import { Stage, Layer, Group, Line, Rect, Text, Circle, Arc as KonvaArc, Arrow } from "react-konva"
 import { Grid } from "./Grid"
-import { getClosestPointOnSegment } from "@/lib/utils/geometry"
-import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical, SquareDashed } from "lucide-react"
+import { getClosestPointOnSegment, generateArcPoints } from "@/lib/utils/geometry"
+import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical, SquareDashed, Spline } from "lucide-react"
 
 interface Point { x: number; y: number }
 interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean }
@@ -87,8 +87,16 @@ interface CanvasEngineProps {
     calibrationPoints?: { p1: Point, p2: Point }
     calibrationTargetValue?: number
     onUpdateCalibrationPoint?: (id: "p1" | "p2", point: Point) => void
+    phantomArc?: { start: Point, end: Point, depth: number }
     snappingEnabled?: boolean
     rulerPoints?: { start: Point, end: Point } | null
+    onReady?: (api: CanvasEngineRef) => void
+    gridRotation?: number
+    onRotateGrid?: (angle: number) => void
+}
+
+export interface CanvasEngineRef {
+    getSnapshot: () => string
 }
 
 export const CanvasEngine: React.FC<CanvasEngineProps> = ({
@@ -137,12 +145,143 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     calibrationPoints,
     calibrationTargetValue,
     onUpdateCalibrationPoint,
+    phantomArc,
     snappingEnabled = true,
-    rulerPoints
+    rulerPoints,
+    onReady,
+    gridRotation = 0,
+    onRotateGrid
 }) => {
     const stageRef = React.useRef<any>(null)
+    const gridRef = React.useRef<any>(null)
     const [image, setImage] = React.useState<HTMLImageElement | null>(null)
     const isSamePoint = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < 5.0
+
+    // Calculate the geometric center of all floor plan content
+    const calculateFloorPlanCenter = React.useCallback(() => {
+        if (walls.length === 0 && rooms.length === 0) {
+            return { x: 0, y: 0 }
+        }
+
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+
+        walls.forEach(w => {
+            minX = Math.min(minX, w.start.x, w.end.x)
+            minY = Math.min(minY, w.start.y, w.end.y)
+            maxX = Math.max(maxX, w.start.x, w.end.x)
+            maxY = Math.max(maxY, w.start.y, w.end.y)
+        })
+
+        rooms.forEach(r => {
+            r.polygon.forEach(p => {
+                minX = Math.min(minX, p.x)
+                minY = Math.min(minY, p.y)
+                maxX = Math.max(maxX, p.x)
+                maxY = Math.max(maxY, p.y)
+            })
+        })
+
+        return {
+            x: (minX + maxX) / 2,
+            y: (minY + maxY) / 2
+        }
+    }, [walls, rooms])
+
+    const floorPlanCenter = calculateFloorPlanCenter()
+
+    const getSnapshot = React.useCallback(() => {
+        console.log("DEBUG: getSnapshot called")
+        const stage = stageRef.current
+        if (!stage) {
+            console.log("DEBUG: Stage ref missing")
+            return ""
+        }
+
+        // 1. Calculate Logical Bounds of content (Walls & Rooms)
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+        let hasContent = false
+
+        walls.forEach(w => {
+            hasContent = true
+            minX = Math.min(minX, w.start.x, w.end.x)
+            minY = Math.min(minY, w.start.y, w.end.y)
+            maxX = Math.max(maxX, w.start.x, w.end.x)
+            maxY = Math.max(maxY, w.start.y, w.end.y)
+        })
+
+        rooms.forEach(r => {
+            r.polygon.forEach(p => {
+                hasContent = true
+                minX = Math.min(minX, p.x)
+                minY = Math.min(minY, p.y)
+                maxX = Math.max(maxX, p.x)
+                maxY = Math.max(maxY, p.y)
+            })
+        })
+
+        console.log(`DEBUG: hasContent=${hasContent}, Bounds: ${minX},${minY} - ${maxX},${maxY}`)
+
+        if (!hasContent) {
+            return stage.toDataURL({ mimeType: "image/png" })
+        }
+
+        // Add padding (e.g. 50cm around)
+        const PADDING = 50
+        minX -= PADDING
+        minY -= PADDING
+        maxX += PADDING
+        maxY += PADDING
+
+        const logicalWidth = maxX - minX
+        const logicalHeight = maxY - minY
+
+        // 2. Convert to Screen Coordinates (using current zoom/offset)
+        const screenX = minX * zoom + offset.x
+        const screenY = minY * zoom + offset.y
+        const screenWidth = logicalWidth * zoom
+        const screenHeight = logicalHeight * zoom
+
+        // --- SNAPSHOT PREPARATION ---
+        const container = stage.container()
+        const originalBg = container.style.backgroundColor
+        const wasGridVisible = gridRef.current?.visible()
+
+        // A. Set white background on container (more reliable than Rect)
+        container.style.backgroundColor = 'white'
+
+        // B. Hide Grid
+        if (gridRef.current) gridRef.current.visible(false)
+
+        // FORCE SYNCHRONOUS DRAW to apply changes before data extraction
+        stage.batchDraw()
+
+        // 3. Export specific area
+        const dataUrl = stage.toDataURL({
+            x: screenX,
+            y: screenY,
+            width: screenWidth,
+            height: screenHeight,
+            pixelRatio: 2,
+            mimeType: "image/png"
+        })
+        console.log(`DEBUG: Snapshot generated, len=${dataUrl?.length}`)
+
+        // --- RESTORE STATE ---
+        container.style.backgroundColor = originalBg
+        if (gridRef.current && wasGridVisible !== undefined) gridRef.current.visible(wasGridVisible)
+        stage.batchDraw()
+
+        return dataUrl
+    }, [walls, rooms, zoom, offset])
+
+    React.useEffect(() => {
+        if (onReady) {
+            console.log("DEBUG: Calling onReady with getSnapshot")
+            onReady({ getSnapshot })
+        } else {
+            console.log("DEBUG: onReady prop missing in CanvasEngine")
+        }
+    }, [onReady, getSnapshot])
 
     React.useEffect(() => {
         if (bgImage) {
@@ -170,6 +309,30 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     React.useEffect(() => {
         wallsRef.current = walls
     }, [walls])
+
+    // Keyboard shortcuts for grid rotation
+    React.useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!onRotateGrid) return
+
+            // Check if user is typing in an input/textarea
+            const target = e.target as HTMLElement
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+
+            if (e.key === '[') {
+                // Rotate counter-clockwise
+                e.preventDefault()
+                onRotateGrid(gridRotation - 15)
+            } else if (e.key === ']') {
+                // Rotate clockwise
+                e.preventDefault()
+                onRotateGrid(gridRotation + 15)
+            }
+        }
+
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [onRotateGrid, gridRotation])
 
     // Global listeners for MANUAL VERTEX DRAGGING (Fixes ghosting)
     React.useEffect(() => {
@@ -860,7 +1023,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
             onSelectElement(null)
         }
 
-        if (activeTool !== "wall" && activeTool !== "door" && activeTool !== "window" && activeTool !== "ruler") return
+        if (activeTool !== "wall" && activeTool !== "door" && activeTool !== "window" && activeTool !== "ruler" && activeTool !== "arc") return
 
         const pos = getRelativePointerPosition(stage)
         onMouseDown(pos)
@@ -881,7 +1044,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
         const pos = getRelativePointerPosition(stage)
         setMousePos(pos)
-        if ((activeTool === "wall" && currentWall) || (activeTool === "ruler")) {
+        if ((activeTool === "wall" && currentWall) || (activeTool === "ruler") || (activeTool === "arc")) {
             onMouseMove(pos)
         }
     }
@@ -940,6 +1103,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     return (
         <div className="w-full h-full bg-slate-50 overflow-hidden">
             <Stage
+                ref={stageRef}
                 width={width}
                 height={height}
                 scaleX={1}
@@ -951,17 +1115,26 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                 onMouseUp={handleStageMouseUp}
                 onMouseLeave={handleMouseLeave}
                 onContextMenu={(e: any) => e.evt.preventDefault()}
-                style={{ cursor: isPanningState ? 'grabbing' : activeTool === "wall" ? 'crosshair' : 'default' }}
+                style={{ cursor: isPanningState ? 'grabbing' : (activeTool === "wall" || activeTool === "arc" || activeTool === "ruler") ? 'crosshair' : 'default' }}
             >
                 <Layer>
-                    <Grid
-                        width={width}
-                        height={height}
-                        cellSize={cellSize}
-                        zoom={zoom}
-                        offsetX={offset.x}
-                        offsetY={offset.y}
-                    />
+                    <Group
+                        ref={gridRef}
+                        x={floorPlanCenter.x * zoom + offset.x}
+                        y={floorPlanCenter.y * zoom + offset.y}
+                        offsetX={floorPlanCenter.x * zoom + offset.x}
+                        offsetY={floorPlanCenter.y * zoom + offset.y}
+                        rotation={gridRotation}
+                    >
+                        <Grid
+                            width={width}
+                            height={height}
+                            cellSize={cellSize}
+                            zoom={zoom}
+                            offsetX={offset.x}
+                            offsetY={offset.y}
+                        />
+                    </Group>
                     <Group x={offset.x} y={offset.y} scaleX={zoom} scaleY={zoom}>
                         {/* Imagen de fondo / Plantilla */}
                         {image && bgConfig && (
@@ -1238,7 +1411,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         strokeWidth={isSelected ? 2 : 1}
                                     />
 
-                                    <Arc
+                                    <KonvaArc
                                         x={door.flipX ? -door.width / 2 : door.width / 2}
                                         y={door.flipY ? (wall.thickness + 4) / 2 : -(wall.thickness + 4) / 2}
                                         innerRadius={0}
@@ -1745,6 +1918,147 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                             </Group>
                         )}
                     </Group>
+                    {/* Phantom Arc Guide */}
+                    {/* RENDERIZAR ARCO FANTASMA (PHANTOM ARC) */}
+                    {phantomArc && (() => {
+                        const points = generateArcPoints(phantomArc.start, phantomArc.end, phantomArc.depth)
+                        const flatPoints: number[] = []
+                        points.forEach(p => flatPoints.push(p.x * zoom + offset.x, p.y * zoom + offset.y))
+
+                        // Visual style like Calibration Tool
+                        const handleRadius = 15 / zoom
+                        const lineWidth = 4 / zoom
+                        const color = "#fbbf24" // Calibration yellow/orange
+
+                        return (
+                            <Group>
+                                {/* The Arc Curve */}
+                                <Line
+                                    points={flatPoints}
+                                    stroke={color}
+                                    strokeWidth={lineWidth}
+                                    dash={[10, 5]}
+                                    opacity={0.8}
+                                />
+                                {/* The Chord (dashed line between start and end) */}
+                                <Line
+                                    points={[
+                                        phantomArc.start.x * zoom + offset.x, phantomArc.start.y * zoom + offset.y,
+                                        phantomArc.end.x * zoom + offset.x, phantomArc.end.y * zoom + offset.y
+                                    ]}
+                                    stroke={color}
+                                    strokeWidth={2 / zoom}
+                                    dash={[10, 5]}
+                                    opacity={0.5}
+                                />
+
+                                {/* Start Handle */}
+                                <Group
+                                    x={phantomArc.start.x * zoom + offset.x}
+                                    y={phantomArc.start.y * zoom + offset.y}
+                                >
+                                    <Circle
+                                        radius={handleRadius}
+                                        fill="white"
+                                        stroke={color}
+                                        strokeWidth={lineWidth}
+                                        shadowBlur={10 / zoom}
+                                        shadowOpacity={0.4}
+                                        shadowColor="rgba(0,0,0,0.5)"
+                                    />
+                                    <Line points={[-handleRadius * 1.5, 0, handleRadius * 1.5, 0]} stroke={color} strokeWidth={2 / zoom} />
+                                    <Line points={[0, -handleRadius * 1.5, 0, handleRadius * 1.5]} stroke={color} strokeWidth={2 / zoom} />
+                                </Group>
+
+                                {/* End Handle (only if different from start) */}
+                                {(phantomArc.end.x !== phantomArc.start.x || phantomArc.end.y !== phantomArc.start.y) && (
+                                    <Group
+                                        x={phantomArc.end.x * zoom + offset.x}
+                                        y={phantomArc.end.y * zoom + offset.y}
+                                    >
+                                        <Circle
+                                            radius={handleRadius}
+                                            fill="white"
+                                            stroke={color}
+                                            strokeWidth={lineWidth}
+                                            shadowBlur={10 / zoom}
+                                            shadowOpacity={0.4}
+                                            shadowColor="rgba(0,0,0,0.5)"
+                                        />
+                                        <Line points={[-handleRadius * 1.5, 0, handleRadius * 1.5, 0]} stroke={color} strokeWidth={2 / zoom} />
+                                        <Line points={[0, -handleRadius * 1.5, 0, handleRadius * 1.5]} stroke={color} strokeWidth={2 / zoom} />
+                                    </Group>
+                                )}
+
+                                {/* Mid/Control Handle (at the peak of the arc) */}
+                                {(phantomArc.end.x !== phantomArc.start.x || phantomArc.end.y !== phantomArc.start.y) && (() => {
+                                    // Find midpoint of chord
+                                    const midX = (phantomArc.start.x + phantomArc.end.x) / 2
+                                    const midY = (phantomArc.start.y + phantomArc.end.y) / 2
+
+                                    // Direction vector
+                                    const dx = phantomArc.end.x - phantomArc.start.x
+                                    const dy = phantomArc.end.y - phantomArc.start.y
+                                    const len = Math.sqrt(dx * dx + dy * dy)
+
+                                    // Normal vector (normalized)
+                                    const nx = -dy / len
+                                    const ny = dx / len
+
+                                    // Peak point
+                                    const peakX = midX + nx * (phantomArc.depth || 0)
+                                    const peakY = midY + ny * (phantomArc.depth || 0)
+
+                                    return (
+                                        <Group
+                                            x={peakX * zoom + offset.x}
+                                            y={peakY * zoom + offset.y}
+                                        >
+                                            <Circle
+                                                radius={handleRadius * 0.8}
+                                                fill={color}
+                                                stroke="white"
+                                                strokeWidth={2 / zoom}
+                                                shadowBlur={10 / zoom}
+                                                shadowOpacity={0.4}
+                                                shadowColor="rgba(0,0,0,0.5)"
+                                            />
+                                            {/* Label for Step 3 */}
+                                            <Text
+                                                x={15 / zoom}
+                                                y={-10 / zoom}
+                                                text="3"
+                                                fontSize={14 / zoom}
+                                                fill={color}
+                                                fontStyle="bold"
+                                            />
+                                        </Group>
+                                    )
+                                })()}
+
+                                {/* Labels for Step 1 & 2 */}
+                                <Text
+                                    x={phantomArc.start.x * zoom + offset.x - 25 / zoom}
+                                    y={phantomArc.start.y * zoom + offset.y - 25 / zoom}
+                                    text="1"
+                                    fontSize={14 / zoom}
+                                    fill={color}
+                                    fontStyle="bold"
+                                />
+                                {(phantomArc.end.x !== phantomArc.start.x || phantomArc.end.y !== phantomArc.start.y) && (
+                                    <Text
+                                        x={phantomArc.end.x * zoom + offset.x + 10 / zoom}
+                                        y={phantomArc.end.y * zoom + offset.y - 25 / zoom}
+                                        text="2"
+                                        fontSize={14 / zoom}
+                                        fill={color}
+                                        fontStyle="bold"
+                                    />
+                                )}
+                            </Group>
+                        )
+                    })()}
+
                 </Layer>
             </Stage>
 
@@ -2189,3 +2503,5 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         </div >
     )
 }
+
+CanvasEngine.displayName = "CanvasEngine"

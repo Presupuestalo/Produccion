@@ -66,7 +66,7 @@ import {
 import { PaymentsSection } from "@/components/payments/payments-section"
 
 import { ChevronRight } from "lucide-react"
-
+import { FloorPlanDashboard } from "@/components/dashboard/floor-plan-dashboard"
 import { useUserProfile } from "@/hooks/use-user-profile"
 
 function InfoTooltip({ content }: { content: React.ReactNode }) {
@@ -204,6 +204,7 @@ export interface CalculatorHandle {
   handlePartitionsDetectedFromFloorPlan: (
     partitions: Array<{ location: string; length: number; type: "remove" | "add" }>,
   ) => void
+  handleApplyDiff: (diff: any) => void // Callback for dashboard
   setActiveTab: (tab: string) => void // Añadiendo método para cambiar el tab activo desde fuera
 }
 
@@ -1796,6 +1797,36 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     handleRoomsDetectedFromFloorPlan: (demolitionRooms, reformRooms) => {
       handleRoomsDetectedFromFloorPlan(demolitionRooms, reformRooms)
     },
+    handleApplyDiff: (diff: any) => {
+      // 1. Demolition
+      if (diff.demolition?.areaSqMeters > 0) {
+        const length = diff.demolition.areaSqMeters / (demolitionConfig.standardHeight || 2.5)
+        const id = crypto.randomUUID()
+        setDemolitionConfig((prev: any) => ({
+          ...prev,
+          wallDemolitions: [...(prev.wallDemolitions || []), {
+            id,
+            length: length,
+            thickness: 10,
+            wallHeight: demolitionConfig.standardHeight || 2.5,
+            description: "Demolición según plano"
+          }]
+        }))
+      }
+      // 2. Construction
+      if (diff.construction?.areaSqMeters > 0) {
+        const length = diff.construction.areaSqMeters / (reformConfig.standardHeight || 2.5)
+        setPartitions((prev: any[]) => [...prev, {
+          id: crypto.randomUUID(),
+          type: "placa_yeso",
+          linearMeters: length,
+          height: reformConfig.standardHeight || 2.5,
+          location: "Plano: Muros nuevos"
+        }])
+      }
+      toast({ title: "Cambios aplicados", description: "Partidas de demolición y tabiquería añadidas." })
+      setActiveTab("partitions")
+    },
     handlePartitionsDetectedFromFloorPlan: (detectedPartitions: any[]) => {
       // 1. Separar tabiques nuevos (add) de derribos (remove)
       const newPartitions = detectedPartitions.filter(p => !p.type || p.type === 'add')
@@ -1931,6 +1962,12 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                 Demolición
               </TabsTrigger>
               <TabsTrigger
+                value="floor-plans"
+                className="whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-orange-600 data-[state=active]:shadow-sm transition-all"
+              >
+                Planos 2D
+              </TabsTrigger>
+              <TabsTrigger
                 value="reform"
                 className="whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-orange-600 data-[state=active]:shadow-sm transition-all"
               >
@@ -1986,6 +2023,44 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               onClose={() => setDatabaseError({ show: false, instructions: "" })}
             />
           )}
+
+          <TabsContent value="floor-plans" className="mt-6">
+            <FloorPlanDashboard
+              projectId={projectId || ""}
+              onApplyChanges={(diff) => {
+                // We can access the handleApplyDiff logic we exposed via ref, OR just define it internally.
+                // Since we are inside the component, we can call internal state updates directly.
+                // 1. Demolition
+                if (diff.demolition?.areaSqMeters > 0) {
+                  const length = diff.demolition.areaSqMeters / (demolitionConfig.standardHeight || 2.5)
+                  const id = crypto.randomUUID()
+                  setDemolitionConfig((prev: any) => ({
+                    ...prev,
+                    wallDemolitions: [...(prev.wallDemolitions || []), {
+                      id,
+                      length: length,
+                      thickness: 10,
+                      wallHeight: demolitionConfig.standardHeight || 2.5,
+                      description: "Demolición según plano"
+                    }]
+                  }))
+                }
+                // 2. Construction
+                if (diff.construction?.areaSqMeters > 0) {
+                  const length = diff.construction.areaSqMeters / (reformConfig.standardHeight || 2.5)
+                  setPartitions((prev: any[]) => [...prev, {
+                    id: crypto.randomUUID(),
+                    type: "placa_yeso",
+                    linearMeters: length,
+                    height: reformConfig.standardHeight || 2.5,
+                    location: "Plano: Muros nuevos"
+                  }])
+                }
+                toast({ title: "Cambios aplicados", description: "Partidas de demolición y tabiquería añadidas." })
+                setActiveTab("partitions")
+              }}
+            />
+          </TabsContent>
 
           <TabsContent value="demolition" className="mt-6">
             <div className="lg:grid lg:grid-cols-[240px_1.5fr_1fr] lg:gap-6 lg:max-w-none lg:mx-0">

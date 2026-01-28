@@ -20,6 +20,48 @@ export interface Room {
     visualCenter?: Point
 }
 
+export function rotatePoint(point: Point, center: Point, angleDegrees: number): Point {
+    const radians = (angleDegrees * Math.PI) / 180
+    const cos = Math.cos(radians)
+    const sin = Math.sin(radians)
+    const dx = point.x - center.x
+    const dy = point.y - center.y
+    return {
+        x: center.x + (dx * cos - dy * sin),
+        y: center.y + (dx * sin + dy * cos)
+    }
+}
+
+export function calculateBoundingBox(walls: Wall[], rooms: Room[]): { min: Point, max: Point, center: Point } {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+
+    if (walls.length === 0 && rooms.length === 0) {
+        return { min: { x: 0, y: 0 }, max: { x: 0, y: 0 }, center: { x: 0, y: 0 } }
+    }
+
+    walls.forEach(w => {
+        minX = Math.min(minX, w.start.x, w.end.x)
+        minY = Math.min(minY, w.start.y, w.end.y)
+        maxX = Math.max(maxX, w.start.x, w.end.x)
+        maxY = Math.max(maxY, w.start.y, w.end.y)
+    })
+
+    rooms.forEach(r => {
+        r.polygon.forEach(p => {
+            minX = Math.min(minX, p.x)
+            minY = Math.min(minY, p.y)
+            maxX = Math.max(maxX, p.x)
+            maxY = Math.max(maxY, p.y)
+        })
+    })
+
+    return {
+        min: { x: minX, y: minY },
+        max: { x: maxX, y: maxY },
+        center: { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }
+    }
+}
+
 export function isSamePoint(p1: Point, p2: Point, tolerance = 1.0): boolean {
     return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < tolerance
 }
@@ -464,4 +506,172 @@ export function polylabel(polygon: Point[], precision = 1.0): Point {
 function getRandomColor() {
     const colors = ["#f97316", "#0ea5e9", "#10b981", "#8b5cf6", "#f43f5e", "#eab308"]
     return colors[Math.floor(Math.random() * colors.length)]
+}
+
+/**
+ * Genera puntos para aproximar un arco mediante segmentos
+ * @param start Punto inicial
+ * @param end Punto final
+ * @param depth Profundidad del arco (sagitta). Positivo = hacia la "derecha" del vector start->end
+ * @param resolution Longitud máxima aproximada de cada segmento
+ */
+export function generateArcPoints(start: Point, end: Point, depth: number, resolution: number = 20): Point[] {
+    // 1. Calcular punto medio de la cuerda
+    const midX = (start.x + end.x) / 2
+    const midY = (start.y + end.y) / 2
+
+    // 2. Vector dirección de la cuerda
+    const dx = end.x - start.x
+    const dy = end.y - start.y
+    const chordLen = Math.sqrt(dx * dx + dy * dy)
+
+    if (chordLen < 1 || Math.abs(depth) < 1) return [start, end]
+
+    // 3. Normal a la cuerda (para aplicar el depth)
+    // Rota 90 grados (-dy, dx)
+    const perpX = -dy / chordLen
+    const perpY = dx / chordLen
+
+    // 4. Calcular el radio y centro del círculo
+    // s = depth (sagitta), c = chordLen / 2
+    // R = (s^2 + c^2) / (2s)
+    const s = depth
+    const c = chordLen / 2
+    const R = (s * s + c * c) / (2 * s)
+
+    // El centro está en la mediatriz, a distancia (R - s) del punto medio, en dirección OPUESTA al depth si s<R, etc.
+    // Vector desde Mid hacia Centro.
+    // Si depth > 0, el arco va hacia la normal. El centro está "atrás" del arco si R > s.
+    // Vector Mid -> Peak = depth * Normal
+    // Vector Mid -> Center = (R - s) * Normal (ojo con el signo)
+
+    // Simplificación geométrica:
+    // El centro C está a una distancia (R-s) del punto medio, en la dirección NEGATIVA del vector sagitta (si s>0)
+    // O más fácil: Averiguar coordenadas del centro.
+    const centerX = midX + (R - s) * perpX
+    const centerY = midY + (R - s) * perpY
+
+    // 5. Ángulos
+    const startAngle = Math.atan2(start.y - centerY, start.x - centerX)
+    const endAngle = Math.atan2(end.y - centerY, end.x - centerX)
+
+    // Ajustar ángulos para barrido correcto
+    let sweep = endAngle - startAngle
+    // Queremos que el barrido corresponda al sentido del arco determinado por 'depth'
+    // Si depth > 0, el "pico" está en dirección normal.
+
+    // Comprobación de sentido:
+    // Punto medio del arco real
+    const peakX = midX + depth * perpX
+    const peakY = midY + depth * perpY
+    const peakAngle = Math.atan2(peakY - centerY, peakX - centerX)
+
+    // Normalizar ángulos a [0, 2PI) o manejar la diferencia
+    // Simplemente iteramos por pasos
+    // Calcular longitud de arco aproximada
+    const circleLen = 2 * Math.PI * Math.abs(R)
+    // Pero solo queremos el segmento... 
+    // Opción B: Interpolación cuadrática/Bezier para simplificar si no necesitamos círculo perfecto perfecto, 
+    // pero para paredes mejor círculo.
+
+    // Re-calculo robusto de Sweep:
+    // Usamos el producto cruz para saber si vamos CW o CCW
+    // Pero R puede ser negativo si depth era negativo? No, R es radio geométrico.
+    // Manejemos depth positivo/negativo definiendo el centro correctamente.
+
+    // Si R es muuuy grande (depth pequeño), el centro está lejos.
+
+    let totalAngle = endAngle - startAngle
+    while (totalAngle <= -Math.PI) totalAngle += 2 * Math.PI
+    while (totalAngle > Math.PI) totalAngle -= 2 * Math.PI
+
+    // Verificar si este ángulo "pasa" por el lado del depth
+    // Un punto de prueba (peak)
+    // Angulo del peak
+    let midAngleRel = peakAngle - startAngle
+    while (midAngleRel <= -Math.PI) midAngleRel += 2 * Math.PI
+    while (midAngleRel > Math.PI) midAngleRel -= 2 * Math.PI
+
+    // Si el sweep directo no incluye el peak, hay que ir por el otro lado
+    if (Math.abs(midAngleRel) > Math.abs(totalAngle) && Math.sign(midAngleRel) === Math.sign(totalAngle)) {
+        // Estamos bien? No necesariamente.
+    }
+
+    // FORMA MÁS SIMPLE:
+    // Interpolar paramétricamente sobre el arco.
+    // Número de segmentos basado en la longitud aproximada del arco
+    // Longitud arco ~ cuerda (si plano) o pi*R
+    // Estimación: L = sqrt(c^2 + 16/3 s^2) aprox parabólica
+    const approxArcLen = Math.sqrt(dx * dx + dy * dy) * (1 + 0.3 * Math.abs(depth) / (Math.sqrt(dx * dx + dy * dy))) // Muy aprox
+    // Mejor usar resolución fija o dinámica
+    const segments = Math.max(2, Math.ceil(approxArcLen / resolution))
+
+    // Interpolación angular corregida
+    // Sabemos Start, End y un punto intermedio (Peak)
+    // El orden angular debe ser Start -> Peak -> End (o viceversa)
+
+    function normalize(a: number) { return a - Math.floor(a / (2 * Math.PI)) * 2 * Math.PI }
+
+    // Decidir dirección de giro
+    // Determinada por el signo del producto cruz (Start-Center) x (End-Center) vs el lado de Depth?
+
+    const points: Point[] = [start]
+
+    // Implementación iterativa simple usando Bezier Cuadrática racional o simplemente subdivisión del ángulo
+    // Usaremos subdivisión angular asumiendo que calculamos bien el centro.
+
+    // Recalculamos Centro y Radio "con signo" para facilitar
+    // R_signed = (c^2 + s^2) / (2s). Si s es negativo, R_signed es negativo.
+    // Center = Mid + (R_signed - s) * Perp  <-- Esto no cambia, R_signed - s = (c^2-s^2)/(2s)
+
+    // Vamos a usar una aproximación de Bezier cuadrática para no liarnos con ATAN2 y discontinuidades
+    // Bezier pasa por Start, Control, End.
+    // Pero Bezier NO es un arco circular perfecto.
+    // Para arquitectura, mejor circular. 
+
+    // Volvemos a Círculos:
+    // Forzamos el paso por el "Peak"
+    const p1 = start
+    const p2 = { x: midX + depth * perpX, y: midY + depth * perpY } // Peak
+    const p3 = end
+
+    // 3 puntos definen un círculo. Interpolamos de p1 a p3 pasando por p2.
+    // Calculo de centro de 3 puntos:
+    // https://en.wikipedia.org/wiki/Circumcircle#Cartesian_coordinates
+    const D = 2 * (p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y))
+    const centerX_ = (1 / D) * ((p1.x * p1.x + p1.y * p1.y) * (p2.y - p3.y) + (p2.x * p2.x + p2.y * p2.y) * (p3.y - p1.y) + (p3.x * p3.x + p3.y * p3.y) * (p1.y - p2.y))
+    const centerY_ = (1 / D) * ((p1.x * p1.x + p1.y * p1.y) * (p3.x - p2.x) + (p2.x * p2.x + p2.y * p2.y) * (p1.x - p3.x) + (p3.x * p3.x + p3.y * p3.y) * (p2.x - p1.x))
+
+    const R_ = Math.sqrt(Math.pow(p1.x - centerX_, 2) + Math.pow(p1.y - centerY_, 2))
+
+    const a1 = Math.atan2(p1.y - centerY_, p1.x - centerX_)
+    const a2 = Math.atan2(p2.y - centerY_, p2.x - centerX_)
+    const a3 = Math.atan2(p3.y - centerY_, p3.x - centerX_)
+
+    // Determinar dirección: a1 -> a2 -> a3
+    let da1 = a2 - a1
+    while (da1 <= -Math.PI) da1 += 2 * Math.PI
+    while (da1 > Math.PI) da1 -= 2 * Math.PI
+
+    let da2 = a3 - a2
+    while (da2 <= -Math.PI) da2 += 2 * Math.PI
+    while (da2 > Math.PI) da2 -= 2 * Math.PI
+
+    // Total sweep
+    const totalSweep = da1 + da2
+
+    // Generar puntos
+    const count = Math.ceil((Math.abs(totalSweep) * R_) / resolution)
+    const steps = Math.max(count, 2)
+
+    for (let i = 1; i <= steps; i++) {
+        const t = i / steps
+        const angle = a1 + totalSweep * t
+        points.push({
+            x: centerX_ + R_ * Math.cos(angle),
+            y: centerY_ + R_ * Math.sin(angle)
+        })
+    }
+
+    return points
 }

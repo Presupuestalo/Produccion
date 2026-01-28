@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react"
 import dynamic from "next/dynamic"
 const CanvasEngine = dynamic(() => import("./CanvasEngine").then((mod) => mod.CanvasEngine), { ssr: false })
+import { CanvasEngineRef } from "./CanvasEngine" // Added CanvasEngineRef import
 import { Card } from "@/components/ui/card"
 import {
     AlertDialog,
@@ -15,39 +16,49 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, FileText, ClipboardList } from "lucide-react"
+import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, FileText, ClipboardList, Spline } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { FloorPlanSummary } from "./FloorPlanSummary"
 import Link from "next/link"
-import { detectRoomsGeometrically, fragmentWalls, getClosestPointOnSegment, isPointOnSegment, isSamePoint, cleanupAndMergeWalls } from "@/lib/utils/geometry"
+import { detectRoomsGeometrically, fragmentWalls, getClosestPointOnSegment, isPointOnSegment, isSamePoint, cleanupAndMergeWalls, calculateBoundingBox, rotatePoint, generateArcPoints } from "@/lib/utils/geometry"
 
-export const EditorContainer = forwardRef((props, ref) => {
+export const EditorContainer = forwardRef((props: any, ref) => {
     const containerRef = useRef<HTMLDivElement>(null)
+    const canvasEngineRef = useRef<CanvasEngineRef>(null)
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
     const [zoom, setZoom] = useState(1)
     const [offset, setOffset] = useState({ x: 0, y: 0 })
     interface Point { x: number; y: number }
     interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean }
 
+
     interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point }
 
-    const [walls, setWalls] = useState<Wall[]>([])
-    const [rooms, setRooms] = useState<Room[]>([])
+    const [walls, setWalls] = useState<Wall[]>(props.initialData?.walls || [])
+
+    const [rooms, setRooms] = useState<Room[]>(props.initialData?.rooms || [])
     const [currentWall, setCurrentWall] = useState<{ start: Point; end: Point } | null>(null)
     const [hoveredWallId, setHoveredWallId] = useState<string | null>(null)
     interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean }
     interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean }
-    const [doors, setDoors] = useState<Door[]>([])
-    const [windows, setWindows] = useState<Window[]>([])
+    const [doors, setDoors] = useState<Door[]>(props.initialData?.doors || [])
+    const [windows, setWindows] = useState<Window[]>(props.initialData?.windows || [])
     const [selectedElement, setSelectedElement] = useState<{ type: "door" | "window", id: string } | null>(null)
-    const [activeTool, _setActiveTool] = useState<"select" | "wall" | "door" | "window" | "ruler">("wall")
+    const [activeTool, _setActiveTool] = useState<"select" | "wall" | "door" | "window" | "ruler" | "arc">("wall")
+    const [gridRotation, setGridRotation] = useState<number>(props.initialData?.gridRotation || 0)
+
+    // Arc Tool State
+    const [arcCreationStep, setArcCreationStep] = useState<"start" | "end" | "depth">("start")
+    const [phantomArc, setPhantomArc] = useState<{ start: Point, end: Point, depth: number } | undefined>(undefined)
 
     // Wrapper to ensure clean state transitions
-    const setActiveTool = (tool: "select" | "wall" | "door" | "window" | "ruler") => {
+    const setActiveTool = (tool: "select" | "wall" | "door" | "window" | "ruler" | "arc") => {
         _setActiveTool(tool)
         setCurrentWall(null)
         setRulerState({ active: false, start: null, end: null })
         setSelectedWallIds([]) // Clear selection when switching tools
+        setPhantomArc(undefined)
+        setArcCreationStep("start")
         setSelectedRoomId(null)
         setSelectedElement(null)
     }
@@ -68,11 +79,11 @@ export const EditorContainer = forwardRef((props, ref) => {
     const lastRoomDetectionTime = useRef<number>(0)
 
     // Estado del plano de fondo (Plantilla)
-    const [bgImage, setBgImage] = useState<string | null>(null)
-    const [bgConfig, setBgConfig] = useState({ opacity: 0.5, scale: 1, x: 0, y: 0, rotation: 0 })
+    const [bgImage, setBgImage] = useState<string | null>(props.initialData?.bgConfig?.url || null)
+    const [bgConfig, setBgConfig] = useState(props.initialData?.bgConfig || { opacity: 0.5, scale: 1, x: 0, y: 0, rotation: 0 })
     const [isCalibrating, setIsCalibrating] = useState(false)
-    const [calibrationPoints, setCalibrationPoints] = useState({ p1: { x: 200, y: 200 }, p2: { x: 500, y: 200 } })
-    const [calibrationTargetValue, setCalibrationTargetValue] = useState(500)
+    const [calibrationPoints, setCalibrationPoints] = useState(props.initialData?.calibration ? { p1: props.initialData.calibration.p1, p2: props.initialData.calibration.p2 } : { p1: { x: 200, y: 200 }, p2: { x: 500, y: 200 } })
+    const [calibrationTargetValue, setCalibrationTargetValue] = useState(props.initialData?.calibration?.distance || 500)
     const [snappingEnabled, setSnappingEnabled] = useState(true)
     const [rulerState, setRulerState] = useState<{ start: Point | null, end: Point | null, active: boolean }>({ start: null, end: null, active: false })
 
@@ -171,6 +182,12 @@ export const EditorContainer = forwardRef((props, ref) => {
                 setSelectedWallIds([])
                 setSelectedRoomId(null)
                 setRulerState({ start: null, end: null, active: false })
+            }
+            if (e.key === '[') {
+                handleRotatePlan(-15)
+            }
+            if (e.key === ']') {
+                handleRotatePlan(15)
             }
             if (e.key === 'Delete' || e.key === 'Backspace') {
                 if (selectedWallIds.length > 0) {
@@ -397,6 +414,54 @@ export const EditorContainer = forwardRef((props, ref) => {
             setWindows(prev => prev.map(w => w.id === id ? { ...w, t: closest.t, wallId: closest.wallId, flipY: isFlippedY } : w))
         }
     }
+
+    const handleRotatePlan = (angleIncrement: number) => {
+        saveStateToHistory()
+
+        // 1. Calcular el centro del plano actual
+        const { center } = calculateBoundingBox(walls, rooms)
+
+        // 2. Rotar Muros
+        const rotatedWalls = walls.map(w => ({
+            ...w,
+            start: rotatePoint(w.start, center, angleIncrement),
+            end: rotatePoint(w.end, center, angleIncrement)
+        }))
+
+        // 3. Rotar Habitaciones
+        const rotatedRooms = rooms.map(r => ({
+            ...r,
+            polygon: r.polygon.map(p => rotatePoint(p, center, angleIncrement)),
+            visualCenter: r.visualCenter ? rotatePoint(r.visualCenter, center, angleIncrement) : undefined
+        }))
+
+        // 4. Rotar Fondo (si existe)
+        // La rotación del fondo es más compleja porque depende de su propio centro y offset.
+        // Simplificación: Giramos el background alrededor del centro del plano también.
+        // Esto cambia su posición X,Y y su rotación interna.
+        let newBgConfig = { ...bgConfig }
+        if (bgImage) {
+            // Posición actual del centro de la imagen (aproximada)
+            // Esto requeriría saber el tamaño original de la imagen, que no tenemos aquí fácil.
+            // Asumimos que el usuario ajustará si se descuadra mucho, O rotamos solo la propiedad 'rotation'
+            // si la imagen estaba centrada en el mismo sitio.
+            // PERO el usuario pidió que gire "todo el plano".
+            // Si la imagen rota sobre SU centro, y el plano sobre OTRO centro, se desalinean.
+            // Lo ideal es rotar la posición (x,y) de la imagen alrededor del centro del plano.
+
+            const bgPos = { x: bgConfig.x, y: bgConfig.y }
+            const newBgPos = rotatePoint(bgPos, center, angleIncrement)
+            newBgConfig.x = newBgPos.x
+            newBgConfig.y = newBgPos.y
+            newBgConfig.rotation = (newBgConfig.rotation || 0) + angleIncrement
+        }
+
+        setWalls(rotatedWalls)
+        setRooms(rotatedRooms)
+        setBgConfig(newBgConfig)
+        // Grid Rotation can stay 0 or be used for visual alignment independently
+    }
+
     const handleCloneElement = (type: "door" | "window", id: string) => {
         saveStateToHistory()
         if (type === "door") {
@@ -944,8 +1009,50 @@ export const EditorContainer = forwardRef((props, ref) => {
                 break
             }
 
+
             case "ruler":
                 setRulerState({ start: point, end: point, active: true })
+                break
+
+            case "arc":
+                // console.log("Arc Tool MouseDown. Step:", arcCreationStep)
+                if (arcCreationStep === "start") {
+                    setPhantomArc({ start: point, end: point, depth: 0 })
+                    setArcCreationStep("end")
+                } else if (arcCreationStep === "end") {
+                    // Start dragging depth
+                    if (phantomArc) {
+                        setPhantomArc({ ...phantomArc, end: point })
+                        setArcCreationStep("depth")
+                    } else {
+                        // Should not happen, reset
+                        setArcCreationStep("start")
+                    }
+                } else if (arcCreationStep === "depth") {
+                    // Confirm Arc
+                    if (phantomArc) {
+                        saveStateToHistory()
+                        const points = generateArcPoints(phantomArc.start, phantomArc.end, phantomArc.depth)
+                        // Convert points to walls
+                        const newWalls: Wall[] = []
+                        const now = Date.now()
+                        for (let i = 0; i < points.length - 1; i++) {
+                            newWalls.push({
+                                id: `wall-arc-${now}-${i}`,
+                                start: points[i],
+                                end: points[i + 1],
+                                thickness: 10
+                            })
+                        }
+
+                        const mergedWalls = fragmentWalls([...walls, ...newWalls])
+                        setWalls(mergedWalls)
+                        setRooms(detectAndNameRooms(mergedWalls, rooms))
+
+                        // Finish and switch to select tool
+                        setActiveTool("select")
+                    }
+                }
                 break
         }
     }
@@ -979,6 +1086,41 @@ export const EditorContainer = forwardRef((props, ref) => {
         }
         if (activeTool === "ruler" && rulerState.active) {
             setRulerState(prev => ({ ...prev, end: point }))
+        }
+        if (activeTool === "arc" && phantomArc) {
+            // console.log("Arc Move. Step:", arcCreationStep) 
+            if (arcCreationStep === "end") {
+                setPhantomArc({ ...phantomArc, end: point })
+            } else if (arcCreationStep === "depth") {
+                // Calculate distance from chord to point
+                // Project point onto line defined by start-end to get base
+                // Depth is distance from base to point. 
+                // Sign matters! We use cross product to determine sign relative to chord direction
+                const dx = phantomArc.end.x - phantomArc.start.x
+                const dy = phantomArc.end.y - phantomArc.start.y
+                const len = Math.sqrt(dx * dx + dy * dy)
+                if (len > 0.1) {
+                    // Signed height logic
+                    const cross = (point.x - phantomArc.start.x) * dy - (point.y - phantomArc.start.y) * dx
+                    // depth = cross / len. 
+                    // Cross product gives area of parallelogram. area / base = height.
+                    // This naturally gives signed depth!
+                    // But our generate function in geometry assumes specific depth logic? 
+                    // Let's check: generate function uses depth to add vector * perp.
+                    // perp = (-dy, dx). 
+                    // So we need depth such that Mid + depth * perp = Peak.
+                    // Let's rely on visual feedback.
+                    // If cross > 0, point is to the ... left? 
+                    // perp is rotated 90 deg CCW? (-dy, dx) is 90 deg CCW.
+                    // (1,0) -> (0,1). Cross ((0,1) with (1,0)) is -1. 
+                    // Anyway, -cross/len seems correct-ish or cross/len. 
+                    // User sees the phantom arc, so as long as it tracks the mouse, it's fine.
+                    // If visual guide is inverted, flip sign here.
+
+                    const depth = -cross / len
+                    setPhantomArc({ ...phantomArc, depth })
+                }
+            }
         }
     }
 
@@ -1017,23 +1159,43 @@ export const EditorContainer = forwardRef((props, ref) => {
     const handleSave = async () => {
         setIsSaving(true)
         try {
-            const response = await fetch("/api/editor-planos/save", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: "Plano Editor V2",
-                    walls,
-                    doors,
-                    windows,
-                    rooms
-                }),
-            })
+            const dataToSave = {
+                walls,
+                doors,
+                windows,
+                rooms,
+                bgConfig,
+                gridRotation,
+                calibration: {
+                    p1: calibrationPoints.p1,
+                    p2: calibrationPoints.p2,
+                    distance: calibrationTargetValue
+                }
+            }
 
-            if (response.ok) {
-                const data = await response.json()
-                console.log("[v0] Plano guardado con ID:", data.id)
+            if (props.onSave) {
+                // Use the Exposed Snapshot method from CanvasEngine
+                console.log("DEBUG: EditorContainer handleSave. Ref:", !!canvasEngineRef.current)
+                const imageUrl = canvasEngineRef.current?.getSnapshot() || ""
+                console.log("DEBUG: Got snapshot len:", imageUrl.length)
+                await props.onSave(dataToSave, imageUrl)
             } else {
-                console.error("[v0] Error al guardar plano:", await response.text())
+                // Legacy API call
+                const response = await fetch("/api/editor-planos/save", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name: "Plano Editor V2",
+                        ...dataToSave
+                    }),
+                })
+
+                if (response.ok) {
+                    const data = await response.json()
+                    console.log("[v0] Plano guardado con ID:", data.id)
+                } else {
+                    console.error("[v0] Error al guardar plano:", await response.text())
+                }
             }
         } catch (error) {
             console.error("[v0] Excepción al guardar:", error)
@@ -1044,20 +1206,21 @@ export const EditorContainer = forwardRef((props, ref) => {
 
     return (
         <div className="flex flex-col h-full bg-slate-50 p-2 gap-2">
-            <Card className="p-1 px-2 flex items-center justify-between bg-white/80 backdrop-blur-md border-slate-200 shadow-lg">
-                <div className="flex items-center gap-1">
+            <Card className="p-2 flex flex-wrap md:flex-nowrap items-center justify-between bg-white/95 backdrop-blur-md border-slate-200 shadow-sm z-20 gap-y-2">
+                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-full pb-1 md:pb-0">
                     <Link href="/dashboard/editor-planos">
                         <Button variant="ghost" size="sm" className="h-8 px-2 gap-1 text-slate-500 hover:text-slate-900">
                             <ArrowLeft className="h-3.5 w-3.5" />
-                            <span className="text-xs font-bold">Volver</span>
+                            <span className="text-xs font-bold hidden sm:inline">Volver</span>
                         </Button>
                     </Link>
-                    <div className="w-px h-6 bg-slate-200 mx-1" />
+                    <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
                     <Button
                         variant={activeTool === "select" ? "default" : "ghost"}
                         size="icon"
                         onClick={() => setActiveTool("select")}
                         title="Seleccionar (S)"
+                        className="flex-shrink-0"
                     >
                         <MousePointer2 className="h-4 w-4" />
                     </Button>
@@ -1066,15 +1229,27 @@ export const EditorContainer = forwardRef((props, ref) => {
                         size="icon"
                         onClick={() => setActiveTool("wall")}
                         title="Dibujar Muro (W)"
+                        className="flex-shrink-0"
                     >
                         <Pencil className="h-4 w-4" />
                     </Button>
-                    <div className="w-px h-6 bg-slate-200 mx-1" />
+                    <Button
+                        variant={activeTool === "arc" ? "default" : "ghost"}
+                        size="icon"
+                        onClick={() => setActiveTool("arc")}
+                        title="Dibujar Arco"
+                        className="flex-shrink-0"
+                    >
+                        <Spline className="h-4 w-4" />
+                    </Button>
+                    <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
+                    <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
                     <Button
                         variant={activeTool === "door" ? "default" : "ghost"}
                         size="icon"
                         onClick={() => setActiveTool("door")}
                         title="Puerta (D)"
+                        className="flex-shrink-0"
                     >
                         <DoorClosed className="h-4 w-4" />
                     </Button>
@@ -1083,30 +1258,32 @@ export const EditorContainer = forwardRef((props, ref) => {
                         size="icon"
                         onClick={() => setActiveTool("window")}
                         title="Ventana (V)"
+                        className="flex-shrink-0"
                     >
                         <Layout className="h-4 w-4" />
                     </Button>
-                    <div className="w-px h-6 bg-slate-200 mx-1" />
+                    <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
                     <Button
                         variant={activeTool === "ruler" ? "default" : "ghost"}
                         size="icon"
                         onClick={() => setActiveTool("ruler")}
                         title="Regla (M)"
+                        className="flex-shrink-0"
                     >
                         <Ruler className="h-4 w-4" />
                     </Button>
-                    <div className="w-px h-6 bg-slate-200 mx-1" />
+                    <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
 
                     <Sheet open={showSummary} onOpenChange={setShowSummary}>
                         <SheetTrigger asChild>
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 gap-2"
+                                className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 gap-2 flex-shrink-0"
                                 title="Ver Resumen y Mediciones"
                             >
                                 <ClipboardList className="h-4 w-4" />
-                                <span className="font-semibold">Resumen</span>
+                                <span className="font-semibold hidden sm:inline">Resumen</span>
                             </Button>
                         </SheetTrigger>
                         <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
@@ -1124,13 +1301,14 @@ export const EditorContainer = forwardRef((props, ref) => {
                         </SheetContent>
                     </Sheet>
 
-                    <div className="w-px h-6 bg-slate-200 mx-1" />
+                    <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
 
                     <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => document.getElementById('bg-import')?.click()}
                         title="Importar Plano (Plantilla)"
+                        className="flex-shrink-0"
                     >
                         <ImagePlus className="h-4 w-4" />
                     </Button>
@@ -1141,13 +1319,14 @@ export const EditorContainer = forwardRef((props, ref) => {
                         accept="image/*"
                         onChange={handleImportImage}
                     />
-                    <div className="w-px h-6 bg-slate-200 mx-1" />
+                    <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
                     <Button
                         variant="ghost"
                         size="icon"
                         onClick={handleUndo}
                         disabled={history.length === 0}
                         title="Deshacer (Ctrl+Z)"
+                        className="flex-shrink-0"
                     >
                         <Undo2 className="h-4 w-4" />
                     </Button>
@@ -1157,37 +1336,56 @@ export const EditorContainer = forwardRef((props, ref) => {
                         onClick={handleRedo}
                         disabled={redoHistory.length === 0}
                         title="Rehacer (Ctrl+Y)"
+                        className="flex-shrink-0"
                     >
                         <Redo2 className="h-4 w-4" />
                     </Button>
-                    <div className="w-px h-6 bg-slate-200 mx-1" />
+                    <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRotatePlan(-15)}
+                        title="Rotar Plano -15° [Atajo: []"
+                        className="flex-shrink-0"
+                    >
+                        <RotateCcw className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRotatePlan(15)}
+                        title="Rotar Plano +15° [Atajo: ]]"
+                        className="flex-shrink-0"
+                    >
+                        <RotateCw className="h-4 w-4" />
+                    </Button>
                     <Button
                         variant={snappingEnabled ? "default" : "ghost"}
                         size="icon"
                         onClick={() => setSnappingEnabled(!snappingEnabled)}
                         title={snappingEnabled ? "Desactivar Imanes" : "Activar Imanes"}
-                        className={!snappingEnabled ? "text-slate-400" : ""}
+                        className={!snappingEnabled ? "text-slate-400 flex-shrink-0" : "flex-shrink-0"}
                     >
                         <Magnet className="h-4 w-4" />
                     </Button>
-                    <div className="w-px h-6 bg-slate-200 mx-1" />
+                    <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
                     <Button
                         variant="ghost"
                         size="icon"
                         onClick={applyPerimeterThickness}
                         title="Auto-Fachada (20cm contorno)"
-                        className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                        className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 flex-shrink-0"
                     >
                         <Building2 className="h-4 w-4" />
                     </Button>
-                    <div className="w-px h-6 bg-slate-200 mx-1" />
+                    <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 title="Limpiar Todo el Plano"
-                                className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                                className="text-red-500 hover:text-red-600 hover:bg-red-50 flex-shrink-0"
                             >
                                 <Trash2 className="h-4 w-4" />
                             </Button>
@@ -1210,21 +1408,21 @@ export const EditorContainer = forwardRef((props, ref) => {
                     </AlertDialog>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <div className="w-px h-6 bg-slate-200 mx-1" />
-                    <div className="text-xs font-medium text-slate-500 mr-2">
+                <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
+                    <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block" />
+                    <div className="text-xs font-medium text-slate-500 mr-2 hidden sm:block">
                         {Math.round(zoom * 100)}%
                     </div>
-                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom(z => z * 1.1)}>
+                    <Button variant="outline" size="icon" className="h-8 w-8 hidden sm:flex" onClick={() => setZoom(z => z * 1.1)}>
                         <ZoomIn className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom(z => z / 1.1)}>
+                    <Button variant="outline" size="icon" className="h-8 w-8 hidden sm:flex" onClick={() => setZoom(z => z / 1.1)}>
                         <ZoomOut className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={handleResetView}>
+                    <Button variant="outline" size="icon" className="h-8 w-8 hidden sm:flex" onClick={handleResetView}>
                         <Maximize className="h-4 w-4" />
                     </Button>
-                    <div className="w-px h-6 bg-slate-200 mx-1" />
+                    <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block" />
                     <Button
                         size="sm"
                         className="bg-orange-600 hover:bg-orange-700"
@@ -1239,6 +1437,7 @@ export const EditorContainer = forwardRef((props, ref) => {
 
             <div ref={containerRef} className="flex-1 relative border-t border-slate-200 overflow-hidden bg-slate-50">
                 <CanvasEngine
+                    onReady={(api) => { canvasEngineRef.current = api }}
                     width={dimensions.width}
                     height={dimensions.height}
                     zoom={zoom}
@@ -1283,6 +1482,8 @@ export const EditorContainer = forwardRef((props, ref) => {
                     onUpdateRoom={handleUpdateRoom}
                     selectedRoomId={selectedRoomId}
                     snappingEnabled={activeTool === "ruler" ? false : snappingEnabled}
+                    gridRotation={gridRotation}
+                    onRotateGrid={setGridRotation}
                     onSelectRoom={(id: string | null) => {
                         setSelectedRoomId(id)
                         if (id) {
@@ -1317,6 +1518,7 @@ export const EditorContainer = forwardRef((props, ref) => {
                     onUpdateElement={handleUpdateElement}
                     onCloneElement={handleCloneElement}
                     onDeleteElement={handleDeleteElement}
+                    phantomArc={phantomArc}
                 />
                 {bgImage && (
                     <div className="absolute top-4 right-4 p-4 bg-white/95 backdrop-blur-md rounded-xl border border-slate-200 shadow-xl w-72 animate-in fade-in slide-in-from-right-4">

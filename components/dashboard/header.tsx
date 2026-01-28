@@ -30,6 +30,7 @@ import {
   Mail,
   Gift,
   Crown,
+  PenTool,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/ui/logo"
@@ -174,6 +175,11 @@ export function DashboardHeader() {
         name: "Proyectos",
         href: "/dashboard/projects",
         icon: () => <FileText className="h-5 w-5" />,
+      },
+      {
+        name: "Editor de Planos",
+        href: "/dashboard/editor-planos",
+        icon: () => <PenTool className="h-5 w-5" />,
       },
     ]
 
