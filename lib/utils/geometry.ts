@@ -150,7 +150,7 @@ export function fragmentWalls(walls: Wall[]): Wall[] {
  * a vertex with no other connections.
  */
 export function cleanupAndMergeWalls(walls: Wall[]): Wall[] {
-    const TOLERANCE = 1.0
+    const TOLERANCE = 0.1 // Reduced from 1.0 to allow finer movements/inversions without deletion
     // 1. Remove zero-length walls
     let processed = walls.filter(w => {
         const len = Math.sqrt(Math.pow(w.end.x - w.start.x, 2) + Math.pow(w.end.y - w.start.y, 2))

@@ -3,8 +3,22 @@ import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } f
 import dynamic from "next/dynamic"
 const CanvasEngine = dynamic(() => import("./CanvasEngine").then((mod) => mod.CanvasEngine), { ssr: false })
 import { Card } from "@/components/ui/card"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2 } from "lucide-react"
+import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, FileText, ClipboardList } from "lucide-react"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { FloorPlanSummary } from "./FloorPlanSummary"
+import Link from "next/link"
 import { detectRoomsGeometrically, fragmentWalls, getClosestPointOnSegment, isPointOnSegment, isSamePoint, cleanupAndMergeWalls } from "@/lib/utils/geometry"
 
 export const EditorContainer = forwardRef((props, ref) => {
@@ -26,10 +40,22 @@ export const EditorContainer = forwardRef((props, ref) => {
     const [doors, setDoors] = useState<Door[]>([])
     const [windows, setWindows] = useState<Window[]>([])
     const [selectedElement, setSelectedElement] = useState<{ type: "door" | "window", id: string } | null>(null)
-    const [activeTool, setActiveTool] = useState<"select" | "wall" | "door" | "window" | "ruler">("wall")
+    const [activeTool, _setActiveTool] = useState<"select" | "wall" | "door" | "window" | "ruler">("wall")
+
+    // Wrapper to ensure clean state transitions
+    const setActiveTool = (tool: "select" | "wall" | "door" | "window" | "ruler") => {
+        _setActiveTool(tool)
+        setCurrentWall(null)
+        setRulerState({ active: false, start: null, end: null })
+        setSelectedWallIds([]) // Clear selection when switching tools
+        setSelectedRoomId(null)
+        setSelectedElement(null)
+    }
     const [selectedWallIds, setSelectedWallIds] = useState<string[]>([])
     const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
+    const [showSummary, setShowSummary] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
+
 
     // Historial para deshacer/rehacer
     const [history, setHistory] = useState<any[]>([])
@@ -51,7 +77,7 @@ export const EditorContainer = forwardRef((props, ref) => {
     const [rulerState, setRulerState] = useState<{ start: Point | null, end: Point | null, active: boolean }>({ start: null, end: null, active: false })
 
     useImperativeHandle(ref, () => ({
-        clearPlan: handleClearPlan
+        clearPlan: executeClearPlan
     }))
 
     // Limpiar estados al cambiar de herramienta o cancelar
@@ -149,6 +175,8 @@ export const EditorContainer = forwardRef((props, ref) => {
             if (e.key === 'Delete' || e.key === 'Backspace') {
                 if (selectedWallIds.length > 0) {
                     selectedWallIds.forEach(id => deleteWall(id))
+                } else if (selectedRoomId) {
+                    deleteRoom(selectedRoomId)
                 } else if (selectedElement) {
                     handleDeleteElement(selectedElement.type, selectedElement.id)
                 }
@@ -190,12 +218,98 @@ export const EditorContainer = forwardRef((props, ref) => {
     }
 
 
+
+    const detectAndNameRooms = (newWalls: Wall[], currentRooms: Room[]) => {
+        const detected = detectRoomsGeometrically(newWalls, currentRooms)
+
+        const usedNames = new Set<string>()
+        const finalRooms: Room[] = []
+        const pendingRooms: Room[] = []
+
+        // Pass 1: Keep valid H# names if they are unique in this batch
+        detected.forEach(room => {
+            // Check if name matches H + number exactly (e.g. "H1", "H2")
+            // This prevents "Habitación 1" from being treated as valid H-name
+            if (/^H\d+$/.test(room.name)) {
+                if (!usedNames.has(room.name)) {
+                    usedNames.add(room.name)
+                    finalRooms.push(room)
+                } else {
+                    pendingRooms.push(room)
+                }
+            } else {
+                pendingRooms.push(room)
+            }
+        })
+
+        // Pass 2: Rename pending rooms
+        pendingRooms.forEach(room => {
+            let n = 1
+            while (usedNames.has(`H${n}`)) {
+                n++
+            }
+            const newName = `H${n}`
+            usedNames.add(newName)
+            finalRooms.push({ ...room, name: newName })
+        })
+
+        // Return combined list (order might change, but that is acceptable)
+        return [...finalRooms]
+    }
+
+    const deleteRoom = (roomId: string) => {
+        const room = rooms.find(r => r.id === roomId)
+        if (!room) return
+
+        saveStateToHistory()
+
+        // Find walls that form this room
+        const wallsToDelete: string[] = []
+        const TOL = 5.0
+        const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
+
+        walls.forEach(wall => {
+            // Check if this wall is part of the room's polygon
+            const startInRoom = room.polygon.some(p => isSame(p, wall.start))
+            const endInRoom = room.polygon.some(p => isSame(p, wall.end))
+
+            if (startInRoom && endInRoom) {
+                // IT IS part of the room, but is it SHARED?
+                // Check if this wall is also part of ANY OTHER room
+                const isShared = rooms.some(otherRoom => {
+                    if (otherRoom.id === roomId) return false
+                    const startInOther = otherRoom.polygon.some(p => isSame(p, wall.start))
+                    const endInOther = otherRoom.polygon.some(p => isSame(p, wall.end))
+                    return startInOther && endInOther
+                })
+
+                if (!isShared) {
+                    wallsToDelete.push(wall.id)
+                }
+            }
+        })
+
+        // Batch delete
+        const newWalls = walls.filter(w => !wallsToDelete.includes(w.id))
+        setWalls(newWalls)
+        setSelectedWallIds([])
+        setSelectedRoomId(null)
+        setRooms(detectAndNameRooms(newWalls, rooms.filter(r => r.id !== roomId)))
+        setDoors(prev => prev.filter(d => !wallsToDelete.includes(d.wallId)))
+        setWindows(prev => prev.filter(w => !wallsToDelete.includes(w.wallId)))
+
+        if (selectedElement && ((selectedElement.type === "door" && doors.find(d => d.id === selectedElement.id && wallsToDelete.includes(d.wallId))) ||
+            (selectedElement.type === "window" && windows.find(w => w.id === selectedElement.id && wallsToDelete.includes(w.wallId))))) {
+            setSelectedElement(null)
+        }
+    }
+
     const deleteWall = (id: string) => {
         saveStateToHistory()
         const newWalls = walls.filter(w => w.id !== id)
         setWalls(newWalls)
         setSelectedWallIds(prev => prev.filter(wid => wid !== id))
-        setRooms(detectRoomsGeometrically(newWalls, rooms))
+        setRooms(detectAndNameRooms(newWalls, rooms))
         setDoors(prev => prev.filter(d => d.wallId !== id))
         setWindows(prev => prev.filter(w => w.wallId !== id))
         if (selectedElement?.type === "door" && doors.find(d => d.id === selectedElement.id)?.wallId === id) setSelectedElement(null)
@@ -235,7 +349,7 @@ export const EditorContainer = forwardRef((props, ref) => {
             const p1: Wall = { ...wall, id: p1Id, end: splitPoint }
             const p2: Wall = { ...wall, id: p2Id, start: splitPoint }
             const newWalls = prev.filter(w => w.id !== id).concat([p1, p2])
-            setRooms(detectRoomsGeometrically(newWalls, rooms))
+            setRooms(detectAndNameRooms(newWalls, rooms))
             return newWalls
         })
         setSelectedWallIds([p1Id])
@@ -246,30 +360,7 @@ export const EditorContainer = forwardRef((props, ref) => {
         setRooms(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r))
     }
 
-    const getIntelligentRoomName = (area: number, existingRooms: Room[]) => {
-        const smallRooms = ["Baño", "Hall", "Terraza", "Trastero"]
-        const largeRooms = ["Salón", "Dormitorio", "Cocina"]
-        const candidates = area < 6 ? smallRooms : largeRooms
-        const baseName = candidates[Math.floor(Math.random() * candidates.length)]
 
-        let n = 1
-        while (existingRooms.some(r => r.name === `${baseName} ${n}`)) {
-            n++
-        }
-        return `${baseName} ${n}`
-    }
-
-    const detectAndNameRooms = (newWalls: Wall[], currentRooms: Room[]) => {
-        const detected = detectRoomsGeometrically(newWalls, currentRooms)
-        return detected.map(room => {
-            // Si es una habitación nueva (geometry.ts le pone "Habitación X" por defecto)
-            // o si no tiene nombre, le aplicamos la heurística.
-            if (room.name.startsWith("Habitación")) {
-                return { ...room, name: getIntelligentRoomName(room.area, detected) }
-            }
-            return room
-        })
-    }
 
     const handleUpdateWallInvisible = (id: string, isInvisible: boolean) => {
         saveStateToHistory()
@@ -401,12 +492,32 @@ export const EditorContainer = forwardRef((props, ref) => {
     }
 
     const handleDragVertex = (originalPoint: Point, totalDelta: Point, activeIds?: string[]) => {
-        const SNAP_THRESHOLD = 6 // Reduced even further for fine-grained control
-        const snapshot = wallSnapshotRef.current
-        if (!snapshot) return
+        const SNAP_THRESHOLD = 10 // Increased for more intuitive snapping behavior
+        let snapshot = wallSnapshotRef.current
+        // If snapshot doesn't exist (edge case), create it now to prevent blocking movement
+        if (!snapshot) {
+            console.warn('⚠️ Snapshot missing during drag - creating emergency snapshot')
+            snapshot = JSON.parse(JSON.stringify(walls))
+            wallSnapshotRef.current = snapshot
+        }
 
-        setWalls(prevWalls => {
-            const TOL = 1.0
+        // Type guard: ensure snapshot is not null
+        if (!snapshot) {
+            console.error('❌ Failed to create snapshot - aborting drag')
+            return
+        }
+
+        console.log('🔍 handleDragVertex called', {
+            originalPoint,
+            totalDelta,
+            activeIds,
+            snapshotLength: snapshot.length
+        })
+
+        // Unwrapped setWalls to prevent nested update loop
+        {
+            // Use standard tolerance for identifying which vertices move together
+            const TOL = 4.0
             const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
             const idsToMove = activeIds || (selectedWallIds.length > 0 ? selectedWallIds : (hoveredWallId ? [hoveredWallId] : []))
             const idsToMoveSet = new Set(idsToMove)
@@ -415,12 +526,32 @@ export const EditorContainer = forwardRef((props, ref) => {
             let tx = originalPoint.x + totalDelta.x
             let ty = originalPoint.y + totalDelta.y
 
+            // Apply snapping immediately - NO BREAKOUT
             if (snappingEnabled) {
                 let vertexSnapped = false
-                // Snap only to vertices NOT currently being moved
+
+                // CRITICAL FIX: Identify points to IGNORE during snap
+                // These are the "other ends" of walls we are currently moving. 
+                // Snapping to them would collapse the wall to length 0.
+                const ignoredSnapPoints: Point[] = []
+                for (const id of idsToMove) {
+                    const w = snapshot.find(sw => sw.id === id)
+                    if (w) {
+                        const isStartToCheck = isSame(w.start, originalPoint)
+                        const isEndToCheck = isSame(w.end, originalPoint)
+                        // Only ignore if we are definitely moving one end
+                        if (isStartToCheck) ignoredSnapPoints.push(w.end)
+                        else if (isEndToCheck) ignoredSnapPoints.push(w.start)
+                    }
+                }
+
                 for (const w of snapshot) {
+                    if (idsToMoveSet.has(w.id)) continue
+
                     for (const p of [w.start, w.end]) {
-                        if (isSame(p, originalPoint)) continue
+                        // Skip if this point is one of our own "anchors"
+                        if (ignoredSnapPoints.some(ip => isSame(ip, p))) continue
+
                         const d = Math.sqrt(Math.pow(p.x - tx, 2) + Math.pow(p.y - ty, 2))
                         if (d < SNAP_THRESHOLD) {
                             tx = p.x; ty = p.y
@@ -431,30 +562,35 @@ export const EditorContainer = forwardRef((props, ref) => {
                     if (vertexSnapped) break
                 }
 
-                // Snap significantly less aggressively for orthogonality during inclining
+                // Imanes de ejes (ortogonalidad) - only apply if not snapped to vertex
                 if (!vertexSnapped) {
                     for (const id of idsToMove) {
                         const w = snapshot.find(sw => sw.id === id)
                         if (!w) continue
                         const fixedP = isSame(w.start, originalPoint) ? w.end : w.start
-                        // Use a smaller threshold for axis-snapping to allow free rotation/inclination
-                        const AXIS_SNAP = 4
+
+                        // Slightly increased axis snap threshold for easier alignment
+                        const AXIS_SNAP = 2.5
+
                         if (Math.abs(tx - fixedP.x) < AXIS_SNAP) tx = fixedP.x
                         if (Math.abs(ty - fixedP.y) < AXIS_SNAP) ty = fixedP.y
                     }
                 }
             }
 
-            tx = Math.round(tx)
-            ty = Math.round(ty)
+            // NO REDONDEAR AQUÍ. Dejamos que el movimiento sea sub-pixel para máxima fluidez.
+            // El redondeo se hace al soltar (handleDragEnd).
 
-            // 2. Build the new walls using SNAPSHOT as the pivot base
-            const workingWalls = prevWalls.map(w => {
-                const snapW = snapshot.find(sw => sw.id === w.id)
-                if (!idsToMoveSet.has(w.id) || !snapW) return w
+            // 2. Build new walls ENTIRELY from snapshot to prevent coordinate drift during drag
+            const workingWalls = snapshot.map(snapW => {
+                if (!idsToMoveSet.has(snapW.id)) {
+                    // Wall not being moved - return it from prevWalls to preserve any other changes
+                    // Wall not being moved - return it from walls state to preserve any other changes
+                    return walls.find(w => w.id === snapW.id) || snapW
+                }
 
-                // We ALWAYS start from the snapshot's coordinates to ensure the PIVOT stays fixed
-                const newW = { ...w, start: { ...snapW.start }, end: { ...snapW.end } }
+                // Wall IS being moved - create new wall from snapshot coords
+                const newW = { ...snapW, start: { ...snapW.start }, end: { ...snapW.end } }
 
                 if (isSame(snapW.start, originalPoint)) {
                     newW.start.x = tx; newW.start.y = ty
@@ -472,8 +608,8 @@ export const EditorContainer = forwardRef((props, ref) => {
                 lastRoomDetectionTime.current = now
             }
 
-            return workingWalls
-        })
+            setWalls(workingWalls)
+        }
     }
 
     const handleDragEnd = () => {
@@ -707,21 +843,20 @@ export const EditorContainer = forwardRef((props, ref) => {
         return best
     }
 
-    const handleClearPlan = () => {
-        if (window.confirm("¿Estás seguro de que quieres limpiar todo el plano?")) {
-            saveStateToHistory()
-            setWalls([])
-            setRooms([])
-            setDoors([])
-            setWindows([])
-            setSelectedWallIds([])
-            setSelectedRoomId(null)
-            setSelectedElement(null)
-            setCurrentWall(null)
-            setRulerState({ start: null, end: null, active: false })
-            setBgImage(null)
-            setIsCalibrating(false)
-        }
+    const executeClearPlan = () => {
+        saveStateToHistory()
+        setWalls([])
+        setRooms([])
+        setDoors([])
+        setWindows([])
+        setSelectedWallIds([])
+        setSelectedRoomId(null)
+        setSelectedElement(null)
+        setCurrentWall(null)
+        setRulerState({ start: null, end: null, active: false })
+        setBgImage(null)
+        setIsCalibrating(false)
+        setActiveTool("select") // Security: Reset tool to avoid accidental drawing
     }
 
     const handleMouseDown = (point: Point) => {
@@ -739,7 +874,23 @@ export const EditorContainer = forwardRef((props, ref) => {
                             end: point,
                             thickness: 10
                         }
-                        const newWalls = fragmentWalls([...walls, newWall])
+
+                        // Check for overlapping invisible walls and remove them
+                        const TOL = 5.0
+                        const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
+
+                        const filteredWalls = walls.filter(w => {
+                            if (!w.isInvisible) return true
+                            // If invisible, check if it is "covered" by the new wall
+                            // Simple check: start and end match (in either direction)
+                            // Or generally strictly collinear and congruent?
+                            // Let's assume user draws exactly over it snapping to vertices.
+                            const match1 = isSame(w.start, newWall.start) && isSame(w.end, newWall.end)
+                            const match2 = isSame(w.start, newWall.end) && isSame(w.end, newWall.start)
+                            return !(match1 || match2)
+                        })
+
+                        const newWalls = fragmentWalls([...filteredWalls, newWall])
                         setWalls(newWalls)
                         const nextRooms = detectAndNameRooms(newWalls, rooms)
                         setRooms(nextRooms)
@@ -892,9 +1043,16 @@ export const EditorContainer = forwardRef((props, ref) => {
     }
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 p-4 gap-4">
-            <Card className="p-2 flex items-center justify-between bg-white/80 backdrop-blur-md border-slate-200 shadow-lg">
+        <div className="flex flex-col h-full bg-slate-50 p-2 gap-2">
+            <Card className="p-1 px-2 flex items-center justify-between bg-white/80 backdrop-blur-md border-slate-200 shadow-lg">
                 <div className="flex items-center gap-1">
+                    <Link href="/dashboard/editor-planos">
+                        <Button variant="ghost" size="sm" className="h-8 px-2 gap-1 text-slate-500 hover:text-slate-900">
+                            <ArrowLeft className="h-3.5 w-3.5" />
+                            <span className="text-xs font-bold">Volver</span>
+                        </Button>
+                    </Link>
+                    <div className="w-px h-6 bg-slate-200 mx-1" />
                     <Button
                         variant={activeTool === "select" ? "default" : "ghost"}
                         size="icon"
@@ -938,6 +1096,36 @@ export const EditorContainer = forwardRef((props, ref) => {
                         <Ruler className="h-4 w-4" />
                     </Button>
                     <div className="w-px h-6 bg-slate-200 mx-1" />
+
+                    <Sheet open={showSummary} onOpenChange={setShowSummary}>
+                        <SheetTrigger asChild>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 gap-2"
+                                title="Ver Resumen y Mediciones"
+                            >
+                                <ClipboardList className="h-4 w-4" />
+                                <span className="font-semibold">Resumen</span>
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
+                            <SheetHeader>
+                                <SheetTitle>Resumen del Plano</SheetTitle>
+                            </SheetHeader>
+                            <div className="mt-6">
+                                <FloorPlanSummary
+                                    rooms={rooms}
+                                    walls={walls}
+                                    doors={doors}
+                                    windows={windows}
+                                />
+                            </div>
+                        </SheetContent>
+                    </Sheet>
+
+                    <div className="w-px h-6 bg-slate-200 mx-1" />
+
                     <Button
                         variant="ghost"
                         size="icon"
@@ -992,6 +1180,34 @@ export const EditorContainer = forwardRef((props, ref) => {
                     >
                         <Building2 className="h-4 w-4" />
                     </Button>
+                    <div className="w-px h-6 bg-slate-200 mx-1" />
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Limpiar Todo el Plano"
+                                className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>¿Limpiar todo el plano?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción eliminará todos los muros, habitaciones, puertas y la imagen de fondo.
+                                    Esta acción no se puede deshacer fácilmente (aunque podrás usar Deshacer una vez).
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={executeClearPlan} className="bg-red-600 hover:bg-red-700">
+                                    Sí, limpiar todo
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -1019,9 +1235,9 @@ export const EditorContainer = forwardRef((props, ref) => {
                         {!isSaving && <Save className="h-3 w-3 ml-2" />}
                     </Button>
                 </div>
-            </Card>
+            </Card >
 
-            <div ref={containerRef} className="flex-1 relative rounded-xl border border-slate-200 shadow-inner overflow-hidden bg-slate-50">
+            <div ref={containerRef} className="flex-1 relative border-t border-slate-200 overflow-hidden bg-slate-50">
                 <CanvasEngine
                     width={dimensions.width}
                     height={dimensions.height}
@@ -1069,6 +1285,10 @@ export const EditorContainer = forwardRef((props, ref) => {
                     snappingEnabled={activeTool === "ruler" ? false : snappingEnabled}
                     onSelectRoom={(id: string | null) => {
                         setSelectedRoomId(id)
+                        if (id) {
+                            setSelectedWallIds([])
+                            setSelectedElement(null)
+                        }
                     }}
                     onDragVertex={handleDragVertex}
                     wallSnapshot={wallSnapshot}
@@ -1087,7 +1307,13 @@ export const EditorContainer = forwardRef((props, ref) => {
                     }}
                     onDragElement={handleDragElement}
                     selectedElement={selectedElement}
-                    onSelectElement={setSelectedElement}
+                    onSelectElement={(el) => {
+                        setSelectedElement(el)
+                        if (el) {
+                            setSelectedWallIds([])
+                            setSelectedRoomId(null)
+                        }
+                    }}
                     onUpdateElement={handleUpdateElement}
                     onCloneElement={handleCloneElement}
                     onDeleteElement={handleDeleteElement}
@@ -1214,7 +1440,7 @@ export const EditorContainer = forwardRef((props, ref) => {
             </div>
 
 
-        </div>
+        </div >
     )
 })
 

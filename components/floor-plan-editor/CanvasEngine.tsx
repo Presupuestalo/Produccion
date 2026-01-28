@@ -161,7 +161,118 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     const [editThickness, setEditThickness] = React.useState<string>("")
     const [editFace, setEditFace] = React.useState<"center" | "interior" | "exterior">("center")
     const dragStartPos = React.useRef<Point | null>(null)
+    const dragStartPointerPos = React.useRef<Point | null>(null) // Para calcular delta del ratón sin saltos
+    const isDraggingVertexRef = React.useRef(false) // Manual drag state
     const lastPointerPos = React.useRef<Point | null>(null) // Para el panning
+
+    // Keep a ref to walls to access latest state inside event listeners without triggering re-binds
+    const wallsRef = React.useRef(walls)
+    React.useEffect(() => {
+        wallsRef.current = walls
+    }, [walls])
+
+    // Global listeners for MANUAL VERTEX DRAGGING (Fixes ghosting)
+    React.useEffect(() => {
+        const handleVertexMove = (e: MouseEvent) => {
+            if (!isDraggingVertexRef.current || !dragStartPointerPos.current || !dragStartPos.current || !stageRef.current) return
+
+            e.preventDefault()
+
+            const stage = stageRef.current
+            const transform = stage.getAbsoluteTransform().copy()
+            transform.invert()
+
+            const container = stage.container()
+            const rect = container.getBoundingClientRect()
+            const pos = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            }
+            const pointer = transform.point(pos)
+
+            let totalDelta = {
+                x: pointer.x - dragStartPointerPos.current.x,
+                y: pointer.y - dragStartPointerPos.current.y
+            }
+
+            // --- SNAPPING LOGIC START ---
+            const currentPos = {
+                x: dragStartPos.current.x + totalDelta.x,
+                y: dragStartPos.current.y + totalDelta.y
+            }
+
+            const SNAP_TOL = 15 // Pixels verification (in screen space? no, logic space) -> 15cm is good
+            let bestSnapX: number | null = null
+            let bestSnapY: number | null = null
+            let minDiffX = SNAP_TOL
+            let minDiffY = SNAP_TOL
+
+            // Iterate all wall endpoints to find snapping candidates
+            // We must exclude the vertices we are currently dragging to avoid self-snapping (trivial 0 distance)
+            // draggingVertexWallIds contains IDs of walls affected.
+            // A vertex is shared by multiple walls. simple exclusion:
+            // exclude points that are "close enough" to startPos (meaning they are the point we are moving)
+            // Actually, we want to snap to *other* vertices.
+
+            // Use ref to get latest walls without re-binding listener
+            wallsRef.current.forEach(w => {
+                [w.start, w.end].forEach(p => {
+                    // Don't snap to the point we are dragging (originally)
+                    if (Math.abs(p.x - dragStartPos.current!.x) < 1 && Math.abs(p.y - dragStartPos.current!.y) < 1) return
+
+                    // Vertical alignment (X match)
+                    const diffX = Math.abs(currentPos.x - p.x)
+                    if (diffX < minDiffX) {
+                        minDiffX = diffX
+                        bestSnapX = p.x
+                    }
+
+                    // Horizontal alignment (Y match)
+                    const diffY = Math.abs(currentPos.y - p.y)
+                    if (diffY < minDiffY) {
+                        minDiffY = diffY
+                        bestSnapY = p.y
+                    }
+                })
+            })
+
+            const guides: { x?: number, y?: number } = {}
+
+            if (bestSnapX !== null) {
+                totalDelta.x = bestSnapX - dragStartPos.current.x
+                guides.x = bestSnapX
+            }
+            if (bestSnapY !== null) {
+                totalDelta.y = bestSnapY - dragStartPos.current.y
+                guides.y = bestSnapY
+            }
+
+            setAlignmentGuides(Object.keys(guides).length > 0 ? guides : null)
+            // --- SNAPPING LOGIC END ---
+
+            onDragVertex(dragStartPos.current, totalDelta, draggingVertexWallIds.current)
+        }
+
+        const handleVertexUp = () => {
+            if (isDraggingVertexRef.current) {
+                isDraggingVertexRef.current = false
+                dragStartPos.current = null
+                dragStartPointerPos.current = null
+                setAlignmentGuides(null) // Clear guides
+                onDragEnd()
+                document.body.style.cursor = 'default'
+            }
+        }
+
+        window.addEventListener('mousemove', handleVertexMove)
+        window.addEventListener('mouseup', handleVertexUp)
+
+        return () => {
+            window.removeEventListener('mousemove', handleVertexMove)
+            window.removeEventListener('mouseup', handleVertexUp)
+        }
+    }, [onDragVertex, onDragEnd]) // Removed 'walls' from dependency, using ref instead
+
     const isPanning = React.useRef(false)
     const draggingVertexWallIds = React.useRef<string[]>([])
     const [isPanningState, setIsPanningState] = React.useState(false)
@@ -212,7 +323,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                 const dx = wall.end.x - wall.start.x
                 const dy = wall.end.y - wall.start.y
                 setEditLength(Math.round(Math.sqrt(dx * dx + dy * dy)).toString())
-                setEditThickness(wall.thickness.toString())
+                setEditThickness(wall.isInvisible ? "0" : wall.thickness.toString())
                 if (!editMode) setEditMode("menu")
             }
         } else if (selectedWallIds.length > 1) {
@@ -509,7 +620,32 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         return wall.thickness / 2
     }
 
-    const renderWallMeasurement = (wall: Wall, offsetVal: number, color: string = "#64748b", isInteractive: boolean = false) => {
+    // Sync editLength when editFace changes to match the visualized dimension
+    React.useEffect(() => {
+        if (!selectedWall || !editMode) return
+
+        const dx = selectedWall.end.x - selectedWall.start.x
+        const dy = selectedWall.end.y - selectedWall.start.y
+        const centerLength = Math.sqrt(dx * dx + dy * dy)
+
+        let targetLen = centerLength
+        if (editFace !== "center") {
+            const nx = -dy / centerLength
+            const ny = dx / centerLength
+            // Use same faceNormal logic as in renderWallMeasurement/Buttons
+            const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
+
+            // Use Segment-Only logic (no chain) to match editing behavior
+            const chainIds = new Set([selectedWall.id])
+
+            targetLen += getFaceOffsetAt(selectedWall, selectedWall.start, faceNormal, chainIds) +
+                getFaceOffsetAt(selectedWall, selectedWall.end, faceNormal, chainIds)
+        }
+
+        setEditLength(Math.round(targetLen).toString())
+    }, [editFace, selectedWall, editMode])
+
+    const renderWallMeasurement = (wall: Wall, offsetVal: number, color: string = "#64748b", isInteractive: boolean = false, overrideLength?: number) => {
         const dx = wall.end.x - wall.start.x
         const dy = wall.end.y - wall.start.y
         if (wall.isInvisible) return null
@@ -545,7 +681,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
         // Interior length is segment-specific (face-to-face inside room)
         // Exterior length is chain-specific (total facade)
-        const displayLength = Math.round(totalChainCenter + finalOffStart + finalOffEnd)
+        const displayLength = overrideLength !== undefined ? overrideLength : Math.round(totalChainCenter + finalOffStart + finalOffEnd)
 
         if (!shouldShowLabel) return null
 
@@ -553,14 +689,28 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         const uy = dy / centerLength
 
         // Offset visual de la línea de medida
-        const visualOff = offsetVal * 0.8
+        const isShortWall = displayLength < 60
+        // Use a larger offset for short walls to push text out of the corner
+        const visualOff = isShortWall ? offsetVal * 3.5 : offsetVal * 0.8
+
         const p1x = (back.terminal.x + ux * (-finalOffStart)) + nx * visualOff
         const p1y = (back.terminal.y + uy * (-finalOffStart)) + ny * visualOff
         const p2x = (forward.terminal.x + ux * (finalOffEnd)) + nx * visualOff
         const p2y = (forward.terminal.y + uy * (finalOffEnd)) + ny * visualOff
 
+        // Base line positions (where the main dimension line sits)
+        const baseVisualOff = offsetVal * 0.8
+        const bp1x = (back.terminal.x + ux * (-finalOffStart)) + nx * baseVisualOff
+        const bp1y = (back.terminal.y + uy * (-finalOffStart)) + ny * baseVisualOff
+        const bp2x = (forward.terminal.x + ux * (finalOffEnd)) + nx * baseVisualOff
+        const bp2y = (forward.terminal.y + uy * (finalOffEnd)) + ny * baseVisualOff
+
         const labelX = (p1x + p2x) / 2
         const labelY = (p1y + p2y) / 2
+
+        // Leader line origin (center of the standard dimension line)
+        const originX = (bp1x + bp2x) / 2
+        const originY = (bp1y + bp2y) / 2
 
         // Líneas de testigo (Witness lines / Caps)
         const capSize = 6 / zoom
@@ -592,27 +742,48 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                     opacity={isInteractive ? 1 : 0.6}
                 />
 
+                {isShortWall && (
+                    <Line
+                        points={[originX, originY, labelX, labelY]}
+                        stroke={color}
+                        strokeWidth={0.5 / zoom}
+                        dash={[2, 2]}
+                        opacity={0.8}
+                    />
+                )}
+
                 <Group
+                    name="measurement-group"
+                    x={labelX}
+                    y={labelY}
+                    rotation={(Math.atan2(dy, dx) * 180 / Math.PI) > 90
+                        ? (Math.atan2(dy, dx) * 180 / Math.PI) - 180
+                        : ((Math.atan2(dy, dx) * 180 / Math.PI) < -90
+                            ? (Math.atan2(dy, dx) * 180 / Math.PI) + 180
+                            : Math.atan2(dy, dx) * 180 / Math.PI)}
                     onClick={(e) => {
-                        if (isInteractive) {
-                            e.cancelBubble = true
-                            setEditFace(faceType)
-                            setEditLength(displayLength.toString())
-                            setEditMode("length")
+                        e.cancelBubble = true
+                        if (!selectedWallIds.includes(wall.id)) {
+                            onSelectWall(wall.id)
                         }
+                        setEditFace(faceType)
+                        setEditLength(displayLength.toString())
+                        setEditMode("length")
                     }}
                     onTap={(e) => {
-                        if (isInteractive) {
-                            e.cancelBubble = true
-                            setEditFace(faceType)
-                            setEditLength(displayLength.toString())
-                            setEditMode("length")
+                        e.cancelBubble = true
+                        if (!selectedWallIds.includes(wall.id)) {
+                            onSelectWall(wall.id)
                         }
+                        setEditFace(faceType)
+                        setEditLength(displayLength.toString())
+                        setEditMode("length")
                     }}
                 >
                     <Rect
-                        x={labelX - 25 / zoom}
-                        y={labelY - 10 / zoom}
+                        name="measurement-bg"
+                        x={-25 / zoom}
+                        y={-10 / zoom}
                         width={50 / zoom}
                         height={20 / zoom}
                         fill="white"
@@ -621,10 +792,11 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                         cornerRadius={4 / zoom}
                     />
                     <Text
-                        x={labelX}
-                        y={labelY - 5 / zoom}
+                        name="measurement-text"
+                        x={0}
+                        y={-5 / zoom}
                         text={`${displayLength} cm`}
-                        fontSize={10 / zoom}
+                        fontSize={14 / zoom}
                         fill={isInteractive && editMode === "length" && editFace === faceType ? "#0ea5e9" : color}
                         align="center"
                         offsetX={25 / zoom}
@@ -663,12 +835,13 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         const targetName = e.target.name() || ""
         const isRoom = targetName.startsWith("room-")
 
-        if (isRightClick || isMiddleClick || isBackground) {
-            if (isBackground) {
-                onSelectWall(null)
-                onSelectRoom(null)
-                onSelectElement(null)
-            }
+        if (isRightClick || isMiddleClick || isBackground || (activeTool === "select" && !targetName.startsWith("wall-") && !targetName.startsWith("door-") && !targetName.startsWith("window-") && !targetName.startsWith("vertex-") && !targetName.startsWith("measurement-"))) {
+            // Deselect if clicking background OR if clicking something that isn't a wall/door/window (e.g. a room or grid)
+            // Note: If clicking a room, this will deselect first, then the Room's onClick will fire and select the room.
+            onSelectWall(null)
+            onSelectRoom(null)
+            onSelectElement(null)
+
             if (isRightClick || isMiddleClick || activeTool === "select") {
                 isPanning.current = true
                 setIsPanningState(true)
@@ -838,7 +1011,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                             name="room-label-text"
                                             y={-10}
                                             text={room.name}
-                                            fontSize={12}
+                                            fontSize={18}
                                             fill="#1e293b"
                                             fontStyle="bold"
                                             align="center"
@@ -848,7 +1021,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                             name="room-label-text"
                                             y={5}
                                             text={`${room.area.toFixed(2)} m²`}
-                                            fontSize={10}
+                                            fontSize={14}
                                             fill="#64748b"
                                             align="center"
                                             offsetX={30}
@@ -868,11 +1041,12 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                             return (
                                 <Group key={wall.id}>
                                     <Line
+                                        name={`wall-${wall.id}`}
                                         points={[wall.start.x, wall.start.y, wall.end.x, wall.end.y]}
                                         stroke={wall.isInvisible ? "#0ea5e9" : (isHovered && !isSelected ? "#ef4444" : "#334155")}
                                         strokeWidth={wall.isInvisible ? (isSelected ? 4 : 2) : wall.thickness}
                                         dash={wall.isInvisible ? [5, 5] : undefined}
-                                        hitStrokeWidth={30}
+                                        hitStrokeWidth={wall.isInvisible ? 14 : 20}
                                         lineCap="round"
                                         lineJoin="round"
                                         draggable={activeTool === "select"}
@@ -880,17 +1054,6 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                             e.cancelBubble = true
                                             if (activeTool === "select") {
                                                 onSelectWall(wall.id, e.evt.ctrlKey)
-                                                // @ts-ignore
-                                                const room = rooms.find(r =>
-                                                    r.polygon.some((p, i) => {
-                                                        const next = r.polygon[(i + 1) % r.polygon.length]
-                                                        const TOL = 3.0
-                                                        const isShared = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
-                                                        return (isShared(p, wall.start) && isShared(next, wall.end)) ||
-                                                            (isShared(p, wall.end) && isShared(next, wall.start))
-                                                    })
-                                                )
-                                                if (room) onSelectRoom(room.id)
                                             }
                                         }}
                                         onDblClick={(e) => {
@@ -1001,6 +1164,9 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                             {renderWallMeasurement(wall, -25 / zoom, "#0ea5e9", true)}
                                         </>
                                     )}
+
+                                    {/* Mostrar medida si la habitación está seleccionada (y el muro no, para no duplicar) */}
+                                    {/* Measurements removed on room selection */}
                                     {/* Medida durante el arrastre (si no está seleccionada por algún motivo) */}
                                     {dragStartPos.current && isHovered && !isSelected && renderWallMeasurement(wall, 25 / zoom)}
                                     {/* MEDIDAS PERPENDICULARES DINÁMICAS */}
@@ -1042,6 +1208,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                             return (
                                 <Group
                                     key={door.id}
+                                    name={`door-${door.id}`}
                                     x={pos.x} y={pos.y}
                                     rotation={wallAngle}
                                     draggable={activeTool === "select"}
@@ -1050,7 +1217,12 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                     onDragMove={(e) => {
                                         const stage = e.target.getStage()
                                         if (!stage) return
-                                        const pointer = getRelativePointerPosition(stage)
+                                        const transform = stage.getAbsoluteTransform().copy()
+                                        transform.invert()
+                                        const sp = stage.getPointerPosition()
+                                        if (!sp) return
+                                        const pointer = transform.point(sp)
+
                                         onDragElement("door", door.id, pointer)
                                         e.target.x(pos.x)
                                         e.target.y(pos.y)
@@ -1152,6 +1324,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                             return (
                                 <Group
                                     key={window.id}
+                                    name={`window-${window.id}`}
                                     x={pos.x} y={pos.y}
                                     rotation={wallAngle}
                                     draggable={activeTool === "select"}
@@ -1160,7 +1333,12 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                     onDragMove={(e) => {
                                         const stage = e.target.getStage()
                                         if (!stage) return
-                                        const pointer = getRelativePointerPosition(stage)
+                                        const transform = stage.getAbsoluteTransform().copy()
+                                        transform.invert()
+                                        const sp = stage.getPointerPosition()
+                                        if (!sp) return
+                                        const pointer = transform.point(sp)
+
                                         onDragElement("window", window.id, pointer)
                                         e.target.x(pos.x)
                                         e.target.y(pos.y)
@@ -1246,6 +1424,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                             strokeWidth={1 / zoom}
                                             dash={[10, 10]}
                                             opacity={0.3}
+                                            listening={false}
                                         />
                                     )}
                                     {isHorizontal && (
@@ -1255,6 +1434,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                             strokeWidth={1 / zoom}
                                             dash={[10, 10]}
                                             opacity={0.3}
+                                            listening={false}
                                         />
                                     )}
                                     <Line
@@ -1280,7 +1460,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
                         {/* Guías inteligentes de alineación */}
                         {alignmentGuides && mousePos && (
-                            <Group>
+                            <Group listening={false}>
                                 {alignmentGuides.x !== undefined && (
                                     <Line
                                         points={[alignmentGuides.x, -5000, alignmentGuides.x, 5000]}
@@ -1417,19 +1597,24 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                         {/* 1. Tiradores de selección de muros */}
                         {/* 1. Tiradores de selección de muros (Agrupados y con mejor hit-area) */}
                         {(() => {
-                            const uniqueVertices = new Map<string, { point: Point, connections: { wallId: string, type: 's' | 'e' }[] }>();
+                            const vertexGroups: { point: Point, connections: { wallId: string, type: 's' | 'e' }[] }[] = [];
+                            const UI_MERGE_TOLERANCE = 3;
 
                             walls.forEach(w => {
                                 [{ p: w.start, type: 's' as const }, { p: w.end, type: 'e' as const }].forEach(({ p, type }) => {
-                                    const key = `${Math.round(p.x)},${Math.round(p.y)}`;
-                                    if (!uniqueVertices.has(key)) {
-                                        uniqueVertices.set(key, { point: p, connections: [] });
+                                    const existing = vertexGroups.find(v =>
+                                        Math.abs(v.point.x - p.x) < UI_MERGE_TOLERANCE &&
+                                        Math.abs(v.point.y - p.y) < UI_MERGE_TOLERANCE
+                                    );
+                                    if (existing) {
+                                        existing.connections.push({ wallId: w.id, type });
+                                    } else {
+                                        vertexGroups.push({ point: p, connections: [{ wallId: w.id, type }] });
                                     }
-                                    uniqueVertices.get(key)!.connections.push({ wallId: w.id, type });
                                 });
                             });
 
-                            return Array.from(uniqueVertices.values()).filter(({ connections }) => {
+                            return vertexGroups.filter(({ connections }) => {
                                 return connections.some(c => selectedWallIds.includes(c.wallId) || c.wallId === hoveredWallId);
                             }).map(({ point, connections }, idx) => {
                                 const isSelected = connections.some(c => selectedWallIds.includes(c.wallId));
@@ -1439,6 +1624,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                 return (
                                     <Circle
                                         key={vertexKey}
+                                        name="vertex-handle"
                                         x={point.x}
                                         y={point.y}
                                         radius={(isSelected ? 10 : 7) / zoom}
@@ -1446,38 +1632,30 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         stroke="#ffffff"
                                         strokeWidth={2 / zoom}
                                         hitStrokeWidth={20 / zoom}
-                                        draggable
-                                        onDragStart={(e) => {
-                                            e.cancelBubble = true;
-                                            onStartDragWall();
-                                            dragStartPos.current = { ...point };
+                                        draggable={false}
+                                        onMouseDown={(e) => {
+                                            e.cancelBubble = true
+                                            const stage = e.target.getStage()
+                                            if (stage) {
+                                                stageRef.current = stage // Capture stage reference
 
-                                            // Si no hay selección, movemos todos los tabiques conectados.
-                                            // Si hay selección, solo los tabiques seleccionados que compartan este vértice.
-                                            const movingIds = selectedWallIds.length > 0
-                                                ? connections.map(c => c.wallId).filter(id => selectedWallIds.includes(id))
-                                                : connections.map(c => c.wallId);
+                                                onStartDragWall()
+                                                isDraggingVertexRef.current = true
+                                                dragStartPos.current = { ...point }
 
-                                            draggingVertexWallIds.current = movingIds;
-                                        }}
-                                        onDragMove={(e) => {
-                                            const stage = e.target.getStage();
-                                            if (!stage || !dragStartPos.current || !wallSnapshot) return;
+                                                const transform = stage.getAbsoluteTransform().copy()
+                                                transform.invert()
+                                                const pos = stage.getPointerPosition()
+                                                if (pos) {
+                                                    dragStartPointerPos.current = transform.point(pos)
+                                                }
 
-                                            const pos = getRawPointerPosition(stage);
-                                            const totalDelta = {
-                                                x: pos.x - dragStartPos.current.x,
-                                                y: pos.y - dragStartPos.current.y
-                                            };
+                                                // Determine walls to move
+                                                const selectedConnections = connections.filter(c => selectedWallIds.includes(c.wallId)).map(c => c.wallId)
+                                                draggingVertexWallIds.current = selectedConnections.length > 0 ? selectedConnections : connections.map(c => c.wallId)
 
-                                            if (Math.abs(totalDelta.x) > 0.01 || Math.abs(totalDelta.y) > 0.01) {
-                                                onDragVertex(dragStartPos.current, totalDelta, draggingVertexWallIds.current);
+                                                document.body.style.cursor = 'move'
                                             }
-                                            e.target.position({ x: 0, y: 0 });
-                                        }}
-                                        onDragEnd={() => {
-                                            dragStartPos.current = null;
-                                            onDragEnd();
                                         }}
                                         onMouseEnter={(e: any) => {
                                             const stage = e.target.getStage();
@@ -1705,9 +1883,38 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                                                 setEditLength("") // Usamos editLength para el nombre personalizado
                                                                 return
                                                             }
-                                                            const currentMatch = selectedRoom?.name.match(/\d+$/)
-                                                            const roomNumber = currentMatch ? currentMatch[0] : (rooms.indexOf(selectedRoom!) + 1)
-                                                            onUpdateRoom(selectedRoomId, { name: `${type} ${roomNumber}` })
+
+                                                            // Logic for smart numbering
+                                                            // 1. Find other rooms of the SAME type
+                                                            const others = rooms.filter(r => r.id !== selectedRoomId && r.name.startsWith(type))
+
+                                                            if (others.length === 0) {
+                                                                // First one is just "Type" (e.g. "Cocina")
+                                                                onUpdateRoom(selectedRoomId, { name: type })
+                                                            } else {
+                                                                // There are others. We need to assign a number.
+                                                                // Check if there is a "plain" room (e.g. just "Cocina") that needs to become "Cocina 1"
+                                                                const plainRoom = others.find(r => r.name === type)
+                                                                if (plainRoom) {
+                                                                    onUpdateRoom(plainRoom.id, { name: `${type} 1` })
+                                                                }
+
+                                                                // Find next available number
+                                                                const usedNumbers = others.map(r => {
+                                                                    const match = r.name.match(/\d+$/)
+                                                                    // If it has a number, use it. If it's plain "Name", treat as 1 (since we just renamed it implicitly)
+                                                                    return match ? parseInt(match[0]) : (r.name === type ? 1 : 0)
+                                                                }).filter(n => n > 0)
+
+                                                                // If we found a plain room, we definitely used 1
+                                                                if (plainRoom && !usedNumbers.includes(1)) usedNumbers.push(1)
+
+                                                                let nextNum = 1
+                                                                while (usedNumbers.includes(nextNum)) nextNum++
+
+                                                                onUpdateRoom(selectedRoomId, { name: `${type} ${nextNum}` })
+                                                            }
+
                                                             setEditMode(null)
                                                             onSelectRoom(null)
                                                         }
@@ -1813,32 +2020,24 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                                         const targetLen = parseInt(editLength)
                                                         if (isNaN(targetLen)) return
 
-                                                        // Accurate terminal/chain detection for menu update logic
-                                                        const chainIds = new Set([selectedWall.id])
+                                                        // FIXED: Start/Up Arrow Logic (Single Segment)
                                                         const dx = selectedWall.end.x - selectedWall.start.x
                                                         const dy = selectedWall.end.y - selectedWall.start.y
                                                         const centerLength = Math.sqrt(dx * dx + dy * dy)
-                                                        const nx = -dy / centerLength
-                                                        const ny = dx / centerLength
-                                                        const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
 
-                                                        const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal)
-                                                        const fwd = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal)
-                                                        const totalChainCenter = centerLength + back.addedLen + fwd.addedLen
-
-                                                        let currentTotal = totalChainCenter
+                                                        const chainIds = new Set([selectedWall.id])
+                                                        let currentTotal = centerLength
                                                         if (editFace !== "center") {
-                                                            currentTotal += getFaceOffsetAt(selectedWall, back.terminal, faceNormal, chainIds) +
-                                                                getFaceOffsetAt(selectedWall, fwd.terminal, faceNormal, chainIds)
+                                                            const nx = -dy / centerLength
+                                                            const ny = dx / centerLength
+                                                            const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
+                                                            currentTotal += getFaceOffsetAt(selectedWall, selectedWall.start, faceNormal, chainIds) +
+                                                                getFaceOffsetAt(selectedWall, selectedWall.end, faceNormal, chainIds)
                                                         }
 
                                                         const delta = targetLen - currentTotal
                                                         if (selectedWall && Math.abs(delta) > 0.01) {
-                                                            const targetWall = walls.find(w => w.id === back.terminalWallId) || selectedWall
-                                                            const isTerminalStart = Math.sqrt(Math.pow(targetWall.start.x - back.terminal.x, 2) + Math.pow(targetWall.start.y - back.terminal.y, 2)) < 5.0
-                                                            const side = isTerminalStart ? "left" : "right"
-                                                            const currentTargetLen = Math.sqrt(Math.pow(targetWall.start.x - targetWall.end.x, 2) + Math.pow(targetWall.start.y - targetWall.end.y, 2))
-                                                            onUpdateWallLength(targetWall.id, currentTargetLen + delta, side)
+                                                            onUpdateWallLength(selectedWall.id, centerLength + delta, "left")
                                                         }
 
                                                         setEditMode("menu")
@@ -1853,6 +2052,33 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                                         autoFocus
                                                         value={editLength}
                                                         onChange={(e) => setEditLength(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                const targetLen = parseInt(editLength)
+                                                                if (isNaN(targetLen)) return
+
+                                                                const dx = selectedWall.end.x - selectedWall.start.x
+                                                                const dy = selectedWall.end.y - selectedWall.start.y
+                                                                const centerLength = Math.sqrt(dx * dx + dy * dy)
+
+                                                                const chainIds = new Set([selectedWall.id])
+                                                                let currentTotal = centerLength
+                                                                if (editFace !== "center") {
+                                                                    const nx = -dy / centerLength
+                                                                    const ny = dx / centerLength
+                                                                    const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
+                                                                    currentTotal += getFaceOffsetAt(selectedWall, selectedWall.start, faceNormal, chainIds) +
+                                                                        getFaceOffsetAt(selectedWall, selectedWall.end, faceNormal, chainIds)
+                                                                }
+
+                                                                const delta = targetLen - currentTotal
+                                                                if (selectedWall && Math.abs(delta) > 0.01) {
+                                                                    onUpdateWallLength(selectedWall.id, centerLength + delta, "right")
+                                                                }
+                                                                setEditMode("menu")
+                                                            }
+                                                            if (e.key === 'Escape') setEditMode("menu")
+                                                        }}
                                                         className="w-16 text-center text-lg font-bold text-slate-800 focus:outline-none"
                                                     />
                                                     <span className="text-[10px] font-bold text-slate-400">cm</span>
@@ -1862,33 +2088,24 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                                         const targetLen = parseInt(editLength)
                                                         if (isNaN(targetLen)) return
 
-                                                        // Accurate terminal/chain detection for menu update logic
-                                                        const chainIds = new Set([selectedWall.id])
+                                                        // FIXED: End/Down Arrow Logic (Single Segment)
                                                         const dx = selectedWall.end.x - selectedWall.start.x
                                                         const dy = selectedWall.end.y - selectedWall.start.y
                                                         const centerLength = Math.sqrt(dx * dx + dy * dy)
-                                                        const nx = -dy / centerLength
-                                                        const ny = dx / centerLength
-                                                        const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
 
-
-                                                        const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal)
-                                                        const fwd = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal)
-                                                        const totalChainCenter = centerLength + back.addedLen + fwd.addedLen
-
-                                                        let currentTotal = totalChainCenter
+                                                        const chainIds = new Set([selectedWall.id])
+                                                        let currentTotal = centerLength
                                                         if (editFace !== "center") {
-                                                            currentTotal += getFaceOffsetAt(selectedWall, back.terminal, faceNormal, chainIds) +
-                                                                getFaceOffsetAt(selectedWall, fwd.terminal, faceNormal, chainIds)
+                                                            const nx = -dy / centerLength
+                                                            const ny = dx / centerLength
+                                                            const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
+                                                            currentTotal += getFaceOffsetAt(selectedWall, selectedWall.start, faceNormal, chainIds) +
+                                                                getFaceOffsetAt(selectedWall, selectedWall.end, faceNormal, chainIds)
                                                         }
 
                                                         const delta = targetLen - currentTotal
                                                         if (selectedWall && Math.abs(delta) > 0.01) {
-                                                            const targetWall = walls.find(w => w.id === fwd.terminalWallId) || selectedWall
-                                                            const isTerminalStart = Math.sqrt(Math.pow(targetWall.start.x - fwd.terminal.x, 2) + Math.pow(targetWall.start.y - fwd.terminal.y, 2)) < 5.0
-                                                            const side = isTerminalStart ? "left" : "right"
-                                                            const currentTargetLen = Math.sqrt(Math.pow(targetWall.start.x - targetWall.end.x, 2) + Math.pow(targetWall.start.y - targetWall.end.y, 2))
-                                                            onUpdateWallLength(targetWall.id, currentTargetLen + delta, side)
+                                                            onUpdateWallLength(selectedWall.id, centerLength + delta, "right")
                                                         }
 
                                                         setEditMode("menu")
