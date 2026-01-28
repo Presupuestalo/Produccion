@@ -16,7 +16,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, FileText, ClipboardList, Spline } from "lucide-react"
+import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, FileText, ClipboardList, Spline } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { FloorPlanSummary } from "./FloorPlanSummary"
 import Link from "next/link"
@@ -24,6 +24,7 @@ import { detectRoomsGeometrically, fragmentWalls, getClosestPointOnSegment, isPo
 
 export const EditorContainer = forwardRef((props: any, ref) => {
     const containerRef = useRef<HTMLDivElement>(null)
+    const editorWrapperRef = useRef<HTMLDivElement>(null)
     const canvasEngineRef = useRef<CanvasEngineRef>(null)
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
     const [zoom, setZoom] = useState(1)
@@ -1205,7 +1206,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     }
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 p-2 gap-2">
+        <div ref={editorWrapperRef} className="flex flex-col h-full bg-slate-50 p-2 gap-2">
             <Card className="p-2 flex flex-wrap md:flex-nowrap items-center justify-between bg-white/95 backdrop-blur-md border-slate-200 shadow-sm z-20 gap-y-2">
                 <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-full pb-1 md:pb-0">
                     <Link href="/dashboard/editor-planos">
@@ -1274,32 +1275,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     </Button>
                     <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
 
-                    <Sheet open={showSummary} onOpenChange={setShowSummary}>
-                        <SheetTrigger asChild>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 gap-2 flex-shrink-0"
-                                title="Ver Resumen y Mediciones"
-                            >
-                                <ClipboardList className="h-4 w-4" />
-                                <span className="font-semibold hidden sm:inline">Resumen</span>
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
-                            <SheetHeader>
-                                <SheetTitle>Resumen del Plano</SheetTitle>
-                            </SheetHeader>
-                            <div className="mt-6">
-                                <FloorPlanSummary
-                                    rooms={rooms}
-                                    walls={walls}
-                                    doors={doors}
-                                    windows={windows}
-                                />
-                            </div>
-                        </SheetContent>
-                    </Sheet>
+
 
                     <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
 
@@ -1421,6 +1397,56 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     </Button>
                     <Button variant="outline" size="icon" className="h-8 w-8 hidden sm:flex" onClick={handleResetView}>
                         <Maximize className="h-4 w-4" />
+                    </Button>
+                    <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block" />
+
+                    {/* Summary Button (Moved) */}
+                    <Sheet open={showSummary} onOpenChange={setShowSummary}>
+                        <SheetTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Ver Resumen"
+                                className="text-slate-600 hover:text-blue-600 hover:bg-blue-50"
+                            >
+                                <ClipboardList className="h-4 w-4" />
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
+                            <SheetHeader>
+                                <SheetTitle>Resumen del Plano</SheetTitle>
+                            </SheetHeader>
+                            <div className="mt-6">
+                                <FloorPlanSummary
+                                    rooms={rooms}
+                                    walls={walls}
+                                    doors={doors}
+                                    windows={windows}
+                                />
+                            </div>
+                        </SheetContent>
+                    </Sheet>
+
+                    {/* Full Screen Button */}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                            if (!document.fullscreenElement) {
+                                // Request fullscreen on the wrapper specific element to hide global sidebar/menu
+                                editorWrapperRef.current?.requestFullscreen().catch(err => {
+                                    console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                                });
+                            } else {
+                                if (document.exitFullscreen) {
+                                    document.exitFullscreen();
+                                }
+                            }
+                        }}
+                        title="Pantalla Completa"
+                        className="text-slate-600 hover:text-slate-900"
+                    >
+                        <Maximize2 className="h-4 w-4" />
                     </Button>
                     <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block" />
                     <Button
