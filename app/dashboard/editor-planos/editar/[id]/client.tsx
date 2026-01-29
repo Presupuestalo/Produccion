@@ -4,6 +4,7 @@ import React, { useRef } from "react"
 import { EditorContainer } from "@/components/floor-plan-editor/EditorContainer"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/use-toast"
+import { MobileOrientationGuard } from "@/components/floor-plan-editor/MobileOrientationGuard"
 
 export default function EditPlanClient({
     initialData,
@@ -54,6 +55,7 @@ export default function EditPlanClient({
 
     return (
         <div className="h-[calc(100vh-4rem)] bg-slate-50 overflow-hidden">
+            <MobileOrientationGuard />
             <EditorContainer
                 ref={editorRef}
                 initialData={initialData}

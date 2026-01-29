@@ -438,6 +438,20 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
     const isPanning = React.useRef(false)
     const draggingVertexWallIds = React.useRef<string[]>([])
+    // Pinch-to-zoom refs
+    const lastDist = React.useRef<number>(0)
+    const lastCenter = React.useRef<Point | null>(null)
+
+    const getDistance = (p1: Point, p2: Point) => {
+        return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2))
+    }
+
+    const getCenter = (p1: Point, p2: Point) => {
+        return {
+            x: (p1.x + p2.x) / 2,
+            y: (p1.y + p2.y) / 2,
+        }
+    }
     const [isPanningState, setIsPanningState] = React.useState(false)
     const [menuDragOffset, setMenuDragOffset] = React.useState<Point>({ x: 0, y: 0 })
     const [isDraggingMenuState, setIsDraggingMenuState] = React.useState(false) // State version for Effect
@@ -1100,6 +1114,65 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         onPan(e.target.x(), e.target.y())
     }
 
+    const handleTouchMove = (e: any) => {
+        const touch1 = e.evt.touches[0]
+        const touch2 = e.evt.touches[1]
+
+        if (touch1 && touch2) {
+            e.evt.preventDefault()
+
+            if (stageRef.current.isDragging()) {
+                stageRef.current.stopDrag()
+            }
+
+            const p1 = { x: touch1.clientX, y: touch1.clientY }
+            const p2 = { x: touch2.clientX, y: touch2.clientY }
+
+            if (!lastCenter.current) {
+                lastCenter.current = getCenter(p1, p2)
+                return
+            }
+
+            const newCenter = getCenter(p1, p2)
+            const dist = getDistance(p1, p2)
+
+            if (!lastDist.current) {
+                lastDist.current = dist
+            }
+
+            // Calculate scale
+            const pointTo = {
+                x: (newCenter.x - stageRef.current.x()) / zoom,
+                y: (newCenter.y - stageRef.current.y()) / zoom,
+            }
+
+            const scale = dist / lastDist.current
+            const newScale = zoom * scale
+
+            if (newScale >= 0.1 && newScale <= 20) {
+                const dx = newCenter.x - lastCenter.current.x
+                const dy = newCenter.y - lastCenter.current.y
+
+                // Calculate new position
+                const newPos = {
+                    x: newCenter.x - pointTo.x * newScale + dx,
+                    y: newCenter.y - pointTo.y * newScale + dy,
+                }
+
+                onZoom(newScale)
+                onPan(newPos.x, newPos.y)
+            }
+
+            lastDist.current = dist
+            lastCenter.current = newCenter
+        }
+    }
+
+    const handleTouchEnd = () => {
+        lastDist.current = 0
+        lastCenter.current = null
+    }
+
     return (
         <div className="w-full h-full bg-slate-50 overflow-hidden">
             <Stage
@@ -1110,6 +1183,8 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                 scaleY={1}
                 draggable={false}
                 onWheel={handleWheel}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
                 onMouseDown={handleStageMouseDown}
                 onMouseMove={handleStageMouseMove}
                 onMouseUp={handleStageMouseUp}
