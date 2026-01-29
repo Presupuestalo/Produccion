@@ -1296,6 +1296,16 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                         <Trash2 className="h-5 w-5" />
                                         <span className="text-xs">Limpiar</span>
                                     </Button>
+                                    <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={() => {
+                                        if (!document.fullscreenElement) {
+                                            document.documentElement.requestFullscreen().catch(e => console.error(e))
+                                        } else {
+                                            document.exitFullscreen().catch(e => console.error(e))
+                                        }
+                                    }}>
+                                        <Maximize2 className="h-5 w-5" />
+                                        <span className="text-xs">Pantalla</span>
+                                    </Button>
                                 </div>
                             </SheetContent>
                         </Sheet>
@@ -1342,6 +1352,20 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="hidden sm:inline-flex"
+                        onClick={() => {
+                            if (!document.fullscreenElement) {
+                                document.documentElement.requestFullscreen().catch(e => console.error(e))
+                            } else {
+                                document.exitFullscreen().catch(e => console.error(e))
+                            }
+                        }}
+                    >
+                        <Maximize2 className="h-4 w-4 text-slate-500" />
+                    </Button>
                     <Button
                         size="sm"
                         className="bg-orange-600 hover:bg-orange-700 h-8 px-3 text-xs md:text-sm"
