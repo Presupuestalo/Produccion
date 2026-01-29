@@ -337,12 +337,17 @@ export const CanvasEngine = ({
                     {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"].map(digit => (
                         <button
                             key={digit}
+                            onTouchStart={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleDigit(digit)
+                            }}
                             onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
                                 handleDigit(digit)
                             }}
-                            className="flex-1 h-11 flex items-center justify-center rounded-md text-lg font-bold bg-slate-50 text-slate-800 hover:bg-slate-100 active:bg-slate-200 transition-all active:scale-95 border border-slate-200"
+                            className="flex-1 h-11 flex items-center justify-center rounded-md text-lg font-bold bg-slate-50 text-slate-800 hover:bg-slate-100 active:bg-sky-200 transition-all border border-slate-200"
                         >
                             {digit}
                         </button>
@@ -350,12 +355,17 @@ export const CanvasEngine = ({
 
                     {/* Delete Button */}
                     <button
+                        onTouchStart={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            handleDelete()
+                        }}
                         onClick={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
                             handleDelete()
                         }}
-                        className="flex-1 h-11 flex items-center justify-center rounded-md bg-red-50 text-red-600 hover:bg-red-100 active:bg-red-200 transition-all active:scale-95 border border-red-200"
+                        className="flex-1 h-11 flex items-center justify-center rounded-md bg-red-50 text-red-600 hover:bg-red-100 active:bg-red-300 transition-all border border-red-200"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -1704,7 +1714,6 @@ export const CanvasEngine = ({
                                     {isSelected && (
                                         <>
                                             {renderWallMeasurement(wall, 25 / zoom, "#0ea5e9", true)}
-                                            {renderWallMeasurement(wall, -25 / zoom, "#0ea5e9", true)}
                                         </>
                                     )}
 
