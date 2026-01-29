@@ -281,7 +281,7 @@ export const CanvasEngine = ({
     }, [])
 
     // Componente Teclado Numérico Personalizado para Móvil - Estilo Bottom Sheet
-    const NumericKeypad = ({ value, onChange, onConfirm, onCancel, title }: { value: string, onChange: (v: string) => void, onConfirm: () => void, onCancel: () => void, title: string }) => {
+    const NumericKeypad = ({ value, onChange, onConfirm, onCancel, title }: { value: string, onChange: (v: string) => void, onConfirm: (val: string) => void, onCancel: () => void, title: string }) => {
         // Use local state for editing - only send to parent on OK
         const [tempValue, setTempValue] = React.useState(value)
         const [isFirstInput, setIsFirstInput] = React.useState(true)
@@ -317,7 +317,7 @@ export const CanvasEngine = ({
         const handleConfirm = () => {
             // Send final value to parent
             onChange(tempValue)
-            onConfirm()
+            onConfirm(tempValue)
         }
 
         return (
@@ -404,7 +404,7 @@ export const CanvasEngine = ({
         )
     }
 
-    const NumericInput = ({ label, value, setter, onEnter, placeholder }: { label?: string, value: string, setter: (v: string) => void, onEnter: () => void, placeholder?: string }) => {
+    const NumericInput = ({ label, value, setter, onEnter, placeholder }: { label?: string, value: string, setter: (v: string) => void, onEnter: (val?: string) => void, placeholder?: string }) => {
         const [showKeypad, setShowKeypad] = React.useState(false)
 
         if (isMobile) {
@@ -451,8 +451,8 @@ export const CanvasEngine = ({
                                     title={label || "Introducir valor"}
                                     value={value}
                                     onChange={setter}
-                                    onConfirm={() => {
-                                        onEnter()
+                                    onConfirm={(val) => {
+                                        onEnter(val)
                                         setShowKeypad(false)
                                     }}
                                     onCancel={() => setShowKeypad(false)}
@@ -471,7 +471,7 @@ export const CanvasEngine = ({
                 value={value}
                 onChange={(e) => setter(e.target.value)}
                 onKeyDown={(e) => {
-                    if (e.key === 'Enter') onEnter()
+                    if (e.key === 'Enter') onEnter(value)
                 }}
                 className="w-16 p-1.5 border-2 border-slate-200 rounded-lg text-center text-sm font-bold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
                 placeholder={placeholder}
@@ -2942,9 +2942,10 @@ export const CanvasEngine = ({
                                             label="Grosor de pared"
                                             value={editThickness}
                                             setter={setEditThickness}
-                                            onEnter={() => {
+                                            onEnter={(val) => {
+                                                const finalVal = val !== undefined ? val : editThickness
                                                 if (selectedWall) {
-                                                    onUpdateWallThickness(selectedWall.id, parseInt(editThickness))
+                                                    onUpdateWallThickness(selectedWall.id, parseInt(finalVal))
                                                     setEditMode("menu")
                                                 }
                                             }}
@@ -3006,8 +3007,9 @@ export const CanvasEngine = ({
                                                         label={`Medida ${editFace}`}
                                                         value={editLength}
                                                         setter={setEditLength}
-                                                        onEnter={() => {
-                                                            const targetLen = parseInt(editLength)
+                                                        onEnter={(val) => {
+                                                            const finalVal = val !== undefined ? val : editLength
+                                                            const targetLen = parseInt(finalVal)
                                                             if (isNaN(targetLen) || !selectedWall) return
 
                                                             const dx = selectedWall.end.x - selectedWall.start.x
@@ -3071,8 +3073,9 @@ export const CanvasEngine = ({
                                                     label="Ancho"
                                                     value={editLength}
                                                     setter={setEditLength}
-                                                    onEnter={() => {
-                                                        const updates: any = { width: parseInt(editLength) }
+                                                    onEnter={(val) => {
+                                                        const finalVal = val !== undefined ? val : editLength
+                                                        const updates: any = { width: parseInt(finalVal) }
                                                         if (selectedElement.type === "window" && editHeight) updates.height = parseInt(editHeight)
                                                         onUpdateElement(selectedElement.type, selectedElement.id, updates)
                                                         setEditMode("menu")
@@ -3087,10 +3090,11 @@ export const CanvasEngine = ({
                                                         label="Alto"
                                                         value={editHeight}
                                                         setter={setEditHeight}
-                                                        onEnter={() => {
+                                                        onEnter={(val) => {
+                                                            const finalVal = val !== undefined ? val : editHeight
                                                             onUpdateElement(selectedElement.type, selectedElement.id, {
-                                                                width: parseInt(editLength),
-                                                                height: parseInt(editHeight)
+                                                                width: parseInt(editLength), // Width uses state, assume it's stable or handled by other input
+                                                                height: parseInt(finalVal)
                                                             })
                                                             setEditMode("menu")
                                                         }}
