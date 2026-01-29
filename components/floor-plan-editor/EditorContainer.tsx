@@ -1218,17 +1218,34 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         return () => window.removeEventListener("resize", checkMobile)
     }, [])
 
+    const handleBack = (e: React.MouseEvent) => {
+        // If there are changes in history, warn the user
+        if (history.length > 0) {
+            e.preventDefault()
+            const confirmLeave = window.confirm("Tienes cambios sin guardar. ¿Seguro que quieres salir sin guardar?")
+            if (confirmLeave) {
+                router.push("/dashboard/editor-planos")
+            }
+        } else {
+            router.push("/dashboard/editor-planos")
+        }
+    }
+
     return (
         <div ref={editorWrapperRef} className="flex flex-col h-full bg-slate-50 p-2 gap-2 relative">
             <MobileOrientationGuard />
             {/* Toolbar */}
             <Card className="p-2 flex flex-nowrap items-center justify-between bg-white/95 backdrop-blur-md border-slate-200 shadow-sm z-20 gap-x-2 overflow-x-auto no-scrollbar">
                 <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-full pb-1 md:pb-0 h-9">
-                    <Link href="/dashboard/editor-planos">
-                        <Button variant="ghost" size="icon" className="w-9 h-9 text-slate-500 hover:text-slate-900" title="Volver">
-                            <ArrowLeft className="h-5 w-5" />
-                        </Button>
-                    </Link>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="w-9 h-9 text-slate-500 hover:text-slate-900"
+                        title="Volver"
+                        onClick={handleBack}
+                    >
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
                     <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
 
                     {/* Primary Tools */}
@@ -1351,6 +1368,14 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
+                    <FloorPlanSummary
+                        walls={walls}
+                        doors={doors}
+                        windows={windows}
+                        rooms={rooms}
+                    />
+                    <div className="w-px h-6 bg-slate-200 mx-1" />
+
                     <Button
                         variant="ghost"
                         size="icon"
