@@ -262,7 +262,7 @@ export const CanvasEngine = ({
     const [editLength, setEditLength] = React.useState<string>("")
     const [editHeight, setEditHeight] = React.useState<string>("")
     const [editThickness, setEditThickness] = React.useState<string>("")
-    const [editFace, setEditFace] = React.useState<"center" | "interior" | "exterior">("center")
+    const [editFace, setEditFace] = React.useState<"center" | "interior" | "exterior">("interior")
     const dragStartPos = React.useRef<Point | null>(null)
     const dragStartPointerPos = React.useRef<Point | null>(null) // Para calcular delta del ratón sin saltos
     const isDraggingVertexRef = React.useRef(false) // Manual drag state
@@ -2950,7 +2950,6 @@ export const CanvasEngine = ({
                                                 <span className="text-[9px] font-bold text-slate-400 uppercase">Cota {editFace}</span>
                                                 <div className="flex gap-1">
                                                     <button onClick={() => setEditFace("interior")} className={`w-3 h-3 rounded-full border ${editFace === 'interior' ? 'bg-sky-500 border-sky-600' : 'bg-slate-200 border-slate-300'}`} title="Cara Interior" />
-                                                    <button onClick={() => setEditFace("center")} className={`w-3 h-3 rounded-full border ${editFace === 'center' ? 'bg-slate-400 border-slate-500' : 'bg-slate-200 border-slate-300'}`} title="Eje Central" />
                                                     <button onClick={() => setEditFace("exterior")} className={`w-3 h-3 rounded-full border ${editFace === 'exterior' ? 'bg-amber-500 border-amber-600' : 'bg-slate-200 border-slate-300'}`} title="Cara Exterior" />
                                                 </div>
                                             </div>

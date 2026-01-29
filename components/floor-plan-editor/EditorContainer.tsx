@@ -1630,7 +1630,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             </div>
 
             {/* Global Toaster Portal for Fullscreen */}
-            <div className="fixed top-4 center z-[99999] pointer-events-none">
+            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none">
                 {/* Toaster should be mounted at root normally, but for fullscreen api 
                     we might need a specific container inside the fullscreen wrapper. 
                     However, radix-ui toast usually portals to body. 
