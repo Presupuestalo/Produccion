@@ -1225,9 +1225,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             <Card className="p-2 flex flex-nowrap items-center justify-between bg-white/95 backdrop-blur-md border-slate-200 shadow-sm z-20 gap-x-2 overflow-x-auto no-scrollbar">
                 <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-full pb-1 md:pb-0 h-9">
                     <Link href="/dashboard/editor-planos">
-                        <Button variant="ghost" size="sm" className="h-8 px-2 gap-1 text-slate-500 hover:text-slate-900">
-                            <ArrowLeft className="h-4 w-4" />
-                            <span className="text-xs font-bold hidden sm:inline">Volver</span>
+                        <Button variant="ghost" size="icon" className="w-9 h-9 text-slate-500 hover:text-slate-900" title="Volver">
+                            <ArrowLeft className="h-5 w-5" />
                         </Button>
                     </Link>
                     <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
