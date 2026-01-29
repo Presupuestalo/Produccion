@@ -415,8 +415,22 @@ export const CanvasEngine = ({
                         <span className="text-xs font-bold text-sky-500 uppercase">cm</span>
                     </button>
                     {showKeypad && (
-                        <div className="fixed inset-0 z-[3000] bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowKeypad(false)}>
-                            <div className="fixed bottom-0 left-0 right-0 safe-area-inset-bottom" onClick={e => e.stopPropagation()}>
+                        <div
+                            className="fixed inset-0 z-[3000] bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200"
+                            onTouchEnd={(e) => {
+                                // Only close if touching the backdrop, not the keypad
+                                if (e.target === e.currentTarget) {
+                                    setShowKeypad(false)
+                                }
+                            }}
+                            onClick={(e) => {
+                                // Fallback for mouse
+                                if (e.target === e.currentTarget) {
+                                    setShowKeypad(false)
+                                }
+                            }}
+                        >
+                            <div className="fixed bottom-0 left-0 right-0 safe-area-inset-bottom" onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
                                 <NumericKeypad
                                     title={label || "Introducir valor"}
                                     value={value}
