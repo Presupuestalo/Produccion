@@ -21,6 +21,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { FloorPlanSummary } from "./FloorPlanSummary"
 import { WallProperties } from "./WallProperties"
 import { ElementProperties } from "./ElementProperties"
+import { MobileOrientationGuard } from "./MobileOrientationGuard"
 import Link from "next/link"
 import { detectRoomsGeometrically, fragmentWalls, getClosestPointOnSegment, isPointOnSegment, isSamePoint, cleanupAndMergeWalls, calculateBoundingBox, rotatePoint, generateArcPoints } from "@/lib/utils/geometry"
 
@@ -1219,6 +1220,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     return (
         <div ref={editorWrapperRef} className="flex flex-col h-full bg-slate-50 p-2 gap-2 relative">
+            <MobileOrientationGuard />
             {/* Toolbar */}
             <Card className="p-2 flex flex-nowrap items-center justify-between bg-white/95 backdrop-blur-md border-slate-200 shadow-sm z-20 gap-x-2 overflow-x-auto no-scrollbar">
                 <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-full pb-1 md:pb-0 h-9">

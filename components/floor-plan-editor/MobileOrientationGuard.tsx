@@ -28,6 +28,21 @@ export function MobileOrientationGuard() {
         }
     }, [])
 
+    const enterFullscreen = async () => {
+        try {
+            if (document.documentElement.requestFullscreen) {
+                await document.documentElement.requestFullscreen()
+            }
+            // @ts-ignore
+            if (screen.orientation && screen.orientation.lock) {
+                // @ts-ignore
+                await screen.orientation.lock("landscape")
+            }
+        } catch (err) {
+            console.error("Error attempting to enable fullscreen:", err)
+        }
+    }
+
     if (!isWrongOrientation) return null
 
     return (
@@ -35,10 +50,16 @@ export function MobileOrientationGuard() {
             <div className="mb-8 animate-bounce">
                 <RotateCcw className="h-16 w-16 text-blue-400" />
             </div>
-            <h2 className="text-2xl font-bold mb-4">Gira tu dispositivo</h2>
-            <p className="text-slate-300 max-w-xs mx-auto">
-                La experiencia de edición requiere una pantalla más ancha. Por favor, coloca tu teléfono en posición horizontal.
+            <h2 className="text-2xl font-bold mb-4">Modo Edición</h2>
+            <p className="text-slate-300 max-w-xs mx-auto mb-8">
+                Para la mejor experiencia, necesitamos pantalla completa en horizontal.
             </p>
+            <button
+                onClick={enterFullscreen}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-all active:scale-95 text-lg"
+            >
+                Comenzar a Editar
+            </button>
         </div>
     )
 }
