@@ -1034,8 +1034,8 @@ export const CanvasEngine = ({
 
         const probeDist = 8.0 // coordinate-fixed probe (8cm)
         const pointSlightlyOff = { x: midX + nx * Math.sign(offsetVal) * probeDist, y: midY + ny * Math.sign(offsetVal) * probeDist }
-        const pointsIntoRoom = isPointInAnyRoom(pointSlightlyOff)
-        const faceType: "interior" | "exterior" = pointsIntoRoom ? "interior" : "exterior"
+        // Deterministic face type based on offset side, not room detection (avoid ambiguity)
+        const faceType: "interior" | "exterior" = offsetVal > 0 ? "interior" : "exterior"
 
         // COLLINEAR CHAIN SEARCH
         const chainIds = new Set([wall.id])
@@ -1744,6 +1744,7 @@ export const CanvasEngine = ({
                                     {isSelected && (
                                         <>
                                             {renderWallMeasurement(wall, 25 / zoom, "#0ea5e9", true)}
+                                            {renderWallMeasurement(wall, -25 / zoom, "#f59e0b", true)}
                                         </>
                                     )}
 
@@ -2964,10 +2965,12 @@ export const CanvasEngine = ({
                                     {selectedWall && (
                                         <>
                                             <div className="flex items-center justify-between w-full px-2 mb-1">
-                                                <span className="text-[9px] font-bold text-slate-400 uppercase">Cota {editFace}</span>
+                                                <span className="text-[9px] font-bold text-slate-400 uppercase">
+                                                    {editFace === "interior" ? "Lado Azul" : "Lado Naranja"}
+                                                </span>
                                                 <div className="flex gap-1">
-                                                    <button onClick={() => setEditFace("interior")} className={`w-3 h-3 rounded-full border ${editFace === 'interior' ? 'bg-sky-500 border-sky-600' : 'bg-slate-200 border-slate-300'}`} title="Cara Interior" />
-                                                    <button onClick={() => setEditFace("exterior")} className={`w-3 h-3 rounded-full border ${editFace === 'exterior' ? 'bg-amber-500 border-amber-600' : 'bg-slate-200 border-slate-300'}`} title="Cara Exterior" />
+                                                    <button onClick={() => setEditFace("interior")} className={`w-3 h-3 rounded-full border ${editFace === 'interior' ? 'bg-sky-500 border-sky-600' : 'bg-slate-200 border-slate-300'}`} title="Lado Azul (Interior)" />
+                                                    <button onClick={() => setEditFace("exterior")} className={`w-3 h-3 rounded-full border ${editFace === 'exterior' ? 'bg-amber-500 border-amber-600' : 'bg-slate-200 border-slate-300'}`} title="Lado Naranja (Exterior)" />
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2 px-2 py-1">
@@ -3004,7 +3007,7 @@ export const CanvasEngine = ({
                                                 </button>
                                                 <div className="flex items-center gap-1 bg-white border-2 border-slate-100 rounded-lg px-2 py-1">
                                                     <NumericInput
-                                                        label={`Medida ${editFace}`}
+                                                        label={editFace === "interior" ? "Medida Azul" : "Medida Naranja"}
                                                         value={editLength}
                                                         setter={setEditLength}
                                                         onEnter={(val) => {
