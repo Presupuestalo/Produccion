@@ -1207,7 +1207,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     return (
         <div ref={editorWrapperRef} className="flex flex-col h-full bg-slate-50 p-2 gap-2">
-            <Card className="p-2 flex flex-wrap md:flex-nowrap items-center justify-between bg-white/95 backdrop-blur-md border-slate-200 shadow-sm z-20 gap-y-2">
+            <Card className="p-2 flex flex-nowrap items-center justify-between bg-white/95 backdrop-blur-md border-slate-200 shadow-sm z-20 gap-x-2 overflow-x-auto no-scrollbar">
                 <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-full pb-1 md:pb-0">
                     <Link href="/dashboard/editor-planos">
                         <Button variant="ghost" size="sm" className="h-8 px-2 gap-1 text-slate-500 hover:text-slate-900">

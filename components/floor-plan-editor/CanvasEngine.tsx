@@ -1003,7 +1003,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         return Math.abs(dot) < 0.2 // Supports near-perpendicular inclined walls
     }
 
-    const handleStageMouseDown = (e: any) => {
+    const handleStagePointerDown = (e: any) => {
         const stage = e.target?.getStage?.()
         if (!stage) return
         const isRightClick = e.evt.button === 2
@@ -1012,9 +1012,12 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         const targetName = e.target.name() || ""
         const isRoom = targetName.startsWith("room-")
 
+        // Handle multi-touch for zoom (prevent drawing if 2 fingers)
+        if (e.evt.pointerType === 'touch' && e.evt.isPrimary === false) {
+            return
+        }
+
         if (isRightClick || isMiddleClick || isBackground || (activeTool === "select" && !targetName.startsWith("wall-") && !targetName.startsWith("door-") && !targetName.startsWith("window-") && !targetName.startsWith("vertex-") && !targetName.startsWith("measurement-"))) {
-            // Deselect if clicking background OR if clicking something that isn't a wall/door/window (e.g. a room or grid)
-            // Note: If clicking a room, this will deselect first, then the Room's onClick will fire and select the room.
             onSelectWall(null)
             onSelectRoom(null)
             onSelectElement(null)
@@ -1027,10 +1030,8 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
             }
         }
 
-        // Solo dibujar con click izquierdo y herramienta correcta que inicie acción al pulsar
-        if (e.evt.button !== 0) return
+        if (e.evt.button !== 0 && e.evt.pointerType === 'mouse') return
 
-        // Click fuera de cualquier objeto detectable (Stage directamente)
         if (e.target === stage) {
             onSelectWall(null)
             onSelectRoom(null)
@@ -1040,10 +1041,10 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         if (activeTool !== "wall" && activeTool !== "door" && activeTool !== "window" && activeTool !== "ruler" && activeTool !== "arc") return
 
         const pos = getRelativePointerPosition(stage)
-        onMouseDown(pos)
+        onMouseDown(pos) // Keep prop name, but called from pointer event
     }
 
-    const handleStageMouseMove = (e: any) => {
+    const handleStagePointerMove = (e: any) => {
         const stage = e.target?.getStage?.()
         if (!stage) return
         const pointer = stage.getPointerPosition()
@@ -1063,18 +1064,36 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         }
     }
 
-    const handleStageMouseUp = (e: any) => {
+    const handleStagePointerUp = (e: any) => {
         if (isPanning.current) {
             isPanning.current = false
             setIsPanningState(false)
             return
         }
 
-        if ((activeTool === "wall" && currentWall) || activeTool === "ruler") {
-            const stage = e.target?.getStage?.()
-            if (!stage) return
-            const pos = getRelativePointerPosition(stage)
-            onMouseUp(pos)
+        const stage = e.target?.getStage?.()
+        if (!stage) return
+        const pos = getRelativePointerPosition(stage)
+
+        const isTouchOrPen = e.evt.pointerType === 'touch' || e.evt.pointerType === 'pen'
+
+        if ((activeTool === "wall" && currentWall) || activeTool === "ruler" || activeTool === "arc") {
+            // Desktop: Click-Move-Click (Up does nothing initially, waits for 2nd click)
+            // Mobile (Drag-to-Draw): Down (Start) -> Move -> Up (End/Confirm)
+
+            // We call onMouseUp (which usually confirms the creation) IF it's touch/pen
+            // AND we have moved enough to consider it a drag (to avoid completing on a simple tap)
+            // BUT for walls even a simple tap might just start it.
+            // Drag-to-Draw means:
+            // 1. PointerDown starts it (already handled)
+            // 2. PointerMove updates it
+            // 3. PointerUp finishes it
+
+            if (isTouchOrPen) {
+                // For touch/pen, releasing the pointer should confirm the placement (2nd click)
+                // We execute onMouseUp which handles the "Confirm" step in EditorContainer
+                onMouseUp(pos)
+            }
         }
     }
 
@@ -1098,7 +1117,6 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
         const newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy
 
-        // Limitar zoom
         if (newScale < 0.1 || newScale > 20) return
 
         const newPos = {
@@ -1110,16 +1128,13 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         onPan(newPos.x, newPos.y)
     }
 
-    const handleDragEnd = (e: any) => {
-        onPan(e.target.x(), e.target.y())
-    }
-
+    // Touch handling is now mainly for Pinch-Zoom, drawing is handled by Pointer Events
     const handleTouchMove = (e: any) => {
         const touch1 = e.evt.touches[0]
         const touch2 = e.evt.touches[1]
 
         if (touch1 && touch2) {
-            e.evt.preventDefault()
+            e.evt.preventDefault() // Stop browser zoom
 
             if (stageRef.current.isDragging()) {
                 stageRef.current.stopDrag()
@@ -1140,7 +1155,6 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                 lastDist.current = dist
             }
 
-            // Calculate scale
             const pointTo = {
                 x: (newCenter.x - stageRef.current.x()) / zoom,
                 y: (newCenter.y - stageRef.current.y()) / zoom,
@@ -1153,7 +1167,6 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                 const dx = newCenter.x - lastCenter.current.x
                 const dy = newCenter.y - lastCenter.current.y
 
-                // Calculate new position
                 const newPos = {
                     x: newCenter.x - pointTo.x * newScale + dx,
                     y: newCenter.y - pointTo.y * newScale + dy,
@@ -1174,7 +1187,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     }
 
     return (
-        <div className="w-full h-full bg-slate-50 overflow-hidden">
+        <div className="w-full h-full bg-slate-50 overflow-hidden" style={{ touchAction: 'none' }}>
             <Stage
                 ref={stageRef}
                 width={width}
@@ -1185,12 +1198,12 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                 onWheel={handleWheel}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
-                onMouseDown={handleStageMouseDown}
-                onMouseMove={handleStageMouseMove}
-                onMouseUp={handleStageMouseUp}
+                onPointerDown={handleStagePointerDown}
+                onPointerMove={handleStagePointerMove}
+                onPointerUp={handleStagePointerUp}
                 onMouseLeave={handleMouseLeave}
                 onContextMenu={(e: any) => e.evt.preventDefault()}
-                style={{ cursor: isPanningState ? 'grabbing' : (activeTool === "wall" || activeTool === "arc" || activeTool === "ruler") ? 'crosshair' : 'default' }}
+                style={{ cursor: isPanningState ? 'grabbing' : (activeTool === "wall" || activeTool === "arc" || activeTool === "ruler") ? 'crosshair' : 'default', touchAction: 'none' }}
             >
                 <Layer>
                     <Group
