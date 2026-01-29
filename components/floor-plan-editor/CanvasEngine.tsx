@@ -374,6 +374,11 @@ export const CanvasEngine = ({
 
                     {/* OK Button */}
                     <button
+                        onTouchStart={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            handleConfirm()
+                        }}
                         onClick={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
