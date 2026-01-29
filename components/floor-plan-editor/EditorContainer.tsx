@@ -43,7 +43,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [rooms, setRooms] = useState<Room[]>(props.initialData?.rooms || [])
     const [currentWall, setCurrentWall] = useState<{ start: Point; end: Point } | null>(null)
     const [hoveredWallId, setHoveredWallId] = useState<string | null>(null)
-    interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean }
+    interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" }
     interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean }
     const [doors, setDoors] = useState<Door[]>(props.initialData?.doors || [])
     const [windows, setWindows] = useState<Window[]>(props.initialData?.windows || [])
@@ -1080,6 +1080,15 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 setBgImage(event.target?.result as string)
             }
             reader.readAsDataURL(file)
+
+            // Attempt to restore fullscreen immediately after file selection (browsers often exit fullscreen on file picker)
+            setTimeout(() => {
+                if (!document.fullscreenElement && editorWrapperRef.current) {
+                    editorWrapperRef.current.requestFullscreen().catch(err => {
+                        console.warn("Could not auto-restore fullscreen:", err)
+                    })
+                }
+            }, 100)
         }
     }
 

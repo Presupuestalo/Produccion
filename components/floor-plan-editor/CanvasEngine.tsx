@@ -10,7 +10,7 @@ interface Wall { id: string; start: Point; end: Point; thickness: number; isInvi
 
 interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point }
 
-interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean }
+interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" }
 interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean }
 
 function calculatePolygonCentroid(points: Point[]): Point {
@@ -156,6 +156,8 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     const gridRef = React.useRef<any>(null)
     const [image, setImage] = React.useState<HTMLImageElement | null>(null)
     const isSamePoint = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < 5.0
+    const lastTapRef = React.useRef<number>(0)
+    const dragOffsetRef = React.useRef<{ x: number, y: number } | null>(null)
 
     // Calculate the geometric center of all floor plan content
     const calculateFloorPlanCenter = React.useCallback(() => {
@@ -1299,6 +1301,27 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                             const isHorizontal = Math.abs(wall.start.y - wall.end.y) < 1
                             const isVertical = Math.abs(wall.start.x - wall.end.x) < 1
 
+                            const handleWallTap = (e: any) => {
+                                e.cancelBubble = true
+                                const now = Date.now()
+                                if (now - lastTapRef.current < 300) {
+                                    // Double tap -> Split
+                                    if (activeTool === "select" && onSplitWall) {
+                                        const stage = e.target.getStage()
+                                        if (stage) {
+                                            const pos = getRelativePointerPosition(stage)
+                                            onSplitWall(wall.id, pos)
+                                        }
+                                    }
+                                } else {
+                                    // Single tap -> Select
+                                    if (activeTool === "select") {
+                                        onSelectWall(wall.id, false)
+                                    }
+                                }
+                                lastTapRef.current = now
+                            }
+
                             return (
                                 <Group key={wall.id}>
                                     <Line
@@ -1307,7 +1330,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         stroke={wall.isInvisible ? "#0ea5e9" : (isHovered && !isSelected ? "#ef4444" : "#334155")}
                                         strokeWidth={wall.isInvisible ? (isSelected ? 4 : 2) : wall.thickness}
                                         dash={wall.isInvisible ? [5, 5] : undefined}
-                                        hitStrokeWidth={wall.isInvisible ? 14 : 20}
+                                        hitStrokeWidth={30} // Increased from 20 for better mobile touch
                                         lineCap="round"
                                         lineJoin="round"
                                         draggable={activeTool === "select"}
@@ -1317,6 +1340,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                                 onSelectWall(wall.id, e.evt.ctrlKey)
                                             }
                                         }}
+                                        onTap={handleWallTap}
                                         onDblClick={(e) => {
                                             if (activeTool === "select" && onSplitWall) {
                                                 const stage = e.target.getStage()
@@ -1475,20 +1499,96 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                     draggable={activeTool === "select"}
                                     onClick={(e) => { e.cancelBubble = true; onSelectElement({ type: "door", id: door.id }) }}
                                     onTap={(e) => { e.cancelBubble = true; onSelectElement({ type: "door", id: door.id }) }}
+                                    onDragStart={(e) => {
+                                        const stage = e.target.getStage()
+                                        if (stage) {
+                                            const transform = stage.getAbsoluteTransform().copy()
+                                            transform.invert()
+                                            const sp = stage.getPointerPosition()
+                                            if (sp) {
+                                                const cursorPos = transform.point(sp)
+                                                // Store offset: Vector from Cursor to Element Center
+                                                dragOffsetRef.current = {
+                                                    x: pos.x - cursorPos.x,
+                                                    y: pos.y - cursorPos.y
+                                                }
+                                            }
+                                        }
+                                    }}
                                     onDragMove={(e) => {
                                         const stage = e.target.getStage()
-                                        if (!stage) return
+                                        if (!stage || !dragOffsetRef.current) return
                                         const transform = stage.getAbsoluteTransform().copy()
                                         transform.invert()
                                         const sp = stage.getPointerPosition()
                                         if (!sp) return
-                                        const pointer = transform.point(sp)
+                                        const cursorPos = transform.point(sp)
 
-                                        onDragElement("door", door.id, pointer)
-                                        e.target.x(pos.x)
-                                        e.target.y(pos.y)
+                                        // 1. Desired Center (perfectly tracking cursor + offset)
+                                        const virtualCenterX = cursorPos.x + dragOffsetRef.current.x
+                                        const virtualCenterY = cursorPos.y + dragOffsetRef.current.y
+
+                                        // 2. Find Closest Wall
+                                        let closestWall: { wallId: string, t: number, projX: number, projY: number } | null = null
+                                        let minDist = Infinity
+
+                                        walls.forEach(w => {
+                                            const dx = w.end.x - w.start.x
+                                            const dy = w.end.y - w.start.y
+                                            const lenSq = dx * dx + dy * dy
+                                            if (lenSq === 0) return
+
+                                            // Project virtualCenter onto wall segment
+                                            const t = Math.max(0, Math.min(1, ((virtualCenterX - w.start.x) * dx + (virtualCenterY - w.start.y) * dy) / lenSq))
+                                            const projX = w.start.x + t * dx
+                                            const projY = w.start.y + t * dy
+                                            const dist = Math.sqrt((virtualCenterX - projX) ** 2 + (virtualCenterY - projY) ** 2)
+
+                                            if (dist < minDist) {
+                                                minDist = dist
+                                                closestWall = { wallId: w.id, t, projX, projY }
+                                            }
+                                        })
+
+                                        // 3. STRICTLY snap to the closest wall.
+                                        //    We do NOT allow free movement. Element must be on a wall.
+                                        if (closestWall) {
+                                            // Force visual position to be EXACTLY on the wall projection
+                                            e.target.position({ x: closestWall.projX, y: closestWall.projY })
+
+                                            // 4. Update state with "Side" Preservation
+                                            //    Pass a slightly offset position so internal logic finds the same wall AND correct side
+                                            let offX = virtualCenterX - closestWall.projX
+                                            let offY = virtualCenterY - closestWall.projY
+                                            const currentDist = Math.sqrt(offX * offX + offY * offY)
+
+                                            let reportX = closestWall.projX
+                                            let reportY = closestWall.projY
+
+                                            if (currentDist > 0.001) {
+                                                const scale = Math.min(currentDist, 10) / currentDist
+                                                reportX += offX * scale
+                                                reportY += offY * scale
+                                            }
+
+                                            onDragElement("door", door.id, { x: reportX, y: reportY })
+                                        }
+                                    }}
+                                    onDragEnd={(e) => {
+                                        dragOffsetRef.current = null
+                                        // Ensure final state alignment
+                                        e.target.position({ x: pos.x, y: pos.y })
                                     }}
                                 >
+                                    {/* Hit Area Rect - Increased size for mobile */}
+                                    <Rect
+                                        width={door.width + 20}
+                                        height={wall.thickness + 30}
+                                        x={-(door.width + 20) / 2}
+                                        y={-(wall.thickness + 30) / 2}
+                                        fill="transparent"
+                                        listening={true}
+                                    />
                                     <Rect
                                         width={door.width}
                                         height={wall.thickness + 4}
@@ -1497,31 +1597,80 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         fill={isSelected ? "#e0f2fe" : "#ffffff"}
                                         stroke={isSelected ? "#0ea5e9" : "#334155"}
                                         strokeWidth={isSelected ? 2 : 1}
+                                        listening={false}
                                     />
 
-                                    <KonvaArc
-                                        x={door.flipX ? -door.width / 2 : door.width / 2}
-                                        y={door.flipY ? (wall.thickness + 4) / 2 : -(wall.thickness + 4) / 2}
-                                        innerRadius={0}
-                                        outerRadius={door.width}
-                                        angle={90}
-                                        rotation={door.flipY ? (door.flipX ? 0 : 90) : (door.flipX ? -90 : -180)}
-                                        stroke={isSelected ? "#0ea5e9" : "#334155"}
-                                        strokeWidth={isSelected ? 2 : 1}
-                                        fill={isSelected ? "#0ea5e920" : "transparent"}
-                                    />
+                                    {/* Door Visuals based on Type */}
+                                    {(!door.openType || door.openType === "single") && (
+                                        <KonvaArc
+                                            x={door.flipX ? -door.width / 2 : door.width / 2}
+                                            y={door.flipY ? (wall.thickness + 4) / 2 : -(wall.thickness + 4) / 2}
+                                            innerRadius={0}
+                                            outerRadius={door.width}
+                                            angle={90}
+                                            rotation={door.flipY ? (door.flipX ? 0 : 90) : (door.flipX ? -90 : -180)}
+                                            stroke={isSelected ? "#0ea5e9" : "#334155"}
+                                            strokeWidth={isSelected ? 2 : 1}
+                                            fill={isSelected ? "#0ea5e920" : "transparent"}
+                                            listening={false}
+                                        />
+                                    )}
+                                    {door.openType === "double" && (
+                                        <>
+                                            <KonvaArc
+                                                x={-door.width / 2}
+                                                y={door.flipY ? (wall.thickness + 4) / 2 : -(wall.thickness + 4) / 2}
+                                                innerRadius={0}
+                                                outerRadius={door.width / 2}
+                                                angle={90}
+                                                rotation={door.flipY ? 0 : -90}
+                                                stroke={isSelected ? "#0ea5e9" : "#334155"}
+                                                strokeWidth={isSelected ? 2 : 1}
+                                                fill={isSelected ? "#0ea5e920" : "transparent"}
+                                                listening={false}
+                                            />
+                                            <KonvaArc
+                                                x={door.width / 2}
+                                                y={door.flipY ? (wall.thickness + 4) / 2 : -(wall.thickness + 4) / 2}
+                                                innerRadius={0}
+                                                outerRadius={door.width / 2}
+                                                angle={90}
+                                                rotation={door.flipY ? 90 : 180}
+                                                stroke={isSelected ? "#0ea5e9" : "#334155"}
+                                                strokeWidth={isSelected ? 2 : 1}
+                                                fill={isSelected ? "#0ea5e920" : "transparent"}
+                                                listening={false}
+                                            />
+                                        </>
+                                    )}
+                                    {door.openType === "sliding" && (
+                                        <Rect
+                                            width={door.width}
+                                            height={6} // Thin panel
+                                            x={-door.width / 2}
+                                            y={door.flipY ? (wall.thickness / 2) + 2 : -(wall.thickness / 2) - 8}
+                                            fill={isSelected ? "#e0f2fe" : "#ffffff"}
+                                            stroke={isSelected ? "#0ea5e9" : "#334155"}
+                                            strokeWidth={1}
+                                            cornerRadius={1}
+                                            listening={false}
+                                        />
+                                    )}
 
                                     {/* Etiqueta de Dimensiones (Ancho) */}
                                     {isSelected && (
                                         <Group x={0} y={0} rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
+                                            {/* Fix rotation logic: ensure text is always readable (not upside down) */}
+                                            {/* Actually the Group rotation above might be erratic. Let's simplify. */}
+                                            {/* If we rotate 180, we flip content. */}
                                             <Text
                                                 text={`${door.width} cm`}
-                                                fontSize={7}
+                                                fontSize={11} // Increased from 7
                                                 fill="#475569"
                                                 align="center"
                                                 width={door.width}
                                                 offsetX={door.width / 2}
-                                                offsetY={-2}
+                                                offsetY={-5} // Moved up slightly
                                                 fontStyle="bold"
                                             />
                                         </Group>
@@ -1534,11 +1683,11 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                                 <Group x={gap1CenterLocalX} y={20 + wall.thickness / 2}>
                                                     <Group rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
                                                         <Rect
-                                                            width={35} height={16} x={-17.5} y={-8}
+                                                            width={35} height={18} x={-17.5} y={-9}
                                                             fill="white" stroke="#0ea5e9" strokeWidth={0.5} cornerRadius={4}
                                                             shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
                                                         />
-                                                        <Text text={`${d1} cm`} x={-17.5} y={-5} fontSize={9} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
+                                                        <Text text={`${d1} cm`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
                                                     </Group>
                                                 </Group>
                                             )}
@@ -1546,11 +1695,11 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                                 <Group x={gap2CenterLocalX} y={20 + wall.thickness / 2}>
                                                     <Group rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
                                                         <Rect
-                                                            width={35} height={16} x={-17.5} y={-8}
+                                                            width={35} height={18} x={-17.5} y={-9}
                                                             fill="white" stroke="#0ea5e9" strokeWidth={0.5} cornerRadius={4}
                                                             shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
                                                         />
-                                                        <Text text={`${d2} cm`} x={-17.5} y={-5} fontSize={9} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
+                                                        <Text text={`${d2} cm`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
                                                     </Group>
                                                 </Group>
                                             )}
@@ -1591,20 +1740,90 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                     draggable={activeTool === "select"}
                                     onClick={(e) => { e.cancelBubble = true; onSelectElement({ type: "window", id: window.id }) }}
                                     onTap={(e) => { e.cancelBubble = true; onSelectElement({ type: "window", id: window.id }) }}
+                                    onDragStart={(e) => {
+                                        const stage = e.target.getStage()
+                                        if (stage) {
+                                            const transform = stage.getAbsoluteTransform().copy()
+                                            transform.invert()
+                                            const sp = stage.getPointerPosition()
+                                            if (sp) {
+                                                const cursorPos = transform.point(sp)
+                                                dragOffsetRef.current = {
+                                                    x: pos.x - cursorPos.x,
+                                                    y: pos.y - cursorPos.y
+                                                }
+                                            }
+                                        }
+                                    }}
                                     onDragMove={(e) => {
                                         const stage = e.target.getStage()
-                                        if (!stage) return
+                                        if (!stage || !dragOffsetRef.current) return
                                         const transform = stage.getAbsoluteTransform().copy()
                                         transform.invert()
                                         const sp = stage.getPointerPosition()
                                         if (!sp) return
-                                        const pointer = transform.point(sp)
+                                        const cursorPos = transform.point(sp)
 
-                                        onDragElement("window", window.id, pointer)
-                                        e.target.x(pos.x)
-                                        e.target.y(pos.y)
+                                        // 1. Desired Center
+                                        const virtualCenterX = cursorPos.x + dragOffsetRef.current.x
+                                        const virtualCenterY = cursorPos.y + dragOffsetRef.current.y
+
+                                        // 2. Find Closest Wall
+                                        let closestWall: { wallId: string, t: number, projX: number, projY: number } | null = null
+                                        let minDist = Infinity
+
+                                        walls.forEach(w => {
+                                            const dx = w.end.x - w.start.x
+                                            const dy = w.end.y - w.start.y
+                                            const lenSq = dx * dx + dy * dy
+                                            if (lenSq === 0) return
+
+                                            const t = Math.max(0, Math.min(1, ((virtualCenterX - w.start.x) * dx + (virtualCenterY - w.start.y) * dy) / lenSq))
+                                            const projX = w.start.x + t * dx
+                                            const projY = w.start.y + t * dy
+                                            const dist = Math.sqrt((virtualCenterX - projX) ** 2 + (virtualCenterY - projY) ** 2)
+
+                                            if (dist < minDist) {
+                                                minDist = dist
+                                                closestWall = { wallId: w.id, t, projX, projY }
+                                            }
+                                        })
+
+                                        // 3. Strict Snap
+                                        if (closestWall) {
+                                            e.target.position({ x: closestWall.projX, y: closestWall.projY })
+
+                                            // 4. Update state with "Side" Preservation
+                                            let offX = virtualCenterX - closestWall.projX
+                                            let offY = virtualCenterY - closestWall.projY
+                                            const currentDist = Math.sqrt(offX * offX + offY * offY)
+
+                                            let reportX = closestWall.projX
+                                            let reportY = closestWall.projY
+
+                                            if (currentDist > 0.001) {
+                                                const scale = Math.min(currentDist, 10) / currentDist
+                                                reportX += offX * scale
+                                                reportY += offY * scale
+                                            }
+
+                                            onDragElement("window", window.id, { x: reportX, y: reportY })
+                                        }
+                                    }}
+                                    onDragEnd={(e) => {
+                                        dragOffsetRef.current = null
+                                        e.target.position({ x: pos.x, y: pos.y })
                                     }}
                                 >
+                                    {/* Hit Area Rect - Increased size for mobile */}
+                                    <Rect
+                                        width={window.width + 20}
+                                        height={wall.thickness + 30}
+                                        x={-(window.width + 20) / 2}
+                                        y={-(wall.thickness + 30) / 2}
+                                        fill="transparent"
+                                        listening={true}
+                                    />
                                     <Rect
                                         width={window.width}
                                         height={wall.thickness + 4}
@@ -1613,8 +1832,9 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         fill={isSelected ? "#e0f2fe" : "#ffffff"}
                                         stroke={isSelected ? "#0ea5e9" : "#334155"}
                                         strokeWidth={isSelected ? 2 : 1}
+                                        listening={false}
                                     />
-                                    <Line points={[-window.width / 2, 0, window.width / 2, 0]} stroke={isSelected ? "#0ea5e9" : "#334155"} strokeWidth={isSelected ? 2 : 1} />
+                                    <Line points={[-window.width / 2, 0, window.width / 2, 0]} stroke={isSelected ? "#0ea5e9" : "#334155"} strokeWidth={isSelected ? 2 : 1} listening={false} />
 
                                     {/* Etiqueta de Dimensiones (WxH) */}
                                     {isSelected && (
@@ -2229,6 +2449,21 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                                             const el = doors.find(d => d.id === selectedElement.id)
                                                             if (el) onUpdateElement("door", el.id, { flipY: !el.flipY })
                                                         }}
+                                                    />
+                                                    <MenuButton
+                                                        icon={<Spline className="h-3.5 w-3.5" />}
+                                                        onClick={() => {
+                                                            const el = doors.find(d => d.id === selectedElement.id)
+                                                            if (el) {
+                                                                const types = ["single", "double", "sliding"] as const
+                                                                // @ts-ignore
+                                                                const currentIdx = types.indexOf(el.openType || "single")
+                                                                const nextType = types[(currentIdx + 1) % types.length]
+                                                                // @ts-ignore
+                                                                onUpdateElement("door", el.id, { openType: nextType })
+                                                            }
+                                                        }}
+                                                        title="Cambiar tipo apertura"
                                                     />
                                                 </>
                                             )}
