@@ -1298,9 +1298,9 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                     </Button>
                                     <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={() => {
                                         if (!document.fullscreenElement) {
-                                            document.documentElement.requestFullscreen().catch(e => console.error(e))
+                                            editorWrapperRef.current?.requestFullscreen().catch((e: any) => console.error(e))
                                         } else {
-                                            document.exitFullscreen().catch(e => console.error(e))
+                                            document.exitFullscreen().catch((e: any) => console.error(e))
                                         }
                                     }}>
                                         <Maximize2 className="h-5 w-5" />
@@ -1358,9 +1358,9 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                         className="hidden sm:inline-flex"
                         onClick={() => {
                             if (!document.fullscreenElement) {
-                                document.documentElement.requestFullscreen().catch(e => console.error(e))
+                                editorWrapperRef.current?.requestFullscreen().catch((e: any) => console.error(e))
                             } else {
-                                document.exitFullscreen().catch(e => console.error(e))
+                                document.exitFullscreen().catch((e: any) => console.error(e))
                             }
                         }}
                     >
