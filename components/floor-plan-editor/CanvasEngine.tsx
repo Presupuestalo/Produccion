@@ -282,30 +282,42 @@ export const CanvasEngine = ({
 
     // Componente Teclado Numérico Personalizado para Móvil - Estilo Bottom Sheet
     const NumericKeypad = ({ value, onChange, onConfirm, onCancel, title }: { value: string, onChange: (v: string) => void, onConfirm: () => void, onCancel: () => void, title: string }) => {
+        // Use local state for editing - only send to parent on OK
+        const [tempValue, setTempValue] = React.useState(value)
         const [isFirstInput, setIsFirstInput] = React.useState(true)
 
+        // Reset when keypad opens (value changes from parent)
+        React.useEffect(() => {
+            setTempValue(value)
+            setIsFirstInput(true)
+        }, [value])
+
         const handleDigit = (digit: string) => {
-            console.log('Digit clicked:', digit, 'isFirstInput:', isFirstInput, 'currentValue:', value)
             if (isFirstInput) {
                 // First input replaces the entire value
-                onChange(digit)
+                setTempValue(digit)
                 setIsFirstInput(false)
             } else {
                 // Subsequent inputs append
-                if (value.length < 5) onChange(value + digit)
+                if (tempValue.length < 5) setTempValue(tempValue + digit)
             }
         }
 
         const handleDelete = () => {
-            console.log('Delete clicked, isFirstInput:', isFirstInput, 'currentValue:', value)
             if (isFirstInput) {
                 // Delete all on first click
-                onChange("")
+                setTempValue("")
                 setIsFirstInput(false)
             } else {
                 // Normal backspace
-                onChange(value.slice(0, -1))
+                setTempValue(tempValue.slice(0, -1))
             }
+        }
+
+        const handleConfirm = () => {
+            // Send final value to parent
+            onChange(tempValue)
+            onConfirm()
         }
 
         return (
@@ -314,7 +326,7 @@ export const CanvasEngine = ({
                 <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{title}</span>
                     <div className="flex items-center gap-2">
-                        <span className="text-2xl font-black text-slate-800">{value || "0"}</span>
+                        <span className="text-2xl font-black text-slate-800">{tempValue || "0"}</span>
                         <span className="text-sm text-slate-400">cm</span>
                     </div>
                 </div>
@@ -355,8 +367,7 @@ export const CanvasEngine = ({
                         onClick={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
-                            console.log('OK clicked, final value:', value)
-                            onConfirm()
+                            handleConfirm()
                         }}
                         className="flex-[1.2] h-11 flex items-center justify-center rounded-md bg-sky-500 text-white font-bold text-base hover:bg-sky-600 active:bg-sky-700 transition-all active:scale-95 shadow-lg shadow-sky-200"
                     >
