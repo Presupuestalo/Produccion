@@ -342,6 +342,10 @@ export const CanvasEngine = ({
                                 e.stopPropagation()
                                 handleDigit(digit)
                             }}
+                            onTouchEnd={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                            }}
                             onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
@@ -360,6 +364,10 @@ export const CanvasEngine = ({
                             e.stopPropagation()
                             handleDelete()
                         }}
+                        onTouchEnd={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                        }}
                         onClick={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
@@ -372,12 +380,15 @@ export const CanvasEngine = ({
                         </svg>
                     </button>
 
-                    {/* OK Button */}
                     <button
                         onTouchStart={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
                             handleConfirm()
+                        }}
+                        onTouchEnd={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
                         }}
                         onClick={(e) => {
                             e.preventDefault()
