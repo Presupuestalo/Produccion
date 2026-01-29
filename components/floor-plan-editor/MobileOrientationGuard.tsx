@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { RotateCcw } from "lucide-react"
 
-export function MobileOrientationGuard() {
+export function MobileOrientationGuard({ onEnterFullscreen }: { onEnterFullscreen?: () => void }) {
     const [isWrongOrientation, setIsWrongOrientation] = useState(false)
 
     useEffect(() => {
@@ -30,16 +30,18 @@ export function MobileOrientationGuard() {
 
     const enterFullscreen = async () => {
         try {
-            if (document.documentElement.requestFullscreen) {
-                await document.documentElement.requestFullscreen()
+            if (onEnterFullscreen) {
+                onEnterFullscreen()
             }
-            // @ts-ignore
-            if (screen.orientation && screen.orientation.lock) {
-                // @ts-ignore
-                await screen.orientation.lock("landscape")
+
+            // Lock orientation if supported after entering fullscreen
+            if (screen.orientation && (screen.orientation as any).lock) {
+                await (screen.orientation as any).lock("landscape").catch((err: any) => {
+                    console.warn("Orientation lock failed (normal on some browsers):", err)
+                })
             }
         } catch (err) {
-            console.error("Error attempting to enable fullscreen:", err)
+            console.error("Error attempting to handle mobile transition:", err)
         }
     }
 

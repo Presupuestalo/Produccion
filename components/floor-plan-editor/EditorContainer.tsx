@@ -18,6 +18,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, FileText, ClipboardList, Spline, Menu } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
 import { FloorPlanSummary } from "./FloorPlanSummary"
 import { WallProperties } from "./WallProperties"
 import { ElementProperties } from "./ElementProperties"
@@ -89,7 +92,19 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [calibrationPoints, setCalibrationPoints] = useState(props.initialData?.calibration ? { p1: props.initialData.calibration.p1, p2: props.initialData.calibration.p2 } : { p1: { x: 200, y: 200 }, p2: { x: 500, y: 200 } })
     const [calibrationTargetValue, setCalibrationTargetValue] = useState(props.initialData?.calibration?.distance || 500)
     const [snappingEnabled, setSnappingEnabled] = useState(true)
+    const [touchOffset, setTouchOffset] = useState(40)
+    const [forceTouchOffset, setForceTouchOffset] = useState(false)
     const [rulerState, setRulerState] = useState<{ start: Point | null, end: Point | null, active: boolean }>({ start: null, end: null, active: false })
+
+    const toggleFullscreen = () => {
+        if (!editorWrapperRef.current) return
+
+        if (!document.fullscreenElement) {
+            editorWrapperRef.current.requestFullscreen().catch((e: any) => console.error(e))
+        } else {
+            document.exitFullscreen().catch((e: any) => console.error(e))
+        }
+    }
 
     useImperativeHandle(ref, () => ({
         clearPlan: executeClearPlan
@@ -1221,7 +1236,12 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     // Mobile/Responsive States
     const [isMobile, setIsMobile] = useState(false)
     useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth <= 768)
+        const checkMobile = () => {
+            // Broaden check to include landscape phones and tablets
+            // Also check for touch capability
+            const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0)
+            setIsMobile(window.innerWidth <= 1100 || isTouch)
+        }
         checkMobile()
         window.addEventListener("resize", checkMobile)
         return () => window.removeEventListener("resize", checkMobile)
@@ -1240,9 +1260,55 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         }
     }
 
+    // Fullscreen auto-management on orientation change
+    useEffect(() => {
+        if (!isMobile) return
+
+        const handleRotation = () => {
+            const isLandscape = window.innerWidth > window.innerHeight
+            if (isLandscape && !document.fullscreenElement) {
+                // Try auto-trigger
+                toggleFullscreen()
+            }
+        }
+
+        window.addEventListener("resize", handleRotation)
+        return () => window.removeEventListener("resize", handleRotation)
+    }, [isMobile])
+
     return (
-        <div ref={editorWrapperRef} className="flex flex-col h-full bg-slate-50 p-2 gap-2 relative">
-            <MobileOrientationGuard />
+        <div ref={editorWrapperRef} className="flex flex-col h-full bg-slate-50 p-2 gap-2 relative overflow-hidden">
+            <style jsx global>{`
+                :fullscreen {
+                    background: #f8fafc !important; /* slate-50 */
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    width: 100vw !important;
+                    height: 100vh !important;
+                    display: flex !important;
+                    flex-direction: column !important;
+                }
+                :fullscreen > .p-2 { 
+                    padding: 0.5rem !important; /* Keep toolbar padding if needed or adjust */
+                }
+            `}</style>
+            <MobileOrientationGuard onEnterFullscreen={toggleFullscreen} />
+
+            {/* Prompt for fullscreen if in landscape but not active (Mobile only) */}
+            {isMobile && !document.fullscreenElement && window.innerWidth > window.innerHeight && (
+                <div className="absolute inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <Card className="p-6 max-w-sm w-full space-y-4 text-center">
+                        <div className="flex justify-center">
+                            <Maximize2 className="h-12 w-12 text-blue-500 animate-pulse" />
+                        </div>
+                        <h3 className="text-lg font-bold">Modo Editor Pantalla Completa</h3>
+                        <p className="text-sm text-slate-500">Para una mejor experiencia y ocultar las barras del navegador, activa la pantalla completa.</p>
+                        <Button className="w-full bg-blue-600 hover:bg-blue-700 h-12 text-lg" onClick={toggleFullscreen}>
+                            Entrar en Pantalla Completa
+                        </Button>
+                    </Card>
+                </div>
+            )}
             {/* Toolbar */}
             <Card className="p-2 flex flex-nowrap items-center justify-between bg-white/95 backdrop-blur-md border-slate-200 shadow-sm z-20 gap-x-2 overflow-x-auto no-scrollbar">
                 <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-full pb-1 md:pb-0 h-9">
@@ -1280,61 +1346,106 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
                     <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
 
+                    {/* Mobile Menu for Interaction Settings (Visible) */}
+                    {isMobile && (
+                        <div>
+                            <Sheet>
+                                <SheetTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="w-9 h-9 text-orange-600">
+                                        <Sliders className="h-4 w-4" />
+                                    </Button>
+                                </SheetTrigger>
+                                <SheetContent side="bottom" className="h-[40vh]" container={editorWrapperRef.current}>
+                                    <SheetHeader>
+                                        <SheetTitle>Ajustes de Interacción</SheetTitle>
+                                    </SheetHeader>
+                                    <div className="space-y-6 py-6">
+                                        <div className="flex items-center justify-between">
+                                            <div className="space-y-1">
+                                                <Label className="text-base">Forzar Offset Táctil</Label>
+                                                <p className="text-sm text-slate-500">Aplica el desplazamiento siempre (útil si falla la detección).</p>
+                                            </div>
+                                            <Switch
+                                                checked={forceTouchOffset}
+                                                onCheckedChange={setForceTouchOffset}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between">
+                                                <Label className="text-base">Separación del Dedo: {touchOffset}px</Label>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="150"
+                                                step="5"
+                                                value={touchOffset}
+                                                onChange={(e) => setTouchOffset(parseInt(e.target.value))}
+                                                className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
+                                            />
+                                            <div className="flex justify-between text-xs text-slate-400">
+                                                <span>Mínimo (0)</span>
+                                                <span>Máximo (150)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </SheetContent>
+                            </Sheet>
+                        </div>
+                    )}
+
                     {/* Mobile Menu for Secondary Actions */}
-                    <div className="md:hidden">
-                        <Sheet>
-                            <SheetTrigger asChild>
-                                <Button variant="ghost" size="icon" className="w-9 h-9">
-                                    <Menu className="h-4 w-4" />
-                                </Button>
-                            </SheetTrigger>
-                            <SheetContent side="bottom" className="h-[50vh]">
-                                <SheetHeader>
-                                    <SheetTitle>Herramientas y Acciones</SheetTitle>
-                                </SheetHeader>
-                                <div className="grid grid-cols-4 gap-4 py-4">
-                                    <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={handleUndo} disabled={history.length === 0}>
-                                        <Undo2 className="h-5 w-5" />
-                                        <span className="text-xs">Deshacer</span>
+                    {isMobile && (
+                        <div>
+                            <Sheet>
+                                <SheetTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="w-9 h-9">
+                                        <Menu className="h-4 w-4" />
                                     </Button>
-                                    <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={handleRedo} disabled={redoHistory.length === 0}>
-                                        <Redo2 className="h-5 w-5" />
-                                        <span className="text-xs">Rehacer</span>
-                                    </Button>
-                                    <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={() => handleRotatePlan(-15)}>
-                                        <RotateCcw className="h-5 w-5" />
-                                        <span className="text-xs">Rotar -15</span>
-                                    </Button>
-                                    <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={() => handleRotatePlan(15)}>
-                                        <RotateCw className="h-5 w-5" />
-                                        <span className="text-xs">Rotar +15</span>
-                                    </Button>
-                                    <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={applyPerimeterThickness}>
-                                        <Building2 className="h-5 w-5" />
-                                        <span className="text-xs">Fachada</span>
-                                    </Button>
-                                    <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={() => setSnappingEnabled(!snappingEnabled)}>
-                                        <Magnet className={`h-5 w-5 ${!snappingEnabled ? 'text-slate-400' : 'text-blue-500'}`} />
-                                        <span className="text-xs">Imanes</span>
-                                    </Button>
-                                    <Button variant="outline" className="flex flex-col gap-2 h-20 border-red-200 text-red-600" onClick={executeClearPlan}>
-                                        <Trash2 className="h-5 w-5" />
-                                        <span className="text-xs">Limpiar</span>
-                                    </Button>
-                                    <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={() => {
-                                        if (!document.fullscreenElement) {
-                                            editorWrapperRef.current?.requestFullscreen().catch((e: any) => console.error(e))
-                                        } else {
-                                            document.exitFullscreen().catch((e: any) => console.error(e))
-                                        }
-                                    }}>
-                                        <Maximize2 className="h-5 w-5" />
-                                        <span className="text-xs">Pantalla</span>
-                                    </Button>
-                                </div>
-                            </SheetContent>
-                        </Sheet>
-                    </div>
+                                </SheetTrigger>
+                                <SheetContent side="bottom" className="h-[50vh]" container={editorWrapperRef.current}>
+                                    <SheetHeader>
+                                        <SheetTitle>Herramientas y Acciones</SheetTitle>
+                                    </SheetHeader>
+                                    <div className="grid grid-cols-4 gap-4 py-4">
+                                        <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={handleUndo} disabled={history.length === 0}>
+                                            <Undo2 className="h-5 w-5" />
+                                            <span className="text-xs">Deshacer</span>
+                                        </Button>
+                                        <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={handleRedo} disabled={redoHistory.length === 0}>
+                                            <Redo2 className="h-5 w-5" />
+                                            <span className="text-xs">Rehacer</span>
+                                        </Button>
+                                        <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={() => handleRotatePlan(-15)}>
+                                            <RotateCcw className="h-5 w-5" />
+                                            <span className="text-xs">Rotar -15</span>
+                                        </Button>
+                                        <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={() => handleRotatePlan(15)}>
+                                            <RotateCw className="h-5 w-5" />
+                                            <span className="text-xs">Rotar +15</span>
+                                        </Button>
+                                        <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={applyPerimeterThickness}>
+                                            <Building2 className="h-5 w-5" />
+                                            <span className="text-xs">Fachada</span>
+                                        </Button>
+                                        <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={() => setSnappingEnabled(!snappingEnabled)}>
+                                            <Magnet className={`h-5 w-5 ${!snappingEnabled ? 'text-slate-400' : 'text-blue-500'}`} />
+                                            <span className="text-xs">Imanes</span>
+                                        </Button>
+                                        <Button variant="outline" className="flex flex-col gap-2 h-20 border-red-200 text-red-600" onClick={executeClearPlan}>
+                                            <Trash2 className="h-5 w-5" />
+                                            <span className="text-xs">Limpiar</span>
+                                        </Button>
+                                        <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={toggleFullscreen}>
+                                            <Maximize2 className="h-5 w-5" />
+                                            <span className="text-xs">Pantalla</span>
+                                        </Button>
+                                    </div>
+                                </SheetContent>
+                            </Sheet>
+                        </div>
+                    )}
 
                     {/* Desktop Secondary Actions (Hidden on Mobile) */}
                     <div className="hidden md:flex items-center gap-1">
@@ -1384,7 +1495,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 <span className="text-xs">Resumen</span>
                             </Button>
                         </SheetTrigger>
-                        <SheetContent className="overflow-y-auto w-[400px] sm:w-[540px]">
+                        <SheetContent className="overflow-y-auto w-[400px] sm:w-[540px]" container={editorWrapperRef.current}>
                             <SheetHeader className="mb-4">
                                 <SheetTitle>Resumen del Plano</SheetTitle>
                             </SheetHeader>
@@ -1501,6 +1612,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     onCloneElement={handleCloneElement}
                     onDeleteElement={handleDeleteElement}
                     phantomArc={phantomArc}
+                    touchOffset={touchOffset}
+                    forceTouchOffset={forceTouchOffset}
                 />
 
 

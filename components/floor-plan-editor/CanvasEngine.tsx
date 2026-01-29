@@ -88,6 +88,8 @@ interface CanvasEngineProps {
     calibrationTargetValue?: number
     onUpdateCalibrationPoint?: (id: "p1" | "p2", point: Point) => void
     phantomArc?: { start: Point, end: Point, depth: number }
+    touchOffset?: number
+    forceTouchOffset?: boolean
     snappingEnabled?: boolean
     rulerPoints?: { start: Point, end: Point } | null
     onReady?: (api: CanvasEngineRef) => void
@@ -99,59 +101,19 @@ export interface CanvasEngineRef {
     getSnapshot: () => string
 }
 
-export const CanvasEngine: React.FC<CanvasEngineProps> = ({
-    width,
-    height,
-    zoom,
-    offset,
-    walls,
-    rooms,
-    doors,
-    windows,
-    currentWall,
-    activeTool,
-    hoveredWallId,
-    onPan,
-    onZoom,
-    onMouseDown,
-    onMouseMove,
-    onMouseUp,
-    onHoverWall,
-    onSelectWall,
-    onDragWall,
-    onDragEnd,
-    onUpdateWallLength,
-    onDeleteWall,
-    onSplitWall,
-    onUpdateWallThickness,
-    onUpdateWallInvisible,
-    onUpdateRoom,
-    selectedWallIds,
-    selectedRoomId,
-    onSelectRoom,
-    onDragVertex,
-    wallSnapshot,
-    onStartDragWall,
-    onDragElement,
-    selectedElement,
-    onSelectElement,
-    onUpdateElement,
-    onCloneElement,
-    onDeleteElement,
-    bgImage,
-    bgConfig,
-    onUpdateBgConfig,
-    isCalibrating,
-    calibrationPoints,
-    calibrationTargetValue,
-    onUpdateCalibrationPoint,
+export const CanvasEngine = ({
+    width, height, zoom, offset,
+    walls, rooms, doors, windows,
+    currentWall, activeTool, hoveredWallId, onPan, onZoom, onMouseDown, onMouseMove, onMouseUp, onHoverWall, onSelectWall, onDragWall, onDragEnd, onUpdateWallLength, onDeleteWall, onSplitWall, onUpdateWallThickness, onUpdateWallInvisible, onUpdateRoom, selectedWallIds, selectedRoomId, onSelectRoom, onDragVertex, wallSnapshot, onStartDragWall, onDragElement, selectedElement, onSelectElement, onUpdateElement, onCloneElement, onDeleteElement, bgImage, bgConfig, onUpdateBgConfig, isCalibrating, calibrationPoints, calibrationTargetValue, onUpdateCalibrationPoint,
     phantomArc,
     snappingEnabled = true,
     rulerPoints,
     onReady,
     gridRotation = 0,
-    onRotateGrid
-}) => {
+    onRotateGrid,
+    touchOffset = 40,
+    forceTouchOffset = false
+}: CanvasEngineProps) => {
     const stageRef = React.useRef<any>(null)
     const gridRef = React.useRef<any>(null)
     const [image, setImage] = React.useState<HTMLImageElement | null>(null)
@@ -305,9 +267,169 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     const dragStartPointerPos = React.useRef<Point | null>(null) // Para calcular delta del ratón sin saltos
     const isDraggingVertexRef = React.useRef(false) // Manual drag state
     const lastPointerPos = React.useRef<Point | null>(null) // Para el panning
+    const isAimingDrawing = React.useRef(false) // Track if touch user is aiming before committing draw point
+    const aimingStartPos = React.useRef<Point | null>(null) // Where touch started (for tap detection)
+    const [isMobile, setIsMobile] = React.useState(false)
 
-    // Keep a ref to walls to access latest state inside event listeners without triggering re-binds
+    React.useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768 || (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)))
+        }
+        checkMobile()
+        window.addEventListener('resize', checkMobile)
+        return () => window.removeEventListener('resize', checkMobile)
+    }, [])
+
+    // Componente Teclado Numérico Personalizado para Móvil - Estilo Bottom Sheet
+    const NumericKeypad = ({ value, onChange, onConfirm, onCancel, title }: { value: string, onChange: (v: string) => void, onConfirm: () => void, onCancel: () => void, title: string }) => {
+        const [isFirstInput, setIsFirstInput] = React.useState(true)
+
+        const handleDigit = (digit: string) => {
+            console.log('Digit clicked:', digit, 'isFirstInput:', isFirstInput, 'currentValue:', value)
+            if (isFirstInput) {
+                // First input replaces the entire value
+                onChange(digit)
+                setIsFirstInput(false)
+            } else {
+                // Subsequent inputs append
+                if (value.length < 5) onChange(value + digit)
+            }
+        }
+
+        const handleDelete = () => {
+            console.log('Delete clicked, isFirstInput:', isFirstInput, 'currentValue:', value)
+            if (isFirstInput) {
+                // Delete all on first click
+                onChange("")
+                setIsFirstInput(false)
+            } else {
+                // Normal backspace
+                onChange(value.slice(0, -1))
+            }
+        }
+
+        return (
+            <div className="w-full bg-white border-t-2 border-slate-200 shadow-2xl animate-in slide-in-from-bottom-full duration-300">
+                {/* Value Display */}
+                <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{title}</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-2xl font-black text-slate-800">{value || "0"}</span>
+                        <span className="text-sm text-slate-400">cm</span>
+                    </div>
+                </div>
+
+                {/* Keyboard Row */}
+                <div className="flex items-center gap-0.5 p-1.5">
+                    {/* Digits 0-9 */}
+                    {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"].map(digit => (
+                        <button
+                            key={digit}
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleDigit(digit)
+                            }}
+                            className="flex-1 h-11 flex items-center justify-center rounded-md text-lg font-bold bg-slate-50 text-slate-800 hover:bg-slate-100 active:bg-slate-200 transition-all active:scale-95 border border-slate-200"
+                        >
+                            {digit}
+                        </button>
+                    ))}
+
+                    {/* Delete Button */}
+                    <button
+                        onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            handleDelete()
+                        }}
+                        className="flex-1 h-11 flex items-center justify-center rounded-md bg-red-50 text-red-600 hover:bg-red-100 active:bg-red-200 transition-all active:scale-95 border border-red-200"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                    </button>
+
+                    {/* OK Button */}
+                    <button
+                        onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            console.log('OK clicked, final value:', value)
+                            onConfirm()
+                        }}
+                        className="flex-[1.2] h-11 flex items-center justify-center rounded-md bg-sky-500 text-white font-bold text-base hover:bg-sky-600 active:bg-sky-700 transition-all active:scale-95 shadow-lg shadow-sky-200"
+                    >
+                        OK
+                    </button>
+                </div>
+            </div>
+        )
+    }
+
+    const NumericInput = ({ label, value, setter, onEnter, placeholder }: { label?: string, value: string, setter: (v: string) => void, onEnter: () => void, placeholder?: string }) => {
+        const [showKeypad, setShowKeypad] = React.useState(false)
+
+        if (isMobile) {
+            return (
+                <div className="flex items-center gap-1">
+                    <button
+                        onPointerDown={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            // Only open on touch/pen, not mouse
+                            if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+                                setShowKeypad(true)
+                            }
+                        }}
+                        onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            // Fallback for mouse/desktop
+                            setShowKeypad(true)
+                        }}
+                        className="min-w-[100px] h-10 px-3 bg-white border-2 border-sky-400 rounded-xl text-center text-lg font-black text-slate-800 hover:bg-sky-50 active:scale-95 transition-all shadow-md flex items-center justify-center gap-1"
+                    >
+                        {value || placeholder || "0"}
+                        <span className="text-xs font-bold text-sky-500 uppercase">cm</span>
+                    </button>
+                    {showKeypad && (
+                        <div className="fixed inset-0 z-[3000] bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowKeypad(false)}>
+                            <div className="fixed bottom-0 left-0 right-0 safe-area-inset-bottom" onClick={e => e.stopPropagation()}>
+                                <NumericKeypad
+                                    title={label || "Introducir valor"}
+                                    value={value}
+                                    onChange={setter}
+                                    onConfirm={() => {
+                                        onEnter()
+                                        setShowKeypad(false)
+                                    }}
+                                    onCancel={() => setShowKeypad(false)}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )
+        }
+
+        return (
+            <input
+                type="number"
+                autoFocus
+                value={value}
+                onChange={(e) => setter(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') onEnter()
+                }}
+                className="w-16 p-1.5 border-2 border-slate-200 rounded-lg text-center text-sm font-bold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
+                placeholder={placeholder}
+            />
+        )
+    }
+
     const wallsRef = React.useRef(walls)
+    const pointerTypeRef = React.useRef<string>("mouse")
     React.useEffect(() => {
         wallsRef.current = walls
     }, [walls])
@@ -338,7 +460,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
     // Global listeners for MANUAL VERTEX DRAGGING (Fixes ghosting)
     React.useEffect(() => {
-        const handleVertexMove = (e: MouseEvent) => {
+        const handleVertexMove = (e: PointerEvent) => {
             if (!isDraggingVertexRef.current || !dragStartPointerPos.current || !dragStartPos.current || !stageRef.current) return
 
             e.preventDefault()
@@ -349,9 +471,18 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
             const container = stage.container()
             const rect = container.getBoundingClientRect()
+
+            let clientX = e.clientX
+            let clientY = e.clientY
+
+            // Apply vertical offset for touch to avoid finger covering the vertex
+            if (e.pointerType === "touch" || forceTouchOffset) {
+                clientY -= touchOffset
+            }
+
             const pos = {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
+                x: clientX - rect.left,
+                y: clientY - rect.top
             }
             const pointer = transform.point(pos)
 
@@ -418,7 +549,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
             onDragVertex(dragStartPos.current, totalDelta, draggingVertexWallIds.current)
         }
 
-        const handleVertexUp = () => {
+        const handleVertexUp = (e: PointerEvent) => {
             if (isDraggingVertexRef.current) {
                 isDraggingVertexRef.current = false
                 dragStartPos.current = null
@@ -429,14 +560,14 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
             }
         }
 
-        window.addEventListener('mousemove', handleVertexMove)
-        window.addEventListener('mouseup', handleVertexUp)
+        window.addEventListener('pointermove', handleVertexMove)
+        window.addEventListener('pointerup', handleVertexUp)
 
         return () => {
-            window.removeEventListener('mousemove', handleVertexMove)
-            window.removeEventListener('mouseup', handleVertexUp)
+            window.removeEventListener('pointermove', handleVertexMove)
+            window.removeEventListener('pointerup', handleVertexUp)
         }
-    }, [onDragVertex, onDragEnd]) // Removed 'walls' from dependency, using ref instead
+    }, [onDragVertex, onDragEnd, touchOffset, forceTouchOffset]) // Added touchOffset and forceTouchOffset to dependencies
 
     const isPanning = React.useRef(false)
     const draggingVertexWallIds = React.useRef<string[]>([])
@@ -464,25 +595,35 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     React.useEffect(() => {
         if (!isDraggingMenuState) return
 
-        const handleGlobalMouseMove = (e: MouseEvent) => {
+        const handleGlobalMove = (e: MouseEvent | TouchEvent) => {
             if (menuDragStart.current) {
+                const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+                const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+
+                // IMPORTANTE: En móvil el scrolling puede interferir, prevenimos si estamos arrastrando menú
+                if ('touches' in e) e.preventDefault()
+
                 setMenuDragOffset({
-                    x: e.clientX - menuDragStart.current.x,
-                    y: e.clientY - menuDragStart.current.y
+                    x: clientX - menuDragStart.current.x,
+                    y: clientY - menuDragStart.current.y
                 })
             }
         }
 
-        const handleGlobalMouseUp = () => {
+        const handleGlobalEnd = () => {
             setIsDraggingMenuState(false)
             menuDragStart.current = null
         }
 
-        window.addEventListener('mousemove', handleGlobalMouseMove)
-        window.addEventListener('mouseup', handleGlobalMouseUp)
+        window.addEventListener('mousemove', handleGlobalMove)
+        window.addEventListener('mouseup', handleGlobalEnd)
+        window.addEventListener('touchmove', handleGlobalMove, { passive: false })
+        window.addEventListener('touchend', handleGlobalEnd)
         return () => {
-            window.removeEventListener('mousemove', handleGlobalMouseMove)
-            window.removeEventListener('mouseup', handleGlobalMouseUp)
+            window.removeEventListener('mousemove', handleGlobalMove)
+            window.removeEventListener('mouseup', handleGlobalEnd)
+            window.removeEventListener('touchmove', handleGlobalMove)
+            window.removeEventListener('touchend', handleGlobalEnd)
         }
     }, [isDraggingMenuState])
 
@@ -605,8 +746,8 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         }
     }
 
-    const getRelativePointerPosition = (stage: any) => {
-        const pointer = stage.getPointerPosition()
+    const getRelativePointerPosition = (stage: any, overridePos?: Point) => {
+        const pointer = overridePos || stage.getPointerPosition()
         if (!pointer) return { x: 0, y: 0 }
 
         const rawX = (pointer.x - offset.x) / zoom
@@ -1008,10 +1149,24 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     const handleStagePointerDown = (e: any) => {
         const stage = e.target?.getStage?.()
         if (!stage) return
+
+        const stagePos = stage.getPointerPosition()
+        if (!stagePos) return
+
+        let adjustedY = stagePos.y
+        const isTouchInteraction = e.evt.pointerType === "touch" || forceTouchOffset
+        if (isTouchInteraction) {
+            adjustedY -= touchOffset
+        }
+
+        // Si es táctil, buscamos qué hay "bajo el puntero virtual" (80px arriba)
+        // En vez de usar e.target directamente.
+        const virtualTarget = isTouchInteraction ? stage.getIntersection({ x: stagePos.x, y: adjustedY }) : e.target
+        const targetName = virtualTarget?.name() || ""
+        const isBackground = !virtualTarget || virtualTarget === stage
+
         const isRightClick = e.evt.button === 2
         const isMiddleClick = e.evt.button === 1
-        const isBackground = e.target === stage
-        const targetName = e.target.name() || ""
         const isRoom = targetName.startsWith("room-")
 
         // Handle multi-touch for zoom (prevent drawing if 2 fingers)
@@ -1034,7 +1189,33 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
         if (e.evt.button !== 0 && e.evt.pointerType === 'mouse') return
 
-        if (e.target === stage) {
+        // Si pinchamos en algo (o cerca por el offset) y es táctil, disparamos su lógica
+        if (isTouchInteraction && !isBackground) {
+            if (activeTool === "select") {
+                if (targetName.startsWith("wall-")) {
+                    const wallId = targetName.split("wall-")[1]
+                    onSelectWall(wallId, e.evt.ctrlKey)
+                } else if (targetName.startsWith("door-")) {
+                    const doorId = targetName.split("door-")[1]
+                    onSelectElement({ type: "door", id: doorId })
+                } else if (targetName.startsWith("window-")) {
+                    const windowId = targetName.split("window-")[1]
+                    onSelectElement({ type: "window", id: windowId })
+                } else if (targetName === "room-poly" || targetName.startsWith("room-")) {
+                    // Try to find roomId from ancestors or ID if encoded
+                }
+            }
+
+            // Disparamos pointerdown para que Konva inicie draggables
+            virtualTarget.fire('pointerdown', e, true)
+
+            // Si es un vértice o una medida, evitamos que se empiece a dibujar un muro debajo
+            if (targetName === "vertex-handle" || targetName.startsWith("measurement-")) {
+                return
+            }
+        }
+
+        if (isBackground) {
             onSelectWall(null)
             onSelectRoom(null)
             onSelectElement(null)
@@ -1042,8 +1223,22 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
         if (activeTool !== "wall" && activeTool !== "door" && activeTool !== "window" && activeTool !== "ruler" && activeTool !== "arc") return
 
-        const pos = getRelativePointerPosition(stage)
-        onMouseDown(pos) // Keep prop name, but called from pointer event
+        const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
+
+        // NEW TOUCH-UP DRAWING LOGIC:
+        // On touch devices with drawing tools, DELAY the click until finger is released
+        // This allows users to "aim" using the crosshair and snapping guides
+        const isDrawingTool = activeTool === "wall" || activeTool === "door" || activeTool === "window" || activeTool === "ruler" || activeTool === "arc"
+        if (isTouchInteraction && isDrawingTool) {
+            isAimingDrawing.current = true
+            aimingStartPos.current = { x: stagePos.x, y: adjustedY }
+            // Update mouse position for preview but DON'T call onMouseDown yet
+            setMousePos(pos)
+            return
+        }
+
+        // Desktop: immediate click
+        onMouseDown(pos)
     }
 
     const handleStagePointerMove = (e: any) => {
@@ -1059,9 +1254,23 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
             return
         }
 
-        const pos = getRelativePointerPosition(stage)
+        const stagePos = stage.getPointerPosition()
+        if (!stagePos) return
+
+        let adjustedY = stagePos.y
+        if (e.evt.pointerType === "touch" || forceTouchOffset) {
+            adjustedY -= touchOffset
+        }
+
+        const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
+
+        // Always update cursor position for preview (including during aiming phase)
         setMousePos(pos)
-        if ((activeTool === "wall" && currentWall) || (activeTool === "ruler") || (activeTool === "arc")) {
+
+        // If we're in aiming mode, update the preview
+        if (isAimingDrawing.current) {
+            onMouseMove(pos)
+        } else if ((activeTool === "wall" && currentWall) || (activeTool === "ruler") || (activeTool === "arc")) {
             onMouseMove(pos)
         }
     }
@@ -1075,9 +1284,47 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
         const stage = e.target?.getStage?.()
         if (!stage) return
-        const pos = getRelativePointerPosition(stage)
+        const stagePos = stage.getPointerPosition()
+        if (!stagePos) return
+
+        let adjustedY = stagePos.y
+        if (e.evt.pointerType === "touch" || forceTouchOffset) {
+            adjustedY -= touchOffset
+        }
+
+        const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
 
         const isTouchOrPen = e.evt.pointerType === 'touch' || e.evt.pointerType === 'pen'
+
+        // NEW TOUCH-UP DRAWING LOGIC:
+        // If we were in aiming mode, commit the point NOW (on finger release)
+        if (isAimingDrawing.current) {
+            isAimingDrawing.current = false
+
+            // Check if this was just a tap (no movement) or a drag
+            const TAP_THRESHOLD = 10 // pixels
+            let isTap = false
+            if (aimingStartPos.current) {
+                const dx = stagePos.x - aimingStartPos.current.x
+                const dy = (adjustedY) - aimingStartPos.current.y
+                const dist = Math.sqrt(dx * dx + dy * dy)
+                isTap = dist < TAP_THRESHOLD
+            }
+            aimingStartPos.current = null
+
+            // Commit the point (first click equivalent)
+            onMouseDown(pos)
+
+            // For drag-to-draw on walls, also immediately confirm if user dragged
+            // This creates the wall in one gesture: touch -> drag -> release
+            if (!isTap && activeTool === "wall") {
+                // Small delay to ensure state updates
+                setTimeout(() => {
+                    onMouseUp(pos)
+                }, 10)
+            }
+            return
+        }
 
         if ((activeTool === "wall" && currentWall) || activeTool === "ruler" || activeTool === "arc") {
             // Desktop: Click-Move-Click (Up does nothing initially, waits for 2nd click)
@@ -2114,7 +2361,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         strokeWidth={2 / zoom}
                                         hitStrokeWidth={20 / zoom}
                                         draggable={false}
-                                        onMouseDown={(e) => {
+                                        onPointerDown={(e) => {
                                             e.cancelBubble = true
                                             const stage = e.target.getStage()
                                             if (stage) {
@@ -2127,15 +2374,31 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                                 const transform = stage.getAbsoluteTransform().copy()
                                                 transform.invert()
                                                 const pos = stage.getPointerPosition()
+
+                                                // PointerEvent available in e.evt for react-konva
+                                                const nativeEvent = (e.evt as PointerEvent)
+                                                pointerTypeRef.current = nativeEvent.pointerType
+
                                                 if (pos) {
-                                                    dragStartPointerPos.current = transform.point(pos)
+                                                    // Determinar si aplicamos offset
+                                                    const isTouch = nativeEvent.pointerType === "touch" || forceTouchOffset
+
+                                                    let adjustedY = pos.y
+                                                    if (isTouch) {
+                                                        adjustedY -= touchOffset
+                                                    }
+
+                                                    // Use adjusted position for start to maintain distance from finger
+                                                    dragStartPointerPos.current = transform.point({ x: pos.x, y: adjustedY })
                                                 }
 
                                                 // Determine walls to move
                                                 const selectedConnections = connections.filter(c => selectedWallIds.includes(c.wallId)).map(c => c.wallId)
                                                 draggingVertexWallIds.current = selectedConnections.length > 0 ? selectedConnections : connections.map(c => c.wallId)
 
-                                                document.body.style.cursor = 'move'
+                                                if (nativeEvent.pointerType !== "touch") {
+                                                    document.body.style.cursor = 'move'
+                                                }
                                             }
                                         }}
                                         onMouseEnter={(e: any) => {
@@ -2378,37 +2641,46 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                             setIsDraggingMenuState(true)
                             menuDragStart.current = { x: e.clientX - menuDragOffset.x, y: e.clientY - menuDragOffset.y }
                         }}
+                        onTouchStart={(e) => {
+                            e.stopPropagation()
+                            setIsDraggingMenuState(true)
+                            const touch = e.touches[0]
+                            menuDragStart.current = { x: touch.clientX - menuDragOffset.x, y: touch.clientY - menuDragOffset.y }
+                        }}
                         className="flex flex-col"
                         style={{
                             position: 'absolute',
-                            left: (selectedRoom
+                            left: Math.max(100, Math.min(window.innerWidth - 100, (selectedRoom
                                 ? (calculatePolygonCentroid(selectedRoom.polygon).x * zoom + offset.x)
                                 : (selectedElement && currentEPos)
                                     ? currentEPos.x
                                     : uiPos?.x || 0
-                            ) + menuDragOffset.x,
-                            top: (selectedRoom
+                            ) + menuDragOffset.x)),
+                            top: Math.max(80, Math.min(window.innerHeight - 80, (selectedRoom
                                 ? (calculatePolygonCentroid(selectedRoom.polygon).y * zoom + offset.y - 40)
                                 : (selectedElement && currentEPos)
                                     ? currentEPos.y - 80
                                     : (uiPos ? uiPos.y - 100 : 0)
-                            ) + menuDragOffset.y,
-                            transform: 'translateX(-50%)',
-                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            ) + menuDragOffset.y)),
+                            transform: 'translateX(-50%) translateY(-100%)', // Anchor bottom-center
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
                             backdropFilter: 'blur(12px)',
-                            padding: '2px',
-                            borderRadius: '10px',
-                            boxShadow: '0 10px 30px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)',
+                            padding: '4px',
+                            borderRadius: '16px',
+                            boxShadow: '0 20px 50px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)',
                             zIndex: 1000,
                             pointerEvents: 'auto',
                             cursor: isDraggingMenuState ? 'grabbing' : 'grab',
                             animation: 'fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                            minWidth: 'auto'
+                            minWidth: 'auto',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center'
                         }}
                     >
                         {/* Drag Handle Bar */}
-                        <div className="w-full h-1 flex justify-center items-center mb-0.5 group cursor-grab">
-                            <div className="w-6 h-0.5 bg-slate-200 rounded-full group-hover:bg-slate-300 transition-colors" />
+                        <div className="w-full h-4 flex justify-center items-center mb-1 cursor-grab active:cursor-grabbing">
+                            <div className="w-12 h-1.5 bg-slate-200 rounded-full hover:bg-slate-300 transition-colors" />
                         </div>
 
                         <div className="flex items-center gap-0.5">
@@ -2616,21 +2888,18 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                 <div className="flex items-center gap-3 px-3 py-1.5">
                                     <span className="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">Grosor pared</span>
                                     <div className="flex items-center gap-1">
-                                        <input
-                                            type="number"
-                                            autoFocus
+                                        <NumericInput
+                                            label="Grosor de pared"
                                             value={editThickness}
-                                            onChange={(e) => setEditThickness(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' && selectedWall) {
+                                            setter={setEditThickness}
+                                            onEnter={() => {
+                                                if (selectedWall) {
                                                     onUpdateWallThickness(selectedWall.id, parseInt(editThickness))
                                                     setEditMode("menu")
                                                 }
-                                                if (e.key === 'Escape') setEditMode("menu")
                                             }}
-                                            className="w-14 p-1.5 border-2 border-slate-200 rounded-lg text-center text-sm font-bold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
                                         />
-                                        <span className="text-[10px] font-semibold text-slate-400">cm</span>
+                                        {!isMobile && <span className="text-[10px] font-semibold text-slate-400">cm</span>}
                                     </div>
                                     <button
                                         onClick={() => setEditMode("menu")}
@@ -2684,41 +2953,32 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                                     {Math.abs(selectedWall.start.y - selectedWall.end.y) < 1 ? "←" : "↑"}
                                                 </button>
                                                 <div className="flex items-center gap-1 bg-white border-2 border-slate-100 rounded-lg px-2 py-1">
-                                                    <input
-                                                        type="number"
-                                                        autoFocus
+                                                    <NumericInput
+                                                        label={`Medida ${editFace}`}
                                                         value={editLength}
-                                                        onChange={(e) => setEditLength(e.target.value)}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                const targetLen = parseInt(editLength)
-                                                                if (isNaN(targetLen)) return
+                                                        setter={setEditLength}
+                                                        onEnter={() => {
+                                                            const targetLen = parseInt(editLength)
+                                                            if (isNaN(targetLen) || !selectedWall) return
 
-                                                                const dx = selectedWall.end.x - selectedWall.start.x
-                                                                const dy = selectedWall.end.y - selectedWall.start.y
-                                                                const centerLength = Math.sqrt(dx * dx + dy * dy)
-
-                                                                const chainIds = new Set([selectedWall.id])
-                                                                let currentTotal = centerLength
-                                                                if (editFace !== "center") {
-                                                                    const nx = -dy / centerLength
-                                                                    const ny = dx / centerLength
-                                                                    const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
-                                                                    currentTotal += getFaceOffsetAt(selectedWall, selectedWall.start, faceNormal, chainIds) +
-                                                                        getFaceOffsetAt(selectedWall, selectedWall.end, faceNormal, chainIds)
-                                                                }
-
-                                                                const delta = targetLen - currentTotal
-                                                                if (selectedWall && Math.abs(delta) > 0.01) {
-                                                                    onUpdateWallLength(selectedWall.id, centerLength + delta, "right")
-                                                                }
-                                                                setEditMode("menu")
+                                                            const dx = selectedWall.end.x - selectedWall.start.x
+                                                            const dy = selectedWall.end.y - selectedWall.start.y
+                                                            const centerLength = Math.sqrt(dx * dx + dy * dy)
+                                                            const chainIds = new Set([selectedWall.id])
+                                                            let currentTotal = centerLength
+                                                            if (editFace !== "center") {
+                                                                const nx = -dy / centerLength
+                                                                const ny = dx / centerLength
+                                                                const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
+                                                                currentTotal += getFaceOffsetAt(selectedWall, selectedWall.start, faceNormal, chainIds) +
+                                                                    getFaceOffsetAt(selectedWall, selectedWall.end, faceNormal, chainIds)
                                                             }
-                                                            if (e.key === 'Escape') setEditMode("menu")
+                                                            const delta = targetLen - currentTotal
+                                                            onUpdateWallLength(selectedWall.id, centerLength + delta, "right")
+                                                            setEditMode("menu")
                                                         }}
-                                                        className="w-16 text-center text-lg font-bold text-slate-800 focus:outline-none"
                                                     />
-                                                    <span className="text-[10px] font-bold text-slate-400">cm</span>
+                                                    {!isMobile && <span className="text-[10px] font-bold text-slate-400">cm</span>}
                                                 </div>
                                                 <button
                                                     onClick={() => {
@@ -2758,44 +3018,35 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
                                         <div className="flex flex-col gap-1.5 px-3 py-2">
                                             <div className="flex items-center gap-2">
                                                 <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Ancho</span>
-                                                <input
-                                                    type="number"
-                                                    autoFocus
+                                                <NumericInput
+                                                    label="Ancho"
                                                     value={editLength}
-                                                    onChange={(e) => setEditLength(e.target.value)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            const updates: any = { width: parseInt(editLength) }
-                                                            if (selectedElement.type === "window" && editHeight) updates.height = parseInt(editHeight)
-                                                            onUpdateElement(selectedElement.type, selectedElement.id, updates)
-                                                            setEditMode("menu")
-                                                        }
-                                                        if (e.key === 'Escape') setEditMode("menu")
+                                                    setter={setEditLength}
+                                                    onEnter={() => {
+                                                        const updates: any = { width: parseInt(editLength) }
+                                                        if (selectedElement.type === "window" && editHeight) updates.height = parseInt(editHeight)
+                                                        onUpdateElement(selectedElement.type, selectedElement.id, updates)
+                                                        setEditMode("menu")
                                                     }}
-                                                    className="w-16 p-1 border-b border-slate-200 text-center text-xs font-bold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
                                                 />
-                                                <span className="text-[9px] font-bold text-slate-400">cm</span>
+                                                {!isMobile && <span className="text-[9px] font-bold text-slate-400">cm</span>}
                                             </div>
                                             {selectedElement.type === "window" && (
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Alto</span>
-                                                    <input
-                                                        type="number"
+                                                    <NumericInput
+                                                        label="Alto"
                                                         value={editHeight}
-                                                        onChange={(e) => setEditHeight(e.target.value)}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                onUpdateElement(selectedElement.type, selectedElement.id, {
-                                                                    width: parseInt(editLength),
-                                                                    height: parseInt(editHeight)
-                                                                })
-                                                                setEditMode("menu")
-                                                            }
-                                                            if (e.key === 'Escape') setEditMode("menu")
+                                                        setter={setEditHeight}
+                                                        onEnter={() => {
+                                                            onUpdateElement(selectedElement.type, selectedElement.id, {
+                                                                width: parseInt(editLength),
+                                                                height: parseInt(editHeight)
+                                                            })
+                                                            setEditMode("menu")
                                                         }}
-                                                        className="w-16 p-1 border-b border-slate-200 text-center text-xs font-bold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
                                                     />
-                                                    <span className="text-[9px] font-bold text-slate-400">cm</span>
+                                                    {!isMobile && <span className="text-[9px] font-bold text-slate-400">cm</span>}
                                                 </div>
                                             )}
                                             <button
