@@ -1368,12 +1368,25 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
-                    <FloorPlanSummary
-                        walls={walls}
-                        doors={doors}
-                        windows={windows}
-                        rooms={rooms}
-                    />
+                    <Sheet>
+                        <SheetTrigger asChild>
+                            <Button variant="ghost" size="sm" className="hidden md:flex gap-2">
+                                <FileText className="h-4 w-4" />
+                                <span className="text-xs">Resumen</span>
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent className="overflow-y-auto w-[400px] sm:w-[540px]">
+                            <SheetHeader className="mb-4">
+                                <SheetTitle>Resumen del Plano</SheetTitle>
+                            </SheetHeader>
+                            <FloorPlanSummary
+                                walls={walls}
+                                doors={doors}
+                                windows={windows}
+                                rooms={rooms}
+                            />
+                        </SheetContent>
+                    </Sheet>
                     <div className="w-px h-6 bg-slate-200 mx-1" />
 
                     <Button
@@ -1481,95 +1494,6 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     phantomArc={phantomArc}
                 />
 
-                {/* Wall Properties Panel (Mobile: Sheet, Desktop: Floating) */}
-                {selectedWallIds.length === 1 && (
-                    <>
-                        {isMobile ? (
-                            <Sheet open={true} onOpenChange={() => setSelectedWallIds([])} modal={false}>
-                                <SheetContent side="bottom" className="p-0 border-t-0 bg-transparent shadow-none" onOpenAutoFocus={(e) => e.preventDefault()}>
-                                    <div className="bg-white p-4 rounded-t-2xl shadow-2xl border border-slate-200 pb-8">
-                                        <WallProperties
-                                            wallId={selectedWallIds[0]}
-                                            length={(() => {
-                                                const w = walls.find(w => w.id === selectedWallIds[0])
-                                                if (!w) return 0
-                                                return Math.sqrt(Math.pow(w.end.x - w.start.x, 2) + Math.pow(w.end.y - w.start.y, 2))
-                                            })()}
-                                            thickness={walls.find(w => w.id === selectedWallIds[0])?.thickness || 15}
-                                            isInvisible={!!walls.find(w => w.id === selectedWallIds[0])?.isInvisible}
-                                            onUpdateLength={(id, l) => handleUpdateWallLength(id, l, "right")}
-                                            onUpdateThickness={handleUpdateWallThickness}
-                                            onUpdateInvisible={handleUpdateWallInvisible}
-                                            onSplit={handleSplitWall}
-                                            onDelete={deleteWall}
-                                            onClose={() => setSelectedWallIds([])}
-                                        />
-                                    </div>
-                                </SheetContent>
-                            </Sheet>
-                        ) : (
-                            <div className="absolute top-4 left-4 z-30 animate-in fade-in zoom-in-95 duration-200">
-                                <WallProperties
-                                    wallId={selectedWallIds[0]}
-                                    length={(() => {
-                                        const w = walls.find(w => w.id === selectedWallIds[0])
-                                        if (!w) return 0
-                                        return Math.sqrt(Math.pow(w.end.x - w.start.x, 2) + Math.pow(w.end.y - w.start.y, 2))
-                                    })()}
-                                    thickness={walls.find(w => w.id === selectedWallIds[0])?.thickness || 15}
-                                    isInvisible={!!walls.find(w => w.id === selectedWallIds[0])?.isInvisible}
-                                    onUpdateLength={(id, l) => handleUpdateWallLength(id, l, "right")}
-                                    onUpdateThickness={handleUpdateWallThickness}
-                                    onUpdateInvisible={handleUpdateWallInvisible}
-                                    onSplit={handleSplitWall}
-                                    onDelete={deleteWall}
-                                    onClose={() => setSelectedWallIds([])}
-                                />
-                            </div>
-                        )}
-                    </>
-                )}
-
-                {/* Element Properties Panel */}
-                {selectedElement && (
-                    <>
-                        {isMobile ? (
-                            <Sheet open={true} onOpenChange={() => setSelectedElement(null)} modal={false}>
-                                <SheetContent side="bottom" className="p-0 border-t-0 bg-transparent shadow-none" onOpenAutoFocus={(e) => e.preventDefault()}>
-                                    <div className="bg-white p-4 rounded-t-2xl shadow-2xl border border-slate-200 pb-8">
-                                        <ElementProperties
-                                            elementId={selectedElement.id}
-                                            type={selectedElement.type}
-                                            width={
-                                                selectedElement.type === "door"
-                                                    ? doors.find(d => d.id === selectedElement.id)?.width || 90
-                                                    : windows.find(w => w.id === selectedElement.id)?.width || 100
-                                            }
-                                            onUpdateWidth={(id, w) => handleUpdateElement(selectedElement.type, id, { width: w })}
-                                            onDelete={(id) => handleDeleteElement(selectedElement.type, id)}
-                                            onClose={() => setSelectedElement(null)}
-                                        />
-                                    </div>
-                                </SheetContent>
-                            </Sheet>
-                        ) : (
-                            <div className="absolute top-4 left-4 z-30 animate-in fade-in zoom-in-95 duration-200">
-                                <ElementProperties
-                                    elementId={selectedElement.id}
-                                    type={selectedElement.type}
-                                    width={
-                                        selectedElement.type === "door"
-                                            ? doors.find(d => d.id === selectedElement.id)?.width || 90
-                                            : windows.find(w => w.id === selectedElement.id)?.width || 100
-                                    }
-                                    onUpdateWidth={(id, w) => handleUpdateElement(selectedElement.type, id, { width: w })}
-                                    onDelete={(id) => handleDeleteElement(selectedElement.type, id)}
-                                    onClose={() => setSelectedElement(null)}
-                                />
-                            </div>
-                        )}
-                    </>
-                )}
 
 
                 {bgImage && (
