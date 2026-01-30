@@ -10,7 +10,7 @@ import { CustomPricesV2 } from "@/components/landing/custom-prices-v2"
 import { PricingFree } from "@/components/landing/pricing-free"
 import { UserTypes } from "@/components/landing/user-types"
 import { Testimonials } from "@/components/landing/testimonials"
-import { Donation } from "@/components/landing/donation"
+
 import { CTA } from "@/components/landing/cta"
 import { Footer } from "@/components/landing/footer"
 import { Navbar } from "@/components/landing/navbar"
@@ -90,7 +90,7 @@ export default function Home() {
         <CustomPricesV2 />
         <UserTypes />
         <Testimonials />
-        <Donation />
+
         <PricingFree />
         <CTA />
       </main>
