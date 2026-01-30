@@ -155,7 +155,9 @@ export async function POST(req: Request) {
       customer_email: customerEmail,
       line_items: [{ price: priceId, quantity: 1 }],
       mode: planName === "plan-donacion" ? "payment" : "subscription",
-      success_url: `${baseUrl}/dashboard/ajustes?tab=subscription&success=true`,
+      success_url: planName === "plan-donacion"
+        ? `${baseUrl}/donar/gracias?success=true`
+        : `${baseUrl}/dashboard/ajustes?tab=subscription&success=true`,
       cancel_url: `${baseUrl}/dashboard/ajustes?tab=subscription&canceled=true`,
       metadata: {
         user_id: user.id,

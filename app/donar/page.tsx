@@ -7,5 +7,5 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 })
 
 export default async function DonarPage() {
-    redirect("https://buy.stripe.com/test_9B69ATaZW3se6BJ51rdby00")
+    redirect("/dashboard/planes?plan=plan-donacion")
 }

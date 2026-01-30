@@ -418,12 +418,11 @@ export default function PlanesPage() {
                       </Button>
                     ) : plan.planKey === "plan-donacion" ? (
                       <Button
-                        asChild
+                        disabled={loading}
+                        onClick={() => handleUpgrade(plan.planKey)}
                         className="w-full bg-orange-500 hover:bg-orange-600 text-white"
                       >
-                        <Link href="https://buy.stripe.com/test_9B69ATaZW3se6BJ51rdby00">
-                          Apoyar
-                        </Link>
+                        {loading ? "Procesando..." : "Apoyar"}
                       </Button>
                     ) : canUpgrade ? (
                       <Button
@@ -460,6 +459,6 @@ export default function PlanesPage() {
           </div>
         </div>
       </div>
-    </TooltipProvider>
+    </TooltipProvider >
   )
 }
