@@ -277,6 +277,46 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true })
     }
 
+    // --- SUBSCRIPTION DELETED / PAYMENT FAILED ---
+    if (event.type === "customer.subscription.deleted" || event.type === "invoice.payment_failed") {
+      const data = event.data.object as any;
+      const stripeCustomerId = data.customer;
+
+      if (stripeCustomerId) {
+        await logWebhook("SUBSCRIPTION_ENDED_EVENT", { type: event.type, customerId: stripeCustomerId });
+
+        const token = process.env.TELEGRAM_BOT_TOKEN;
+        const groupId = process.env.TELEGRAM_GROUP_ID;
+
+        if (token && groupId) {
+          // Find User
+          const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("telegram_user_id, id")
+            .eq("stripe_customer_id", stripeCustomerId)
+            .single();
+
+          if (profile && profile.telegram_user_id) {
+            await logWebhook("FOUND_USER_TO_EXPEL", { userId: profile.id, telegramId: profile.telegram_user_id });
+            try {
+              const TelegramBot = require("node-telegram-bot-api");
+              const bot = new TelegramBot(token);
+
+              // Kick member (ban and then unban to allow rejoin if they pay later)
+              await bot.banChatMember(groupId, profile.telegram_user_id);
+              await bot.unbanChatMember(groupId, profile.telegram_user_id); // "Soft kick"
+
+              await logWebhook("USER_EXPELLED_FROM_TELEGRAM", { telegramId: profile.telegram_user_id });
+            } catch (err: any) {
+              await logWebhook("TELEGRAM_EXPULSION_ERROR", { error: err.message });
+            }
+          } else {
+            await logWebhook("NO_TELEGRAM_LINK_FOUND", { stripeCustomerId });
+          }
+        }
+      }
+    }
+
     return NextResponse.json({ received: true })
   } catch (error: any) {
     await logWebhook("FATAL_EXCEPTION", { message: error.message })

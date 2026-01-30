@@ -35,9 +35,9 @@ export default async function AjustesPage() {
       <h1 className="text-3xl font-bold mb-6">Ajustes</h1>
 
       <div className="space-y-6">
-        {isHomeowner && <SubscriptionSettings userId={session.user.id} userType="homeowner" />}
+        {isHomeowner && <SubscriptionSettings userId={session.user.id} userType="homeowner" telegramBotUsername="presupuestalobot" />}
+        {isProfessional && <SubscriptionSettings userId={session.user.id} userType="professional" telegramBotUsername="presupuestalobot" />}
 
-        {isProfessional && <SubscriptionSettings userId={session.user.id} userType="professional" />}
       </div>
     </div>
   )

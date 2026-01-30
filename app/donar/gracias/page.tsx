@@ -3,8 +3,28 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, MessageCircle } from 'lucide-react';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 
-export default function DonationThankYouPage() {
+export const dynamic = "force-dynamic";
+
+export default async function DonationThankYouPage() {
+  const supabase = await createClient();
+
+  if (!supabase) {
+    redirect('/auth/login');
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect('/auth/login');
+  }
+
+  // Use the verified bot username
+  const botUsername = "presupuestalobot";
+  const telegramLink = `https://t.me/${botUsername}?start=${user.id}`;
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="max-w-2xl w-full">
@@ -23,6 +43,8 @@ export default function DonationThankYouPage() {
             <CardTitle className="text-2xl">Bienvenido a la comunidad privada</CardTitle>
             <CardDescription className="text-lg">
               Como agradecimiento, tienes acceso exclusivo a nuestro grupo de Telegram.
+              <br />
+              <span className="text-sm text-muted-foreground">(Es necesario vincular tu cuenta para poder entrar)</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
@@ -40,15 +62,15 @@ export default function DonationThankYouPage() {
                 </ul>
               </div>
             </div>
-            
+
             <div className="text-center p-4">
               <p className="text-gray-500 text-sm mb-4">
-                Haz clic en el botón de abajo para unirte automáticamente:
+                Haz clic abajo para vincular tu cuenta y recibir tu invitación personal:
               </p>
               <Button asChild size="lg" className="w-full sm:w-auto bg-[#24A1DE] hover:bg-[#1c8dbf] text-white gap-2 h-14 text-lg">
-                <Link href="https://t.me/+7-uVLs-HemA0YmM0" target="_blank" rel="noopener noreferrer">
+                <Link href={telegramLink} target="_blank" rel="noopener noreferrer">
                   <MessageCircle className="w-6 h-6" />
-                  Unirse al Grupo de Telegram
+                  Vincular y Unirse al Grupo
                 </Link>
               </Button>
             </div>

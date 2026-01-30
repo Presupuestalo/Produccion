@@ -14,6 +14,7 @@ import Link from "next/link"
 interface SubscriptionSettingsProps {
   userId: string
   userType: "homeowner" | "professional"
+  telegramBotUsername: string
 }
 
 const PLAN_NAMES: Record<string, string> = {
@@ -32,7 +33,7 @@ const PLAN_PRICES: Record<string, string> = {
   enterprise: "89€/mes",
 }
 
-export function SubscriptionSettings({ userId, userType }: SubscriptionSettingsProps) {
+export function SubscriptionSettings({ userId, userType, telegramBotUsername }: SubscriptionSettingsProps) {
   const [subscription, setSubscription] = useState<any>(null)
   const [invoices, setInvoices] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -191,29 +192,32 @@ export function SubscriptionSettings({ userId, userType }: SubscriptionSettingsP
 
   return (
     <div className="space-y-6">
-      {showDonorCard && (
+      {(isActive && !isFree || showDonorCard) && (
         <Card className="border-blue-500 bg-blue-50 overflow-hidden relative">
           <div className="absolute top-0 right-0 p-4 opacity-10">
-            <Heart className="h-24 w-24 text-blue-600 fill-current" />
+            <Send className="h-24 w-24 text-blue-600 fill-current" />
           </div>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-blue-700">
-              <Heart className="h-5 w-5 fill-current" />
-              ¡Gracias por ser Donante!
+              <Send className="h-5 w-5 fill-current" />
+              Comunidad VIP en Telegram
             </CardTitle>
             <CardDescription className="text-blue-600 font-medium">
-              Tu apoyo mensual de 2€ nos ayuda a seguir mejorando Presupuéstalo.
+              {showDonorCard
+                ? "Como donante, tienes acceso exclusivo a nuestro grupo privado."
+                : "Tu suscripción incluye acceso a nuestro grupo privado de Telegram."
+              }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 relative z-10">
             <p className="text-sm text-blue-800">
-              Como muestra de agradecimiento, tienes acceso exclusivo a nuestro grupo de Telegram donde compartimos
-              actualizaciones, el plan de ruta y escuchamos tus sugerencias directamente.
+              Únete para recibir actualizaciones, votar nuevas funcionalidades y contactar directamente con el equipo.
+              Debes tener la aplicación de Telegram instalada.
             </p>
             <Button asChild className="bg-[#24A1DE] hover:bg-[#1C82B1] text-white">
-              <Link href="https://t.me/+7-uVLs-HemA0YmM0" target="_blank" className="flex items-center gap-2">
+              <Link href={`https://t.me/${telegramBotUsername}?start=${userId}`} target="_blank" className="flex items-center gap-2">
                 <Send className="h-4 w-4" />
-                Unirse al Grupo de Telegram
+                Vincular cuenta y Unirse
               </Link>
             </Button>
           </CardContent>
