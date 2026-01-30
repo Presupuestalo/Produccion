@@ -88,7 +88,7 @@ export function DashboardHeader() {
         console.log("[v0] HEADER - Session:", session?.user?.email)
 
         if (session?.user) {
-          const adminEmails = ["mikelfedz@gmail.com", "mikelfedzmcc@gmail.com"]
+          const adminEmails = ["mikelfedz@gmail.com", "mikelfedzmcc@gmail.com", "presupuestaloficial@gmail.com"]
           const isAdminEmail = adminEmails.includes(session.user.email || "")
 
           const { data: profile, error: profileError } = await supabase

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { ShieldCheck, Users, CreditCard, Crown, AlertTriangle, ArrowRight } from "lucide-react"
+import { ShieldCheck, Users, CreditCard, Crown, AlertTriangle, ArrowRight, Home, Building2, Globe, Heart } from "lucide-react"
 import Link from "next/link"
 
 interface User {
@@ -14,8 +14,11 @@ interface User {
   email: string
   full_name: string | null
   user_type: string
+  professional_role: string | null
   subscription_plan_id: string | null
   is_admin: boolean
+  is_donor: boolean
+  country: string | null
   created_at: string
   subscription_plans: {
     id: string
@@ -41,6 +44,7 @@ export default function AdminPage() {
   const [claimStats, setClaimStats] = useState<ClaimStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null)
+  const [selectedCountry, setSelectedCountry] = useState<string>("all")
   const { toast } = useToast()
 
   useEffect(() => {
@@ -145,132 +149,265 @@ export default function AdminPage() {
         <p className="text-muted-foreground">Gestiona usuarios y sus planes de suscripción</p>
       </div>
 
-      {claimStats && claimStats.total_pending > 0 && (
-        <Card className="mb-8 border-yellow-200 bg-yellow-50">
-          <CardContent className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="h-6 w-6 text-yellow-600" />
-              <div>
-                <p className="font-semibold text-yellow-800">{claimStats.total_pending} reclamación(es) pendiente(s)</p>
-                <p className="text-sm text-yellow-700">
-                  Profesionales esperando revisión de sus solicitudes de devolución
-                </p>
-              </div>
-            </div>
-            <Button asChild>
-              <Link href="/dashboard/admin/reclamaciones">
-                Gestionar reclamaciones
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-4 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Usuarios</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{users.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Usuarios de Pago</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {users.filter((u) => u.subscription_plans?.name !== "free").length}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Administradores</CardTitle>
-            <Crown className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{users.filter((u) => u.is_admin).length}</div>
-          </CardContent>
-        </Card>
-
-        <Link href="/dashboard/admin/reclamaciones">
-          <Card className="hover:border-primary transition-colors cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Reclamaciones</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-yellow-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{claimStats?.total_pending || 0}</div>
-              <p className="text-xs text-muted-foreground">pendientes</p>
-            </CardContent>
-          </Card>
-        </Link>
+      <div className="flex justify-end mb-6">
+        <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+          <SelectTrigger className="w-[180px]">
+            <Globe className="mr-2 h-4 w-4 text-muted-foreground" />
+            <SelectValue placeholder="Filtrar por país" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los países</SelectItem>
+            <SelectItem value="ES">🇪🇸 España</SelectItem>
+            <SelectItem value="MX">🇲🇽 México</SelectItem>
+            <SelectItem value="US">🇺🇸 Estados Unidos</SelectItem>
+            <SelectItem value="AR">🇦🇷 Argentina</SelectItem>
+            <SelectItem value="CO">🇨🇴 Colombia</SelectItem>
+            <SelectItem value="CL">🇨🇱 Chile</SelectItem>
+            <SelectItem value="PE">🇵🇪 Perú</SelectItem>
+            <SelectItem value="other">Otros</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Usuarios del Sistema</CardTitle>
-          <CardDescription>Visualiza y gestiona los planes de suscripción de todos los usuarios</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {users.map((user) => (
-              <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">{user.email}</p>
-                    {user.is_admin && (
-                      <Badge variant="default" className="gap-1">
-                        <Crown className="h-3 w-3" />
-                        Admin
-                      </Badge>
-                    )}
-                  </div>
-                  {user.full_name && <p className="text-sm text-muted-foreground">{user.full_name}</p>}
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="capitalize">{user.user_type}</span>
-                    <span>•</span>
-                    <span>Registrado: {new Date(user.created_at).toLocaleDateString()}</span>
-                  </div>
-                </div>
+      {(() => {
+        const filteredUsers = selectedCountry === "all"
+          ? users
+          : selectedCountry === "other"
+            ? users.filter(u => !["ES", "MX", "US", "AR", "CO", "CL", "PE"].includes(u.country || ""))
+            : users.filter(u => u.country === selectedCountry)
 
-                <div className="flex items-center gap-3">
-                  <Badge variant={getPlanBadgeColor(user.subscription_plans?.name || "free")}>
-                    {user.subscription_plans?.display_name || "Free"}
-                  </Badge>
+        return (
+          <>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-8">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Usuarios</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{filteredUsers.length}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Propietarios</CardTitle>
+                  <Home className="h-4 w-4 text-orange-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{filteredUsers.filter(u => u.user_type === 'homeowner').length}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Profesionales</CardTitle>
+                  <Building2 className="h-4 w-4 text-blue-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{filteredUsers.filter(u => u.user_type === 'professional').length}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Donantes</CardTitle>
+                  <Heart className="h-4 w-4 text-pink-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{filteredUsers.filter(u => u.is_donor).length}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Usuarios de Pago</CardTitle>
+                  <CreditCard className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {filteredUsers.filter((u) => u.subscription_plans?.name && u.subscription_plans.name !== "free").length}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-                  <Select
-                    value={user.subscription_plan_id || ""}
-                    onValueChange={(value) => updateUserPlan(user.id, value)}
-                    disabled={updatingUserId === user.id}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Cambiar plan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {plans.map((plan) => (
-                        <SelectItem key={plan.id} value={plan.id}>
-                          {plan.display_name}
-                          {plan.price_monthly > 0 && (
-                            <span className="text-muted-foreground ml-2">({plan.price_monthly}€/mes)</span>
-                          )}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800">Desglose de Profesionales</h2>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Card className="bg-orange-50/50 border-orange-100">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-orange-700">Empresas</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-orange-900">
+                      {filteredUsers.filter(u => u.user_type === 'professional' && u.professional_role === 'Empresa').length}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-blue-50/50 border-blue-100">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-blue-700">Coordinadores</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-900">
+                      {filteredUsers.filter(u => u.user_type === 'professional' && u.professional_role === 'Coordinador de gremios').length}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-purple-50/50 border-purple-100">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-purple-700">Diseñadores</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-purple-900">
+                      {filteredUsers.filter(u => u.user_type === 'professional' && u.professional_role === 'Diseñador').length}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-emerald-50/50 border-emerald-100">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-emerald-700">Arquitectos</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-emerald-900">
+                      {filteredUsers.filter(u => u.user_type === 'professional' && u.professional_role === 'Arquitecto').length}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+
+
+
+            {claimStats && claimStats.total_pending > 0 && (
+              <Card className="mb-8 border-yellow-200 bg-yellow-50">
+                <CardContent className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="h-6 w-6 text-yellow-600" />
+                    <div>
+                      <p className="font-semibold text-yellow-800">{claimStats.total_pending} reclamación(es) pendiente(s)</p>
+                      <p className="text-sm text-yellow-700">
+                        Profesionales esperando revisión de sus solicitudes de devolución
+                      </p>
+                    </div>
+                  </div>
+                  <Button asChild>
+                    <Link href="/dashboard/admin/reclamaciones">
+                      Gestionar reclamaciones
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+
+
+
+
+            <div className="grid gap-4 md:grid-cols-4 mb-8">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Administradores</CardTitle>
+                  <Crown className="h-4 w-4 text-purple-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{filteredUsers.filter((u) => u.is_admin).length}</div>
+                </CardContent>
+              </Card>
+
+              <Link href="/dashboard/admin/reclamaciones">
+                <Card className="hover:border-primary transition-colors cursor-pointer h-full border-yellow-200 bg-yellow-50/30">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Reclamaciones</CardTitle>
+                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-yellow-700">{claimStats?.total_pending || 0}</div>
+                    <p className="text-xs text-muted-foreground">pendientes</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            </div>
+
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Usuarios del Sistema</CardTitle>
+                <CardDescription>Visualiza y gestiona los planes de suscripción de todos los usuarios</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {filteredUsers.map((user) => (
+                    <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{user.email}</p>
+                          {user.is_admin && (
+                            <Badge variant="default" className="gap-1">
+                              <Crown className="h-3 w-3" />
+                              Admin
+                            </Badge>
+                          )}
+                          {user.is_donor && (
+                            <Badge variant="secondary" className="gap-1 bg-pink-100 text-pink-700 border-pink-200">
+                              <Heart className="h-3 w-3 fill-pink-500" />
+                              Donante
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          {user.full_name && <p className="text-sm text-muted-foreground">{user.full_name}</p>}
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className="capitalize font-medium">{user.user_type === 'professional' ? 'Profesional' : 'Propietario'}</span>
+                            {user.professional_role && (
+                              <>
+                                <span>•</span>
+                                <span className="text-blue-600">{user.professional_role}</span>
+                              </>
+                            )}
+                            {user.country && (
+                              <>
+                                <span>•</span>
+                                <span>{user.country === 'ES' ? '🇪🇸' : user.country === 'MX' ? '🇲🇽' : user.country}</span>
+                              </>
+                            )}
+                            <span>•</span>
+                            <span>Registrado: {new Date(user.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <Badge variant={getPlanBadgeColor(user.subscription_plans?.name || "free")}>
+                          {user.subscription_plans?.display_name || "Free"}
+                        </Badge>
+
+                        <Select
+                          value={user.subscription_plan_id || ""}
+                          onValueChange={(value) => updateUserPlan(user.id, value)}
+                          disabled={updatingUserId === user.id}
+                        >
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Cambiar plan" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {plans.map((plan) => (
+                              <SelectItem key={plan.id} value={plan.id}>
+                                {plan.display_name}
+                                {plan.price_monthly > 0 && (
+                                  <span className="text-muted-foreground ml-2">({plan.price_monthly}€/mes)</span>
+                                )}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )
+      })()}
 
       <Card className="mt-6">
         <CardHeader>
@@ -297,6 +434,6 @@ export default function AdminPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </div >
   )
 }

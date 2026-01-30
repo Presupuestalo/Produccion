@@ -36,8 +36,11 @@ export async function GET() {
         email,
         full_name,
         user_type,
+        professional_role,
         subscription_plan_id,
         is_admin,
+        is_donor,
+        country,
         created_at,
         subscription_plans (
           id,
