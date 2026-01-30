@@ -40,7 +40,6 @@ const PLAN_CONFIG: Record<string, { name: string; stripeName: string; monthly: n
     stripeName: "Plan Donación",
     monthly: 200,
     annual: 2400,
-    priceId: "price_1SvIUlEQQaEB67RQWfEoVlGy",
   },
 }
 
