@@ -3,6 +3,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route"
 import { DashboardHeader } from "@/components/dashboard/header"
 import { PendingPlanModal } from "@/components/dashboard/pending-plan-modal"
 import { ProvinceCheck } from "@/components/dashboard/province-check"
+import { DonationPopup } from "@/components/dashboard/donation-popup"
 import { Suspense } from "react"
 
 export default function DashboardLayout({
@@ -19,6 +20,7 @@ export default function DashboardLayout({
         <Suspense fallback={null}>
           <PendingPlanModal />
         </Suspense>
+        <DonationPopup />
       </div>
     </ProtectedRoute>
   )
