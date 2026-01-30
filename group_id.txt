@@ -1,0 +1,3 @@
+ID: -1003102727408
+Nombre: PRUEBAS PRESUPUESTALO.COM
+Tipo: supergroup

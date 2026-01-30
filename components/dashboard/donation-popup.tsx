@@ -15,46 +15,61 @@ import Link from "next/link"
 
 export function DonationPopup() {
     const [isOpen, setIsOpen] = useState(false)
-    const [isDonor, setIsDonor] = useState(false)
+    const [shouldRender, setShouldRender] = useState(false)
 
     useEffect(() => {
-        // 1. Verificar si ya se mostró en esta sesión (a menos que estemos forzando por URL)
-        const searchParams = new URLSearchParams(window.location.search)
-        const forcePopup = searchParams.get("forceDonationPopup") === "true"
+        let isMounted = true
+        let timer: NodeJS.Timeout
 
-        const hasSeenPopup = localStorage.getItem("donation-popup-seen")
-        if (hasSeenPopup && !forcePopup) return
+        const checkAndSchedule = async () => {
+            // 1. Check local storage
+            const searchParams = new URLSearchParams(window.location.search)
+            const forcePopup = searchParams.get("forceDonationPopup") === "true"
+            const hasSeenPopup = localStorage.getItem("donation-popup-seen")
 
-        // 2. Verificar si el usuario ya es donante
-        const checkDonorStatus = async () => {
+            if (hasSeenPopup && !forcePopup) {
+                return
+            }
+
+            // 2. Check donor status from API
             try {
                 const res = await fetch("/api/subscription/status")
-                if (res.status === 401) {
-                    // No autenticado, simplemente no hacemos nada (será tratado como no donante)
+                // If unauthenticated or error, we might assume safely to NOT show or default to standard behavior
+                // But generally filtering by donor means we must read the status.
+                if (!res.ok) return
+
+                const data = await res.json()
+
+                // Si user es donante, admin, O tiene un plan de pago (no free), NO mostramos el popup
+                const isPaidUser = data.plan && data.plan !== 'free'
+                const shouldHide = data.is_donor || data.is_admin || isPaidUser
+
+                if (shouldHide && !forcePopup) {
+                    // Mark as seen just in case
+                    localStorage.setItem("donation-popup-seen", "true")
                     return
                 }
-                const data = await res.json()
-                if (data.is_donor) {
-                    setIsDonor(true)
-                    if (!forcePopup) {
-                        localStorage.setItem("donation-popup-seen", "true")
-                    }
+
+                // If we get here, User is eligible to see popup
+                if (isMounted) {
+                    setShouldRender(true)
+                    const delay = forcePopup ? 1000 : 8000
+                    timer = setTimeout(() => {
+                        if (isMounted) setIsOpen(true)
+                    }, delay)
                 }
+
             } catch (error) {
-                console.error("Error checking donor status for popup:", error)
+                console.error("Error checking donor status:", error)
             }
         }
 
-        checkDonorStatus()
+        checkAndSchedule()
 
-        // 3. Configurar el temporizador
-        const delay = forcePopup ? 1000 : 10000 // 1s si forzamos, 10s normal
-        const timer = setTimeout(() => {
-            console.log("[DonationPopup] Showing popup now")
-            setIsOpen(true)
-        }, delay)
-
-        return () => clearTimeout(timer)
+        return () => {
+            isMounted = false
+            if (timer) clearTimeout(timer)
+        }
     }, [])
 
     const handleClose = (permanent = false) => {
@@ -64,15 +79,7 @@ export function DonationPopup() {
         }
     }
 
-    // No mostrar si el usuario ya es donante, a menos que estemos forzando el popup
-    useEffect(() => {
-        if (isDonor && isOpen) {
-            const searchParams = new URLSearchParams(window.location.search)
-            if (searchParams.get("forceDonationPopup") !== "true") {
-                setIsOpen(false)
-            }
-        }
-    }, [isDonor, isOpen])
+    if (!shouldRender && !isOpen) return null
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose(false)}>
@@ -101,7 +108,7 @@ export function DonationPopup() {
 
                 <DialogFooter className="flex flex-col gap-2 sm:flex-col">
                     <Button asChild className="w-full h-12 text-lg bg-orange-600 hover:bg-orange-700 shadow-lg shadow-orange-200 transition-all hover:scale-105">
-                        <Link href="https://buy.stripe.com/test_9B69ATaZW3se6BJ51rdby00" target="_blank">
+                        <Link href="/dashboard/planes?plan=plan-donacion">
                             Apoyar con 2€/mes
                         </Link>
                     </Button>
