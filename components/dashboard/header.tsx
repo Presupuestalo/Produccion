@@ -258,6 +258,15 @@ export function DashboardHeader() {
       icon: () => <Mail className="h-5 w-5" />,
     })
 
+    if (isAdmin) {
+      baseItems.push({
+        name: "Panel Admin",
+        href: "/dashboard/admin",
+        icon: () => <ShieldCheck className="h-5 w-5 text-purple-600" />,
+        highlight: true,
+      })
+    }
+
     return baseItems
   }
 

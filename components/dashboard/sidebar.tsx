@@ -102,6 +102,7 @@ export function DashboardSidebar() {
   const [isProUser, setIsProUser] = useState(false)
   const [isMaster, setIsMaster] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   // Obtener el tipo de usuario
   useEffect(() => {
@@ -118,9 +119,12 @@ export function DashboardSidebar() {
 
         if (session?.user) {
           console.log("[v0] Sidebar: Usuario autenticado:", session.user.id)
+          const adminEmails = ["mikelfedz@gmail.com", "mikelfedzmcc@gmail.com", "presupuestaloficial@gmail.com"]
+          const isAdminEmail = adminEmails.includes(session.user.email || "")
+
           const { data: profile, error } = await supabase
             .from("profiles")
-            .select("user_type, subscription_plan, role")
+            .select("user_type, subscription_plan, role, is_admin")
             .eq("id", session.user.id)
             .single()
 
@@ -132,6 +136,7 @@ export function DashboardSidebar() {
           console.log("[v0] Sidebar: user_type:", profile?.user_type)
           setUserType(profile?.user_type || null)
           setIsMaster(profile?.role === "master")
+          setIsAdmin(profile?.is_admin || isAdminEmail)
 
           const plan = profile?.subscription_plan?.toLowerCase() || "free"
           const isPro = ["pro", "premium", "enterprise", "business"].includes(plan)
@@ -165,6 +170,15 @@ export function DashboardSidebar() {
         comingSoon: false,
       },
     ]
+
+    if (isAdmin) {
+      baseItems.push({
+        name: "Panel Admin",
+        href: "/dashboard/admin",
+        icon: Settings, // Or ShieldCheck
+        comingSoon: false,
+      })
+    }
 
     if (isMaster) {
       baseItems.push({
