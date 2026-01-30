@@ -42,6 +42,7 @@ export async function GET() {
         is_donor,
         country,
         created_at,
+        updated_at,
         subscription_plans (
           id,
           name,
@@ -50,12 +51,26 @@ export async function GET() {
       `)
       .order('created_at', { ascending: false })
 
+    // Obtener usuarios eliminados
+    const { data: deletedUsers, error: deletedError } = await supabase
+      .from('deleted_users')
+      .select('*')
+      .order('deleted_at', { ascending: false })
+
     if (error) {
       console.error('[v0] Error obteniendo usuarios:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ users })
+    if (deletedError) {
+      console.warn('[v0] Error obteniendo usuarios eliminados:', deletedError)
+      // No fallamos toda la request si falla esto, solo devolvemos array vacío
+    }
+
+    return NextResponse.json({
+      users,
+      deletedUsers: deletedUsers || []
+    })
   } catch (error) {
     console.error('[v0] Error en GET /api/admin/users:', error)
     return NextResponse.json(

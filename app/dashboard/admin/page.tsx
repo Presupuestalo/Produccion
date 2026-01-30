@@ -9,6 +9,9 @@ import { useToast } from "@/hooks/use-toast"
 import { ShieldCheck, Users, CreditCard, Crown, AlertTriangle, ArrowRight, Home, Building2, Globe, Heart } from "lucide-react"
 import Link from "next/link"
 
+import { format, subDays, isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns"
+import { Calendar as CalendarIcon } from "lucide-react"
+
 interface User {
   id: string
   email: string
@@ -20,11 +23,22 @@ interface User {
   is_donor: boolean
   country: string | null
   created_at: string
+  updated_at: string
   subscription_plans: {
     id: string
     name: string
     display_name: string
   } | null
+}
+
+interface DeletedUser {
+  id: string
+  email: string
+  full_name: string | null
+  user_type: string
+  deleted_at: string
+  account_created_at: string
+  country?: string | null
 }
 
 interface Plan {
@@ -40,11 +54,17 @@ interface ClaimStats {
 
 export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([])
+  const [deletedUsers, setDeletedUsers] = useState<DeletedUser[]>([])
   const [plans, setPlans] = useState<Plan[]>([])
   const [claimStats, setClaimStats] = useState<ClaimStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null)
   const [selectedCountry, setSelectedCountry] = useState<string>("all")
+
+  // Date filter state
+  const [startDate, setStartDate] = useState<string>(format(subDays(new Date(), 30), "yyyy-MM-dd"))
+  const [endDate, setEndDate] = useState<string>(format(new Date(), "yyyy-MM-dd"))
+
   const { toast } = useToast()
 
   useEffect(() => {
@@ -68,6 +88,7 @@ export default function AdminPage() {
       const claimsData = claimsRes.ok ? await claimsRes.json() : { stats: { total_pending: 0 } }
 
       setUsers(usersData.users || [])
+      setDeletedUsers(usersData.deletedUsers || [])
       setPlans(plansData.plans || [])
       setClaimStats(claimsData.stats || { total_pending: 0 })
     } catch (error) {
@@ -149,9 +170,32 @@ export default function AdminPage() {
         <p className="text-muted-foreground">Gestiona usuarios y sus planes de suscripción</p>
       </div>
 
-      <div className="flex justify-end mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 mb-6 bg-slate-50 p-4 rounded-lg border">
+        <div className="flex items-center gap-4">
+          <div className="grid gap-1.5">
+            <label htmlFor="start-date" className="text-sm font-medium text-gray-700">Desde</label>
+            <input
+              id="start-date"
+              type="date"
+              className="px-3 py-2 border rounded-md text-sm bg-white"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <label htmlFor="end-date" className="text-sm font-medium text-gray-700">Hasta</label>
+            <input
+              id="end-date"
+              type="date"
+              className="px-3 py-2 border rounded-md text-sm bg-white"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
+        </div>
+
         <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[180px] bg-white">
             <Globe className="mr-2 h-4 w-4 text-muted-foreground" />
             <SelectValue placeholder="Filtrar por país" />
           </SelectTrigger>
@@ -170,22 +214,96 @@ export default function AdminPage() {
       </div>
 
       {(() => {
-        const filteredUsers = selectedCountry === "all"
+        // Filter by country first
+        const countryFilteredUsers = selectedCountry === "all"
           ? users
           : selectedCountry === "other"
             ? users.filter(u => !["ES", "MX", "US", "AR", "CO", "CL", "PE"].includes(u.country || ""))
             : users.filter(u => u.country === selectedCountry)
 
+        const countryFilteredDeletedUsers = selectedCountry === "all"
+          ? deletedUsers
+          : selectedCountry === "other"
+            ? deletedUsers.filter(u => !["ES", "MX", "US", "AR", "CO", "CL", "PE"].includes(u.country || ""))
+            : deletedUsers.filter(u => u.country === selectedCountry)
+
+        // Filter by date range
+        const start = startOfDay(parseISO(startDate))
+        const end = endOfDay(parseISO(endDate))
+
+        const newUsers = countryFilteredUsers.filter(u =>
+          isWithinInterval(parseISO(u.created_at), { start, end })
+        )
+
+        const recurringUsers = countryFilteredUsers.filter(u => {
+          // Basic recurring logic: Updated within the range AND created BEFORE the range start
+          const updated = u.updated_at ? parseISO(u.updated_at) : null
+          const created = parseISO(u.created_at)
+
+          if (!updated) return false
+          return isWithinInterval(updated, { start, end }) && created < start
+        })
+
+        const deletedInPeriod = countryFilteredDeletedUsers.filter(u =>
+          isWithinInterval(parseISO(u.deleted_at), { start, end })
+        )
+        // Apply country filter to deleted users if needed, but for now assuming global or country-based if column exists. 
+        // Let's refine countryFilteredDeletedUsers to actually filter if property exists
+        // (The interface DeletedUser doesn't show country in my definition above, but DB has it. I'll add it to interface)
+
         return (
           <>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-8">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+              <Card className="bg-slate-50 border-slate-200">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Nuevos Usuarios</CardTitle>
+                  <Users className="h-4 w-4 text-green-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-700">{newUsers.length}</div>
+                  <p className="text-xs text-muted-foreground">En el periodo seleccionado</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-slate-50 border-slate-200">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Usuarios Recurrentes</CardTitle>
+                  <Users className="h-4 w-4 text-blue-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-700">{recurringUsers.length}</div>
+                  <p className="text-xs text-muted-foreground">Activos en el periodo (registrados antes)</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-slate-50 border-slate-200">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Usuarios Eliminados</CardTitle>
+                  <Users className="h-4 w-4 text-red-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-red-700">{deletedInPeriod.length}</div>
+                  <p className="text-xs text-muted-foreground">Bajas en el periodo</p>
+                </CardContent>
+              </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Usuarios</CardTitle>
+                  <CardTitle className="text-sm font-medium">Total Histórico Bajas</CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{filteredUsers.length}</div>
+                  <div className="text-2xl font-bold">{countryFilteredDeletedUsers.length}</div>
+                  <p className="text-xs text-muted-foreground">Total acumulado</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-8">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Usuarios Activos</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{countryFilteredUsers.length}</div>
                 </CardContent>
               </Card>
               <Card>
@@ -194,7 +312,7 @@ export default function AdminPage() {
                   <Home className="h-4 w-4 text-orange-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{filteredUsers.filter(u => u.user_type === 'homeowner').length}</div>
+                  <div className="text-2xl font-bold">{countryFilteredUsers.filter(u => u.user_type === 'homeowner').length}</div>
                 </CardContent>
               </Card>
               <Card>
@@ -203,7 +321,7 @@ export default function AdminPage() {
                   <Building2 className="h-4 w-4 text-blue-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{filteredUsers.filter(u => u.user_type === 'professional').length}</div>
+                  <div className="text-2xl font-bold">{countryFilteredUsers.filter(u => u.user_type === 'professional').length}</div>
                 </CardContent>
               </Card>
               <Card>
@@ -212,7 +330,7 @@ export default function AdminPage() {
                   <Heart className="h-4 w-4 text-pink-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{filteredUsers.filter(u => u.is_donor).length}</div>
+                  <div className="text-2xl font-bold">{countryFilteredUsers.filter(u => u.is_donor).length}</div>
                 </CardContent>
               </Card>
               <Card>
@@ -222,7 +340,7 @@ export default function AdminPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {filteredUsers.filter((u) => u.subscription_plans?.name && u.subscription_plans.name !== "free").length}
+                    {countryFilteredUsers.filter((u) => u.subscription_plans?.name && u.subscription_plans.name !== "free").length}
                   </div>
                 </CardContent>
               </Card>
@@ -237,7 +355,7 @@ export default function AdminPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-orange-900">
-                      {filteredUsers.filter(u => u.user_type === 'professional' && u.professional_role === 'Empresa').length}
+                      {countryFilteredUsers.filter(u => u.user_type === 'professional' && u.professional_role === 'Empresa').length}
                     </div>
                   </CardContent>
                 </Card>
@@ -247,7 +365,7 @@ export default function AdminPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-blue-900">
-                      {filteredUsers.filter(u => u.user_type === 'professional' && u.professional_role === 'Coordinador de gremios').length}
+                      {countryFilteredUsers.filter(u => u.user_type === 'professional' && u.professional_role === 'Coordinador de gremios').length}
                     </div>
                   </CardContent>
                 </Card>
@@ -257,7 +375,7 @@ export default function AdminPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-purple-900">
-                      {filteredUsers.filter(u => u.user_type === 'professional' && u.professional_role === 'Diseñador').length}
+                      {countryFilteredUsers.filter(u => u.user_type === 'professional' && u.professional_role === 'Diseñador').length}
                     </div>
                   </CardContent>
                 </Card>
@@ -267,14 +385,12 @@ export default function AdminPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-emerald-900">
-                      {filteredUsers.filter(u => u.user_type === 'professional' && u.professional_role === 'Arquitecto').length}
+                      {countryFilteredUsers.filter(u => u.user_type === 'professional' && u.professional_role === 'Arquitecto').length}
                     </div>
                   </CardContent>
                 </Card>
               </div>
             </div>
-
-
 
             {claimStats && claimStats.total_pending > 0 && (
               <Card className="mb-8 border-yellow-200 bg-yellow-50">
@@ -298,10 +414,6 @@ export default function AdminPage() {
               </Card>
             )}
 
-
-
-
-
             <div className="grid gap-4 md:grid-cols-4 mb-8">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -309,7 +421,7 @@ export default function AdminPage() {
                   <Crown className="h-4 w-4 text-purple-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{filteredUsers.filter((u) => u.is_admin).length}</div>
+                  <div className="text-2xl font-bold">{countryFilteredUsers.filter((u) => u.is_admin).length}</div>
                 </CardContent>
               </Card>
 
@@ -327,7 +439,6 @@ export default function AdminPage() {
               </Link>
             </div>
 
-
             <Card>
               <CardHeader>
                 <CardTitle>Usuarios del Sistema</CardTitle>
@@ -335,7 +446,7 @@ export default function AdminPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {filteredUsers.map((user) => (
+                  {countryFilteredUsers.map((user) => (
                     <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex-1 space-y-1">
                         <div className="flex items-center gap-2">
@@ -434,6 +545,6 @@ export default function AdminPage() {
           </div>
         </CardContent>
       </Card>
-    </div >
+    </div>
   )
 }
