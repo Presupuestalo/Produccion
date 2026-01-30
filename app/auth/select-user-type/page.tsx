@@ -390,7 +390,7 @@ export default function SelectUserTypePage() {
                 <Button
                   key={role.id}
                   variant={professionalRole === role.id ? "default" : "outline"}
-                  className={`h-16 text-md font-medium px-4 ${professionalRole === role.id ? "bg-orange-600 hover:bg-orange-700" : "hover:border-orange-500 hover:text-orange-600"
+                  className={`h-16 text-md font-medium px-4 transition-all ${professionalRole === role.id ? "bg-orange-600 text-white hover:bg-orange-700 shadow-md scale-[1.02]" : "bg-white hover:border-orange-500 hover:text-orange-600 hover:bg-orange-50"
                     }`}
                   onClick={() => setProfessionalRole(role.id)}
                 >

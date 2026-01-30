@@ -38,7 +38,7 @@ export function Donation() {
                             size="lg"
                             className="h-14 px-10 text-lg font-bold bg-white text-black hover:bg-gray-200 rounded-2xl transition-all hover:scale-105"
                         >
-                            <Link href="https://buy.stripe.com/8x29ATe2S2eK4ypeAuaAw06" className="flex items-center gap-2">
+                            <Link href={process.env.NEXT_PUBLIC_STRIPE_DONATION_LINK || "#"} className="flex items-center gap-2">
                                 Apoyar el Proyecto
                                 <ArrowRight className="h-5 w-5" />
                             </Link>

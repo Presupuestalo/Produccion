@@ -108,7 +108,7 @@ export function DonationPopup() {
 
                 <DialogFooter className="flex flex-col gap-2 sm:flex-col">
                     <Button asChild className="w-full h-12 text-lg bg-orange-600 hover:bg-orange-700 shadow-lg shadow-orange-200 transition-all hover:scale-105">
-                        <Link href="https://buy.stripe.com/8x29ATe2S2eK4ypeAuaAw06">
+                        <Link href={process.env.NEXT_PUBLIC_STRIPE_DONATION_LINK || "#"}>
                             Apoyar con 2€/mes
                         </Link>
                     </Button>
