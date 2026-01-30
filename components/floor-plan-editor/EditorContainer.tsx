@@ -26,6 +26,7 @@ import { WallProperties } from "./WallProperties"
 import { ElementProperties } from "./ElementProperties"
 import { MobileOrientationGuard } from "./MobileOrientationGuard"
 import Link from "next/link"
+import { useFeatureFlags } from "@/hooks/use-feature-flags"
 import { detectRoomsGeometrically, fragmentWalls, getClosestPointOnSegment, isPointOnSegment, isSamePoint, cleanupAndMergeWalls, calculateBoundingBox, rotatePoint, generateArcPoints } from "@/lib/utils/geometry"
 
 export const EditorContainer = forwardRef((props: any, ref) => {
@@ -33,6 +34,10 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const editorWrapperRef = useRef<HTMLDivElement>(null)
     const canvasEngineRef = useRef<CanvasEngineRef>(null)
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
+
+    // Feature Flags
+    const { isFeatureEnabled } = useFeatureFlags()
+
     const [zoom, setZoom] = useState(1)
     const [offset, setOffset] = useState({ x: 0, y: 0 })
     interface Point { x: number; y: number }
@@ -337,6 +342,88 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         if (selectedElement && ((selectedElement.type === "door" && doors.find(d => d.id === selectedElement.id && wallsToDelete.includes(d.wallId))) ||
             (selectedElement.type === "window" && windows.find(w => w.id === selectedElement.id && wallsToDelete.includes(w.wallId))))) {
             setSelectedElement(null)
+        }
+    }
+
+    const cloneRoom = (roomId: string) => {
+        if (!isFeatureEnabled("ADVANCED_EDITOR")) return
+
+        const room = rooms.find(r => r.id === roomId)
+        if (!room) return
+
+        saveStateToHistory()
+
+        // Find walls that form this room
+        const TOL = 5.0
+        const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
+
+        const roomWalls: Wall[] = []
+        walls.forEach(wall => {
+            const startInRoom = room.polygon.some(p => isSame(p, wall.start))
+            const endInRoom = room.polygon.some(p => isSame(p, wall.end))
+            if (startInRoom && endInRoom) {
+                roomWalls.push(wall)
+            }
+        })
+
+        if (roomWalls.length === 0) return
+
+        // Calculate offset (room width + gap)
+        const xs = room.polygon.map(p => p.x)
+        const minX = Math.min(...xs)
+        const maxX = Math.max(...xs)
+        const offsetX = maxX - minX + 50 // room width + 50cm gap
+
+        // Clone walls with offset
+        const now = Date.now()
+        const wallIdMap = new Map<string, string>()
+        const newWalls: Wall[] = roomWalls.map((wall, idx) => {
+            const newId = `wall-clone-${now}-${idx}`
+            wallIdMap.set(wall.id, newId)
+            return {
+                ...wall,
+                id: newId,
+                start: { x: wall.start.x + offsetX, y: wall.start.y },
+                end: { x: wall.end.x + offsetX, y: wall.end.y }
+            }
+        })
+
+        // Clone doors
+        const newDoors: Door[] = doors
+            .filter(d => wallIdMap.has(d.wallId))
+            .map((door, idx) => ({
+                ...door,
+                id: `door-clone-${now}-${idx}`,
+                wallId: wallIdMap.get(door.wallId)!
+            }))
+
+        // Clone windows
+        const newWindows: Window[] = windows
+            .filter(w => wallIdMap.has(w.wallId))
+            .map((window, idx) => ({
+                ...window,
+                id: `window-clone-${now}-${idx}`,
+                wallId: wallIdMap.get(window.wallId)!
+            }))
+
+        // Update state
+        const updatedWalls = [...walls, ...newWalls]
+        setWalls(updatedWalls)
+        setDoors(prev => [...prev, ...newDoors])
+        setWindows(prev => [...prev, ...newWindows])
+
+        // Detect rooms and select the new one
+        const updatedRooms = detectAndNameRooms(updatedWalls, rooms)
+        setRooms(updatedRooms)
+
+        // Find and select the newly created room (should be the last detected one in the same area)
+        const newRoom = updatedRooms.find(r => {
+            const roomMinX = Math.min(...r.polygon.map(p => p.x))
+            return Math.abs(roomMinX - (minX + offsetX)) < TOL
+        })
+
+        if (newRoom) {
+            setSelectedRoomId(newRoom.id)
         }
     }
 
@@ -829,15 +916,43 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             // PROTECT ANCHOR: mark it as moved to prevent recursion logic from shifting it
             movedVertices.add(`${anchorPoint.x},${anchorPoint.y}`)
 
+            // Find which room(s) contain the wall being edited
+            const TOL = 5.0
+            const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
+
+            const editedWallRooms = rooms.filter(room => {
+                const startInRoom = room.polygon.some(p => isSame(p, wall.start))
+                const endInRoom = room.polygon.some(p => isSame(p, wall.end))
+                return startInRoom && endInRoom
+            })
+
+            // Get all wall IDs that belong to these rooms
+            const allowedWallIds = new Set<string>()
+            if (editedWallRooms.length > 0) {
+                workingWalls.forEach(w => {
+                    const isInAnyEditedRoom = editedWallRooms.some(room => {
+                        const startInRoom = room.polygon.some(p => isSame(p, w.start))
+                        const endInRoom = room.polygon.some(p => isSame(p, w.end))
+                        return startInRoom && endInRoom
+                    })
+                    if (isInAnyEditedRoom) {
+                        allowedWallIds.add(w.id)
+                    }
+                })
+            } else {
+                // If wall doesn't belong to any room, allow all walls (fallback)
+                workingWalls.forEach(w => allowedWallIds.add(w.id))
+            }
+
             const recursiveMove = (oldP: Point, d: Point, newP: Point) => {
                 const pKey = `${oldP.x},${oldP.y}`
                 if (movedVertices.has(pKey)) return
                 movedVertices.add(pKey)
 
-                const TOL = 5.0
-                const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
-
                 workingWalls.forEach(w => {
+                    // CRITICAL: Only propagate to walls in the same room(s)
+                    if (!allowedWallIds.has(w.id)) return
+
                     const isWH = Math.abs(w.start.y - w.end.y) < 2
                     const isWV = Math.abs(w.start.x - w.end.x) < 2
 
@@ -1327,6 +1442,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     {[
                         { id: "select", icon: MousePointer2, title: "Seleccionar (S)" },
                         { id: "wall", icon: Pencil, title: "Muro (W)" },
+                        // ...(isFeatureEnabled("ADVANCED_EDITOR") ? [{ id: "arc", icon: Spline, title: "Arco" }] : []),
                         { id: "arc", icon: Spline, title: "Arco" },
                         { id: "door", icon: DoorClosed, title: "Puerta (D)" },
                         { id: "window", icon: Layout, title: "Ventana (V)" },
@@ -1579,8 +1695,11 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     onUpdateWallThickness={handleUpdateWallThickness}
                     onUpdateWallInvisible={handleUpdateWallInvisible}
                     onUpdateRoom={handleUpdateRoom}
+                    onDeleteRoom={deleteRoom}
+                    onCloneRoom={cloneRoom}
                     selectedRoomId={selectedRoomId}
                     snappingEnabled={activeTool === "ruler" ? false : snappingEnabled}
+                    isAdvancedEnabled={isFeatureEnabled("ADVANCED_EDITOR")}
                     gridRotation={gridRotation}
                     onRotateGrid={setGridRotation}
                     onSelectRoom={(id: string | null) => {

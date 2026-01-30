@@ -6,33 +6,6 @@ import { Menu, X } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Logo } from "@/components/ui/logo"
 
-function CalculatorIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-6 w-6 text-orange-600 dark:text-orange-400"
-    >
-      <rect width="16" height="20" x="4" y="2" rx="2"></rect>
-      <line x1="8" x2="16" y1="6" y2="6"></line>
-      <line x1="16" x2="16" y1="14" y2="18"></line>
-      <path d="M16 10h.01"></path>
-      <path d="M12 10h.01"></path>
-      <path d="M8 10h.01"></path>
-      <path d="M12 14h.01"></path>
-      <path d="M8 14h.01"></path>
-      <path d="M12 18h.01"></path>
-      <path d="M8 18h.01"></path>
-    </svg>
-  )
-}
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -48,7 +21,7 @@ export function Navbar() {
 
   return (
     <header
-      className={`sticky top-0 z-50 w-full border-b ${isScrolled ? "bg-background/95" : "bg-background"} backdrop-blur supports-[backdrop-filter]:bg-background/60`}
+      className="sticky top-0 z-50 w-full border-b bg-white backdrop-blur supports-[backdrop-filter]:bg-white/95 text-black"
     >
       <div className="container flex h-16 items-center justify-between px-6 md:px-8">
         <div className="flex items-center gap-2">
@@ -61,9 +34,6 @@ export function Navbar() {
         <nav className="hidden md:flex items-center gap-6">
           <Link href="/#features" className="text-sm font-medium hover:text-orange-500 transition-colors">
             Características
-          </Link>
-          <Link href="/#pricing" className="text-sm font-medium hover:text-orange-500 transition-colors">
-            Precios
           </Link>
           <Link href="/contacto" className="text-sm font-medium hover:text-orange-500 transition-colors">
             Contacto
@@ -96,13 +66,6 @@ export function Navbar() {
               onClick={() => setIsMenuOpen(false)}
             >
               Características
-            </Link>
-            <Link
-              href="/#pricing"
-              className="text-base font-medium hover:text-orange-500 transition-colors py-1"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Precios
             </Link>
             <Link
               href="/contacto"

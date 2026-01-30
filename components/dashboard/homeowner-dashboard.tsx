@@ -1,4 +1,5 @@
 "use client"
+import React from "react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -6,6 +7,7 @@ import { Calculator, FileText, Home, Zap, ArrowRight, FolderPlus } from "lucide-
 import Link from "next/link"
 import { StatsCard } from "@/components/dashboard/stats-card"
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty"
+import { cn } from "@/lib/utils"
 
 interface HomeownerDashboardProps {
   data: {
@@ -20,6 +22,24 @@ interface HomeownerDashboardProps {
 
 export function HomeownerDashboard({ data }: HomeownerDashboardProps) {
   const { totalProjects, completedProjects, inProgressProjects, pendingProjects, totalBudget } = data
+  const [isMaster, setIsMaster] = React.useState(false)
+
+  React.useEffect(() => {
+    const checkMaster = async () => {
+      const { createBrowserClient } = await import("@/lib/supabase/client")
+      const supabase = createBrowserClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single()
+        setIsMaster(profile?.role === "master")
+      }
+    }
+    checkMaster()
+  }, [])
 
   return (
     <div className="container mx-auto p-4">
@@ -41,12 +61,14 @@ export function HomeownerDashboard({ data }: HomeownerDashboardProps) {
             un presupuesto detallado.
           </EmptyDescription>
           <EmptyActions className="flex-col sm:flex-row gap-3">
-            <Button asChild size="lg" className="bg-orange-600 hover:bg-orange-700">
-              <Link href="/dashboard/ia/estimacion-rapida" className="flex items-center gap-2">
-                <Zap className="h-5 w-5" />
-                Estimación Rápida
-              </Link>
-            </Button>
+            {isMaster && (
+              <Button asChild size="lg" className="bg-orange-600 hover:bg-orange-700">
+                <Link href="/dashboard/ia/estimacion-rapida" className="flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  Estimación Rápida
+                </Link>
+              </Button>
+            )}
             <Button asChild size="lg" variant="outline" className="border-blue-300 hover:bg-blue-50 bg-transparent">
               <Link href="/dashboard/projects" className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
@@ -59,33 +81,38 @@ export function HomeownerDashboard({ data }: HomeownerDashboardProps) {
         <>
           {/* Opciones principales para propietarios */}
           <div className="grid md:grid-cols-2 gap-6 mb-8">
-            <Card className="relative overflow-hidden border-2 border-orange-200 hover:border-orange-300 transition-colors">
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <Zap className="h-6 w-6 text-orange-600" />
+            {isMaster && (
+              <Card className="relative overflow-hidden border-2 border-orange-200 hover:border-orange-300 transition-colors">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-orange-100 rounded-lg">
+                      <Zap className="h-6 w-6 text-orange-600" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl">Estimación Rápida</CardTitle>
+                      <CardDescription>Obtén un precio orientativo en minutos</CardDescription>
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-xl">Estimación Rápida</CardTitle>
-                    <CardDescription>Obtén un precio orientativo en minutos</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 mb-4">
-                  Calcula una estimación aproximada del coste de tu reforma con datos básicos.
-                </p>
-                <Button asChild className="w-full bg-orange-600 hover:bg-orange-700">
-                  <Link href="/dashboard/ia/estimacion-rapida" className="flex items-center gap-2">
-                    <Calculator className="h-4 w-4" />
-                    Calcular Estimación
-                    <ArrowRight className="h-4 w-4 ml-auto" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600 mb-4">
+                    Calcula una estimación aproximada del coste de tu reforma con datos básicos.
+                  </p>
+                  <Button asChild className="w-full bg-orange-600 hover:bg-orange-700">
+                    <Link href="/dashboard/ia/estimacion-rapida" className="flex items-center gap-2">
+                      <Calculator className="h-4 w-4" />
+                      Calcular Estimación
+                      <ArrowRight className="h-4 w-4 ml-auto" />
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
-            <Card className="relative overflow-hidden border-2 border-blue-200 hover:border-blue-300 transition-colors">
+            <Card className={cn(
+              "relative overflow-hidden border-2 border-blue-200 hover:border-blue-300 transition-colors",
+              !isMaster && "md:col-span-2"
+            )}>
               <CardHeader className="pb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-blue-100 rounded-lg">
@@ -138,8 +165,8 @@ export function HomeownerDashboard({ data }: HomeownerDashboardProps) {
               value={
                 totalProjects > 0
                   ? `${(totalBudget / totalProjects).toLocaleString("es-ES", {
-                      maximumFractionDigits: 2,
-                    })} €`
+                    maximumFractionDigits: 2,
+                  })} €`
                   : "0 €"
               }
               description="Presupuesto promedio por proyecto"

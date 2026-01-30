@@ -13,6 +13,7 @@ import Link from "next/link"
 import { DualFloorPlanAnalyzer } from "@/components/floor-plan/dual-floor-plan-analyzer"
 import { ProjectGallery } from "@/components/calculator/project-gallery"
 import { PublishProjectButton } from "@/components/professional-gallery/publish-project-button"
+import { isMasterUser } from "@/lib/services/auth-service"
 
 export default function ProjectPage() {
   const params = useParams()
@@ -25,10 +26,17 @@ export default function ProjectPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [shouldOpenAnalyzer, setShouldOpenAnalyzer] = useState(false)
+  const [isMaster, setIsMaster] = useState(false)
 
   const calculatorRef = useRef<CalculatorHandle>(null)
 
   useEffect(() => {
+    async function checkMaster() {
+      const masterStatus = await isMasterUser()
+      setIsMaster(masterStatus)
+    }
+    checkMaster()
+
     const openAnalyzer = searchParams.get("openFloorPlanAnalyzer")
     if (openAnalyzer === "true") {
       setShouldOpenAnalyzer(true)
@@ -171,32 +179,36 @@ export default function ProjectPage() {
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           <div className="flex flex-wrap items-center gap-2">
-            <ProjectGallery projectId={projectId} />
-            <DualFloorPlanAnalyzer
-              projectId={projectId}
-              autoOpen={shouldOpenAnalyzer}
-              onRoomsDetected={(demolitionRooms, reformRooms) => {
-                console.log("[v0] Habitaciones detectadas:", { demolitionRooms, reformRooms })
-                if (calculatorRef.current) {
-                  calculatorRef.current.handleRoomsDetectedFromFloorPlan(demolitionRooms, reformRooms)
-                  toast({
-                    title: "Habitaciones importadas",
-                    description: `Se han importado ${demolitionRooms.length} habitaciones a demolición y ${reformRooms.length} a reforma`,
-                  })
-                }
-              }}
-              onPartitionsDetected={(partitions) => {
-                console.log("[v0] Tabiques detectados:", partitions)
-                if (calculatorRef.current) {
-                  calculatorRef.current.handlePartitionsDetectedFromFloorPlan(partitions)
-                }
-              }}
-              onImportComplete={() => {
-                if (calculatorRef.current && "setActiveTab" in calculatorRef.current) {
-                  calculatorRef.current.setActiveTab("demolition")
-                }
-              }}
-            />
+            {isMaster && (
+              <>
+                <ProjectGallery projectId={projectId} />
+                <DualFloorPlanAnalyzer
+                  projectId={projectId}
+                  autoOpen={shouldOpenAnalyzer}
+                  onRoomsDetected={(demolitionRooms, reformRooms) => {
+                    console.log("[v0] Habitaciones detectadas:", { demolitionRooms, reformRooms })
+                    if (calculatorRef.current) {
+                      calculatorRef.current.handleRoomsDetectedFromFloorPlan(demolitionRooms, reformRooms)
+                      toast({
+                        title: "Habitaciones importadas",
+                        description: `Se han importado ${demolitionRooms.length} habitaciones a demolición y ${reformRooms.length} a reforma`,
+                      })
+                    }
+                  }}
+                  onPartitionsDetected={(partitions) => {
+                    console.log("[v0] Tabiques detectados:", partitions)
+                    if (calculatorRef.current) {
+                      calculatorRef.current.handlePartitionsDetectedFromFloorPlan(partitions)
+                    }
+                  }}
+                  onImportComplete={() => {
+                    if (calculatorRef.current && "setActiveTab" in calculatorRef.current) {
+                      calculatorRef.current.setActiveTab("demolition")
+                    }
+                  }}
+                />
+              </>
+            )}
             {project.user_type === "professional" && <PublishProjectButton project={project} />}
             <Button asChild variant="outline" size="sm" className="h-9">
               <Link href={`/dashboard/projects/${projectId}/edit`}>

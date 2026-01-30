@@ -69,6 +69,8 @@ interface CanvasEngineProps {
     onUpdateWallThickness: (id: string, thickness: number) => void
     onUpdateWallInvisible: (id: string, isInvisible: boolean) => void
     onUpdateRoom: (id: string, updates: Partial<Room>) => void
+    onDeleteRoom: (id: string) => void
+    onCloneRoom: (id: string) => void
     selectedWallIds: string[]
     selectedRoomId: string | null
     onSelectRoom: (id: string | null) => void
@@ -95,6 +97,7 @@ interface CanvasEngineProps {
     onReady?: (api: CanvasEngineRef) => void
     gridRotation?: number
     onRotateGrid?: (angle: number) => void
+    isAdvancedEnabled?: boolean
 }
 
 export interface CanvasEngineRef {
@@ -104,7 +107,7 @@ export interface CanvasEngineRef {
 export const CanvasEngine = ({
     width, height, zoom, offset,
     walls, rooms, doors, windows,
-    currentWall, activeTool, hoveredWallId, onPan, onZoom, onMouseDown, onMouseMove, onMouseUp, onHoverWall, onSelectWall, onDragWall, onDragEnd, onUpdateWallLength, onDeleteWall, onSplitWall, onUpdateWallThickness, onUpdateWallInvisible, onUpdateRoom, selectedWallIds, selectedRoomId, onSelectRoom, onDragVertex, wallSnapshot, onStartDragWall, onDragElement, selectedElement, onSelectElement, onUpdateElement, onCloneElement, onDeleteElement, bgImage, bgConfig, onUpdateBgConfig, isCalibrating, calibrationPoints, calibrationTargetValue, onUpdateCalibrationPoint,
+    currentWall, activeTool, hoveredWallId, onPan, onZoom, onMouseDown, onMouseMove, onMouseUp, onHoverWall, onSelectWall, onDragWall, onDragEnd, onUpdateWallLength, onDeleteWall, onSplitWall, onUpdateWallThickness, onUpdateWallInvisible, onUpdateRoom, onDeleteRoom, onCloneRoom, selectedWallIds, selectedRoomId, onSelectRoom, onDragVertex, wallSnapshot, onStartDragWall, onDragElement, selectedElement, onSelectElement, onUpdateElement, onCloneElement, onDeleteElement, bgImage, bgConfig, onUpdateBgConfig, isCalibrating, calibrationPoints, calibrationTargetValue, onUpdateCalibrationPoint,
     phantomArc,
     snappingEnabled = true,
     rulerPoints,
@@ -112,7 +115,8 @@ export const CanvasEngine = ({
     gridRotation = 0,
     onRotateGrid,
     touchOffset = 40,
-    forceTouchOffset = false
+    forceTouchOffset = false,
+    isAdvancedEnabled = false
 }: CanvasEngineProps) => {
     const stageRef = React.useRef<any>(null)
     const gridRef = React.useRef<any>(null)
@@ -2798,6 +2802,27 @@ export const CanvasEngine = ({
                                         title="Editar"
                                     />
                                     <div className="w-px h-4 bg-slate-100 mx-0.5" />
+                                    {selectedRoomId && (
+                                        <>
+                                            {isAdvancedEnabled && (
+                                                <>
+                                                    <MenuButton
+                                                        icon={<Copy className="h-3.5 w-3.5" />}
+                                                        onClick={() => onCloneRoom(selectedRoomId)}
+                                                        title="Clonar Habitación"
+                                                    />
+                                                    <div className="w-px h-4 bg-slate-100 mx-0.5" />
+                                                </>
+                                            )}
+                                            <MenuButton
+                                                icon={<Trash2 className="h-3.5 w-3.5" />}
+                                                onClick={() => onDeleteRoom(selectedRoomId)}
+                                                variant="danger"
+                                                title="Eliminar Habitación"
+                                            />
+                                            <div className="w-px h-4 bg-slate-100 mx-0.5" />
+                                        </>
+                                    )}
                                     {(selectedWall || selectedElement) && (
                                         <MenuButton
                                             icon={<Trash2 className="h-3.5 w-3.5" />}

@@ -53,6 +53,7 @@ export function AppointmentForm({ userId, onCancel, onSuccess }: AppointmentForm
     reminder_days_before: "1",
   })
   const [hasNotificationAccess, setHasNotificationAccess] = useState(true)
+  const [isMaster, setIsMaster] = useState(false)
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)
   const { toast } = useToast()
 
@@ -65,6 +66,17 @@ export function AppointmentForm({ userId, onCancel, onSuccess }: AppointmentForm
     const limits = await getSubscriptionLimits()
     if (limits) {
       setHasNotificationAccess(limits.appointmentNotifications)
+    }
+
+    // Check if user is master
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single()
+      setIsMaster(profile?.role === "master")
     }
   }
 
@@ -355,63 +367,65 @@ export function AppointmentForm({ userId, onCancel, onSuccess }: AppointmentForm
             )}
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="reminder_enabled">Recordatorio</Label>
-                  {!hasNotificationAccess && <Lock className="h-3 w-3 text-muted-foreground" />}
-                </div>
-                <p className="text-xs text-muted-foreground">Recibir un recordatorio antes de la cita</p>
-              </div>
-              <Switch
-                id="reminder_enabled"
-                checked={formData.reminder_enabled}
-                onCheckedChange={(checked) => setFormData({ ...formData, reminder_enabled: checked })}
-                disabled={!hasNotificationAccess}
-              />
-            </div>
-
-            {hasNotificationAccess && formData.reminder_enabled && (
-              <div className="space-y-2">
-                <Label htmlFor="reminder_days_before">Recordar con antelación</Label>
-                <Select
-                  value={formData.reminder_days_before}
-                  onValueChange={(value) => setFormData({ ...formData, reminder_days_before: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 día antes</SelectItem>
-                    <SelectItem value="2">2 días antes</SelectItem>
-                    <SelectItem value="3">3 días antes</SelectItem>
-                    <SelectItem value="7">1 semana antes</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {!hasNotificationAccess && (
-              <div className="mt-2 p-3 rounded-xl bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-100/50">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-bold text-slate-800 uppercase tracking-tight">Notificaciones Premium</p>
-                    <p className="text-[10px] text-slate-500 leading-tight">Envía confirmaciones y recordatorios por email a tus clientes.</p>
+          {isMaster && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="reminder_enabled">Recordatorio</Label>
+                    {!hasNotificationAccess && <Lock className="h-3 w-3 text-muted-foreground" />}
                   </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-8 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold px-3 transition-all shadow-sm"
-                    onClick={() => setShowUpgradeDialog(true)}
-                  >
-                    <Sparkles className="h-3 w-3 mr-1.5" />
-                    MEJORAR
-                  </Button>
+                  <p className="text-xs text-muted-foreground">Recibir un recordatorio antes de la cita</p>
                 </div>
+                <Switch
+                  id="reminder_enabled"
+                  checked={formData.reminder_enabled}
+                  onCheckedChange={(checked) => setFormData({ ...formData, reminder_enabled: checked })}
+                  disabled={!hasNotificationAccess}
+                />
               </div>
-            )}
-          </div>
+
+              {hasNotificationAccess && formData.reminder_enabled && (
+                <div className="space-y-2">
+                  <Label htmlFor="reminder_days_before">Recordar con antelación</Label>
+                  <Select
+                    value={formData.reminder_days_before}
+                    onValueChange={(value) => setFormData({ ...formData, reminder_days_before: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 día antes</SelectItem>
+                      <SelectItem value="2">2 días antes</SelectItem>
+                      <SelectItem value="3">3 días antes</SelectItem>
+                      <SelectItem value="7">1 semana antes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {!hasNotificationAccess && (
+                <div className="mt-2 p-3 rounded-xl bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-100/50">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-bold text-slate-800 uppercase tracking-tight">Notificaciones Premium</p>
+                      <p className="text-[10px] text-slate-500 leading-tight">Envía confirmaciones y recordatorios por email a tus clientes.</p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-8 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold px-3 transition-all shadow-sm"
+                      onClick={() => setShowUpgradeDialog(true)}
+                    >
+                      <Sparkles className="h-3 w-3 mr-1.5" />
+                      MEJORAR
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <AIPriceImportDialog
             open={showUpgradeDialog}

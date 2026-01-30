@@ -96,7 +96,8 @@ export function UnifiedAuthForm() {
 
   const getRedirectUrl = (basePath: string) => {
     if (pendingPlan) {
-      return `${basePath}?pendingPlan=${pendingPlan}&billingType=${billingType}`
+      const separator = basePath.includes("?") ? "&" : "?"
+      return `${basePath}${separator}pendingPlan=${pendingPlan}&billingType=${billingType}`
     }
     return basePath
   }
@@ -521,13 +522,12 @@ export function UnifiedAuthForm() {
                       setReferralValid(null)
                     }
                   }}
-                  className={`h-11 pr-10 ${
-                    referralValid === true
+                  className={`h-11 pr-10 ${referralValid === true
                       ? "border-green-500 focus-visible:ring-green-500"
                       : referralValid === false
                         ? "border-red-500 focus-visible:ring-red-500"
                         : ""
-                  }`}
+                    }`}
                 />
                 {validatingReferral && (
                   <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />

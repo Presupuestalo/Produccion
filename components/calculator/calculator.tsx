@@ -1954,18 +1954,12 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="relative w-full mb-4">
           <div className="w-full overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
-            <TabsList className="flex h-auto bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl gap-1 lg:grid lg:grid-cols-6 lg:w-full w-max border shadow-sm">
+            <TabsList className="flex h-auto bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl gap-1 lg:grid lg:grid-cols-5 lg:w-full w-max border shadow-sm">
               <TabsTrigger
                 value="demolition"
                 className="whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-orange-600 data-[state=active]:shadow-sm transition-all"
               >
                 Demolición
-              </TabsTrigger>
-              <TabsTrigger
-                value="floor-plans"
-                className="whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-orange-600 data-[state=active]:shadow-sm transition-all"
-              >
-                Planos 2D
               </TabsTrigger>
               <TabsTrigger
                 value="reform"
@@ -2024,43 +2018,6 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
             />
           )}
 
-          <TabsContent value="floor-plans" className="mt-6">
-            <FloorPlanDashboard
-              projectId={projectId || ""}
-              onApplyChanges={(diff) => {
-                // We can access the handleApplyDiff logic we exposed via ref, OR just define it internally.
-                // Since we are inside the component, we can call internal state updates directly.
-                // 1. Demolition
-                if (diff.demolition?.areaSqMeters > 0) {
-                  const length = diff.demolition.areaSqMeters / (demolitionConfig.standardHeight || 2.5)
-                  const id = crypto.randomUUID()
-                  setDemolitionConfig((prev: any) => ({
-                    ...prev,
-                    wallDemolitions: [...(prev.wallDemolitions || []), {
-                      id,
-                      length: length,
-                      thickness: 10,
-                      wallHeight: demolitionConfig.standardHeight || 2.5,
-                      description: "Demolición según plano"
-                    }]
-                  }))
-                }
-                // 2. Construction
-                if (diff.construction?.areaSqMeters > 0) {
-                  const length = diff.construction.areaSqMeters / (reformConfig.standardHeight || 2.5)
-                  setPartitions((prev: any[]) => [...prev, {
-                    id: crypto.randomUUID(),
-                    type: "placa_yeso",
-                    linearMeters: length,
-                    height: reformConfig.standardHeight || 2.5,
-                    location: "Plano: Muros nuevos"
-                  }])
-                }
-                toast({ title: "Cambios aplicados", description: "Partidas de demolición y tabiquería añadidas." })
-                setActiveTab("partitions")
-              }}
-            />
-          </TabsContent>
 
           <TabsContent value="demolition" className="mt-6">
             <div className="lg:grid lg:grid-cols-[240px_1.5fr_1fr] lg:gap-6 lg:max-w-none lg:mx-0">

@@ -1,0 +1,3 @@
+﻿Reading SQL file from: F:\PRESUPUESTALO\WEB-PRODUCCI├ôN\scripts\list-columns.sql
+Executing SQL...
+SQL executed successfully!

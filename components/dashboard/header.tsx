@@ -70,6 +70,7 @@ export function DashboardHeader() {
   const [userName, setUserName] = useState<string>("")
   const [userAvatar, setUserAvatar] = useState<string>("")
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isMaster, setIsMaster] = useState(false)
   const [userCredits, setUserCredits] = useState<number>(0)
   const [isCoordinator, setIsCoordinator] = useState(false)
   const [isProUser, setIsProUser] = useState(false)
@@ -92,7 +93,7 @@ export function DashboardHeader() {
 
           const { data: profile, error: profileError } = await supabase
             .from("profiles")
-            .select("user_type, full_name, avatar_url, is_admin, work_mode, phone, phone_verified, email, subscription_plan")
+            .select("user_type, full_name, avatar_url, is_admin, role, work_mode, phone, phone_verified, email, subscription_plan")
             .eq("id", session.user.id)
             .single()
 
@@ -105,6 +106,7 @@ export function DashboardHeader() {
           )
           setUserAvatar(profile?.avatar_url || session.user.user_metadata?.picture || "")
           setIsAdmin(profile?.is_admin || isAdminEmail)
+          setIsMaster(profile?.role === "master")
           setIsCoordinator(profile?.work_mode === "coordinator")
 
           // Set subscription plan
@@ -170,18 +172,29 @@ export function DashboardHeader() {
   }
 
   const getNavItems = () => {
-    const baseItems = [
+    interface NavItem {
+      name: string
+      href: string
+      icon: () => React.ReactNode
+      highlight?: boolean
+    }
+
+    const baseItems: NavItem[] = [
       {
         name: "Proyectos",
         href: "/dashboard/projects",
         icon: () => <FileText className="h-5 w-5" />,
       },
-      {
+    ]
+
+    // IA and Editor de Planos are restricted to MASTER
+    if (isMaster) {
+      baseItems.push({
         name: "Editor de Planos",
         href: "/dashboard/editor-planos",
         icon: () => <PenTool className="h-5 w-5" />,
-      },
-    ]
+      })
+    }
 
     const isHomeowner = userType === "homeowner" || userType === "propietario"
     const isProfessional = userType === "professional" || userType === "profesional" || userType === "company"
@@ -195,14 +208,6 @@ export function DashboardHeader() {
     }
 
     if (isProfessional) {
-      baseItems.push({
-        name: "Presmarket",
-        href: "/dashboard/solicitudes-disponibles",
-        icon: () => <Briefcase className="h-5 w-5" />,
-        highlight: true,
-      })
-
-
       if (isCoordinator) {
         baseItems.push({
           name: "Coordinación",
@@ -217,34 +222,41 @@ export function DashboardHeader() {
         icon: () => <Coins className="h-5 w-5" />,
       })
       baseItems.push({
-        name: "Contabilidad",
-        href: "/dashboard/contabilidad",
-        icon: () => <BarChart className="h-5 w-5" />,
-      })
-      baseItems.push({
         name: "Clientes",
         href: "/dashboard/clients",
         icon: () => <Users className="h-5 w-5" />,
+      })
+    }
+
+    if (isMaster) {
+      baseItems.push({
+        name: "Presmarket",
+        href: "/dashboard/solicitudes-disponibles",
+        icon: () => <Briefcase className="h-5 w-5" />,
+        highlight: true,
+      })
+      baseItems.push({
+        name: "Contabilidad",
+        href: "/dashboard/contabilidad",
+        icon: () => <BarChart className="h-5 w-5" />,
       })
       baseItems.push({
         name: "Citas",
         href: "/dashboard/citas",
         icon: () => <ChevronDown className="h-5 w-5" />,
       })
-    }
-
-    baseItems.push(
-      {
+      baseItems.push({
         name: "IA",
         href: "/dashboard/ia",
         icon: () => <Settings className="h-5 w-5" />,
-      },
-      {
-        name: "Contacto",
-        href: "/dashboard/contacto",
-        icon: () => <Mail className="h-5 w-5" />,
-      },
-    )
+      })
+    }
+
+    baseItems.push({
+      name: "Contacto",
+      href: "/dashboard/contacto",
+      icon: () => <Mail className="h-5 w-5" />,
+    })
 
     return baseItems
   }
@@ -305,7 +317,7 @@ export function DashboardHeader() {
         </div>
 
         <div className="ml-auto flex items-center gap-4">
-          {(userType === "professional" || userType === "profesional" || userType === "company") && (
+          {isMaster && (userType === "professional" || userType === "profesional" || userType === "company") && (
             <Link
               href="/dashboard/creditos"
               className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-orange-100 text-orange-700 rounded-full text-sm font-medium hover:bg-orange-200 transition-colors"
@@ -315,10 +327,12 @@ export function DashboardHeader() {
             </Link>
           )}
 
-          <Button variant="ghost" size="icon">
-            <Bell className="h-5 w-5" />
-            <span className="sr-only">Notifications</span>
-          </Button>
+          {isMaster && (
+            <Button variant="ghost" size="icon">
+              <Bell className="h-5 w-5" />
+              <span className="sr-only">Notifications</span>
+            </Button>
+          )}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -346,18 +360,22 @@ export function DashboardHeader() {
                       Empresa
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard/creditos" className="flex items-center gap-2">
-                      <Coins className="h-4 w-4" />
-                      Créditos ({userCredits})
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard/professional/works" className="flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      Galería de Trabajos
-                    </Link>
-                  </DropdownMenuItem>
+                  {isMaster && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard/creditos" className="flex items-center gap-2">
+                        <Coins className="h-4 w-4" />
+                        Créditos ({userCredits})
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {isMaster && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard/professional/works" className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Galería de Trabajos
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                 </>
               )}
               {isAdmin && (
@@ -368,7 +386,7 @@ export function DashboardHeader() {
                   </Link>
                 </DropdownMenuItem>
               )}
-              {(userType === "professional" || userType === "profesional" || userType === "company") && (
+              {isMaster && (userType === "professional" || userType === "profesional" || userType === "company") && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
@@ -402,7 +420,7 @@ export function DashboardHeader() {
             </Link>
           </div>
           <nav className="grid gap-2 p-4">
-            {(userType === "professional" || userType === "profesional" || userType === "company") && (
+            {isMaster && (userType === "professional" || userType === "profesional" || userType === "company") && (
               <Link
                 href="/dashboard/creditos"
                 className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 bg-orange-100 text-orange-700"

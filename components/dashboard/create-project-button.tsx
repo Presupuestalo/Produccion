@@ -111,6 +111,7 @@ export function CreateProjectButton() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [alturaInput, setAlturaInput] = useState("")
   const [subscriptionPlan, setSubscriptionPlan] = useState<string>("free")
+  const [isMaster, setIsMaster] = useState(false)
 
   useEffect(() => {
     const getUserData = async () => {
@@ -132,6 +133,7 @@ export function CreateProjectButton() {
             setUserType(profile.user_type)
             setUserProfile({ ...profile, email: session.user.email })
             setSubscriptionPlan(profile.subscription_plan || "free")
+            setIsMaster(profile.role === "master")
 
             if (profile.user_type === "homeowner") {
               setFormData((prev) => ({
@@ -484,46 +486,47 @@ export function CreateProjectButton() {
             <>
               <DialogHeader>
                 <DialogTitle>¿Cómo quieres crear el proyecto?</DialogTitle>
-                <DialogDescription>Elige si quieres crear el proyecto manualmente o con ayuda de IA</DialogDescription>
+                <DialogDescription>Elige cómo quieres crear el proyecto</DialogDescription>
               </DialogHeader>
               <div className="grid grid-cols-1 gap-4 py-6">
-                <button
-                  onClick={handleAIOptionClick}
-                  className={`relative flex flex-col items-center gap-4 p-8 border-2 rounded-lg transition-all ${isProUser
-                    ? "border-border hover:border-orange-300 hover:bg-orange-50"
-                    : "border-gray-200 bg-gray-50/50 cursor-pointer group"
-                    }`}
-                >
-                  {/* PRO badge removed */}
-
-                  <div
-                    className={`w-16 h-16 rounded-full flex items-center justify-center ${isProUser ? "bg-orange-100" : "bg-gray-100"
+                {isMaster && (
+                  <button
+                    onClick={handleAIOptionClick}
+                    className={`relative flex flex-col items-center gap-4 p-8 border-2 rounded-lg transition-all ${isProUser
+                      ? "border-border hover:border-orange-300 hover:bg-orange-50"
+                      : "border-gray-200 bg-gray-50/50 cursor-pointer group"
                       }`}
                   >
-                    {isProUser ? (
-                      <Sparkles className="w-8 h-8 text-orange-600" />
-                    ) : (
-                      <div className="relative">
-                        <Sparkles className="w-8 h-8 text-gray-400" />
-                        <Lock className="w-4 h-4 text-gray-500 absolute -bottom-1 -right-1 bg-white rounded-full p-0.5" />
+                    {/* ... rest of the button content ... */}
+                    <div
+                      className={`w-16 h-16 rounded-full flex items-center justify-center ${isProUser ? "bg-orange-100" : "bg-gray-100"
+                        }`}
+                    >
+                      {isProUser ? (
+                        <Sparkles className="w-8 h-8 text-orange-600" />
+                      ) : (
+                        <div className="relative">
+                          <Sparkles className="w-8 h-8 text-gray-400" />
+                          <Lock className="w-4 h-4 text-gray-500 absolute -bottom-1 -right-1 bg-white rounded-full p-0.5" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="text-center">
+                      <h3 className={`font-semibold text-lg mb-2 ${!isProUser && "text-gray-600"}`}>Crear con IA</h3>
+                      <p className={`text-sm ${isProUser ? "text-muted-foreground" : "text-gray-400"}`}>
+                        Completa los datos y luego analiza el plano automáticamente
+                      </p>
+                    </div>
+
+                    {!isProUser && (
+                      <div className="mt-2 flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-medium rounded-lg group-hover:shadow-md transition-shadow">
+                        <span>Desbloquear con Plan Pro</span>
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                       </div>
                     )}
-                  </div>
-
-                  <div className="text-center">
-                    <h3 className={`font-semibold text-lg mb-2 ${!isProUser && "text-gray-600"}`}>Crear con IA</h3>
-                    <p className={`text-sm ${isProUser ? "text-muted-foreground" : "text-gray-400"}`}>
-                      Completa los datos y luego analiza el plano automáticamente
-                    </p>
-                  </div>
-
-                  {!isProUser && (
-                    <div className="mt-2 flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-medium rounded-lg group-hover:shadow-md transition-shadow">
-                      <span>Desbloquear con Plan Pro</span>
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  )}
-                </button>
+                  </button>
+                )}
 
                 <button
                   onClick={() => setCreationMode("manual")}

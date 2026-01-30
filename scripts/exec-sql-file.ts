@@ -28,12 +28,13 @@ async function runMigration() {
 
         console.log('Executing SQL...');
 
-        const { error } = await supabase.rpc("exec_sql", { sql })
+        const { data, error } = await supabase.rpc("exec_sql", { sql })
 
         if (error) {
             console.error("Error executing SQL:", error)
         } else {
             console.log("SQL executed successfully!");
+            if (data) console.log("Result:", JSON.stringify(data, null, 2));
         }
 
     } catch (err) {

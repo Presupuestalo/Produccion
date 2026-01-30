@@ -4,6 +4,8 @@ import Stripe from "stripe"
 import { supabaseAdmin } from "@/lib/supabase-admin"
 import fs from "fs"
 import path from "path"
+import { getDonorEmailHTML } from "@/lib/email/templates"
+import { sendEmail } from "@/lib/email/send-email"
 
 export const dynamic = "force-dynamic"
 
@@ -101,12 +103,59 @@ export async function POST(req: Request) {
         return NextResponse.json({ received: true, warning: "User not found" })
       }
 
-      // 2. DETERMINAR CRÉDITOS Y PLAN
+      // 2. DETERMINAR SI ES DONACIÓN O PLAN
       let planName = session.metadata?.plan_name
       const creditsAmount = parseInt(session.metadata?.credits_amount || "0")
       let finalCredits = creditsAmount
 
-      // Si es una suscripción (tiene plan_name)
+      const isDonation = planName === "plan-donacion" || planName?.includes("donacion") || session.amount_total === 200
+
+      if (isDonation) {
+        await logWebhook("DONATION_DETECTED", { userId, email: session.customer_details?.email })
+
+        // Buscar usuario si no tenemos userId (por email)
+        let targetId = userId
+        if (!targetId && session.customer_details?.email) {
+          const { data: foundUser } = await supabaseAdmin
+            .from("profiles")
+            .select("id")
+            .eq("email", session.customer_details.email)
+            .single()
+          if (foundUser) targetId = foundUser.id
+        }
+
+        if (targetId) {
+          // Actualizar is_donor a true (independiente de la suscripción)
+          await supabaseAdmin
+            .from("profiles")
+            .update({ is_donor: true, stripe_customer_id: session.customer as string })
+            .eq("id", targetId)
+
+          // Obtener datos para el email
+          const { data: userData } = await supabaseAdmin
+            .from("profiles")
+            .select("full_name, email")
+            .eq("id", targetId)
+            .single()
+
+          if (userData) {
+            await logWebhook("SENDING_DONOR_EMAIL", { email: userData.email })
+            await sendEmail({
+              to: userData.email,
+              subject: "¡Gracias por tu apoyo a Presupuéstalo! ❤️",
+              html: getDonorEmailHTML({
+                name: userData.full_name || userData.email.split("@")[0],
+                email: userData.email
+              })
+            })
+          }
+        }
+
+        // Si es solo donación, terminamos aquí para no tocar el plan de créditos
+        return NextResponse.json({ received: true, success: true, message: "Donation processed" })
+      }
+
+      // Si es una suscripción normal (Basic/Pro)
       if (planName) {
         await logWebhook("PLAN_UPGRADE_DETECTED", { planName, userId })
 
@@ -130,94 +179,102 @@ export async function POST(req: Request) {
         } else {
           await logWebhook("PROFILE_UPDATED_WITH_PLAN", { planName, userId })
         }
-      }
 
-      if (finalCredits === 0 && session.amount_total) {
-        // Fallback basado en precios de producción (Paquetes en céntimos)
-        const amount = session.amount_total
-        if (amount === 5000) finalCredits = 500
-        else if (amount === 10000) finalCredits = 1200
-        else if (amount === 20000) finalCredits = 2500
-        else if (amount === 1000) finalCredits = 50
+        if (finalCredits === 0 && session.amount_total) {
+          // Fallback basado en precios de producción (Paquetes en céntimos)
+          const amount = session.amount_total
+          if (amount === 5000) finalCredits = 500
+          else if (amount === 10000) finalCredits = 1200
+          else if (amount === 20000) finalCredits = 2500
+          else if (amount === 1000) finalCredits = 50
 
-        // Si el precio coincide con un plan mensual pero no venía el plan_name, lo inferimos
-        if (amount === 5900 && !planName) planName = "basic", finalCredits = 300
-        if (amount === 8900 && !planName) planName = "pro", finalCredits = 500
+          // Si el precio coincide con un plan mensual pero no venía el plan_name, lo inferimos
+          if (amount === 5900 && !planName) planName = "basic", finalCredits = 300
+          if (amount === 8900 && !planName) planName = "pro", finalCredits = 500
+          if (amount === 200 && !planName) planName = "plan-donacion", finalCredits = 0
 
-        await logWebhook("INFERRED_DATA", { amount, finalCredits, planName })
-      }
-
-      if (finalCredits > 0) {
-        await logWebhook("UPDATING_CREDITS_START", { userId, amountToAdd: finalCredits, plan: planName })
-
-        const { data: current, error: fetchErr } = await supabaseAdmin
-          .from("company_credits")
-          .select("credits_balance, credits_purchased_total")
-          .eq("company_id", userId)
-          .single()
-
-        if (fetchErr && fetchErr.code !== "PGRST116") {
-          await logWebhook("FETCH_BALANCE_ERROR", { error: fetchErr })
+          await logWebhook("INFERRED_DATA", { amount, finalCredits, planName })
         }
 
-        const prevBalance = current?.credits_balance || 0
-        const prevTotal = current?.credits_purchased_total || 0
+        // Si es el plan de donación sin créditos ya procesado arriba, terminamos aquí
+        if (planName === "plan-donacion" && finalCredits === 0) {
+          return NextResponse.json({ received: true, success: true, message: "Donor plan processed" })
+        }
 
-        // --- LÓGICA DE ACTUALIZACIÓN ---
-        let newBalance = prevBalance
-        let amountAddedToTotal = 0
+        if (finalCredits > 0) {
+          await logWebhook("UPDATING_CREDITS_START", { userId, amountToAdd: finalCredits, plan: planName })
 
-        if (planName) {
-          // Lógica de "Top-up" para Planes: Si tiene menos del mínimo, lo subimos al mínimo.
-          // Si tiene más, no hacemos nada (mantenemos su saldo actual).
-          if (prevBalance < finalCredits) {
-            amountAddedToTotal = finalCredits - prevBalance
-            newBalance = finalCredits
-          } else {
-            amountAddedToTotal = 0
-            newBalance = prevBalance
-            await logWebhook("INFO: Balance is already higher than plan quota. No credits added.")
+          const { data: current, error: fetchErr } = await supabaseAdmin
+            .from("company_credits")
+            .select("credits_balance, credits_purchased_total")
+            .eq("company_id", userId)
+            .single()
+
+          if (fetchErr && fetchErr.code !== "PGRST116") {
+            await logWebhook("FETCH_BALANCE_ERROR", { error: fetchErr })
           }
-        } else {
-          // Lógica Aditiva para Bonos sueltos: Siempre se suman.
-          amountAddedToTotal = finalCredits
-          newBalance = prevBalance + finalCredits
-        }
 
-        const { error: upsertErr } = await supabaseAdmin.from("company_credits").upsert({
-          company_id: userId,
-          credits_balance: newBalance,
-          credits_purchased_total: prevTotal + amountAddedToTotal,
-          last_purchase_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'company_id' })
+          const prevBalance = current?.credits_balance || 0
+          const prevTotal = current?.credits_purchased_total || 0
 
-        if (upsertErr) {
-          await logWebhook("UPSERT_CREDITS_ERROR", { error: upsertErr })
-          return NextResponse.json({ error: "DB Error" }, { status: 500 })
-        }
+          // --- LÓGICA DE ACTUALIZACIÓN ---
+          let newBalance = prevBalance
+          let amountAddedToTotal = 0
 
-        // 3. REGISTRAR TRANSACCIÓN (Solo si realmente hubo un cambio o es una suscripción nueva)
-        if (amountAddedToTotal > 0 || planName) {
-          const { error: txErr } = await supabaseAdmin.from("credit_transactions").insert({
+          if (planName) {
+            // Lógica de "Top-up" para Planes: Si tiene menos del mínimo, lo subimos al mínimo.
+            // Si tiene más, no hacemos nada (mantenemos su saldo actual).
+            if (prevBalance < finalCredits) {
+              amountAddedToTotal = finalCredits - prevBalance
+              newBalance = finalCredits
+            } else {
+              amountAddedToTotal = 0
+              newBalance = prevBalance
+              await logWebhook("INFO: Balance is already higher than plan quota. No credits added.")
+            }
+          } else {
+            // Lógica Aditiva para Bonos sueltos: Siempre se suman.
+            amountAddedToTotal = finalCredits
+            newBalance = prevBalance + finalCredits
+          }
+
+          const { error: upsertErr } = await supabaseAdmin.from("company_credits").upsert({
             company_id: userId,
-            type: "purchase",
-            amount: amountAddedToTotal,
-            payment_amount: (session.amount_total || 0) / 100,
-            description: planName
-              ? `Suscripción al ${planName} (Ajuste de saldo a ${finalCredits} mensual)`
-              : `Compra de ${finalCredits} créditos (via Master Webhook)`,
-            stripe_payment_id: (session.payment_intent || session.id) as string,
-          })
+            credits_balance: newBalance,
+            credits_purchased_total: prevTotal + amountAddedToTotal,
+            last_purchase_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'company_id' })
 
-          if (txErr) await logWebhook("TX_INSERT_ERROR", { error: txErr })
+          if (upsertErr) {
+            await logWebhook("UPSERT_CREDITS_ERROR", { error: upsertErr })
+            return NextResponse.json({ error: "DB Error" }, { status: 500 })
+          }
+
+          // 3. REGISTRAR TRANSACCIÓN (Solo si realmente hubo un cambio o es una suscripción nueva)
+          if (amountAddedToTotal > 0 || planName) {
+            const { error: txErr } = await supabaseAdmin.from("credit_transactions").insert({
+              company_id: userId,
+              type: "purchase",
+              amount: amountAddedToTotal,
+              payment_amount: (session.amount_total || 0) / 100,
+              description: planName
+                ? `Suscripción al ${planName} (Ajuste de saldo a ${finalCredits} mensual)`
+                : `Compra de ${finalCredits} créditos (via Master Webhook)`,
+              stripe_payment_id: (session.payment_intent || session.id) as string,
+            })
+
+            if (txErr) await logWebhook("TX_INSERT_ERROR", { error: txErr })
+          }
+
+          await logWebhook("SUCCESSFULLY_PROCESSED_PAYMENT", { userId, finalBalance: newBalance, plan: planName })
+          return NextResponse.json({ received: true, success: true })
+        } else {
+          await logWebhook("WARNING: FINAL CREDITS IS 0")
         }
-
-        await logWebhook("SUCCESSFULLY_PROCESSED_PAYMENT", { userId, finalBalance: newBalance, plan: planName })
-        return NextResponse.json({ received: true, success: true })
-      } else {
-        await logWebhook("WARNING: FINAL CREDITS IS 0")
       }
+
+      return NextResponse.json({ received: true })
     }
 
     return NextResponse.json({ received: true })

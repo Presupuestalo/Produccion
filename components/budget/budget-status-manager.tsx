@@ -18,6 +18,7 @@ import { FileText, Send, CheckCircle2, AlertTriangle, XCircle } from "lucide-rea
 import { useToast } from "@/hooks/use-toast"
 import { getSupabase } from "@/lib/supabase/client"
 import { BudgetService } from "@/lib/services/budget-service"
+import { isMasterUser } from "@/lib/services/auth-service"
 
 interface BudgetStatusManagerProps {
   budgetId: string
@@ -31,11 +32,12 @@ export function BudgetStatusManager({ budgetId, projectId, currentStatus, onStat
   const [targetStatus, setTargetStatus] = useState<"delivered" | "accepted" | "rejected" | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
   const [userType, setUserType] = useState<string | null>(null)
+  const [isMaster, setIsMaster] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
 
   useEffect(() => {
-    const getUserType = async () => {
+    const getUserData = async () => {
       const supabase = await getSupabase()
       if (!supabase) return
 
@@ -46,8 +48,11 @@ export function BudgetStatusManager({ budgetId, projectId, currentStatus, onStat
         const { data: profile } = await supabase.from("profiles").select("user_type").eq("id", session.user.id).single()
         setUserType(profile?.user_type || null)
       }
+
+      const masterStatus = await isMasterUser()
+      setIsMaster(masterStatus)
     }
-    getUserType()
+    getUserData()
   }, [])
 
   const handleStatusChange = async () => {
@@ -207,7 +212,7 @@ export function BudgetStatusManager({ budgetId, projectId, currentStatus, onStat
 
         {(userType === "professional" || userType === "company") && (
           <>
-            {currentStatus === "draft" && (
+            {currentStatus === "draft" && isMaster && (
               <Button size="sm" variant="outline" onClick={() => openDialog("delivered")}>
                 <Send className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Marcar como Entregado</span>

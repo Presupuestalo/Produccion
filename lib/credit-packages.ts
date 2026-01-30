@@ -99,6 +99,19 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       "Gestor de cuenta dedicado",
     ],
   },
+  {
+    id: "plan-donacion",
+    name: "Plan Donación",
+    monthlyPriceInCents: 200, // 2€/mes
+    yearlyPriceInCents: 2400, // 24€/año
+    stripeMonthlyPriceId: "price_1SvIUlEQQaEB67RQWfEoVlGy",
+    stripeYearlyPriceId: "price_1SvIUlEQQaEB67RQWfEoVlGy", // Using monthly for both for now or just monthly
+    features: [
+      "Evolución de la herramienta",
+      "Beneficios exclusivos",
+      "Apoyo al proyecto",
+    ],
+  },
 ]
 
 export function formatPrice(priceInCents: number): string {

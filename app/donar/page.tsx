@@ -1,0 +1,11 @@
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
+import Stripe from "stripe"
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: "2025-01-27.acacia" as any,
+})
+
+export default async function DonarPage() {
+    redirect("https://buy.stripe.com/test_9B69ATaZW3se6BJ51rdby00")
+}

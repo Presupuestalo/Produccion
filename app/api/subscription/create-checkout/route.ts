@@ -16,7 +16,7 @@ async function logMsg(msg: string, data: any = {}) {
   })
 }
 
-const PLAN_CONFIG = {
+const PLAN_CONFIG: Record<string, { name: string; stripeName: string; monthly: number; annual: number; priceId?: string }> = {
   basic: {
     name: "Plan Básico",
     stripeName: "Plan Básico",
@@ -34,6 +34,13 @@ const PLAN_CONFIG = {
     stripeName: "Plan Empresa",
     monthly: 7990,
     annual: 79900,
+  },
+  "plan-donacion": {
+    name: "Plan Donación",
+    stripeName: "Plan Donación",
+    monthly: 200,
+    annual: 2400,
+    priceId: "price_1SvIUlEQQaEB67RQWfEoVlGy",
   },
 }
 
@@ -135,7 +142,7 @@ export async function POST(req: Request) {
       )
     }
 
-    const priceId = await findExistingPrice(existingProduct.id, billing)
+    const priceId = config.priceId || await findExistingPrice(existingProduct.id, billing)
 
     if (!priceId) {
       return NextResponse.json(
@@ -147,7 +154,7 @@ export async function POST(req: Request) {
     const sessionData: Stripe.Checkout.SessionCreateParams = {
       customer_email: customerEmail,
       line_items: [{ price: priceId, quantity: 1 }],
-      mode: "subscription",
+      mode: planName === "plan-donacion" ? "payment" : "subscription",
       success_url: `${baseUrl}/dashboard/ajustes?tab=subscription&success=true`,
       cancel_url: `${baseUrl}/dashboard/ajustes?tab=subscription&canceled=true`,
       metadata: {
@@ -155,13 +162,16 @@ export async function POST(req: Request) {
         plan_name: planName,
         billing_type: billingType,
       },
-      subscription_data: {
+    }
+
+    if (sessionData.mode === "subscription") {
+      sessionData.subscription_data = {
         metadata: {
           user_id: user.id,
           plan_name: planName,
           billing_type: billingType,
         },
-      },
+      }
     }
 
     await logMsg("CREATING_SESSION", {

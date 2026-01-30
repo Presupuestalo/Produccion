@@ -4,12 +4,17 @@ import { createClient } from "@/lib/supabase/server"
 import Stripe from "stripe"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-11-20.acacia",
+  apiVersion: "2025-01-27.acacia" as any,
 })
 
 export async function GET() {
   try {
     const supabase = await createClient()
+
+    if (!supabase) {
+      return NextResponse.json({ error: "Error de conexión" }, { status: 500 })
+    }
+
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -22,7 +27,7 @@ export async function GET() {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("stripe_customer_id, stripe_subscription_id, is_admin, subscription_plan")
+      .select("stripe_customer_id, stripe_subscription_id, is_admin, subscription_plan, is_donor")
       .eq("id", session.user.id)
       .single()
 
@@ -41,10 +46,11 @@ export async function GET() {
         current_period_end: null,
         cancel_at_period_end: false,
         is_admin: profile.is_admin || false,
+        is_donor: profile.is_donor || false,
       })
     }
 
-    let subscription = null
+    let subscription: any = null
     if (profile.stripe_subscription_id) {
       try {
         subscription = await stripe.subscriptions.retrieve(profile.stripe_subscription_id)
@@ -62,6 +68,7 @@ export async function GET() {
       cancel_at_period_end: subscription?.cancel_at_period_end || false,
       stripe_customer_id: profile.stripe_customer_id,
       is_admin: profile.is_admin || false,
+      is_donor: profile.is_donor || false,
     })
   } catch (error: any) {
     console.error("[v0] Error fetching subscription status:", error)

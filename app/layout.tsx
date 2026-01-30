@@ -6,6 +6,7 @@ import { AuthProvider } from "@/components/auth/auth-provider"
 import { ToastProvider } from "@/components/ui/toast-provider"
 import { Toaster } from "sonner"
 import { CookieConsentBanner } from "@/components/cookie-consent-banner"
+import { DonationPopup } from "@/components/dashboard/donation-popup"
 import Script from "next/script"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -71,6 +72,7 @@ export default function RootLayout({
           <Toaster richColors closeButton position="top-right" />
           <ToastProvider />
           <CookieConsentBanner />
+          <DonationPopup />
         </AuthProvider>
       </body>
     </html>

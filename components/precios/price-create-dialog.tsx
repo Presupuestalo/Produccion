@@ -22,6 +22,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import * as SubscriptionLimitsService from "@/lib/services/subscription-limits-service"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
+import { isMasterUser } from "@/lib/services/auth-service"
 import { AIPriceImportDialog } from "./ai-price-import-dialog"
 
 interface PriceCreateDialogProps {
@@ -38,12 +39,16 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
   const [showAiInput, setShowAiInput] = useState(false)
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)
   const [hasAiAccess, setHasAiAccess] = useState<boolean | null>(null)
+  const [isMaster, setIsMaster] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
     async function checkAccess() {
       const limits = await SubscriptionLimitsService.getSubscriptionLimits()
       setHasAiAccess(limits?.aiPriceImport || false)
+
+      const masterStatus = await isMasterUser()
+      setIsMaster(masterStatus)
     }
     checkAccess()
   }, [])
@@ -187,77 +192,79 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
           <DialogDescription>Crea un nuevo precio personalizado para tu empresa</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
-          <Alert className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
-            <Sparkles className="h-4 w-4 text-purple-600" />
-            <AlertDescription className="text-sm text-gray-700">
-              <strong className="text-purple-700">Genera precios con IA:</strong>
-              <p className="mt-1">
-                Describe el trabajo en lenguaje natural y la IA determinará automáticamente la categoría, concepto,
-                descripción y precio aproximado.
-              </p>
-            </AlertDescription>
-          </Alert>
+        {isMaster && (
+          <div className="space-y-3">
+            <Alert className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+              <Sparkles className="h-4 w-4 text-purple-600" />
+              <AlertDescription className="text-sm text-gray-700">
+                <strong className="text-purple-700">Genera precios con IA:</strong>
+                <p className="mt-1">
+                  Describe el trabajo en lenguaje natural y la IA determinará automáticamente la categoría, concepto,
+                  descripción y precio aproximado.
+                </p>
+              </AlertDescription>
+            </Alert>
 
-          {!showAiInput ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full border-purple-200 hover:bg-purple-50 bg-transparent flex items-center justify-center gap-2"
-              onClick={() => {
-                if (hasAiAccess) {
-                  setShowAiInput(true)
-                } else {
-                  setShowUpgradeDialog(true)
-                }
-              }}
-            >
-              <Sparkles className="w-4 h-4 text-purple-600" />
-              <span>Generar con IA</span>
-              {hasAiAccess === false && (
-                <Badge variant="secondary" className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white border-none py-0 px-2 h-5 text-[10px] font-bold">PRO</Badge>
-              )}
-            </Button>
-          ) : (
-            <div className="space-y-2 p-4 border border-purple-200 rounded-lg bg-purple-50/50">
-              <Label htmlFor="ai-prompt" className="text-purple-900">
-                Describe el trabajo a presupuestar
-              </Label>
-              <Textarea
-                id="ai-prompt"
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder="Ej: Quiero hacer un precio para colocar una hornacina en el baño"
-                rows={2}
-                className="bg-white"
-              />
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleGenerateWithAI}
-                  disabled={aiLoading}
-                  className="bg-purple-600 hover:bg-purple-700"
-                >
-                  {aiLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generar
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setShowAiInput(false)
-                    setAiPrompt("")
-                  }}
-                >
-                  Cancelar
-                </Button>
+            {!showAiInput ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-purple-200 hover:bg-purple-50 bg-transparent flex items-center justify-center gap-2"
+                onClick={() => {
+                  if (hasAiAccess) {
+                    setShowAiInput(true)
+                  } else {
+                    setShowUpgradeDialog(true)
+                  }
+                }}
+              >
+                <Sparkles className="w-4 h-4 text-purple-600" />
+                <span>Generar con IA</span>
+                {hasAiAccess === false && (
+                  <Badge variant="secondary" className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white border-none py-0 px-2 h-5 text-[10px] font-bold">PRO</Badge>
+                )}
+              </Button>
+            ) : (
+              <div className="space-y-2 p-4 border border-purple-200 rounded-lg bg-purple-50/50">
+                <Label htmlFor="ai-prompt" className="text-purple-900">
+                  Describe el trabajo a presupuestar
+                </Label>
+                <Textarea
+                  id="ai-prompt"
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder="Ej: Quiero hacer un precio para colocar una hornacina en el baño"
+                  rows={2}
+                  className="bg-white"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleGenerateWithAI}
+                    disabled={aiLoading}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    {aiLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generar
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setShowAiInput(false)
+                      setAiPrompt("")
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

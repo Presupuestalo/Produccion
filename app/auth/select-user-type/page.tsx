@@ -49,6 +49,7 @@ export default function SelectUserTypePage() {
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [selectedType, setSelectedType] = useState<"professional" | "homeowner" | null>(null)
   const [selectedCountry, setSelectedCountry] = useState<string>("ES")
+  const [professionalRole, setProfessionalRole] = useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
   const pendingPlan = searchParams?.get("pendingPlan")
@@ -141,6 +142,7 @@ export default function SelectUserTypePage() {
           email: user.email,
           full_name: user.user_metadata?.name || user.user_metadata?.full_name || "",
           user_type: userType,
+          professional_role: userType === "professional" ? professionalRole : null,
           country: selectedCountry,
           accepted_terms: true,
           terms_accepted_at: new Date().toISOString(),
@@ -362,7 +364,10 @@ export default function SelectUserTypePage() {
           <Card
             className={`cursor-pointer hover:shadow-lg transition-all ${selectedType === "homeowner" ? "ring-2 ring-orange-600" : ""
               }`}
-            onClick={() => setSelectedType("homeowner")}
+            onClick={() => {
+              setSelectedType("homeowner")
+              setProfessionalRole(null)
+            }}
           >
             <CardHeader className="text-center">
               <Home className="h-12 w-12 mx-auto mb-4 text-orange-600" />
@@ -371,6 +376,30 @@ export default function SelectUserTypePage() {
             </CardHeader>
           </Card>
         </div>
+
+        {selectedType === "professional" && (
+          <div className="mt-8 animate-in fade-in slide-in-from-top-4 duration-500">
+            <h2 className="font-semibold text-gray-900 text-center mb-6">¿Cuál es tu perfil profesional?</h2>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { id: "Empresa", label: "Empresa de Reformas" },
+                { id: "Coordinador de gremios", label: "Coordinador de Gremios" },
+                { id: "Diseñador", label: "Diseñador / Interiorista" },
+                { id: "Arquitecto", label: "Arquitecto / Aparejador" },
+              ].map((role) => (
+                <Button
+                  key={role.id}
+                  variant={professionalRole === role.id ? "default" : "outline"}
+                  className={`h-16 text-md font-medium px-4 ${professionalRole === role.id ? "bg-orange-600 hover:bg-orange-700" : "hover:border-orange-500 hover:text-orange-600"
+                    }`}
+                  onClick={() => setProfessionalRole(role.id)}
+                >
+                  {role.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="mt-8 p-6 bg-white rounded-lg shadow-sm border">
           <div className="flex items-start space-x-3">
@@ -400,12 +429,12 @@ export default function SelectUserTypePage() {
 
           <Button
             onClick={() => selectedType && handleContinue(selectedType)}
-            disabled={isLoading || !selectedType || !acceptedTerms || !selectedCountry}
+            disabled={isLoading || !selectedType || !acceptedTerms || !selectedCountry || (selectedType === "professional" && !professionalRole)}
             className="w-full mt-6"
             size="lg"
           >
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            {!selectedCountry ? "Selecciona tu país" : !selectedType ? "Selecciona un tipo de usuario" : "Continuar"}
+            {!selectedCountry ? "Selecciona tu país" : !selectedType ? "Selecciona un tipo de usuario" : selectedType === "professional" && !professionalRole ? "Selecciona tu perfil profesional" : "Continuar"}
           </Button>
         </div>
 

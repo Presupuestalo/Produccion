@@ -7,21 +7,21 @@ const testimonials = [
       "Presupuéstalo ha revolucionado la forma en que gestiono mis proyectos de reformas. Ahora puedo crear presupuestos precisos en minutos.",
     author: "María García",
     role: "Arquitecta de Interiores",
-    avatar: "/placeholder.svg?height=60&width=60",
+    avatar: "/maria.png",
   },
   {
     quote:
       "Una herramienta indispensable para cualquier profesional de la construcción. Ha mejorado mi eficiencia y la satisfacción de mis clientes.",
     author: "Carlos Rodríguez",
     role: "Constructor",
-    avatar: "/placeholder.svg?height=60&width=60",
+    avatar: "/carlos.png",
   },
   {
     quote:
       "Como propietario de una pequeña empresa de reformas, Presupuéstalo me ha ayudado a competir con empresas más grandes gracias a sus presupuestos profesionales.",
     author: "Ana Martínez",
     role: "Empresaria",
-    avatar: "/placeholder.svg?height=60&width=60",
+    avatar: "/ana.png",
   },
 ]
 
@@ -42,12 +42,10 @@ export function Testimonials() {
                 <p className="italic mb-6">"{testimonial.quote}"</p>
                 <div className="flex items-center">
                   <div className="mr-4">
-                    <Image
+                    <img
                       src={testimonial.avatar || "/placeholder.svg"}
                       alt={testimonial.author}
-                      width={60}
-                      height={60}
-                      className="rounded-full"
+                      className="rounded-full w-[60px] h-[60px] object-cover"
                     />
                   </div>
                   <div>

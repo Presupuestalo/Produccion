@@ -151,7 +151,7 @@ export async function generateBudgetPDF(
       doc.setFontSize(14)
       doc.setFont("helvetica", "bold")
       doc.setTextColor(textColor[0], textColor[1], textColor[2])
-      doc.text(companyData.company_name, rightColumnX, rightY)
+      doc.text(companyData.company_name || "Mi Empresa", rightColumnX, rightY)
       rightY += 6
 
       doc.setFontSize(9)
@@ -164,7 +164,7 @@ export async function generateBudgetPDF(
       }
 
       if (companyData.company_address) {
-        doc.text(companyData.company_address, rightColumnX, rightY)
+        doc.text(String(companyData.company_address), rightColumnX, rightY)
         rightY += 4
       }
 
@@ -174,12 +174,12 @@ export async function generateBudgetPDF(
       }
 
       if (companyData.company_email) {
-        doc.text(companyData.company_email, rightColumnX, rightY)
+        doc.text(String(companyData.company_email), rightColumnX, rightY)
         rightY += 4
       }
 
       if (companyData.company_website) {
-        doc.text(companyData.company_website, rightColumnX, rightY)
+        doc.text(String(companyData.company_website), rightColumnX, rightY)
         rightY += 4
       }
 
@@ -199,7 +199,7 @@ export async function generateBudgetPDF(
       doc.setFont("helvetica", "normal")
       doc.setTextColor(...grayColor)
       if (project.client) {
-        doc.text(project.client, 15, yPosition)
+        doc.text(String(project.client), 15, yPosition)
         yPosition += 5
       }
 
@@ -211,7 +211,7 @@ export async function generateBudgetPDF(
 
         doc.setFont("helvetica", "normal")
         doc.setTextColor(grayColor[0], grayColor[1], grayColor[2])
-        doc.text(project.project_address, 15, yPosition)
+        doc.text(String(project.project_address), 15, yPosition)
         yPosition += 5
       }
 
@@ -287,7 +287,7 @@ export async function generateBudgetPDF(
       doc.setFontSize(11)
       doc.setFont("helvetica", "bold")
       doc.setTextColor(textColor[0], textColor[1], textColor[2])
-      doc.text(category, 15, yPosition)
+      doc.text(String(category || "Sin categoría"), 15, yPosition)
       yPosition += 4
 
       const tableData = items.map((item) => {

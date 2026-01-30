@@ -21,19 +21,19 @@ const plans = [
     },
     credits: 0,
     features: [
-      { text: "1 Proyecto", included: true },
-      { text: "1 Presupuesto por proyecto", included: true },
-      { text: "Precios personalizados", included: true },
-      { text: "Importa tus precios", included: false },
-      { text: "Contabilidad", included: true },
+      { text: "1 Proyecto", included: true, note: "" },
+      { text: "1 Presupuesto por proyecto", included: true, note: "" },
+      { text: "Precios personalizados", included: true, note: "" },
+      { text: "Importa tus precios", included: false, note: "" },
+      { text: "Contabilidad", included: true, note: "" },
       { text: "Herramientas IA", included: true, note: "3 usos/día" },
-      { text: "Añadir Precios con IA", included: false },
-      { text: "Reconocimiento planos IA", included: false },
+      { text: "Añadir Precios con IA", included: false, note: "" },
+      { text: "Reconocimiento planos IA", included: false, note: "" },
       { text: "Presupuestos PDF", included: true, note: "con marca de agua" },
-      { text: "Contratos personalizados", included: false },
-      { text: "Gestión de Citas", included: true },
-      { text: "Galería de fotos personalizada", included: true },
-      { text: "Soporte por email", included: true },
+      { text: "Contratos personalizados", included: false, note: "" },
+      { text: "Gestión de Citas", included: true, note: "" },
+      { text: "Galería de fotos personalizada", included: true, note: "" },
+      { text: "Soporte por email", included: true, note: "" },
     ],
     cta: "Plan actual",
     variant: "outline" as const,
@@ -49,19 +49,19 @@ const plans = [
     },
     credits: 300,
     features: [
-      { text: "Proyectos ilimitados", included: true },
-      { text: "3 Presupuestos por proyecto", included: true },
-      { text: "Precios personalizados", included: true },
-      { text: "Importa tus precios", included: true },
-      { text: "Contabilidad", included: true },
+      { text: "Proyectos ilimitados", included: true, note: "" },
+      { text: "3 Presupuestos por proyecto", included: true, note: "" },
+      { text: "Precios personalizados", included: true, note: "" },
+      { text: "Importa tus precios", included: true, note: "" },
+      { text: "Contabilidad", included: true, note: "" },
       { text: "Herramientas IA", included: true, note: "5 usos/día" },
-      { text: "Añadir Precios con IA", included: false },
-      { text: "Reconocimiento planos IA", included: false },
+      { text: "Añadir Precios con IA", included: false, note: "" },
+      { text: "Reconocimiento planos IA", included: false, note: "" },
       { text: "Presupuestos PDF", included: true, note: "sin marca de agua" },
-      { text: "Contratos personalizados", included: true },
-      { text: "Gestión de Citas + Avisos", included: true },
-      { text: "Galería de fotos personalizada", included: true },
-      { text: "Soporte por email", included: true },
+      { text: "Contratos personalizados", included: true, note: "" },
+      { text: "Gestión de Citas + Avisos", included: true, note: "" },
+      { text: "Galería de fotos personalizada", included: true, note: "" },
+      { text: "Soporte por email", included: true, note: "" },
     ],
     cta: "Contratar",
     variant: "default" as const,
@@ -78,27 +78,46 @@ const plans = [
     },
     credits: 500,
     features: [
-      { text: "Proyectos ilimitados", included: true },
-      { text: "5 Presupuestos por proyecto", included: true },
-      { text: "Precios personalizados", included: true },
-      { text: "Importa tus precios", included: true },
-      { text: "Contabilidad", included: true },
-      { text: "Herramientas IA ilimitadas", included: true },
-      { text: "Añadir Precios con IA", included: true },
-      { text: "Reconocimiento planos IA", included: true },
+      { text: "Proyectos ilimitados", included: true, note: "" },
+      { text: "5 Presupuestos por proyecto", included: true, note: "" },
+      { text: "Precios personalizados", included: true, note: "" },
+      { text: "Importa tus precios", included: true, note: "" },
+      { text: "Contabilidad", included: true, note: "" },
+      { text: "Herramientas IA ilimitadas", included: true, note: "" },
+      { text: "Añadir Precios con IA", included: true, note: "" },
+      { text: "Reconocimiento planos IA", included: true, note: "" },
       { text: "Presupuestos PDF", included: true, note: "sin marca de agua" },
-      { text: "Contratos personalizados", included: true },
-      { text: "Gestión de Citas + Avisos", included: true },
-      { text: "Galería de fotos personalizada", included: true },
-      { text: "Soporte prioritario", included: true },
+      { text: "Contratos personalizados", included: true, note: "" },
+      { text: "Gestión de Citas + Avisos", included: true, note: "" },
+      { text: "Galería de fotos personalizada", included: true, note: "" },
+      { text: "Soporte prioritario", included: true, note: "" },
     ],
     cta: "Contratar",
     variant: "outline" as const,
     highlight: true,
   },
+  {
+    name: "Donación",
+    badge: "Apoyo",
+    description: "Ayúdanos a mejorar Presupuéstalo",
+    planKey: "plan-donacion",
+    price: {
+      monthly: 2,
+      annually: 2, // 2€/mes regardless
+    },
+    credits: 0,
+    features: [
+      { text: "Acceso a Telegram Privado", included: true, note: "" },
+      { text: "Roadmap exclusivo", included: true, note: "" },
+      { text: "Beneficios futuros", included: true, note: "" },
+      { text: "Canal de soporte directo", included: true, note: "" },
+    ],
+    cta: "Apoyar",
+    variant: "outline" as const,
+  },
 ]
 
-const planOrder = ["free", "basic", "pro"]
+const planOrder = ["plan-donacion", "free", "basic", "pro"]
 
 export default function PlanesPage() {
   const [billingType, setBillingType] = useState<"monthly" | "annually">("monthly")
@@ -120,6 +139,34 @@ export default function PlanesPage() {
     }
     fetchCurrentPlan()
   }, [])
+
+  // Auto-trigger checkout if plan is in URL
+  useEffect(() => {
+    const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+    const autoPlan = params?.get('plan') || params?.get('pendingPlan')
+
+    if (autoPlan === 'plan-donacion') {
+      handleUpgrade('plan-donacion')
+      // Clean URL after triggering
+      const url = new URL(window.location.href)
+      url.searchParams.delete('plan')
+      url.searchParams.delete('pendingPlan')
+      window.history.replaceState({}, '', url.toString())
+      return
+    }
+
+    if (autoPlan && !loading && currentPlan === 'free') {
+      const planToTrigger = plans.find(p => p.planKey === autoPlan)
+      if (planToTrigger) {
+        handleUpgrade(autoPlan)
+        // Clean URL after triggering
+        const url = new URL(window.location.href)
+        url.searchParams.delete('plan')
+        url.searchParams.delete('pendingPlan')
+        window.history.replaceState({}, '', url.toString())
+      }
+    }
+  }, [currentPlan, loading, router])
 
   const calculateSavings = (monthlyPrice: number) => {
     const yearlyWithoutDiscount = monthlyPrice * 12
@@ -214,15 +261,14 @@ export default function PlanesPage() {
               return (
                 <Card
                   key={plan.name}
-                  className={`relative flex flex-col ${
-                    isCurrent
-                      ? "border-green-500 shadow-lg dark:border-green-400"
-                      : plan.popular
-                        ? "border-orange-500 shadow-lg dark:border-orange-400 lg:scale-105"
-                        : plan.highlight
-                          ? "border-blue-500 shadow-lg dark:border-blue-400"
-                          : "border-border"
-                  }`}
+                  className={`relative flex flex-col ${isCurrent
+                    ? "border-green-500 shadow-lg dark:border-green-400"
+                    : plan.popular
+                      ? "border-orange-500 shadow-lg dark:border-orange-400 lg:scale-105"
+                      : plan.highlight
+                        ? "border-blue-500 shadow-lg dark:border-blue-400"
+                        : "border-border"
+                    }`}
                 >
                   {isCurrent && (
                     <div className="absolute -top-4 left-0 right-0 flex justify-center">
@@ -277,44 +323,40 @@ export default function PlanesPage() {
 
                     {plan.credits > 0 && (
                       <div
-                        className={`rounded-lg p-3 ${
-                          plan.popular
-                            ? "bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/40 dark:to-amber-950/40 border border-orange-200 dark:border-orange-800"
-                            : plan.highlight
-                              ? "bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-200 dark:border-blue-800"
-                              : "bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
-                        }`}
+                        className={`rounded-lg p-3 ${plan.popular
+                          ? "bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/40 dark:to-amber-950/40 border border-orange-200 dark:border-orange-800"
+                          : plan.highlight
+                            ? "bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-200 dark:border-blue-800"
+                            : "bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                          }`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div
-                              className={`p-1.5 rounded-full ${
-                                plan.popular
-                                  ? "bg-orange-100 dark:bg-orange-900/50"
-                                  : plan.highlight
-                                    ? "bg-blue-100 dark:bg-blue-900/50"
-                                    : "bg-gray-100 dark:bg-gray-700"
-                              }`}
+                              className={`p-1.5 rounded-full ${plan.popular
+                                ? "bg-orange-100 dark:bg-orange-900/50"
+                                : plan.highlight
+                                  ? "bg-blue-100 dark:bg-blue-900/50"
+                                  : "bg-gray-100 dark:bg-gray-700"
+                                }`}
                             >
                               <Coins
-                                className={`h-4 w-4 ${
-                                  plan.popular
-                                    ? "text-orange-600 dark:text-orange-400"
-                                    : plan.highlight
-                                      ? "text-blue-600 dark:text-blue-400"
-                                      : "text-gray-600 dark:text-gray-400"
-                                }`}
+                                className={`h-4 w-4 ${plan.popular
+                                  ? "text-orange-600 dark:text-orange-400"
+                                  : plan.highlight
+                                    ? "text-blue-600 dark:text-blue-400"
+                                    : "text-gray-600 dark:text-gray-400"
+                                  }`}
                               />
                             </div>
                             <div>
                               <p
-                                className={`text-sm font-semibold ${
-                                  plan.popular
-                                    ? "text-orange-700 dark:text-orange-300"
-                                    : plan.highlight
-                                      ? "text-blue-700 dark:text-blue-300"
-                                      : "text-gray-700 dark:text-gray-300"
-                                }`}
+                                className={`text-sm font-semibold ${plan.popular
+                                  ? "text-orange-700 dark:text-orange-300"
+                                  : plan.highlight
+                                    ? "text-blue-700 dark:text-blue-300"
+                                    : "text-gray-700 dark:text-gray-300"
+                                  }`}
                               >
                                 {plan.credits} créditos/mes
                               </p>
@@ -325,13 +367,12 @@ export default function PlanesPage() {
                             <TooltipTrigger asChild>
                               <button className="p-1 hover:bg-white/50 dark:hover:bg-black/20 rounded-full transition-colors">
                                 <Info
-                                  className={`h-4 w-4 ${
-                                    plan.popular
-                                      ? "text-orange-500"
-                                      : plan.highlight
-                                        ? "text-blue-500"
-                                        : "text-gray-500"
-                                  }`}
+                                  className={`h-4 w-4 ${plan.popular
+                                    ? "text-orange-500"
+                                    : plan.highlight
+                                      ? "text-blue-500"
+                                      : "text-gray-500"
+                                    }`}
                                 />
                               </button>
                             </TooltipTrigger>
@@ -375,17 +416,25 @@ export default function PlanesPage() {
                       <Button variant="outline" disabled className="w-full text-muted-foreground bg-transparent">
                         Plan gratuito
                       </Button>
+                    ) : plan.planKey === "plan-donacion" ? (
+                      <Button
+                        asChild
+                        className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+                      >
+                        <Link href="https://buy.stripe.com/test_9B69ATaZW3se6BJ51rdby00">
+                          Apoyar
+                        </Link>
+                      </Button>
                     ) : canUpgrade ? (
                       <Button
                         disabled={loading}
                         onClick={() => handleUpgrade(plan.planKey)}
-                        className={`w-full ${
-                          plan.popular
-                            ? "bg-orange-500 hover:bg-orange-600 text-white"
-                            : plan.highlight
-                              ? "bg-blue-500 hover:bg-blue-600 text-white"
-                              : "bg-orange-500 hover:bg-orange-600 text-white"
-                        }`}
+                        className={`w-full ${plan.popular
+                          ? "bg-orange-500 hover:bg-orange-600 text-white"
+                          : plan.highlight
+                            ? "bg-blue-500 hover:bg-blue-600 text-white"
+                            : "bg-orange-500 hover:bg-orange-600 text-white"
+                          }`}
                       >
                         {loading ? "Procesando..." : "Mejorar plan"}
                       </Button>

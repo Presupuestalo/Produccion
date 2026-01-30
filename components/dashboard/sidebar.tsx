@@ -100,6 +100,7 @@ export function DashboardSidebar() {
   const toggleSidebar = sidebarContext?.toggleSidebar || (() => { })
   const [userType, setUserType] = useState<string | null>(null)
   const [isProUser, setIsProUser] = useState(false)
+  const [isMaster, setIsMaster] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
   // Obtener el tipo de usuario
@@ -119,7 +120,7 @@ export function DashboardSidebar() {
           console.log("[v0] Sidebar: Usuario autenticado:", session.user.id)
           const { data: profile, error } = await supabase
             .from("profiles")
-            .select("user_type, subscription_plan")
+            .select("user_type, subscription_plan, role")
             .eq("id", session.user.id)
             .single()
 
@@ -130,6 +131,7 @@ export function DashboardSidebar() {
           console.log("[v0] Sidebar: Perfil obtenido:", profile)
           console.log("[v0] Sidebar: user_type:", profile?.user_type)
           setUserType(profile?.user_type || null)
+          setIsMaster(profile?.role === "master")
 
           const plan = profile?.subscription_plan?.toLowerCase() || "free"
           const isPro = ["pro", "premium", "enterprise", "business"].includes(plan)
@@ -162,13 +164,16 @@ export function DashboardSidebar() {
         icon: FileText,
         comingSoon: false,
       },
-      {
+    ]
+
+    if (isMaster) {
+      baseItems.push({
         name: "Editor 2D",
         href: "/dashboard/editor-planos",
-        icon: Sparkles, // Or any appropriate icon like Layout, PenTool, etc.
+        icon: Sparkles,
         comingSoon: false,
-      },
-    ]
+      })
+    }
 
     if (userType === "homeowner" || userType === "propietario") {
       baseItems.push({
@@ -182,33 +187,9 @@ export function DashboardSidebar() {
     if (userType === "professional" || userType === "profesional") {
       console.log("[v0] Sidebar: Añadiendo menú Precios para usuario:", userType)
       baseItems.push({
-        name: "Ofertas Disponibles",
-        href: "/dashboard/professional/leads",
-        icon: Briefcase,
-        comingSoon: false,
-      })
-      baseItems.push({
-        name: "Galería de Trabajos",
-        href: "/dashboard/professional/works",
-        icon: FileText,
-        comingSoon: false,
-      })
-      baseItems.push({
         name: "Precios",
         href: "/dashboard/precios",
         icon: Euro,
-        comingSoon: false,
-      })
-      baseItems.push({
-        name: "Contabilidad",
-        href: "/dashboard/contabilidad",
-        icon: BarChart,
-        comingSoon: false,
-      })
-      baseItems.push({
-        name: "Citas",
-        href: "/dashboard/citas",
-        icon: Calendar,
         comingSoon: false,
       })
     } else if (userType === "company") {
@@ -218,30 +199,49 @@ export function DashboardSidebar() {
         icon: Euro,
         comingSoon: false,
       })
+    } else {
+      console.log("[v0] Sidebar: NO añadiendo menú Precios. Tipo de usuario:", userType)
+    }
+
+    if (isMaster) {
+      baseItems.push({
+        name: "IA Asistente",
+        href: "/dashboard/ia",
+        icon: Sparkles,
+        comingSoon: false,
+      })
+      baseItems.push({
+        name: "Ofertas Disponibles",
+        href: "/dashboard/professional/leads",
+        icon: Briefcase,
+        comingSoon: false,
+      })
+      baseItems.push({
+        name: "Citas",
+        href: "/dashboard/citas",
+        icon: Calendar,
+        comingSoon: false,
+      })
       baseItems.push({
         name: "Contabilidad",
         href: "/dashboard/contabilidad",
         icon: BarChart,
         comingSoon: false,
       })
-    } else {
-      console.log("[v0] Sidebar: NO añadiendo menú Precios. Tipo de usuario:", userType)
+      baseItems.push({
+        name: "Galería de Trabajos",
+        href: "/dashboard/professional/works",
+        icon: FileText,
+        comingSoon: false,
+      })
     }
 
-    baseItems.push(
-      {
-        name: "IA Asistente",
-        href: "/dashboard/ia",
-        icon: Sparkles,
-        comingSoon: false,
-      },
-      {
-        name: "Contacto",
-        href: "/dashboard/contacto",
-        icon: Mail,
-        comingSoon: false,
-      },
-    )
+    baseItems.push({
+      name: "Contacto",
+      href: "/dashboard/contacto",
+      icon: Mail,
+      comingSoon: false,
+    })
 
     // Opciones comunes para todos
     baseItems.push(

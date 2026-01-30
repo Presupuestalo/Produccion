@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, Sparkles, Loader2, TrendingUp, TrendingDown } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
+import { isMasterUser } from "@/lib/services/auth-service"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -64,12 +65,16 @@ export function AddAdjustmentDialog({
   const [searchQuery, setSearchQuery] = useState("")
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)
   const [hasAiAccess, setHasAiAccess] = useState<boolean | null>(null)
+  const [isMaster, setIsMaster] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
     async function checkAccess() {
       const limits = await SubscriptionLimitsService.getSubscriptionLimits()
       setHasAiAccess(limits?.aiPriceImport || false)
+
+      const masterStatus = await isMasterUser()
+      setIsMaster(masterStatus)
     }
     checkAccess()
   }, [])
@@ -317,17 +322,19 @@ export function AddAdjustmentDialog({
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="manual">Manual</TabsTrigger>
             <TabsTrigger value="from-list">Desde Mi Lista</TabsTrigger>
-            <TabsTrigger value="ai" className="relative">
-              Generar con IA
-              {hasAiAccess === false && (
-                <Badge
-                  variant="secondary"
-                  className="ml-1 bg-gradient-to-r from-purple-500 to-indigo-600 text-white border-none py-0 px-2 h-4 text-[9px] font-bold"
-                >
-                  PRO
-                </Badge>
-              )}
-            </TabsTrigger>
+            {isMaster && (
+              <TabsTrigger value="ai" className="relative">
+                Generar con IA
+                {hasAiAccess === false && (
+                  <Badge
+                    variant="secondary"
+                    className="ml-1 bg-gradient-to-r from-purple-500 to-indigo-600 text-white border-none py-0 px-2 h-4 text-[9px] font-bold"
+                  >
+                    PRO
+                  </Badge>
+                )}
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="from-list" className="space-y-4">

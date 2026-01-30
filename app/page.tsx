@@ -2,17 +2,21 @@
 
 import React, { useEffect, useState, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Hero } from "@/components/landing/hero"
+import { HeroV2 } from "@/components/landing/hero-v2"
+import { FeaturesV2 } from "@/components/landing/features-v2"
+import { HowItWorksV2 } from "@/components/landing/how-it-works-v2"
+import { ComparisonV2 } from "@/components/landing/comparison-v2"
+import { CustomPricesV2 } from "@/components/landing/custom-prices-v2"
+import { PricingFree } from "@/components/landing/pricing-free"
 import { UserTypes } from "@/components/landing/user-types"
-import { Features } from "@/components/landing/features"
 import { Testimonials } from "@/components/landing/testimonials"
+import { Donation } from "@/components/landing/donation"
 import { CTA } from "@/components/landing/cta"
 import { Footer } from "@/components/landing/footer"
 import { Navbar } from "@/components/landing/navbar"
 import { useAuth } from "@/components/auth/auth-provider"
 import { createClient } from "@/lib/supabase/client"
 import { Loader2 } from "lucide-react"
-import { Pricing } from "@/components/landing/pricing"
 
 export default function Home() {
   const router = useRouter()
@@ -56,7 +60,7 @@ export default function Home() {
     }
 
     checkUserProfile()
-  }, [user, isLoading, router, pathname]) // Added pathname to react to navigation events
+  }, [user, isLoading, router, pathname])
 
   useEffect(() => {
     if (!user) {
@@ -66,24 +70,28 @@ export default function Home() {
 
   if (isLoading || (user && isCheckingProfile)) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#0a0a0a]">
         <div className="text-center space-y-4">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-orange-600" />
-          <p className="text-muted-foreground">{isLoading ? "Cargando..." : "Verificando perfil..."}</p>
+          <p className="text-gray-400">{isLoading ? "Cargando..." : "Verificando perfil..."}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#0a0a0a]">
       <Navbar />
       <main>
-        <Hero />
-        <Features />
+        <HeroV2 />
+        <FeaturesV2 />
+        <HowItWorksV2 />
+        <ComparisonV2 />
+        <CustomPricesV2 />
         <UserTypes />
-        <Pricing />
         <Testimonials />
+        <Donation />
+        <PricingFree />
         <CTA />
       </main>
       <Footer />

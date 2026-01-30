@@ -32,6 +32,7 @@ import Link from "next/link"
 import type { FormEvent } from "react"
 import { CreditPurchaseHistory } from "@/components/credits/credit-purchase-history"
 import { getProvincesForCountry, getCountryFieldLabels } from "@/lib/utils/country-fields"
+import { isMasterUser } from "@/lib/services/auth-service"
 
 interface UserProfile {
   id: string
@@ -160,6 +161,7 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
   // Subscription state
   const [subscription, setSubscription] = useState<any>(null)
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(true)
+  const [isMaster, setIsMaster] = useState(false)
 
   const isProfessional = userData.user_type === "professional" || userData.user_type === "company"
 
@@ -194,6 +196,14 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
       loadSubscription()
     }
   }, [isProfessional])
+
+  useEffect(() => {
+    async function checkMaster() {
+      const masterStatus = await isMasterUser()
+      setIsMaster(masterStatus)
+    }
+    checkMaster()
+  }, [])
 
   useEffect(() => {
     const setupRealtimeListener = async () => {
@@ -501,68 +511,70 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
         </Card>
 
         {/* Subscription Info Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              Información de Suscripción
-            </CardTitle>
-            <CardDescription>Tu plan actual y créditos disponibles</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {isLoadingSubscription ? (
-              <div className="flex justify-center py-4">
-                <Loader2 className="h-6 w-6 animate-spin text-orange-600" />
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between p-4 border rounded-lg bg-gradient-to-br from-orange-50 to-orange-100">
-                  <div className="space-y-1">
-                    <h3 className="font-semibold text-lg">
-                      Plan{" "}
-                      {subscription?.plan === "free"
-                        ? "Free"
-                        : subscription?.plan === "basic"
-                          ? "Basic"
-                          : subscription?.plan === "professional" || subscription?.plan === "pro"
-                            ? "Pro"
-                            : subscription?.plan === "enterprise" || subscription?.plan === "business"
-                              ? "Business"
-                              : subscription?.plan || "Free"}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {subscription?.credits_remaining !== undefined
-                        ? `${subscription.credits_remaining} créditos disponibles`
-                        : subscription?.current_period_end
-                          ? `Renovación: ${new Date(subscription.current_period_end).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}`
-                          : "Sin información de créditos"}
-                    </p>
+        {isMaster && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Información de Suscripción
+              </CardTitle>
+              <CardDescription>Tu plan actual y créditos disponibles</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isLoadingSubscription ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-orange-600" />
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between p-4 border rounded-lg bg-gradient-to-br from-orange-50 to-orange-100">
+                    <div className="space-y-1">
+                      <h3 className="font-semibold text-lg">
+                        Plan{" "}
+                        {subscription?.plan === "free"
+                          ? "Free"
+                          : subscription?.plan === "basic"
+                            ? "Basic"
+                            : subscription?.plan === "professional" || subscription?.plan === "pro"
+                              ? "Pro"
+                              : subscription?.plan === "enterprise" || subscription?.plan === "business"
+                                ? "Business"
+                                : subscription?.plan || "Free"}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {subscription?.credits_remaining !== undefined
+                          ? `${subscription.credits_remaining} créditos disponibles`
+                          : subscription?.current_period_end
+                            ? `Renovación: ${new Date(subscription.current_period_end).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}`
+                            : "Sin información de créditos"}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={subscription?.status === "active" ? "default" : "secondary"}
+                      className={`text-sm px-3 py-1 ${subscription?.status === "active" ? "bg-orange-500 hover:bg-orange-600" : ""}`}
+                    >
+                      {subscription?.status === "active" ? "Activo" : "Inactivo"}
+                    </Badge>
                   </div>
-                  <Badge
-                    variant={subscription?.status === "active" ? "default" : "secondary"}
-                    className={`text-sm px-3 py-1 ${subscription?.status === "active" ? "bg-orange-500 hover:bg-orange-600" : ""}`}
-                  >
-                    {subscription?.status === "active" ? "Activo" : "Inactivo"}
-                  </Badge>
-                </div>
 
-                <div className="p-4 border rounded-lg bg-blue-50">
-                  <p className="text-sm text-blue-900 mb-3">
-                    Los créditos te permiten acceder a leads de clientes en tu zona.
-                  </p>
-                  <Button asChild variant="outline" className="w-full bg-transparent">
-                    <Link href="/dashboard/ajustes?tab=subscription" className="flex items-center justify-center gap-2">
-                      Gestionar Suscripción
-                      <ArrowUpRight className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+                  <div className="p-4 border rounded-lg bg-blue-50">
+                    <p className="text-sm text-blue-900 mb-3">
+                      Los créditos te permiten acceder a leads de clientes en tu zona.
+                    </p>
+                    <Button asChild variant="outline" className="w-full bg-transparent">
+                      <Link href="/dashboard/ajustes?tab=subscription" className="flex items-center justify-center gap-2">
+                        Gestionar Suscripción
+                        <ArrowUpRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-        {userData.user_type === "professional" && <CreditPurchaseHistory />}
+        {userData.user_type === "professional" && isMaster && <CreditPurchaseHistory />}
 
         {/* User Type Section */}
         <Card>
@@ -589,99 +601,101 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
         </Card>
 
         {/* Work Mode Section - Only for professionals */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Briefcase className="h-5 w-5" />
-              Modo de Trabajo
-            </CardTitle>
-            <CardDescription>
-              Define cómo trabajas: ejecutando obras directamente, coordinando gremios, o ambos
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3">
-              {workModeOptions.map((option) => (
-                <div
-                  key={option.value}
-                  onClick={() => setWorkMode(option.value)}
-                  className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${workMode === option.value
-                    ? "border-orange-500 bg-orange-50"
-                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                    }`}
-                >
-                  <div className={`p-2 rounded-lg ${workMode === option.value ? "bg-orange-100" : "bg-gray-100"}`}>
-                    <option.icon
-                      className={`h-5 w-5 ${workMode === option.value ? "text-orange-600" : "text-gray-500"}`}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium">{option.label}</div>
-                    <div className="text-sm text-muted-foreground">{option.description}</div>
-                  </div>
+        {isMaster && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Briefcase className="h-5 w-5" />
+                Modo de Trabajo
+              </CardTitle>
+              <CardDescription>
+                Define cómo trabajas: ejecutando obras directamente, coordinando gremios, o ambos
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3">
+                {workModeOptions.map((option) => (
                   <div
-                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${workMode === option.value ? "border-orange-500 bg-orange-500" : "border-gray-300"
+                    key={option.value}
+                    onClick={() => setWorkMode(option.value)}
+                    className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${workMode === option.value
+                      ? "border-orange-500 bg-orange-50"
+                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                       }`}
                   >
-                    {workMode === option.value && <div className="w-2 h-2 rounded-full bg-white" />}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {workMode === "coordinator" && (
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-sm text-blue-800">
-                  <strong>Modo Coordinador activo:</strong> Tendrás acceso a la sección "Proyectos de Coordinación"
-                  donde podrás gestionar proyectos con múltiples gremios, aplicar márgenes y generar presupuestos
-                  consolidados.
-                </p>
-              </div>
-            )}
-
-            {isProfessional && (
-              <div className="space-y-4 pt-4 border-t">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="prof-province">{fieldLabels.province}</Label>
-                    {hasProvinces ? (
-                      <Select value={province} onValueChange={setProvince}>
-                        <SelectTrigger id="prof-province">
-                          <SelectValue placeholder="Selecciona tu provincia" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px]">
-                          {countryProvinces.map((p) => (
-                            <SelectItem key={p} value={p}>
-                              {p}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input
-                        id="prof-province"
-                        value={province}
-                        onChange={(e) => setProvince(e.target.value)}
-                        placeholder="Escribe tu provincia"
+                    <div className={`p-2 rounded-lg ${workMode === option.value ? "bg-orange-100" : "bg-gray-100"}`}>
+                      <option.icon
+                        className={`h-5 w-5 ${workMode === option.value ? "text-orange-600" : "text-gray-500"}`}
                       />
-                    )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium">{option.label}</div>
+                      <div className="text-sm text-muted-foreground">{option.description}</div>
+                    </div>
+                    <div
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${workMode === option.value ? "border-orange-500 bg-orange-500" : "border-gray-300"
+                        }`}
+                    >
+                      {workMode === option.value && <div className="w-2 h-2 rounded-full bg-white" />}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {workMode === "coordinator" && (
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-800">
+                    <strong>Modo Coordinador activo:</strong> Tendrás acceso a la sección "Proyectos de Coordinación"
+                    donde podrás gestionar proyectos con múltiples gremios, aplicar márgenes y generar presupuestos
+                    consolidados.
+                  </p>
+                </div>
+              )}
+
+              {isProfessional && (
+                <div className="space-y-4 pt-4 border-t">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="prof-province">{fieldLabels.province}</Label>
+                      {hasProvinces ? (
+                        <Select value={province} onValueChange={setProvince}>
+                          <SelectTrigger id="prof-province">
+                            <SelectValue placeholder="Selecciona tu provincia" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[300px]">
+                            {countryProvinces.map((p) => (
+                              <SelectItem key={p} value={p}>
+                                {p}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          id="prof-province"
+                          value={province}
+                          onChange={(e) => setProvince(e.target.value)}
+                          placeholder="Escribe tu provincia"
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-
-            <Button onClick={handleSubmit} disabled={isLoading} className="w-full bg-orange-600 hover:bg-orange-700">
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                "Guardar Modo de Trabajo"
               )}
-            </Button>
-          </CardContent>
-        </Card>
+
+              <Button onClick={handleSubmit} disabled={isLoading} className="w-full bg-orange-600 hover:bg-orange-700">
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  "Guardar Modo de Trabajo"
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Security Section */}
         <Card>

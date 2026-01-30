@@ -1,0 +1,49 @@
+
+    // Helper to update elements after wall fusion
+    const updateElementsAfterFusion = (processedWalls: Wall[]) => {
+            setDoors(prevDoors => prevDoors.map(door => {
+                // Try to find if original wall still exists
+                const oldWall = processedWalls.find(w => w.id === door.wallId)
+                if (oldWall) return door // It survived!
+
+                // If lost, we need to find where it was.
+                // But we don't have the 'pre-merge' walls here to know absolute position.
+                // Wait. `processedWalls` IS the result.
+                // If a wall was merged, its ID might be preserved (w1) or lost (w2).
+                // If `door.wallId` is missing in `processedWalls`, we have a problem.
+                // We need the *absolute position* of the door to re-bind it.
+                // `handleDragEnd` works because it has `processed` (pre-split) vs `splitResult` (post-split).
+                // Here we jumped from `prev` -> `fragment` -> `merged`.
+                // The door.t refers to `prev` (the state before this setWalls call).
+                
+                // We need access to 'walls' (current state) to calc absolute pos.
+                const preWalls = walls // State variable is still old state here (closure)
+                const originalWall = preWalls.find(w => w.id === door.wallId)
+                if (!originalWall) return door 
+
+                const p = getPointOnWall(door.t, originalWall.start, originalWall.end)
+                
+                // Find new wall in `processedWalls`
+                const bestWall = processedWalls.find(nw => isPointOnSegment(p, nw.start, nw.end, 2.0))
+                if (bestWall) {
+                     const splitResult = getClosestPointOnSegment(p, bestWall.start, bestWall.end)
+                     return { ...door, wallId: bestWall.id, t: splitResult.t }
+                }
+                return door
+            }))
+
+             setWindows(prevWindows => prevWindows.map(win => {
+                const preWalls = walls
+                const originalWall = preWalls.find(w => w.id === win.wallId)
+                if (!originalWall) return win 
+
+                const p = getPointOnWall(win.t, originalWall.start, originalWall.end)
+                
+                const bestWall = processedWalls.find(nw => isPointOnSegment(p, nw.start, nw.end, 2.0))
+                if (bestWall) {
+                     const splitResult = getClosestPointOnSegment(p, bestWall.start, bestWall.end)
+                     return { ...win, wallId: bestWall.id, t: splitResult.t }
+                }
+                return win
+            }))
+    }

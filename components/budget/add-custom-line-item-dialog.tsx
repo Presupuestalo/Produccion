@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast"
 import { BudgetService } from "@/lib/services/budget-service"
 import type { BudgetLineItem } from "@/lib/types/budget"
 import { createClient } from "@/lib/supabase/client"
+import { isMasterUser } from "@/lib/services/auth-service"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -126,12 +127,16 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
   const [priceSource, setPriceSource] = useState<"normal" | "custom" | "imported">("normal")
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)
   const [hasAiAccess, setHasAiAccess] = useState<boolean | null>(null)
+  const [isMaster, setIsMaster] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
     async function checkAccess() {
       const limits = await SubscriptionLimitsService.getSubscriptionLimits()
       setHasAiAccess(limits?.aiPriceImport || false)
+
+      const masterStatus = await isMasterUser()
+      setIsMaster(masterStatus)
     }
     checkAccess()
   }, [])
@@ -604,17 +609,19 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
           <TabsList className={`grid w-full ${isOwner ? "grid-cols-2" : "grid-cols-3"}`}>
             <TabsTrigger value="manual">Manual</TabsTrigger>
             {!isOwner && <TabsTrigger value="from-list">Desde Mi Lista</TabsTrigger>}
-            <TabsTrigger value="ai" className="relative">
-              Generar con IA
-              {hasAiAccess === false && (
-                <Badge
-                  variant="secondary"
-                  className="ml-1 bg-gradient-to-r from-purple-500 to-indigo-600 text-white border-none py-0 px-2 h-4 text-[9px] font-bold"
-                >
-                  PRO
-                </Badge>
-              )}
-            </TabsTrigger>
+            {isMaster && (
+              <TabsTrigger value="ai" className="relative">
+                Generar con IA
+                {hasAiAccess === false && (
+                  <Badge
+                    variant="secondary"
+                    className="ml-1 bg-gradient-to-r from-purple-500 to-indigo-600 text-white border-none py-0 px-2 h-4 text-[9px] font-bold"
+                  >
+                    PRO
+                  </Badge>
+                )}
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {!isOwner && (

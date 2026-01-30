@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, ExternalLink, CreditCard, Download, FileText, Calendar, ArrowUpRight } from "lucide-react"
+import { Loader2, ExternalLink, CreditCard, Download, FileText, Calendar, ArrowUpRight, Heart, Send } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { useSearchParams } from "next/navigation"
@@ -38,6 +38,7 @@ export function SubscriptionSettings({ userId, userType }: SubscriptionSettingsP
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(true)
   const [isRedirecting, setIsRedirecting] = useState(false)
+  const [justSupported, setJustSupported] = useState(false)
   const { toast } = useToast()
   const searchParams = useSearchParams()
 
@@ -46,14 +47,29 @@ export function SubscriptionSettings({ userId, userType }: SubscriptionSettingsP
     const canceled = searchParams.get("canceled")
 
     if (success === "true") {
+      setJustSupported(true)
       toast({
-        title: "¡Suscripción activada correctamente!",
-        description: "Tu plan ha sido activado correctamente.",
+        title: "¡Muchas gracias por tu apoyo! ❤️",
+        description: (
+          <div className="mt-2 space-y-2">
+            <p>Tu donación nos ayuda a seguir creciendo.</p>
+            <p className="font-semibold">Únete a nuestro grupo privado de Telegram:</p>
+            <Button asChild size="sm" className="bg-[#24A1DE] hover:bg-[#1C82B1] w-full">
+              <Link href="https://t.me/+7-uVLs-HemA0YmM0" target="_blank" className="flex items-center gap-2">
+                <Send className="h-3 w-3" />
+                Unirse ahora
+              </Link>
+            </Button>
+          </div>
+        )
       })
       const url = new URL(window.location.href)
       url.searchParams.delete("success")
       window.history.replaceState({}, "", url.toString())
-      fetch("/api/subscription/sync", { method: "POST" }).then(() => loadSubscription())
+      // Forzar recarga de perfil para ver el estado de donante
+      setTimeout(() => {
+        fetch("/api/subscription/sync", { method: "POST" }).finally(() => loadSubscription())
+      }, 3000)
     } else if (canceled === "true") {
       toast({
         title: "Pago cancelado",
@@ -171,8 +187,39 @@ export function SubscriptionSettings({ userId, userType }: SubscriptionSettingsP
   const isActive = isFree || subscription?.status === "active"
   const canUpgrade = subscription?.plan !== "enterprise"
 
+  const showDonorCard = subscription?.is_donor || justSupported
+
   return (
     <div className="space-y-6">
+      {showDonorCard && (
+        <Card className="border-blue-500 bg-blue-50 overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <Heart className="h-24 w-24 text-blue-600 fill-current" />
+          </div>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-700">
+              <Heart className="h-5 w-5 fill-current" />
+              ¡Gracias por ser Donante!
+            </CardTitle>
+            <CardDescription className="text-blue-600 font-medium">
+              Tu apoyo mensual de 2€ nos ayuda a seguir mejorando Presupuéstalo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 relative z-10">
+            <p className="text-sm text-blue-800">
+              Como muestra de agradecimiento, tienes acceso exclusivo a nuestro grupo de Telegram donde compartimos
+              actualizaciones, el plan de ruta y escuchamos tus sugerencias directamente.
+            </p>
+            <Button asChild className="bg-[#24A1DE] hover:bg-[#1C82B1] text-white">
+              <Link href="https://t.me/+7-uVLs-HemA0YmM0" target="_blank" className="flex items-center gap-2">
+                <Send className="h-4 w-4" />
+                Unirse al Grupo de Telegram
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {subscription?.cancel_at_period_end && !isFree && (
         <Card className="border-orange-500 bg-orange-50">
           <CardContent className="pt-6">
