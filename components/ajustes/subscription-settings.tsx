@@ -56,7 +56,7 @@ export function SubscriptionSettings({ userId, userType, telegramBotUsername }: 
             <p>Tu donación nos ayuda a seguir creciendo.</p>
             <p className="font-semibold">Únete a nuestro grupo privado de Telegram:</p>
             <Button asChild size="sm" className="bg-[#24A1DE] hover:bg-[#1C82B1] w-full">
-              <Link href="https://t.me/+7-uVLs-HemA0YmM0" target="_blank" className="flex items-center gap-2">
+              <Link href={`https://t.me/${telegramBotUsername}?start=${userId}`} target="_blank" className="flex items-center gap-2">
                 <Send className="h-3 w-3" />
                 Unirse ahora
               </Link>

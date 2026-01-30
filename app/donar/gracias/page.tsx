@@ -11,19 +11,21 @@ export const dynamic = "force-dynamic";
 export default async function DonationThankYouPage() {
   const supabase = await createClient();
 
+  // Safe check for supabase client
   if (!supabase) {
-    redirect('/auth/login');
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Error de configuración. Por favor contacta con soporte.</p>
+      </div>
+    )
   }
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect('/auth/login');
-  }
-
   // Use the verified bot username
   const botUsername = "presupuestalobot";
-  const telegramLink = `https://t.me/${botUsername}?start=${user.id}`;
+  // Only generate link if user is logged in
+  const telegramLink = user ? `https://t.me/${botUsername}?start=${user.id}` : "#";
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -65,14 +67,26 @@ export default async function DonationThankYouPage() {
 
             <div className="text-center p-4">
               <p className="text-gray-500 text-sm mb-4">
-                Haz clic abajo para vincular tu cuenta y recibir tu invitación personal:
+                {user
+                  ? "Haz clic abajo para vincular tu cuenta y recibir tu invitación personal:"
+                  : "Inicia sesión para reclamar tu acceso al grupo:"
+                }
               </p>
-              <Button asChild size="lg" className="w-full sm:w-auto bg-[#24A1DE] hover:bg-[#1c8dbf] text-white gap-2 h-14 text-lg">
-                <Link href={telegramLink} target="_blank" rel="noopener noreferrer">
-                  <MessageCircle className="w-6 h-6" />
-                  Vincular y Unirse al Grupo
-                </Link>
-              </Button>
+
+              {user ? (
+                <Button asChild size="lg" className="w-full sm:w-auto bg-[#24A1DE] hover:bg-[#1c8dbf] text-white gap-2 h-14 text-lg">
+                  <Link href={telegramLink} target="_blank" rel="noopener noreferrer">
+                    <MessageCircle className="w-6 h-6" />
+                    Vincular y Unirse al Grupo
+                  </Link>
+                </Button>
+              ) : (
+                <Button asChild size="lg" className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 text-white gap-2 h-14 text-lg">
+                  <Link href="/auth/login?redirect=/donar/gracias">
+                    Iniciar Sesión para Unirme
+                  </Link>
+                </Button>
+              )}
             </div>
           </CardContent>
           <CardFooter className="flex justify-center border-t bg-gray-50 py-6">
