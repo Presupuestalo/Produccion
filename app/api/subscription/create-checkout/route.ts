@@ -123,6 +123,9 @@ export async function POST(req: Request) {
     const baseUrl = origin || process.env.NEXT_PUBLIC_SITE_URL ||
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://presupuestalo.com")
 
+    await logMsg("BASE_URL_Debug", { origin, vercelUrl: process.env.VERCEL_URL, siteUrl: process.env.NEXT_PUBLIC_SITE_URL, resolved: baseUrl })
+
+
     const { planName, billingType = "monthly" } = await req.json()
 
     if (!planName || !PLAN_CONFIG[planName as keyof typeof PLAN_CONFIG]) {
@@ -155,7 +158,7 @@ export async function POST(req: Request) {
       customer_email: customerEmail,
       line_items: [{ price: priceId, quantity: 1 }],
       mode: planName === "plan-donacion" ? "payment" : "subscription",
-      success_url: planName === "plan-donacion"
+      success_url: (planName === "plan-donacion" || planName.includes("donacion"))
         ? `${baseUrl}/donar/gracias?success=true`
         : `${baseUrl}/dashboard/ajustes?tab=subscription&success=true`,
       cancel_url: `${baseUrl}/dashboard/ajustes?tab=subscription&canceled=true`,
