@@ -18,7 +18,7 @@ const testimonials = [
   },
   {
     quote:
-      "Como propietario de una pequeña empresa de reformas, Presupuéstalo me ha ayudado a competir con empresas más grandes gracias a sus presupuestos profesionales.",
+      "Como propietaria de una pequeña empresa de reformas, Presupuéstalo me ha ayudado a competir con empresas más grandes gracias a sus presupuestos profesionales.",
     author: "Ana Martínez",
     role: "Empresaria",
     avatar: "/ana.png",
