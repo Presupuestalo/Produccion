@@ -16,7 +16,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, FileText, ClipboardList, Spline, Menu } from "lucide-react"
+import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, FileText, ClipboardList, Spline, Menu, Square } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
@@ -26,37 +26,39 @@ import { WallProperties } from "./WallProperties"
 import { ElementProperties } from "./ElementProperties"
 import { MobileOrientationGuard } from "./MobileOrientationGuard"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useFeatureFlags } from "@/hooks/use-feature-flags"
 import { detectRoomsGeometrically, fragmentWalls, getClosestPointOnSegment, isPointOnSegment, isSamePoint, cleanupAndMergeWalls, calculateBoundingBox, rotatePoint, generateArcPoints } from "@/lib/utils/geometry"
+
+interface Point { x: number; y: number }
+interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean }
+interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point }
+interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" }
+interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean }
+interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number }
 
 export const EditorContainer = forwardRef((props: any, ref) => {
     const containerRef = useRef<HTMLDivElement>(null)
     const editorWrapperRef = useRef<HTMLDivElement>(null)
     const canvasEngineRef = useRef<CanvasEngineRef>(null)
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
+    const [zoom, setZoom] = useState(1)
+    const [offset, setOffset] = useState({ x: 0, y: 0 })
+    const router = useRouter()
 
     // Feature Flags
     const { isFeatureEnabled } = useFeatureFlags()
 
-    const [zoom, setZoom] = useState(1)
-    const [offset, setOffset] = useState({ x: 0, y: 0 })
-    interface Point { x: number; y: number }
-    interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean }
-
-
-    interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point }
-
     const [walls, setWalls] = useState<Wall[]>(props.initialData?.walls || [])
-
     const [rooms, setRooms] = useState<Room[]>(props.initialData?.rooms || [])
     const [currentWall, setCurrentWall] = useState<{ start: Point; end: Point } | null>(null)
     const [hoveredWallId, setHoveredWallId] = useState<string | null>(null)
-    interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" }
-    interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean }
     const [doors, setDoors] = useState<Door[]>(props.initialData?.doors || [])
     const [windows, setWindows] = useState<Window[]>(props.initialData?.windows || [])
-    const [selectedElement, setSelectedElement] = useState<{ type: "door" | "window", id: string } | null>(null)
-    const [activeTool, _setActiveTool] = useState<"select" | "wall" | "door" | "window" | "ruler" | "arc">("wall")
+    const [selectedElement, setSelectedElement] = useState<{ type: "door" | "window" | "shunt", id: string } | null>(null)
+    const [shunts, setShunts] = useState<Shunt[]>(props.initialData?.shunts || [])
+    const [activeTool, _setActiveTool] = useState<"select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt">("wall")
+    // ... (rest of state)
     const [gridRotation, setGridRotation] = useState<number>(props.initialData?.gridRotation || 0)
 
     // Arc Tool State
@@ -234,8 +236,36 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             const p2 = points[(i + 1) % l]
             total += (p1.x * p2.y) - (p2.x * p1.y)
         }
-        return Math.abs(total) / 2 / (100 * 100)
+        let area = Math.abs(total) / 2 / (100 * 100) // Area in m²
+
+        // Subtract Shunts inside the room
+        const roomPoly = points
+        // Helper to check if a point is inside polygon
+        const isPointInPoly = (p: Point, poly: Point[]) => {
+            let inside = false
+            for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+                const xi = poly[i].x, yi = poly[i].y
+                const xj = poly[j].x, yj = poly[j].y
+                const intersect = ((yi > p.y) !== (yj > p.y)) && (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi)
+                if (intersect) inside = !inside
+            }
+            return inside
+        }
+
+
+
+        return Math.max(0, area)
     }
+
+    // Actualizar áreas cuando cambian los shunts
+    useEffect(() => {
+        if (rooms.length > 0) {
+            setRooms(prevRooms => prevRooms.map(r => ({
+                ...r,
+                area: calculateArea(r.polygon)
+            })))
+        }
+    }, [shunts])
 
     // Actualizar dimensiones del contenedor
     useEffect(() => {
@@ -263,28 +293,37 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const detectAndNameRooms = (newWalls: Wall[], currentRooms: Room[]) => {
         const detected = detectRoomsGeometrically(newWalls, currentRooms)
 
+        // Enhance areas by subtracting shunts
+        detected.forEach(r => {
+            r.area = calculateArea(r.polygon)
+        })
+
         const usedNames = new Set<string>()
         const finalRooms: Room[] = []
         const pendingRooms: Room[] = []
 
-        // Pass 1: Keep valid H# names if they are unique in this batch
+        // Pass 1: Keep valid names (Custom or unique H#)
         detected.forEach(room => {
-            // Check if name matches H + number exactly (e.g. "H1", "H2")
-            // This prevents "Habitación 1" from being treated as valid H-name
-            if (/^H\d+$/.test(room.name)) {
-                if (!usedNames.has(room.name)) {
-                    usedNames.add(room.name)
-                    finalRooms.push(room)
-                } else {
-                    pendingRooms.push(room)
-                }
+            const isCustom = room.name && !/^H\d+$/.test(room.name)
+
+            if (isCustom) {
+                // Always keep custom names (e.g. "Cocina", "Salón")
+                usedNames.add(room.name)
+                finalRooms.push(room)
+            } else if (/^H\d+$/.test(room.name) && !usedNames.has(room.name)) {
+                // Keep H# if it's unique so far
+                usedNames.add(room.name)
+                finalRooms.push(room)
             } else {
+                // ID collision or empty name -> needs renaming
                 pendingRooms.push(room)
             }
         })
 
         // Pass 2: Rename pending rooms
         pendingRooms.forEach(room => {
+            // If it had a custom name but was a duplicate (unlikely for user input), it got here.
+            // But mainly for H# duplicates or new rooms.
             let n = 1
             while (usedNames.has(`H${n}`)) {
                 n++
@@ -439,12 +478,14 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         if (selectedElement?.type === "window" && windows.find(w => w.id === selectedElement.id)?.wallId === id) setSelectedElement(null)
     }
 
-    const handleDeleteElement = (type: "door" | "window", id: string) => {
+    const handleDeleteElement = (type: "door" | "window" | "shunt", id: string) => {
         saveStateToHistory()
         if (type === "door") {
             setDoors(prev => prev.filter(d => d.id !== id))
-        } else {
+        } else if (type === "window") {
             setWindows(prev => prev.filter(w => w.id !== id))
+        } else if (type === "shunt") {
+            setShunts(prev => prev.filter(s => s.id !== id))
         }
         if (selectedElement?.id === id && selectedElement.type === type) {
             setSelectedElement(null)
@@ -499,7 +540,12 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         setWalls(prev => prev.map(w => w.id === id ? { ...w, thickness } : w))
     }
 
-    const handleDragElement = (type: "door" | "window", id: string, pointer: Point) => {
+    const handleDragElement = (type: "door" | "window" | "shunt", id: string, pointer: Point) => {
+        if (type === "shunt") {
+            setShunts(prev => prev.map(s => s.id === id ? { ...s, x: pointer.x, y: pointer.y } : s))
+            return
+        }
+
         const closest = findClosestWall(pointer)
         if (!closest || closest.dist > 30) return // Umbral para "saltar" entre muros
 
@@ -507,10 +553,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         if (!wall) return
 
         // Lógica de flip dinámico segun lado del muro
-        // Calculamos de qué lado del muro está el puntero
         const dx = wall.end.x - wall.start.x
         const dy = wall.end.y - wall.start.y
-        // Cambiamos el signo de det porque el usuario siente que va al revés
         const det = (pointer.x - wall.start.x) * dy - (pointer.y - wall.start.y) * dx
         const isFlippedY = det < 0
 
@@ -519,6 +563,25 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         } else {
             setWindows(prev => prev.map(w => w.id === id ? { ...w, t: closest.t, wallId: closest.wallId, flipY: isFlippedY } : w))
         }
+    }
+
+    const handleAddShunt = () => {
+        const { center } = calculateBoundingBox(walls, rooms)
+        const newShunt: Shunt = {
+            id: `shunt-${Date.now()}`,
+            x: center.x || 300,
+            y: center.y || 300,
+            width: 50,
+            height: 50,
+            rotation: 0
+        }
+        setShunts(prev => [...prev, newShunt])
+        setSelectedElement({ type: "shunt", id: newShunt.id })
+    }
+
+    const handleUpdateShunt = (id: string, updates: Partial<Shunt>) => {
+        setShunts(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s))
+        saveStateToHistory()
     }
 
     const handleRotatePlan = (angleIncrement: number) => {
@@ -568,7 +631,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         // Grid Rotation can stay 0 or be used for visual alignment independently
     }
 
-    const handleCloneElement = (type: "door" | "window", id: string) => {
+    const handleCloneElement = (type: "door" | "window" | "shunt", id: string) => {
         saveStateToHistory()
         if (type === "door") {
             const door = doors.find(d => d.id === id)
@@ -577,22 +640,31 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 setDoors([...doors, newDoor])
                 setSelectedElement({ type: "door", id: newDoor.id })
             }
-        } else {
+        } else if (type === "window") {
             const window = windows.find(w => w.id === id)
             if (window) {
                 const newWindow = { ...window, id: `window-${Date.now()}`, t: Math.min(0.9, window.t + 0.1) }
                 setWindows([...windows, newWindow])
                 setSelectedElement({ type: "window", id: newWindow.id })
             }
+        } else if (type === "shunt") {
+            const shunt = shunts.find(s => s.id === id)
+            if (shunt) {
+                const newShunt = { ...shunt, id: `shunt-${Date.now()}`, x: shunt.x + shunt.width + 5, y: shunt.y }
+                setShunts([...shunts, newShunt])
+                setSelectedElement({ type: "shunt", id: newShunt.id })
+            }
         }
     }
 
-    const handleUpdateElement = (type: "door" | "window", id: string, updates: any) => {
+    const handleUpdateElement = (type: "door" | "window" | "shunt", id: string, updates: any) => {
         saveStateToHistory()
         if (type === "door") {
             setDoors(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d))
-        } else {
+        } else if (type === "window") {
             setWindows(prev => prev.map(w => w.id === id ? { ...w, ...updates } : w))
+        } else if (type === "shunt") {
+            setShunts(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s))
         }
     }
     const handleDragWall = (id: string, totalDelta: Point) => {
@@ -601,8 +673,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             const wallToMove = wallSnapshot.find(w => w.id === id)
             if (!wallToMove) return prevWalls
 
-            const isH = Math.abs(wallToMove.start.y - wallToMove.end.y) < 1
-            const isV = Math.abs(wallToMove.start.x - wallToMove.end.x) < 1
+            const isH = Math.abs(wallToMove.start.y - wallToMove.end.y) < 15.0
+            const isV = Math.abs(wallToMove.start.x - wallToMove.end.x) < 15.0
 
             const cleanDelta = {
                 x: (isV || (!isH && !isV)) ? totalDelta.x : 0,
@@ -612,7 +684,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             let workingWalls = JSON.parse(JSON.stringify(wallSnapshot)) as Wall[]
             const addedJogs: Wall[] = []
 
-            const TOL = 5.0
+            const TOL = 0.5
             const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
 
             // Movemos el muro principal
@@ -623,35 +695,37 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             // Procesamos el resto de muros
             workingWalls.forEach(w => {
                 if (w.id === id) return
-                const isWH = Math.abs(w.start.y - w.end.y) < 2
-                const isWV = Math.abs(w.start.x - w.end.x) < 2
+                const isWH = Math.abs(w.start.y - w.end.y) < 25.0
+                const isWV = Math.abs(w.start.x - w.end.x) < 25.0
 
                 // Conexiones al INICIO del muro arrastrado
                 if (isSame(w.start, wallToMove.start)) {
-                    if ((isV && isWH) || (isH && isWV)) {
+                    // Check if NOT parallel/collinear - if so, we simply move the vertex (Stretch)
+                    if (!((isV && isWV) || (isH && isWH))) {
                         w.start.x += cleanDelta.x; w.start.y += cleanDelta.y
-                    } else if ((isV && isWV) || (isH && isWH)) {
+                    } else {
+                        // If they ARE parallel/collinear, we add a Jog to maintain connection
                         addedJogs.push({ id: `jog-s-${id}-${w.id}`, start: { ...w.start }, end: { ...wTarget.start }, thickness: wTarget.thickness })
                     }
                 } else if (isSame(w.end, wallToMove.start)) {
-                    if ((isV && isWH) || (isH && isWV)) {
+                    if (!((isV && isWV) || (isH && isWH))) {
                         w.end.x += cleanDelta.x; w.end.y += cleanDelta.y
-                    } else if ((isV && isWV) || (isH && isWH)) {
+                    } else {
                         addedJogs.push({ id: `jog-e-${id}-${w.id}`, start: { ...w.end }, end: { ...wTarget.start }, thickness: wTarget.thickness })
                     }
                 }
 
                 // Conexiones al FINAL del muro arrastrado
                 if (isSame(w.start, wallToMove.end)) {
-                    if ((isV && isWH) || (isH && isWV)) {
+                    if (!((isV && isWV) || (isH && isWH))) {
                         w.start.x += cleanDelta.x; w.start.y += cleanDelta.y
-                    } else if ((isV && isWV) || (isH && isWH)) {
+                    } else {
                         addedJogs.push({ id: `jog-fs-${id}-${w.id}`, start: { ...w.start }, end: { ...wTarget.end }, thickness: wTarget.thickness })
                     }
                 } else if (isSame(w.end, wallToMove.end)) {
-                    if ((isV && isWH) || (isH && isWV)) {
+                    if (!((isV && isWV) || (isH && isWH))) {
                         w.end.x += cleanDelta.x; w.end.y += cleanDelta.y
-                    } else if ((isV && isWV) || (isH && isWH)) {
+                    } else {
                         addedJogs.push({ id: `jog-fe-${id}-${w.id}`, start: { ...w.end }, end: { ...wTarget.end }, thickness: wTarget.thickness })
                     }
                 }
@@ -688,7 +762,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         // Unwrapped setWalls to prevent nested update loop
         {
             // Use standard tolerance for identifying which vertices move together
-            const TOL = 4.0
+            const TOL = 0.5
             const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
             const idsToMove = activeIds || (selectedWallIds.length > 0 ? selectedWallIds : (hoveredWallId ? [hoveredWallId] : []))
             const idsToMoveSet = new Set(idsToMove)
@@ -789,8 +863,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             const processed = prev.map(w => ({
                 ...w,
                 id: w.id.startsWith('jog-') ? `w-${Math.random().toString(36).substr(2, 9)}` : w.id,
-                start: { x: Math.round(w.start.x), y: Math.round(w.start.y) },
-                end: { x: Math.round(w.end.x), y: Math.round(w.end.y) }
+                start: { x: Math.round(w.start.x * 10) / 10, y: Math.round(w.start.y * 10) / 10 },
+                end: { x: Math.round(w.end.x * 10) / 10, y: Math.round(w.end.y * 10) / 10 }
             }))
             const splitResult = fragmentWalls(processed)
 
@@ -871,21 +945,21 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         })
     }
 
-    const handleUpdateWallLength = (id: string, newLength: number, side: "left" | "right") => {
+    const handleUpdateWallLength = (id: string, newLength: number, side: "left" | "right", faceNormal?: Point) => {
         saveStateToHistory()
         setWalls(prevWalls => {
             const wall = prevWalls.find(w => w.id === id)
             if (!wall) return prevWalls
 
-            const isHorizontal = Math.abs(wall.start.y - wall.end.y) < 1.5
-            const isVertical = Math.abs(wall.start.x - wall.end.x) < 1.5
+            const isHorizontal = Math.abs(wall.start.y - wall.end.y) < 1.0
+            const isVertical = Math.abs(wall.start.x - wall.end.x) < 1.0
 
             let startIsMin = isHorizontal ? (wall.start.x < wall.end.x) : (wall.start.y < wall.end.y)
             let anchorEnd = (side === "left" ? (startIsMin ? "end" : "start") : (startIsMin ? "start" : "end"))
             let movingEnd = (side === "left" ? (startIsMin ? "start" : "end") : (startIsMin ? "end" : "start"))
 
-            const anchorPoint = { x: Math.round(anchorEnd === "start" ? wall.start.x : wall.end.x), y: Math.round(anchorEnd === "start" ? wall.start.y : wall.end.y) }
-            const movingPoint = { x: Math.round(movingEnd === "start" ? wall.start.x : wall.end.x), y: Math.round(movingEnd === "start" ? wall.start.y : wall.end.y) }
+            const anchorPoint = { x: Math.round((anchorEnd === "start" ? wall.start.x : wall.end.x) * 10) / 10, y: Math.round((anchorEnd === "start" ? wall.start.y : wall.end.y) * 10) / 10 }
+            const movingPoint = { x: Math.round((movingEnd === "start" ? wall.start.x : wall.end.x) * 10) / 10, y: Math.round((movingEnd === "start" ? wall.start.y : wall.end.y) * 10) / 10 }
 
             const dx = wall.end.x - wall.start.x
             const dy = wall.end.y - wall.start.y
@@ -899,93 +973,96 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             else if (isVertical) { ux = 0; uy = Math.sign(dy) || 1 }
 
             const newPos = {
-                x: Math.round(anchorPoint.x + ux * newLength * (movingEnd === "start" ? -1 : 1)),
-                y: Math.round(anchorPoint.y + uy * newLength * (movingEnd === "start" ? -1 : 1))
+                x: Math.round((anchorPoint.x + ux * newLength * (movingEnd === "start" ? -1 : 1)) * 10) / 10,
+                y: Math.round((anchorPoint.y + uy * newLength * (movingEnd === "start" ? -1 : 1)) * 10) / 10
             }
 
             const delta = { x: newPos.x - movingPoint.x, y: newPos.y - movingPoint.y }
 
             let workingWalls = JSON.parse(JSON.stringify(prevWalls)) as Wall[]
-            // Round all working walls to integer grid first to ensure consistency
             workingWalls.forEach(w => {
-                w.start.x = Math.round(w.start.x); w.start.y = Math.round(w.start.y)
-                w.end.x = Math.round(w.end.x); w.end.y = Math.round(w.end.y)
+                w.start.x = Math.round(w.start.x * 10) / 10; w.start.y = Math.round(w.start.y * 10) / 10
+                w.end.x = Math.round(w.end.x * 10) / 10; w.end.y = Math.round(w.end.y * 10) / 10
             })
 
-            const movedVertices = new Set<string>()
-            // PROTECT ANCHOR: mark it as moved to prevent recursion logic from shifting it
-            movedVertices.add(`${anchorPoint.x},${anchorPoint.y}`)
-
-            // Find which room(s) contain the wall being edited
-            const TOL = 5.0
+            const TOL = 1.0
             const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
+            const processedWalls = new Set<string>([id])
+            const snapshotWalls = JSON.parse(JSON.stringify(workingWalls)) as Wall[]
 
-            const editedWallRooms = rooms.filter(room => {
-                const startInRoom = room.polygon.some(p => isSame(p, wall.start))
-                const endInRoom = room.polygon.some(p => isSame(p, wall.end))
-                return startInRoom && endInRoom
-            })
-
-            // Get all wall IDs that belong to these rooms
-            const allowedWallIds = new Set<string>()
-            if (editedWallRooms.length > 0) {
+            const recursiveMove = (currOldP: Point, currDelta: Point, currNextP: Point) => {
                 workingWalls.forEach(w => {
-                    const isInAnyEditedRoom = editedWallRooms.some(room => {
-                        const startInRoom = room.polygon.some(p => isSame(p, w.start))
-                        const endInRoom = room.polygon.some(p => isSame(p, w.end))
-                        return startInRoom && endInRoom
-                    })
-                    if (isInAnyEditedRoom) {
-                        allowedWallIds.add(w.id)
+                    if (processedWalls.has(w.id)) return
+                    const snapW = snapshotWalls.find(sw => sw.id === w.id)!
+                    let sharedVertex: "start" | "end" | null = null
+                    if (isSame(snapW.start, currOldP)) sharedVertex = "start"
+                    else if (isSame(snapW.end, currOldP)) sharedVertex = "end"
+
+                    if (sharedVertex) {
+                        const otherVertex: "start" | "end" = sharedVertex === "start" ? "end" : "start"
+                        const wallVec = { x: snapW.end.x - snapW.start.x, y: snapW.end.y - snapW.start.y }
+                        const wallLen = Math.sqrt(wallVec.x * wallVec.x + wallVec.y * wallVec.y)
+                        const dLen = Math.sqrt(currDelta.x * currDelta.x + currDelta.y * currDelta.y)
+
+                        // FIX: In a length modification, PERPENDICULAR walls should SLIDE to maintain angles.
+                        // PARALLEL and slanted walls should STRETCH to absorb the length change (and stop recursion).
+                        const dot = wallLen > 0 && dLen > 0 ? Math.abs(wallVec.x * currDelta.x + wallVec.y * currDelta.y) / (wallLen * dLen) : 1
+                        const isPerpendicular = dot < 0.1
+
+                        let shouldSlide = isPerpendicular
+                        if (faceNormal) {
+                            const vToOther = { x: snapW[otherVertex].x - snapW[sharedVertex].x, y: snapW[otherVertex].y - snapW[sharedVertex].y }
+                            const normLen = Math.sqrt(faceNormal.x * faceNormal.x + faceNormal.y * faceNormal.y) || 1
+                            const dirDot = (vToOther.x * faceNormal.x + vToOther.y * faceNormal.y) / (wallLen * normLen)
+
+                            // DECISIVE FIX: If the wall points TOWARDS the neighbor (away from edited face),
+                            // we DO NOT move it at all. Not even stretch. This prevents slanting.
+                            // fragmentWalls will automatically handle the T-junction split later.
+                            if (dirDot < -0.1) {
+                                processedWalls.add(w.id)
+                                return
+                            }
+
+                            if (isPerpendicular && dirDot < 0.1) {
+                                shouldSlide = false // Neutral perpendicular walls (rare) should stretch
+                            }
+                        }
+
+                        if (shouldSlide) {
+                            // SLIDE side walls - preserves angle and rectangularity
+                            w.start.x += currDelta.x; w.start.y += currDelta.y
+                            w.end.x += currDelta.x; w.end.y += currDelta.y
+                            processedWalls.add(w.id)
+
+                            // Recurse from the OTHER end to push parallel walls
+                            const newOtherP = { x: w[otherVertex].x, y: w[otherVertex].y }
+                            const oldOtherP = { x: snapW[otherVertex].x, y: snapW[otherVertex].y }
+                            recursiveMove(oldOtherP, currDelta, newOtherP)
+                        } else {
+                            // STRETCH parallel or slanted walls (changes their length, stops recursion)
+                            if (sharedVertex === "start") { w.start.x = currNextP.x; w.start.y = currNextP.y }
+                            else { w.end.x = currNextP.x; w.end.y = currNextP.y }
+                            processedWalls.add(w.id)
+                        }
                     }
                 })
-            } else {
-                // If wall doesn't belong to any room, allow all walls (fallback)
-                workingWalls.forEach(w => allowedWallIds.add(w.id))
             }
 
-            const recursiveMove = (oldP: Point, d: Point, newP: Point) => {
-                const pKey = `${oldP.x},${oldP.y}`
-                if (movedVertices.has(pKey)) return
-                movedVertices.add(pKey)
-
-                workingWalls.forEach(w => {
-                    // CRITICAL: Only propagate to walls in the same room(s)
-                    if (!allowedWallIds.has(w.id)) return
-
-                    const isWH = Math.abs(w.start.y - w.end.y) < 2
-                    const isWV = Math.abs(w.start.x - w.end.x) < 2
-
-                    if (isSame(w.start, oldP)) {
-                        const nextOld = { ...w.end }
-                        w.start.x = newP.x; w.start.y = newP.y // Use exact SNAP destination
-                        // Rigid propagation for orthogonal integrity
-                        if ((isWH && Math.abs(d.y) > 0.1) || (isWV && Math.abs(d.x) > 0.1)) {
-                            recursiveMove(nextOld, d, { x: nextOld.x + d.x, y: nextOld.y + d.y })
-                        }
-                    } else if (isSame(w.end, oldP)) {
-                        const nextOld = { ...w.start }
-                        w.end.x = newP.x; w.end.y = newP.y
-                        if ((isWH && Math.abs(d.y) > 0.1) || (isWV && Math.abs(d.x) > 0.1)) {
-                            recursiveMove(nextOld, d, { x: nextOld.x + d.x, y: nextOld.y + d.y })
-                        }
-                    }
-                })
-            }
+            const mainW = workingWalls.find(w => w.id === id)!
+            if (movingEnd === "start") { mainW.start.x = newPos.x; mainW.start.y = newPos.y }
+            else { mainW.end.x = newPos.x; mainW.end.y = newPos.y }
 
             recursiveMove(movingPoint, delta, newPos)
 
             const splitResult = fragmentWalls(workingWalls)
 
-            // Mantener selección si el ID cambió pero el muro es el mismo (o el primer segmento)
-            setSelectedWallIds(prev => prev.map(oldId => {
+            setSelectedWallIds(prevS => prevS.map(oldId => {
                 const found = splitResult.find(nw => nw.id === oldId || nw.id === `${oldId}-s0`)
                 return found ? found.id : oldId
             }).filter(id => splitResult.some(nw => nw.id === id)))
 
-            // Re-vincular puertas y ventanas
-            const updatedDoors = doors.map(door => {
-                const oldWall = prevWalls.find(w => w.id === door.wallId)
+            setDoors(prevDoors => prevDoors.map(door => {
+                const oldWall = workingWalls.find(w => w.id === door.wallId)
                 if (!oldWall) return door
                 const p = {
                     x: oldWall.start.x + door.t * (oldWall.end.x - oldWall.start.x),
@@ -997,14 +1074,13 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     const dy = bestWall.end.y - bestWall.start.y
                     const lenSq = dx * dx + dy * dy
                     const t = lenSq === 0 ? 0 : ((p.x - bestWall.start.x) * dx + (p.y - bestWall.start.y) * dy) / lenSq
-                    return { ...door, wallId: bestWall.id, t: Math.max(0, Math.min(1, t)) }
+                    return { ...door, wallId: bestWall.id, t: Math.round(Math.max(0, Math.min(1, t)) * 1000) / 1000 }
                 }
                 return door
-            })
-            setDoors(updatedDoors)
+            }))
 
-            const updatedWindows = windows.map(win => {
-                const oldWall = prevWalls.find(w => w.id === win.wallId)
+            setWindows(prevWindows => prevWindows.map(win => {
+                const oldWall = workingWalls.find(w => w.id === win.wallId)
                 if (!oldWall) return win
                 const p = {
                     x: oldWall.start.x + win.t * (oldWall.end.x - oldWall.start.x),
@@ -1016,13 +1092,12 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     const dy = bestWall.end.y - bestWall.start.y
                     const lenSq = dx * dx + dy * dy
                     const t = lenSq === 0 ? 0 : ((p.x - bestWall.start.x) * dx + (p.y - bestWall.start.y) * dy) / lenSq
-                    return { ...win, wallId: bestWall.id, t: Math.max(0, Math.min(1, t)) }
+                    return { ...win, wallId: bestWall.id, t: Math.round(Math.max(0, Math.min(1, t)) * 1000) / 1000 }
                 }
                 return win
-            })
-            setWindows(updatedWindows)
+            }))
 
-            setRooms(detectAndNameRooms(splitResult, (rooms || [])))
+            setRooms(detectRoomsGeometrically(splitResult, rooms))
             return splitResult
         })
     }
@@ -1055,6 +1130,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         setRulerState({ start: null, end: null, active: false })
         setBgImage(null)
         setIsCalibrating(false)
+        setShunts([])
         setActiveTool("select") // Security: Reset tool to avoid accidental drawing
     }
 
@@ -1091,7 +1167,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
                         const newWalls = fragmentWalls([...filteredWalls, newWall])
                         setWalls(newWalls)
-                        const nextRooms = detectAndNameRooms(newWalls, rooms)
+                        const nextRooms = detectRoomsGeometrically(newWalls, rooms)
                         setRooms(nextRooms)
 
                         if (nextRooms.length > rooms.length) {
@@ -1140,6 +1216,22 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     setActiveTool("select")
                     setSelectedElement({ type: "window", id: newId })
                 }
+                break
+            }
+
+            case "shunt": {
+                saveStateToHistory()
+                const newId = `shunt-${Date.now()}`
+                setShunts([...shunts, {
+                    id: newId,
+                    x: point.x,
+                    y: point.y,
+                    width: 30,
+                    height: 30,
+                    rotation: 0
+                }])
+                setActiveTool("select")
+                setSelectedElement({ type: "shunt", id: newId })
                 break
             }
 
@@ -1197,7 +1289,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         const pixelDist = Math.sqrt(dx * dx + dy * dy)
         if (pixelDist > 0) {
             const newScale = (calibrationTargetValue / pixelDist) * bgConfig.scale
-            setBgConfig(prev => ({ ...prev, scale: newScale }))
+            setBgConfig((prev: any) => ({ ...prev, scale: newScale }))
             setIsCalibrating(false)
         }
     }
@@ -1281,7 +1373,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 }
                 const newWalls = fragmentWalls([...walls, newWall])
                 setWalls(newWalls)
-                const nextRooms = detectAndNameRooms(newWalls, rooms)
+                const nextRooms = detectRoomsGeometrically(newWalls, rooms)
                 setRooms(nextRooms)
 
                 // Si se ha cerrado una habitación (figura completa), detener el encadenamiento
@@ -1299,6 +1391,11 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     }
 
 
+
+
+
+
+
     const handleSave = async () => {
         setIsSaving(true)
         try {
@@ -1313,7 +1410,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     p1: calibrationPoints.p1,
                     p2: calibrationPoints.p2,
                     distance: calibrationTargetValue
-                }
+                },
+                shunts
             }
 
             if (props.onSave) {
@@ -1389,7 +1487,43 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
         window.addEventListener("resize", handleRotation)
         return () => window.removeEventListener("resize", handleRotation)
+
     }, [isMobile])
+
+    // Keyboard support for moving shunts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Only active if a Shunt is selected
+            if (!selectedElement || selectedElement.type !== "shunt") return
+
+            // Allow typing in inputs without triggering this (though likely no inputs focused when selecting shunt on canvas)
+            if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") return
+
+            if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+                e.preventDefault() // Prevent scrolling
+
+                const shunt = shunts.find(s => s.id === selectedElement.id)
+                if (!shunt) return
+
+                const step = e.ctrlKey ? 10 : 1 // Ctrl: 10px, else 1px
+                let { x, y } = shunt
+
+                switch (e.key) {
+                    case "ArrowUp": y -= step; break;
+                    case "ArrowDown": y += step; break;
+                    case "ArrowLeft": x -= step; break;
+                    case "ArrowRight": x += step; break;
+                }
+
+                // Use direct update to avoid stale state issues in this closure if possible, 
+                // but handleUpdateShunt uses functional update internally so it is safe.
+                handleUpdateShunt(shunt.id, { x, y })
+            }
+        }
+
+        window.addEventListener("keydown", handleKeyDown)
+        return () => window.removeEventListener("keydown", handleKeyDown)
+    }, [selectedElement, shunts]) // Re-bind when shunts change to get latest positions
 
     return (
         <div ref={editorWrapperRef} className="flex flex-col h-full bg-slate-50 p-2 gap-2 relative overflow-hidden">
@@ -1446,6 +1580,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                         { id: "arc", icon: Spline, title: "Arco" },
                         { id: "door", icon: DoorClosed, title: "Puerta (D)" },
                         { id: "window", icon: Layout, title: "Ventana (V)" },
+                        { id: "shunt", icon: Square, title: "Columna" },
                         { id: "ruler", icon: Ruler, title: "Regla (M)" },
                     ].map((tool) => (
                         <Button
@@ -1733,6 +1868,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     phantomArc={phantomArc}
                     touchOffset={touchOffset}
                     forceTouchOffset={forceTouchOffset}
+                    shunts={shunts}
+                    onUpdateShunt={handleUpdateShunt}
                 />
 
 
@@ -1744,6 +1881,60 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                              but ideally this should also be adaptable. 
                              For now, let's keep it simple as user asked for Toolbar and Selection Properties.
                          */}
+                    </div>
+                )}
+
+                {/* Properties Panel for Selected Element */}
+                {selectedElement && (
+                    <div className="absolute top-20 right-4 z-30">
+                        {(() => {
+                            if (selectedElement.type === "door") {
+                                const door = doors.find(d => d.id === selectedElement.id)
+                                if (!door) return null
+                                return (
+                                    <ElementProperties
+                                        elementId={door.id}
+                                        type="door"
+                                        width={door.width}
+                                        onUpdateWidth={(id, w) => handleUpdateElement("door", id, { width: w })}
+                                        onDelete={(id) => handleDeleteElement("door", id)}
+                                        onClose={() => setSelectedElement(null)}
+                                    />
+                                )
+                            } else if (selectedElement.type === "window") {
+                                const win = windows.find(w => w.id === selectedElement.id)
+                                if (!win) return null
+                                return (
+                                    <ElementProperties
+                                        elementId={win.id}
+                                        type="window"
+                                        width={win.width}
+                                        height={win.height}
+                                        onUpdateWidth={(id, w) => handleUpdateElement("window", id, { width: w })}
+                                        onUpdateHeight={(id, h) => handleUpdateElement("window", id, { height: h })}
+                                        onDelete={(id) => handleDeleteElement("window", id)}
+                                        onClose={() => setSelectedElement(null)}
+                                    />
+                                )
+                            } else if (selectedElement.type === "shunt") {
+                                const shunt = shunts.find(s => s.id === selectedElement.id)
+                                if (!shunt) return null
+                                return (
+                                    <ElementProperties
+                                        elementId={shunt.id}
+                                        type="shunt"
+                                        width={shunt.width}
+                                        height={shunt.height}
+                                        onUpdateWidth={(id, w) => handleUpdateElement("shunt", id, { width: w })}
+                                        onUpdateHeight={(id, h) => handleUpdateElement("shunt", id, { height: h })}
+                                        onClone={(id) => handleCloneElement("shunt", id)}
+                                        onDelete={(id) => handleDeleteElement("shunt", id)}
+                                        onClose={() => setSelectedElement(null)}
+                                    />
+                                )
+                            }
+                            return null
+                        })()}
                     </div>
                 )}
             </div>

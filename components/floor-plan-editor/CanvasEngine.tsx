@@ -2,8 +2,8 @@
 import React from "react"
 import { Stage, Layer, Group, Line, Rect, Text, Circle, Arc as KonvaArc, Arrow } from "react-konva"
 import { Grid } from "./Grid"
-import { getClosestPointOnSegment, generateArcPoints } from "@/lib/utils/geometry"
-import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical, SquareDashed, Spline } from "lucide-react"
+import { getClosestPointOnSegment, generateArcPoints, getLineIntersection } from "@/lib/utils/geometry"
+import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical, SquareDashed, Spline, Check } from "lucide-react"
 
 interface Point { x: number; y: number }
 interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean }
@@ -12,6 +12,7 @@ interface Room { id: string; name: string; polygon: Point[]; area: number; color
 
 interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" }
 interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean }
+interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number }
 
 function calculatePolygonCentroid(points: Point[]): Point {
     let sx = 0, sy = 0
@@ -50,6 +51,7 @@ interface CanvasEngineProps {
     rooms: Room[]
     doors: Door[]
     windows: Window[]
+    shunts?: Shunt[]
     currentWall: { start: Point; end: Point } | null
     activeTool: string
     hoveredWallId: string | null
@@ -75,12 +77,13 @@ interface CanvasEngineProps {
     selectedRoomId: string | null
     onSelectRoom: (id: string | null) => void
     onStartDragWall: () => void
-    onDragElement: (type: "door" | "window", id: string, pointer: Point) => void
-    selectedElement: { type: "door" | "window", id: string } | null
-    onSelectElement: (element: { type: "door" | "window", id: string } | null) => void
-    onUpdateElement: (type: "door" | "window", id: string, updates: any) => void
-    onCloneElement: (type: "door" | "window", id: string) => void
-    onDeleteElement: (type: "door" | "window", id: string) => void
+    onDragElement: (type: "door" | "window" | "shunt", id: string, pointer: Point) => void
+    selectedElement: { type: "door" | "window" | "shunt", id: string } | null
+    onSelectElement: (element: { type: "door" | "window" | "shunt", id: string } | null) => void
+    onUpdateElement: (type: "door" | "window" | "shunt", id: string, updates: any) => void
+    onCloneElement: (type: "door" | "window" | "shunt", id: string) => void
+    onDeleteElement: (type: "door" | "window" | "shunt", id: string) => void
+    onUpdateShunt?: (id: string, updates: Partial<Shunt>) => void
     wallSnapshot: Wall[] | null
     bgImage?: string | null
     bgConfig?: { opacity: number, scale: number, x: number, y: number, rotation?: number }
@@ -104,10 +107,131 @@ export interface CanvasEngineRef {
     getSnapshot: () => string
 }
 
+
+// Memoized Shunt Item to prevent re-renders during drag (fixes stutter)
+const ShuntItem = React.memo(({
+    shunt, isSelected, activeTool, walls, snappingEnabled, zoom, shunts,
+    setDragShuntState, onSelect, onDragEnd
+}: {
+    shunt: Shunt, isSelected: boolean, activeTool: string,
+    walls: Wall[], snappingEnabled: boolean, zoom: number, shunts: Shunt[],
+    setDragShuntState: (state: { id: string, x: number, y: number } | null) => void,
+    onSelect: () => void,
+    onDragEnd: (id: string, x: number, y: number) => void
+}) => {
+    return (
+        <Group
+            id={`shunt-${shunt.id}`}
+            x={shunt.x}
+            y={shunt.y}
+            draggable={activeTool === "select"}
+            onClick={(e) => { e.cancelBubble = true; onSelect() }}
+            onTap={(e) => { e.cancelBubble = true; onSelect() }}
+            onDragStart={(e) => { onSelect() }}
+            onDragMove={(e) => {
+                const node = e.target as any
+                let x = node.x()
+                let y = node.y()
+
+                // Precision
+                x = Math.round(x * 10) / 10
+                y = Math.round(y * 10) / 10
+
+                if (snappingEnabled) {
+                    let bestDist = 20
+                    let bestSnap: { x: number, y: number } | null = null
+
+                    walls.forEach(w => {
+                        const p = { x, y }
+                        const { point: proj, t } = getClosestPointOnSegment(p, w.start, w.end)
+                        if (t >= 0 && t <= 1) {
+                            const distToAxis = Math.sqrt(Math.pow(p.x - proj.x, 2) + Math.pow(p.y - proj.y, 2))
+                            const targetDist = (w.thickness / 2) + (shunt.width / 2)
+                            if (Math.abs(distToAxis - targetDist) < bestDist) {
+                                let v = { x: p.x - proj.x, y: p.y - proj.y }
+                                const len = Math.sqrt(v.x * v.x + v.y * v.y)
+                                if (len > 0.001) {
+                                    v = { x: v.x / len, y: v.y / len }
+                                    bestSnap = {
+                                        x: proj.x + v.x * targetDist,
+                                        y: proj.y + v.y * targetDist
+                                    }
+                                    bestDist = Math.abs(distToAxis - targetDist)
+                                }
+                            }
+                        }
+                    })
+                    if (bestSnap) {
+                        x = (bestSnap as any).x
+                        y = (bestSnap as any).y
+                    }
+
+                    // --- SHUNT-TO-SHUNT MAGNETIC ALIGNMENT ---
+                    const alignThreshold = 10 / zoom
+                    let alignX: number | null = null
+                    let alignY: number | null = null
+                    let minDiffX = Infinity
+                    let minDiffY = Infinity
+
+                    shunts.forEach(s => {
+                        if (s.id === shunt.id) return
+                        const diffX = Math.abs(x - s.x)
+                        if (diffX < alignThreshold && diffX < minDiffX) {
+                            minDiffX = diffX
+                            alignX = s.x
+                        }
+                        const diffY = Math.abs(y - s.y)
+                        if (diffY < alignThreshold && diffY < minDiffY) {
+                            minDiffY = diffY
+                            alignY = s.y
+                        }
+                    })
+
+                    if (alignX !== null) x = alignX
+                    if (alignY !== null) y = alignY
+                }
+
+                node.x(x)
+                node.y(y)
+                setDragShuntState({ id: shunt.id, x, y })
+            }}
+            onDragEnd={(e) => {
+                const node = e.target
+                setDragShuntState(null)
+                onDragEnd(shunt.id, node.x(), node.y())
+            }}
+        >
+            <Rect
+                width={shunt.width}
+                height={shunt.height}
+                offsetX={shunt.width / 2}
+                offsetY={shunt.height / 2}
+                fill="white"
+                stroke={isSelected ? "#0ea5e9" : "#334155"}
+                strokeWidth={2}
+            />
+            {isSelected && (
+                <Group y={-shunt.height / 2 - 20}>
+                    {/* Label removed as per user request */}
+                </Group>
+            )}
+        </Group>
+    )
+}, (prev, next) => {
+    // Only re-render if data changes (ignore parent render caused by drag state)
+    // We treat walls as static for this purpose (or if they change we re-render)
+    return prev.shunt.x === next.shunt.x &&
+        prev.shunt.y === next.shunt.y &&
+        prev.isSelected === next.isSelected &&
+        prev.activeTool === next.activeTool &&
+        prev.zoom === next.zoom && // zoom affects threshold logic
+        prev.shunts === next.shunts // shunts list usually only changes on dragEnd
+})
+
 export const CanvasEngine = ({
     width, height, zoom, offset,
-    walls, rooms, doors, windows,
-    currentWall, activeTool, hoveredWallId, onPan, onZoom, onMouseDown, onMouseMove, onMouseUp, onHoverWall, onSelectWall, onDragWall, onDragEnd, onUpdateWallLength, onDeleteWall, onSplitWall, onUpdateWallThickness, onUpdateWallInvisible, onUpdateRoom, onDeleteRoom, onCloneRoom, selectedWallIds, selectedRoomId, onSelectRoom, onDragVertex, wallSnapshot, onStartDragWall, onDragElement, selectedElement, onSelectElement, onUpdateElement, onCloneElement, onDeleteElement, bgImage, bgConfig, onUpdateBgConfig, isCalibrating, calibrationPoints, calibrationTargetValue, onUpdateCalibrationPoint,
+    walls, rooms, doors, windows, shunts = [],
+    currentWall, activeTool, hoveredWallId, onPan, onZoom, onMouseDown, onMouseMove, onMouseUp, onHoverWall, onSelectWall, onDragWall, onDragEnd, onUpdateWallLength, onDeleteWall, onSplitWall, onUpdateWallThickness, onUpdateWallInvisible, onUpdateRoom, onDeleteRoom, onCloneRoom, selectedWallIds, selectedRoomId, onSelectRoom, onDragVertex, wallSnapshot, onStartDragWall, onDragElement, selectedElement, onSelectElement, onUpdateElement, onCloneElement, onDeleteElement, onUpdateShunt, bgImage, bgConfig, onUpdateBgConfig, isCalibrating, calibrationPoints, calibrationTargetValue, onUpdateCalibrationPoint,
     phantomArc,
     snappingEnabled = true,
     rulerPoints,
@@ -120,10 +244,25 @@ export const CanvasEngine = ({
 }: CanvasEngineProps) => {
     const stageRef = React.useRef<any>(null)
     const gridRef = React.useRef<any>(null)
+    const [dragShuntState, setDragShuntState] = React.useState<{ id: string, x: number, y: number } | null>(null)
     const [image, setImage] = React.useState<HTMLImageElement | null>(null)
+    const [editingMeas, setEditingMeas] = React.useState<{
+        shuntId: string,
+        index: number,
+        dir: { x: number, y: number },
+        currentDist: number,
+        screenPos: { x: number, y: number },
+        wallPoint: { x: number, y: number },
+        wallThickness?: number,
+        shuntWidth?: number,
+        shuntHeight?: number,
+        shuntRotation?: number
+    } | null>(null)
+
     const isSamePoint = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < 5.0
     const lastTapRef = React.useRef<number>(0)
     const dragOffsetRef = React.useRef<{ x: number, y: number } | null>(null)
+    const lastClickedWallForEdit = React.useRef<string | null>(null)
 
     // Calculate the geometric center of all floor plan content
     const calculateFloorPlanCenter = React.useCallback(() => {
@@ -331,7 +470,6 @@ export const CanvasEngine = ({
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{title}</span>
                     <div className="flex items-center gap-2">
                         <span className="text-2xl font-black text-slate-800">{tempValue || "0"}</span>
-                        <span className="text-sm text-slate-400">cm</span>
                     </div>
                 </div>
 
@@ -408,7 +546,7 @@ export const CanvasEngine = ({
         )
     }
 
-    const NumericInput = ({ label, value, setter, onEnter, placeholder }: { label?: string, value: string, setter: (v: string) => void, onEnter: (val?: string) => void, placeholder?: string }) => {
+    const NumericInput = ({ label, value, setter, onEnter, placeholder, step = 1 }: { label?: string, value: string, setter: (v: string) => void, onEnter: (val?: string) => void, placeholder?: string, step?: number }) => {
         const [showKeypad, setShowKeypad] = React.useState(false)
 
         if (isMobile) {
@@ -432,7 +570,6 @@ export const CanvasEngine = ({
                         className="min-w-[100px] h-10 px-3 bg-white border-2 border-sky-400 rounded-xl text-center text-lg font-black text-slate-800 hover:bg-sky-50 active:scale-95 transition-all shadow-md flex items-center justify-center gap-1"
                     >
                         {value || placeholder || "0"}
-                        <span className="text-xs font-bold text-sky-500 uppercase">cm</span>
                     </button>
                     {showKeypad && (
                         <div
@@ -470,14 +607,22 @@ export const CanvasEngine = ({
 
         return (
             <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 autoFocus
                 value={value}
-                onChange={(e) => setter(e.target.value)}
+                onChange={(e) => {
+                    // Normalize comma to dot
+                    const val = e.target.value.replace(/,/g, '.')
+                    // Allow only numbers and dots
+                    if (/^[\d.]*$/.test(val)) {
+                        setter(val)
+                    }
+                }}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter') onEnter(value)
                 }}
-                className="w-16 p-1.5 border-2 border-slate-200 rounded-lg text-center text-sm font-bold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
+                className="w-20 p-1.5 border-2 border-slate-200 rounded-lg text-center text-sm font-bold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
                 placeholder={placeholder}
             />
         )
@@ -697,7 +842,7 @@ export const CanvasEngine = ({
             if (wall) {
                 const dx = wall.end.x - wall.start.x
                 const dy = wall.end.y - wall.start.y
-                setEditLength(Math.round(Math.sqrt(dx * dx + dy * dy)).toString())
+                setEditLength(Math.sqrt(dx * dx + dy * dy).toFixed(1))
                 setEditThickness(wall.isInvisible ? "0" : wall.thickness.toString())
                 if (!editMode) setEditMode("menu")
             }
@@ -712,8 +857,8 @@ export const CanvasEngine = ({
                 ? doors.find(d => d.id === selectedElement.id)
                 : windows.find(w => w.id === selectedElement.id)
             if (el) {
-                setEditLength(el.width.toString())
-                if ('height' in el) setEditHeight(el.height.toString())
+                setEditLength(el.width.toFixed(1))
+                if ('height' in el) setEditHeight(el.height.toFixed(1))
                 else setEditHeight("")
             }
         } else {
@@ -871,14 +1016,14 @@ export const CanvasEngine = ({
             if (nearestEdge) return nearestEdge
         }
 
-        // 4. ROUNDING FINAL (1cm grid)
+        // 4. ROUNDING FINAL (1cm grid) -> Relaxed to 0.1 (1mm) for precision
         return {
-            x: Math.round(point.x),
-            y: Math.round(point.y)
+            x: Math.round(point.x * 10) / 10,
+            y: Math.round(point.y * 10) / 10
         }
     }
 
-    const findTerminal = (startWall: Wall, startP: Point, visited: Set<string>, faceNormal: Point) => {
+    const findTerminal = (startWall: Wall, startP: Point, visited: Set<string>, faceNormal: Point, isInterior: boolean) => {
         const TOL = 5.0
         let curr = startP
         let addedLen = 0
@@ -901,15 +1046,35 @@ export const CanvasEngine = ({
 
             if (!cont) return { terminal: curr, addedLen, terminalWallId }
 
-            // Check if ANY other neighbor (perpendicular) blocks this specific face
-            const isBlocked = neighbors.some(nw => {
-                const pOther = Math.sqrt(Math.pow(nw.start.x - curr.x, 2) + Math.pow(nw.start.y - curr.y, 2)) < TOL ? nw.end : nw.start
-                const dir = { x: pOther.x - curr.x, y: pOther.y - curr.y }
-                const dotFace = dir.x * faceNormal.x + dir.y * faceNormal.y
-                return dotFace > 0.5 // Si un muro perpendicular sale hacia este lado, bloquea la cadena de medida
-            })
+            // NEW: Break chain if face status (Interior vs Exterior) changes.
+            // This prevents "Exterior" chains from swallowing shared walls that are actually interior.
+            const midP_cont = { x: (cont.start.x + cont.end.x) / 2, y: (cont.start.y + cont.end.y) / 2 }
+            const testP_cont = { x: midP_cont.x + faceNormal.x * 12, y: midP_cont.y + faceNormal.y * 12 }
+            const contIsInterior = isPointInAnyRoom(testP_cont)
+            if (contIsInterior !== isInterior) {
+                return { terminal: curr, addedLen, terminalWallId }
+            }
 
-            if (isBlocked) return { terminal: curr, addedLen, terminalWallId }
+            // Check if ANY other neighbor (perpendicular) blocks this specific face
+            // FACADE FIX: If we are measuring facade (exterior), we IGNORE partitions.
+            if (isInterior) {
+                const isBlocked = neighbors.some(nw => {
+                    const nwHorizontal = Math.abs(nw.start.y - nw.end.y) < 2.0
+                    const nwVertical = Math.abs(nw.start.x - nw.end.x) < 2.0
+                    const wallHorizontal = Math.abs(startWall.start.y - startWall.end.y) < 2.0
+                    const wallVertical = Math.abs(startWall.start.x - startWall.end.x) < 2.0
+                    const isPerpendicular = (nwHorizontal !== wallHorizontal || nwVertical !== wallVertical)
+
+                    if (!isPerpendicular) return false
+
+                    const pOther = Math.sqrt(Math.pow(nw.start.x - curr.x, 2) + Math.pow(nw.start.y - curr.y, 2)) < TOL ? nw.end : nw.start
+                    const dir = { x: pOther.x - curr.x, y: pOther.y - curr.y }
+                    const dotFace = dir.x * faceNormal.x + dir.y * faceNormal.y
+                    return dotFace > 0.5 // Si un muro perpendicular sale hacia este lado, bloquea la cadena de medida
+                })
+
+                if (isBlocked) return { terminal: curr, addedLen, terminalWallId }
+            }
 
             visited.add(cont.id)
             const segmentLen = Math.sqrt(Math.pow(cont.end.x - cont.start.x, 2) + Math.pow(cont.end.y - cont.start.y, 2))
@@ -919,7 +1084,7 @@ export const CanvasEngine = ({
         }
     }
 
-    const getFaceOffsetAt = (wall: Wall, point: Point, faceNormal: Point, ignoreIds: Set<string> = new Set()) => {
+    const getFaceOffsetAt = (wall: Wall, point: Point, faceNormal: Point, ignoreIds: Set<string> = new Set(), isEnd: boolean) => {
         const TOL = 5.0
         const neighbors = walls.filter(w => !ignoreIds.has(w.id) && w.id !== wall.id && (() => {
             const closestObj = getClosestPointOnSegment(point, w.start, w.end)
@@ -933,7 +1098,6 @@ export const CanvasEngine = ({
         const ux = dx / centerLength
         const uy = dy / centerLength
 
-        // Recolectamos todas las influencias de los vecinos
         const retractions: number[] = [];
         const extensions: number[] = [];
         let hasContinuation = false;
@@ -947,21 +1111,18 @@ export const CanvasEngine = ({
 
             const cross = ux * nuy - uy * nux
 
-            // Si son colineales, no hay offset (es una continuación)
             if (Math.abs(cross) < 0.05) {
                 const dot = ux * nux + uy * nuy
                 if (Math.abs(dot) > 0.95) hasContinuation = true
                 return
             }
 
-            // Caso 2: Perpendiculares o Angulados
             const isAtStart = Math.sqrt(Math.pow(nw.start.x - point.x, 2) + Math.pow(nw.start.y - point.y, 2)) < TOL
             const isAtEnd = Math.sqrt(Math.pow(nw.end.x - point.x, 2) + Math.pow(nw.end.y - point.y, 2)) < TOL
 
             let blocksFace = false
             let localDotFace = 0
             if (!isAtStart && !isAtEnd) {
-                // T-Junction: el punto está en medio del muro vecino
                 blocksFace = true
             } else {
                 const otherP = isAtStart ? nw.end : nw.start
@@ -970,7 +1131,7 @@ export const CanvasEngine = ({
                 blocksFace = localDotFace > 0.5
             }
 
-            if (blocksFace) {
+            if (blocksFace || (isConnectedPerpendicular(wall, nw) && localDotFace < -0.5)) {
                 const D = wall.thickness / 2
                 const K = nw.thickness / 2
                 const nnx = -nuy, nny = nux
@@ -981,23 +1142,35 @@ export const CanvasEngine = ({
                     return (rx * nuy - ry * nux) / cross
                 }
                 const s1 = solveS(K), s2 = solveS(-K)
-                retractions.push(Math.min(s1, s2))
-            } else if (isConnectedPerpendicular(wall, nw) && localDotFace < -0.5) {
-                extensions.push(wall.thickness / 2)
+                if (blocksFace) {
+                    retractions.push(isEnd ? Math.min(s1, s2) : Math.max(s1, s2))
+                } else {
+                    extensions.push(isEnd ? Math.max(s1, s2) : Math.min(s1, s2))
+                }
             }
         })
 
-        // Aplicamos prioridad: Retracción > Continuación > Extensión > Punta libre
-        if (retractions.length > 0) return Math.min(...retractions)
+        if (retractions.length > 0) return isEnd ? Math.min(...retractions) : Math.max(...retractions)
         if (hasContinuation) return 0
-        if (extensions.length > 0) return Math.max(...extensions)
-
-        return wall.thickness / 2
+        if (extensions.length > 0) return isEnd ? Math.max(...extensions) : Math.min(...extensions)
+        return 0
     }
 
     // Sync editLength when editFace changes to match the visualized dimension
     React.useEffect(() => {
-        if (!selectedWall || !editMode) return
+        if (!selectedWall || editMode !== "length") {
+            lastClickedWallForEdit.current = null
+            return
+        }
+
+        // If we just clicked a specific label, wait until the selection state matches
+        // before allowing the automatic sync to overwrite anything.
+        if (lastClickedWallForEdit.current && selectedWall.id !== lastClickedWallForEdit.current) {
+            return
+        }
+
+        // Clear the lock once we have a match or if we are just toggling faces within the menu
+        lastClickedWallForEdit.current = null
 
         const dx = selectedWall.end.x - selectedWall.start.x
         const dy = selectedWall.end.y - selectedWall.start.y
@@ -1007,58 +1180,109 @@ export const CanvasEngine = ({
         if (editFace !== "center") {
             const nx = -dy / centerLength
             const ny = dx / centerLength
-            // Use same faceNormal logic as in renderWallMeasurement/Buttons
             const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
 
-            // Use Segment-Only logic (no chain) to match editing behavior
+            const isInterior = (editFace === "interior") || (() => {
+                const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
+                const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
+                return isPointInAnyRoom(testP)
+            })()
             const chainIds = new Set([selectedWall.id])
 
-            targetLen += getFaceOffsetAt(selectedWall, selectedWall.start, faceNormal, chainIds) +
-                getFaceOffsetAt(selectedWall, selectedWall.end, faceNormal, chainIds)
+            // GLOBAL CHAIN LOGIC: Always sync with the total chain length (Interior or Exterior)
+            // to maintain consistency with the visualized labels.
+            const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, isInterior)
+            const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, isInterior)
+            const chainLen = centerLength + back.addedLen + forward.addedLen
+
+            const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || selectedWall
+            const terminalEndWall = walls.find(w => w.id === forward.terminalWallId) || selectedWall
+
+            targetLen = chainLen +
+                getFaceOffsetAt(terminalEndWall, forward.terminal, faceNormal, chainIds, true) -
+                getFaceOffsetAt(terminalStartWall, back.terminal, faceNormal, chainIds, false)
         }
 
-        setEditLength(Math.round(targetLen).toString())
+        setEditLength(targetLen.toFixed(1))
     }, [editFace, selectedWall, editMode])
 
-    const renderWallMeasurement = (wall: Wall, offsetVal: number, color: string = "#64748b", isInteractive: boolean = false, overrideLength?: number) => {
+    const renderWallMeasurement = (wall: Wall, offsetVal: number, forceColor?: string, forceInteractive?: boolean, overrideLength?: number) => {
+        if (wall.id.startsWith("wall-arc-")) return null
+
         const dx = wall.end.x - wall.start.x
         const dy = wall.end.y - wall.start.y
         if (wall.isInvisible) return null
         const centerLength = Math.sqrt(dx * dx + dy * dy)
 
-        if (!selectedWallIds.includes(wall.id) && !dragStartPos.current && centerLength < 30) return null
-
-
         const nx = -dy / centerLength
         const ny = dx / centerLength
         const faceNormal = { x: nx * Math.sign(offsetVal), y: ny * Math.sign(offsetVal) }
 
-        const midX = (wall.start.x + wall.end.x) / 2
-        const midY = (wall.start.y + wall.end.y) / 2
-
-        const probeDist = 8.0 // coordinate-fixed probe (8cm)
-        const pointSlightlyOff = { x: midX + nx * Math.sign(offsetVal) * probeDist, y: midY + ny * Math.sign(offsetVal) * probeDist }
-        // Deterministic face type based on offset side, not room detection (avoid ambiguity)
+        // Deterministic face type based on offset side
         const faceType: "interior" | "exterior" = offsetVal > 0 ? "interior" : "exterior"
+        const midP = { x: (wall.start.x + wall.end.x) / 2, y: (wall.start.y + wall.end.y) / 2 }
+        const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
+        const isInterior = (faceType === "interior") || isPointInAnyRoom(testP)
 
         // COLLINEAR CHAIN SEARCH
         const chainIds = new Set([wall.id])
-        const back = findTerminal(wall, wall.start, chainIds, faceNormal)
-        const forward = findTerminal(wall, wall.end, chainIds, faceNormal)
+        const back = findTerminal(wall, wall.start, chainIds, faceNormal, isInterior)
+        const forward = findTerminal(wall, wall.end, chainIds, faceNormal, isInterior)
 
         const totalChainCenter = centerLength + back.addedLen + forward.addedLen
-        const finalOffStart = getFaceOffsetAt(wall, back.terminal, faceNormal, chainIds)
-        const finalOffEnd = getFaceOffsetAt(wall, forward.terminal, faceNormal, chainIds)
+        const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || wall
+        const terminalEndWall = walls.find(w => w.id === forward.terminalWallId) || wall
 
+        const finalOffStart = getFaceOffsetAt(terminalStartWall, back.terminal, faceNormal, chainIds, false)
+        const finalOffEnd = getFaceOffsetAt(terminalEndWall, forward.terminal, faceNormal, chainIds, true)
+
+        // CHAIN SELECTION & COLOR LOGIC
+        const isAnyInChainSelected = Array.from(chainIds).some(id => selectedWallIds.includes(id))
+        const isDragging = dragStartPos.current !== null
+
+        // NEW VISIBILITY LOGIC
+        let isVisible = false
+        if (isAnyInChainSelected || isDragging) {
+            isVisible = true
+        } else if (selectedRoomId) {
+            // Check if measurement is inside the selected room
+            const selectedRoom = rooms.find(r => r.id === selectedRoomId)
+            if (selectedRoom) {
+                // If room is very small (< 2m²), do NOT show internal measurements to avoid clutter
+                if (selectedRoom.area < 2) {
+                    isVisible = false
+                } else {
+                    // In-line checks for simplicity or use existing helpers
+                    // Ray-casting for Point in Polygon
+                    let inside = false
+                    const polygon = selectedRoom.polygon
+                    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                        const xi = polygon[i].x, yi = polygon[i].y
+                        const xj = polygon[j].x, yj = polygon[j].y
+                        const intersect = ((yi > testP.y) !== (yj > testP.y)) &&
+                            (testP.x < (xj - xi) * (testP.y - yi) / (yj - yi) + xi)
+                        if (intersect) inside = !inside
+                    }
+                    if (inside) isVisible = true
+                }
+            }
+        }
+
+        if (!isVisible) return null
+
+        const isInteractive = forceInteractive ?? isAnyInChainSelected
+        const defaultColor = isInteractive
+            ? (faceType === "interior" ? "#0ea5e9" : "#f59e0b")
+            : "#64748b"
+        const color = forceColor || defaultColor
+
+        // LEADER LOGIC: Exactly one label per chain.
         const sortedIds = Array.from(chainIds).sort()
         const isLeader = wall.id === sortedIds[0]
-        const shouldShowLabel = isLeader
+        if (!isLeader) return null
 
-        // Interior length is segment-specific (face-to-face inside room)
-        // Exterior length is chain-specific (total facade)
-        const displayLength = overrideLength !== undefined ? overrideLength : Math.round(totalChainCenter + finalOffStart + finalOffEnd)
-
-        if (!shouldShowLabel) return null
+        const calculatedLen = totalChainCenter + finalOffEnd - finalOffStart
+        const displayLength = overrideLength !== undefined ? overrideLength : parseFloat(calculatedLen.toFixed(1))
 
         const ux = dx / centerLength
         const uy = dy / centerLength
@@ -1068,26 +1292,25 @@ export const CanvasEngine = ({
         // Use a larger offset for short walls to push text out of the corner
         const visualOff = isShortWall ? offsetVal * 3.5 : offsetVal * 0.8
 
-        const p1x = (back.terminal.x + ux * (-finalOffStart)) + nx * visualOff
-        const p1y = (back.terminal.y + uy * (-finalOffStart)) + ny * visualOff
-        const p2x = (forward.terminal.x + ux * (finalOffEnd)) + nx * visualOff
-        const p2y = (forward.terminal.y + uy * (finalOffEnd)) + ny * visualOff
+        const p1x = (back.terminal.x + ux * finalOffStart) + nx * visualOff
+        const p1y = (back.terminal.y + uy * finalOffStart) + ny * visualOff
+        const p2x = (forward.terminal.x + ux * finalOffEnd) + nx * visualOff
+        const p2y = (forward.terminal.y + uy * finalOffEnd) + ny * visualOff
 
-        // Base line positions (where the main dimension line sits)
+        // Base line positions
         const baseVisualOff = offsetVal * 0.8
-        const bp1x = (back.terminal.x + ux * (-finalOffStart)) + nx * baseVisualOff
-        const bp1y = (back.terminal.y + uy * (-finalOffStart)) + ny * baseVisualOff
-        const bp2x = (forward.terminal.x + ux * (finalOffEnd)) + nx * baseVisualOff
-        const bp2y = (forward.terminal.y + uy * (finalOffEnd)) + ny * baseVisualOff
+        const bp1x = (back.terminal.x + ux * finalOffStart) + nx * baseVisualOff
+        const bp1y = (back.terminal.y + uy * finalOffStart) + ny * baseVisualOff
+        const bp2x = (forward.terminal.x + ux * finalOffEnd) + nx * baseVisualOff
+        const bp2y = (forward.terminal.y + uy * finalOffEnd) + ny * baseVisualOff
 
         const labelX = (p1x + p2x) / 2
         const labelY = (p1y + p2y) / 2
 
-        // Leader line origin (center of the standard dimension line)
+        // Leader line origin
         const originX = (bp1x + bp2x) / 2
         const originY = (bp1y + bp2y) / 2
 
-        // Líneas de testigo (Witness lines / Caps)
         const capSize = 6 / zoom
         const capP1A = { x: p1x + nx * capSize, y: p1y + ny * capSize }
         const capP1B = { x: p1x - nx * capSize, y: p1y - ny * capSize }
@@ -1138,20 +1361,22 @@ export const CanvasEngine = ({
                             : Math.atan2(dy, dx) * 180 / Math.PI)}
                     onClick={(e) => {
                         e.cancelBubble = true
+                        lastClickedWallForEdit.current = wall.id
                         if (!selectedWallIds.includes(wall.id)) {
                             onSelectWall(wall.id)
                         }
                         setEditFace(faceType)
-                        setEditLength(displayLength.toString())
+                        setEditLength(displayLength.toFixed(1))
                         setEditMode("length")
                     }}
                     onTap={(e) => {
                         e.cancelBubble = true
+                        lastClickedWallForEdit.current = wall.id
                         if (!selectedWallIds.includes(wall.id)) {
                             onSelectWall(wall.id)
                         }
                         setEditFace(faceType)
-                        setEditLength(displayLength.toString())
+                        setEditLength(displayLength.toFixed(1))
                         setEditMode("length")
                     }}
                 >
@@ -1170,7 +1395,7 @@ export const CanvasEngine = ({
                         name="measurement-text"
                         x={0}
                         y={-5 / zoom}
-                        text={`${displayLength} cm`}
+                        text={`${typeof displayLength === 'number' ? displayLength.toFixed(1) : displayLength}`}
                         fontSize={14 / zoom}
                         fill={isInteractive && editMode === "length" && editFace === faceType ? "#0ea5e9" : color}
                         align="center"
@@ -1229,7 +1454,7 @@ export const CanvasEngine = ({
             return
         }
 
-        if (isRightClick || isMiddleClick || isBackground || (activeTool === "select" && !targetName.startsWith("wall-") && !targetName.startsWith("door-") && !targetName.startsWith("window-") && !targetName.startsWith("vertex-") && !targetName.startsWith("measurement-"))) {
+        if (isRightClick || isMiddleClick || isBackground || (activeTool === "select" && !targetName.startsWith("wall-") && !targetName.startsWith("door-") && !targetName.startsWith("window-") && !targetName.startsWith("shunt-") && !targetName.startsWith("vertex-") && !targetName.startsWith("measurement-"))) {
             onSelectWall(null)
             onSelectRoom(null)
             onSelectElement(null)
@@ -1256,6 +1481,9 @@ export const CanvasEngine = ({
                 } else if (targetName.startsWith("window-")) {
                     const windowId = targetName.split("window-")[1]
                     onSelectElement({ type: "window", id: windowId })
+                } else if (targetName.startsWith("shunt-")) {
+                    const shuntId = targetName.split("shunt-")[1]
+                    onSelectElement({ type: "shunt", id: shuntId })
                 } else if (targetName === "room-poly" || targetName.startsWith("room-")) {
                     // Try to find roomId from ancestors or ID if encoded
                 }
@@ -1276,14 +1504,14 @@ export const CanvasEngine = ({
             onSelectElement(null)
         }
 
-        if (activeTool !== "wall" && activeTool !== "door" && activeTool !== "window" && activeTool !== "ruler" && activeTool !== "arc") return
+        if (activeTool !== "wall" && activeTool !== "door" && activeTool !== "window" && activeTool !== "ruler" && activeTool !== "arc" && activeTool !== "shunt") return
 
         const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
 
         // NEW TOUCH-UP DRAWING LOGIC:
         // On touch devices with drawing tools, DELAY the click until finger is released
         // This allows users to "aim" using the crosshair and snapping guides
-        const isDrawingTool = activeTool === "wall" || activeTool === "door" || activeTool === "window" || activeTool === "ruler" || activeTool === "arc"
+        const isDrawingTool = activeTool === "wall" || activeTool === "door" || activeTool === "window" || activeTool === "ruler" || activeTool === "arc" || activeTool === "shunt"
         if (isTouchInteraction && isDrawingTool) {
             isAimingDrawing.current = true
             aimingStartPos.current = { x: stagePos.x, y: adjustedY }
@@ -1545,14 +1773,9 @@ export const CanvasEngine = ({
                         )}
 
 
-                        {/* Renderizar habitaciones detectadas */}
+                        {/* Renderizar habitaciones detectadas (SOLO FONDO) */}
                         {rooms.map((room: Room) => {
                             const points = room.polygon.flatMap((p: Point) => [p.x, p.y])
-                            const centroid = {
-                                x: room.polygon.reduce((sum: number, p: Point) => sum + p.x, 0) / room.polygon.length,
-                                y: room.polygon.reduce((sum: number, p: Point) => sum + p.y, 0) / room.polygon.length
-                            }
-                            const labelPos = room.visualCenter || centroid
 
                             return (
                                 <Group key={room.id}>
@@ -1566,32 +1789,6 @@ export const CanvasEngine = ({
                                         onClick={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
                                         onTap={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
                                     />
-                                    <Group
-                                        name="room-label"
-                                        x={labelPos.x} y={labelPos.y}
-                                        onClick={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
-                                        onTap={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
-                                    >
-                                        <Text
-                                            name="room-label-text"
-                                            y={-10}
-                                            text={room.name}
-                                            fontSize={18}
-                                            fill="#1e293b"
-                                            fontStyle="bold"
-                                            align="center"
-                                            offsetX={30}
-                                        />
-                                        <Text
-                                            name="room-label-text"
-                                            y={5}
-                                            text={`${room.area.toFixed(2)} m²`}
-                                            fontSize={14}
-                                            fill="#64748b"
-                                            align="center"
-                                            offsetX={30}
-                                        />
-                                    </Group>
                                 </Group>
                             )
                         })}
@@ -1744,18 +1941,10 @@ export const CanvasEngine = ({
                                             />
                                         )
                                     })()}
-                                    {/* Medidas duales para pared seleccionada */}
-                                    {isSelected && (
-                                        <>
-                                            {renderWallMeasurement(wall, 25 / zoom, "#0ea5e9", true)}
-                                            {renderWallMeasurement(wall, -25 / zoom, "#f59e0b", true)}
-                                        </>
-                                    )}
+                                    {/* Medidas duales SIEMPRE llamadas, filtrado interno */}
+                                    {renderWallMeasurement(wall, 25 / zoom)}
+                                    {renderWallMeasurement(wall, -25 / zoom)}
 
-                                    {/* Mostrar medida si la habitación está seleccionada (y el muro no, para no duplicar) */}
-                                    {/* Measurements removed on room selection */}
-                                    {/* Medida durante el arrastre (si no está seleccionada por algún motivo) */}
-                                    {dragStartPos.current && isHovered && !isSelected && renderWallMeasurement(wall, 25 / zoom)}
                                     {/* MEDIDAS PERPENDICULARES DINÁMICAS */}
                                     {(isSelected || dragStartPos.current) && (
                                         walls.filter(otherW => isConnectedPerpendicular(wall, otherW)).map(perpWall => (
@@ -1783,8 +1972,8 @@ export const CanvasEngine = ({
                             // Distancias desde los bordes de la puerta
                             const d1Val = Math.max(0, (door.t * wallLen) - (door.width / 2))
                             const d2Val = Math.max(0, ((1 - door.t) * wallLen) - (door.width / 2))
-                            const d1 = d1Val.toFixed(0)
-                            const d2 = d2Val.toFixed(0)
+                            const d1 = d1Val.toFixed(1)
+                            const d2 = d2Val.toFixed(1)
 
                             const isSelected = selectedElement?.id === door.id && selectedElement?.type === "door"
 
@@ -1802,6 +1991,7 @@ export const CanvasEngine = ({
                                     onClick={(e) => { e.cancelBubble = true; onSelectElement({ type: "door", id: door.id }) }}
                                     onTap={(e) => { e.cancelBubble = true; onSelectElement({ type: "door", id: door.id }) }}
                                     onDragStart={(e) => {
+                                        onSelectElement({ type: "door", id: door.id })
                                         const stage = e.target.getStage()
                                         if (stage) {
                                             const transform = stage.getAbsoluteTransform().copy()
@@ -1853,19 +2043,16 @@ export const CanvasEngine = ({
                                         })
 
                                         // 3. STRICTLY snap to the closest wall.
-                                        //    We do NOT allow free movement. Element must be on a wall.
                                         if (closestWall) {
-                                            // Force visual position to be EXACTLY on the wall projection
-                                            e.target.position({ x: closestWall.projX, y: closestWall.projY })
+                                            const cw = closestWall as { wallId: string, t: number, projX: number, projY: number }
+                                            e.target.position({ x: cw.projX, y: cw.projY })
 
-                                            // 4. Update state with "Side" Preservation
-                                            //    Pass a slightly offset position so internal logic finds the same wall AND correct side
-                                            let offX = virtualCenterX - closestWall.projX
-                                            let offY = virtualCenterY - closestWall.projY
+                                            let offX = virtualCenterX - cw.projX
+                                            let offY = virtualCenterY - cw.projY
                                             const currentDist = Math.sqrt(offX * offX + offY * offY)
 
-                                            let reportX = closestWall.projX
-                                            let reportY = closestWall.projY
+                                            let reportX = cw.projX
+                                            let reportY = cw.projY
 
                                             if (currentDist > 0.001) {
                                                 const scale = Math.min(currentDist, 10) / currentDist
@@ -1966,7 +2153,7 @@ export const CanvasEngine = ({
                                             {/* Actually the Group rotation above might be erratic. Let's simplify. */}
                                             {/* If we rotate 180, we flip content. */}
                                             <Text
-                                                text={`${door.width} cm`}
+                                                text={`${door.width}`}
                                                 fontSize={11} // Increased from 7
                                                 fill="#475569"
                                                 align="center"
@@ -1981,7 +2168,7 @@ export const CanvasEngine = ({
                                     {/* Distancias dinámicas alineadas con el muro (Estilo HomeByMe) */}
                                     {isSelected && (
                                         <Group rotation={0}>
-                                            {d1Val > 5 && (
+                                            {d1Val > 0 && (
                                                 <Group x={gap1CenterLocalX} y={20 + wall.thickness / 2}>
                                                     <Group rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
                                                         <Rect
@@ -1989,11 +2176,11 @@ export const CanvasEngine = ({
                                                             fill="white" stroke="#0ea5e9" strokeWidth={0.5} cornerRadius={4}
                                                             shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
                                                         />
-                                                        <Text text={`${d1} cm`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
+                                                        <Text text={`${d1}`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
                                                     </Group>
                                                 </Group>
                                             )}
-                                            {d2Val > 5 && (
+                                            {d2Val > 0 && (
                                                 <Group x={gap2CenterLocalX} y={20 + wall.thickness / 2}>
                                                     <Group rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
                                                         <Rect
@@ -2001,7 +2188,7 @@ export const CanvasEngine = ({
                                                             fill="white" stroke="#0ea5e9" strokeWidth={0.5} cornerRadius={4}
                                                             shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
                                                         />
-                                                        <Text text={`${d2} cm`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
+                                                        <Text text={`${d2}`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
                                                     </Group>
                                                 </Group>
                                             )}
@@ -2024,8 +2211,8 @@ export const CanvasEngine = ({
                             // Distancias desde los bordes de la ventana
                             const d1Val = Math.max(0, (window.t * wallLen) - (window.width / 2))
                             const d2Val = Math.max(0, ((1 - window.t) * wallLen) - (window.width / 2))
-                            const d1 = d1Val.toFixed(0)
-                            const d2 = d2Val.toFixed(0)
+                            const d1 = d1Val.toFixed(1)
+                            const d2 = d2Val.toFixed(1)
 
                             const isSelected = selectedElement?.id === window.id && selectedElement?.type === "window"
 
@@ -2043,6 +2230,7 @@ export const CanvasEngine = ({
                                     onClick={(e) => { e.cancelBubble = true; onSelectElement({ type: "window", id: window.id }) }}
                                     onTap={(e) => { e.cancelBubble = true; onSelectElement({ type: "window", id: window.id }) }}
                                     onDragStart={(e) => {
+                                        onSelectElement({ type: "window", id: window.id })
                                         const stage = e.target.getStage()
                                         if (stage) {
                                             const transform = stage.getAbsoluteTransform().copy()
@@ -2093,15 +2281,15 @@ export const CanvasEngine = ({
 
                                         // 3. Strict Snap
                                         if (closestWall) {
-                                            e.target.position({ x: closestWall.projX, y: closestWall.projY })
+                                            const cw = closestWall as { wallId: string, t: number, projX: number, projY: number }
+                                            e.target.position({ x: cw.projX, y: cw.projY })
 
-                                            // 4. Update state with "Side" Preservation
-                                            let offX = virtualCenterX - closestWall.projX
-                                            let offY = virtualCenterY - closestWall.projY
+                                            let offX = virtualCenterX - cw.projX
+                                            let offY = virtualCenterY - cw.projY
                                             const currentDist = Math.sqrt(offX * offX + offY * offY)
 
-                                            let reportX = closestWall.projX
-                                            let reportY = closestWall.projY
+                                            let reportX = cw.projX
+                                            let reportY = cw.projY
 
                                             if (currentDist > 0.001) {
                                                 const scale = Math.min(currentDist, 10) / currentDist
@@ -2157,7 +2345,7 @@ export const CanvasEngine = ({
                                     {/* Distancias dinámicas alineadas con el muro */}
                                     {isSelected && (
                                         <Group rotation={0}>
-                                            {d1Val > 5 && (
+                                            {d1Val > 0 && (
                                                 <Group x={gap1CenterLocalX} y={20 + wall.thickness / 2}>
                                                     <Group rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
                                                         <Rect
@@ -2165,11 +2353,11 @@ export const CanvasEngine = ({
                                                             fill="white" stroke="#0ea5e9" strokeWidth={0.5} cornerRadius={4}
                                                             shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
                                                         />
-                                                        <Text text={`${d1} cm`} x={-17.5} y={-5} fontSize={9} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
+                                                        <Text text={`${d1}`} x={-17.5} y={-5} fontSize={9} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
                                                     </Group>
                                                 </Group>
                                             )}
-                                            {d2Val > 5 && (
+                                            {d2Val > 0 && (
                                                 <Group x={gap2CenterLocalX} y={20 + wall.thickness / 2}>
                                                     <Group rotation={-wallAngle % 180 === 0 ? 0 : (Math.abs(wallAngle) > 90 ? 180 : 0)}>
                                                         <Rect
@@ -2177,7 +2365,7 @@ export const CanvasEngine = ({
                                                             fill="white" stroke="#0ea5e9" strokeWidth={0.5} cornerRadius={4}
                                                             shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
                                                         />
-                                                        <Text text={`${d2} cm`} x={-17.5} y={-5} fontSize={9} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
+                                                        <Text text={`${d2}`} x={-17.5} y={-5} fontSize={9} fill="#0ea5e9" align="center" width={35} fontStyle="bold" />
                                                     </Group>
                                                 </Group>
                                             )}
@@ -2187,366 +2375,760 @@ export const CanvasEngine = ({
                             )
                         })}
 
-                        {/* Renderizar muro actual (fantasma) con medida */}
-                        {currentWall && (() => {
-                            const dx = currentWall.end.x - currentWall.start.x
-                            const dy = currentWall.end.y - currentWall.start.y
-                            const lengthPx = Math.sqrt(dx * dx + dy * dy)
-                            const lengthCm = Math.round(lengthPx)
 
-                            const isVertical = Math.abs(currentWall.end.x - currentWall.start.x) < 0.1
-                            const isHorizontal = Math.abs(currentWall.end.y - currentWall.start.y) < 0.1
+                        {/* Shunts (Nodes) - Memoized for smooth drag */}
+                        {shunts.map(shunt => (
+                            <ShuntItem
+                                key={shunt.id}
+                                shunt={shunt}
+                                isSelected={selectedElement?.id === shunt.id && selectedElement?.type === "shunt"}
+                                activeTool={activeTool}
+                                walls={walls}
+                                snappingEnabled={snappingEnabled}
+                                zoom={zoom}
+                                shunts={shunts}
+                                setDragShuntState={setDragShuntState}
+                                onSelect={() => onSelectElement({ type: "shunt", id: shunt.id })}
+                                onDragEnd={(id, x, y) => onDragElement("shunt", id, { x, y })}
+                            />
+                        ))}
 
-                            return (
-                                <Group>
-                                    {/* Guías de alineación */}
-                                    {isVertical && (
-                                        <Line
-                                            points={[currentWall.start.x, -5000, currentWall.start.x, 5000]}
-                                            stroke="#0284c7"
-                                            strokeWidth={1 / zoom}
-                                            dash={[10, 10]}
-                                            opacity={0.3}
-                                            listening={false}
-                                        />
-                                    )}
-                                    {isHorizontal && (
-                                        <Line
-                                            points={[-5000, currentWall.start.y, 5000, currentWall.start.y]}
-                                            stroke="#0284c7"
-                                            strokeWidth={1 / zoom}
-                                            dash={[10, 10]}
-                                            opacity={0.3}
-                                            listening={false}
-                                        />
-                                    )}
-                                    <Line
-                                        points={[currentWall.start.x, currentWall.start.y, currentWall.end.x, currentWall.end.y]}
-                                        stroke="#0284c7"
-                                        strokeWidth={15}
-                                        opacity={0.8}
-                                        lineCap="round"
-                                        lineJoin="round"
-                                    />
-                                    <Text
-                                        x={(currentWall.start.x + currentWall.end.x) / 2}
-                                        y={(currentWall.start.y + currentWall.end.y) / 2 - 20}
-                                        text={`${lengthCm} cm`}
-                                        fontSize={14}
-                                        fill="#0284c7"
-                                        fontStyle="bold"
-                                        align="center"
-                                    />
-                                </Group>
-                            )
-                        })()}
+                        {/* Shunt Measurements - Global Overlay (Separate Layer) */}
+                        {shunts.map(shunt => {
+                            const isSelected = selectedElement?.id === shunt.id && selectedElement?.type === "shunt"
+                            if (!isSelected && editingMeas?.shuntId !== shunt.id) return null
 
-                        {/* Guías inteligentes de alineación */}
-                        {alignmentGuides && mousePos && (
-                            <Group listening={false}>
-                                {alignmentGuides.x !== undefined && (
-                                    <Line
-                                        points={[alignmentGuides.x, -5000, alignmentGuides.x, 5000]}
-                                        stroke="#0ea5e9"
-                                        strokeWidth={1.5 / zoom}
-                                        dash={[10, 5]}
-                                        opacity={0.8}
-                                    />
-                                )}
-                                {alignmentGuides.y !== undefined && (
-                                    <Line
-                                        points={[-5000, alignmentGuides.y, 5000, alignmentGuides.y]}
-                                        stroke="#0ea5e9"
-                                        strokeWidth={1.5 / zoom}
-                                        dash={[10, 5]}
-                                        opacity={0.8}
-                                    />
-                                )}
-                            </Group>
-                        )}
+                            // Use drag state if available (LIVE MEASUREMENTS)
+                            const effectiveX = (dragShuntState?.id === shunt.id) ? dragShuntState.x : shunt.x
+                            const effectiveY = (dragShuntState?.id === shunt.id) ? dragShuntState.y : shunt.y
 
-                        {/* Indicador visual de Snapping */}
-                        {(() => {
-                            const p = mousePos
-                            if (!p) return null
-                            const isWallTool = activeTool === "wall"
-                            const isDragging = !!wallSnapshot
+                            const rays = [
+                                { dir: { x: 0, y: -1 }, origin: { x: effectiveX, y: effectiveY - shunt.height / 2 }, label: "top" },
+                                { dir: { x: 0, y: 1 }, origin: { x: effectiveX, y: effectiveY + shunt.height / 2 }, label: "bottom" },
+                                { dir: { x: -1, y: 0 }, origin: { x: effectiveX - shunt.width / 2, y: effectiveY }, label: "left" },
+                                { dir: { x: 1, y: 0 }, origin: { x: effectiveX + shunt.width / 2, y: effectiveY }, label: "right" }
+                            ]
 
-                            if (!snappingEnabled || (!isWallTool && !isDragging)) return null
+                            return rays.map((ray, idx) => {
+                                const rayOrigin = ray.origin
+                                const intersections: { wallId: string, pt: Point, dist: number, thickness: number }[] = []
 
-                            // 1. Prioridad: Vértice
-                            const vertex = findNearestVertex(p, 15 / zoom)
-                            if (vertex) {
-                                return (
-                                    <Circle
-                                        x={vertex.x}
-                                        y={vertex.y}
-                                        radius={8 / zoom}
-                                        stroke="#0ea5e9"
-                                        strokeWidth={3 / zoom}
-                                        fill="white"
-                                        opacity={0.9}
-                                        listening={false}
-                                    />
-                                )
-                            }
+                                walls.forEach(w => {
+                                    const rayEnd = {
+                                        x: rayOrigin.x + ray.dir.x * 5000,
+                                        y: rayOrigin.y + ray.dir.y * 5000
+                                    }
+                                    const pt = getLineIntersection(w.start, w.end, rayOrigin, rayEnd)
+                                    if (pt) {
+                                        const dist = Math.sqrt(Math.pow(pt.x - rayOrigin.x, 2) + Math.pow(pt.y - rayOrigin.y, 2))
+                                        intersections.push({ wallId: w.id, pt, dist, thickness: w.thickness })
+                                    }
+                                })
+                                // Check other shunts as obstacles
+                                shunts.forEach(s => {
+                                    if (s.id === shunt.id) return
+                                    const halfW = s.width / 2
+                                    const halfH = s.height / 2
+                                    const corners = [
+                                        { x: s.x - halfW, y: s.y - halfH },
+                                        { x: s.x + halfW, y: s.y - halfH },
+                                        { x: s.x + halfW, y: s.y + halfH },
+                                        { x: s.x - halfW, y: s.y + halfH }
+                                    ]
+                                    // Edges: 0-1, 1-2, 2-3, 3-0
+                                    const edges = [
+                                        { start: corners[0], end: corners[1] },
+                                        { start: corners[1], end: corners[2] },
+                                        { start: corners[2], end: corners[3] },
+                                        { start: corners[3], end: corners[0] }
+                                    ]
+                                    const rayEnd = { x: rayOrigin.x + ray.dir.x * 5000, y: rayOrigin.y + ray.dir.y * 5000 }
+                                    edges.forEach(edge => {
+                                        const pt = getLineIntersection(edge.start, edge.end, rayOrigin, rayEnd)
+                                        if (pt) {
+                                            const dist = Math.sqrt(Math.pow(pt.x - rayOrigin.x, 2) + Math.pow(pt.y - rayOrigin.y, 2))
+                                            intersections.push({ wallId: s.id, pt, dist, thickness: 0 })
+                                        }
+                                    })
+                                })
 
-                            // 2. Fallback: Edge (Borde de muro)
-                            const edgeThreshold = 15 / zoom
-                            let nearestEdge: Point | null = null
-                            const snapWS = wallSnapshot || walls
-                            snapWS.forEach(w => {
-                                const projected = projectPointOnSegment(p, w.start, w.end)
-                                const d = Math.sqrt(Math.pow(p.x - projected.x, 2) + Math.pow(p.y - projected.y, 2))
-                                if (d < edgeThreshold) nearestEdge = projected
-                            })
+                                intersections.sort((a, b) => a.dist - b.dist)
+                                if (intersections.length > 0 && intersections[0].dist < 500) {
+                                    const best = intersections[0]
+                                    const bestPt = best.pt
+                                    const centerDist = best.dist
+                                    const surfaceDist = Math.max(0, centerDist - best.thickness / 2)
 
-                            if (nearestEdge) {
-                                const ne = nearestEdge as Point
-                                return (
-                                    <Rect
-                                        x={ne.x - 5 / zoom}
-                                        y={ne.y - 5 / zoom}
-                                        width={10 / zoom}
-                                        height={10 / zoom}
-                                        stroke="#0ea5e9"
-                                        strokeWidth={2 / zoom}
-                                        fill="white"
-                                        rotation={45}
-                                        offsetX={0}
-                                        offsetY={0}
-                                        opacity={0.8}
-                                        listening={false}
-                                    />
-                                )
-                            }
-                            return null
-                        })()}
-                        {/* Prop cursor */}
-                        {activeTool === "ruler" && mousePos && (
-                            <Circle x={mousePos.x} y={mousePos.y} radius={2 / zoom} fill="#f97316" listening={false} />
-                        )}
+                                    if (surfaceDist < 0.5 && !(editingMeas?.shuntId === shunt.id && editingMeas?.index === idx)) return null
 
-                        {/* RENDERIZAR REGLA (RULER) */}
-                        {rulerPoints && (
-                            <Group>
-                                <Arrow
-                                    points={[rulerPoints.start.x, rulerPoints.start.y, rulerPoints.end.x, rulerPoints.end.y]}
-                                    stroke="#f97316"
-                                    strokeWidth={2 / zoom}
-                                    pointerLength={10 / zoom}
-                                    pointerWidth={10 / zoom}
-                                    fill="#f97316"
-                                    pointerAtBeginning={true}
-                                    dash={[10, 5]}
-                                />
-                                {(() => {
-                                    const dist = Math.round(Math.sqrt(
-                                        Math.pow(rulerPoints.end.x - rulerPoints.start.x, 2) +
-                                        Math.pow(rulerPoints.end.y - rulerPoints.start.y, 2)
-                                    ))
-                                    const midX = (rulerPoints.start.x + rulerPoints.end.x) / 2
-                                    const midY = (rulerPoints.start.y + rulerPoints.end.y) / 2
+                                    // Global coords for line endpoints
+                                    const startX = rayOrigin.x
+                                    const startY = rayOrigin.y
+                                    const endX = best.pt.x - ray.dir.x * (best.thickness / 2)
+                                    const endY = best.pt.y - ray.dir.y * (best.thickness / 2)
+
                                     return (
-                                        <Group x={midX} y={midY - 15 / zoom}>
-                                            <Rect
-                                                width={60 / zoom}
-                                                height={20 / zoom}
-                                                fill="#f97316"
-                                                cornerRadius={4 / zoom}
-                                                offsetX={30 / zoom}
-                                                offsetY={10 / zoom}
+                                        <Group key={`${shunt.id}-${idx}`}>
+                                            <Line
+                                                points={[startX, startY, endX, endY]}
+                                                stroke="#000000"
+                                                strokeWidth={1.5}
                                             />
-                                            <Text
-                                                text={`${dist} cm`}
-                                                fontSize={12 / zoom}
-                                                fill="white"
-                                                fontStyle="bold"
-                                                width={60 / zoom}
-                                                align="center"
-                                                offsetX={30 / zoom}
-                                                offsetY={6 / zoom}
+                                            <Circle
+                                                x={startX} y={startY} radius={3.5} fill="white" stroke="#000000" strokeWidth={1.5}
                                             />
+                                            <Circle
+                                                x={endX} y={endY} radius={3.5} fill="white" stroke="#000000" strokeWidth={1.5}
+                                            />
+                                            <Html divProps={{ style: { pointerEvents: "none" } }}>
+                                                <div
+                                                    className="absolute px-1 bg-white border border-black rounded text-[10px] font-bold select-none whitespace-nowrap z-50 pointer-events-auto cursor-pointer"
+                                                    style={{
+                                                        left: (startX + endX) / 2,
+                                                        top: (startY + endY) / 2,
+                                                        transform: "translate(-50%, -50%)"
+                                                    }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        setEditingMeas({
+                                                            shuntId: shunt.id,
+                                                            index: idx,
+                                                            dir: ray.dir,
+                                                            currentDist: surfaceDist,
+                                                            screenPos: { x: (startX + endX) / 2, y: (startY + endY) / 2 },
+                                                            wallPoint: best.pt,
+                                                            wallThickness: best.thickness,
+                                                            shuntWidth: shunt.width,
+                                                            shuntHeight: shunt.height,
+                                                            shuntRotation: shunt.rotation
+                                                        })
+                                                    }}
+                                                >
+                                                    {editingMeas?.shuntId === shunt.id && editingMeas?.index === idx ? "" : Math.round(surfaceDist)}
+                                                </div>
+                                            </Html>
                                         </Group>
                                     )
-                                })()}
-                            </Group>
-                        )}
+                                }
+                                return null
+                            })
+                        })}
 
-                        {/* ================================================================== */}
-                        {/* CAPA FINAL: TIRADORES Y CALIBRACIÓN (SIEMPRE ENCIMA DE TODO) */}
-                        {/* ================================================================== */}
 
-                        {/* 1. Tiradores de selección de muros */}
-                        {/* 1. Tiradores de selección de muros (Agrupados y con mejor hit-area) */}
-                        {(() => {
-                            const vertexGroups: { point: Point, connections: { wallId: string, type: 's' | 'e' }[] }[] = [];
-                            const UI_MERGE_TOLERANCE = 3;
 
-                            walls.forEach(w => {
-                                [{ p: w.start, type: 's' as const }, { p: w.end, type: 'e' as const }].forEach(({ p, type }) => {
-                                    const existing = vertexGroups.find(v =>
-                                        Math.abs(v.point.x - p.x) < UI_MERGE_TOLERANCE &&
-                                        Math.abs(v.point.y - p.y) < UI_MERGE_TOLERANCE
-                                    );
-                                    if (existing) {
-                                        existing.connections.push({ wallId: w.id, type });
-                                    } else {
-                                        vertexGroups.push({ point: p, connections: [{ wallId: w.id, type }] });
+
+
+
+
+                        {/* Measurements Logic - Visible when selected OR when editing this specific shunt */}
+                        {(isSelected || (editingMeas?.shuntId === shunt.id)) && (() => {
+                            // Raycasting for measurements
+                            // Use drag state if available for "live" feel
+                            const effectiveX = (dragShuntState?.id === shunt.id) ? dragShuntState.x : shunt.x
+                            const effectiveY = (dragShuntState?.id === shunt.id) ? dragShuntState.y : shunt.y
+
+                            const rays = [
+                                { dir: { x: 0, y: -1 }, origin: { x: effectiveX, y: effectiveY - shunt.height / 2 }, label: "top" },
+                                { dir: { x: 0, y: 1 }, origin: { x: effectiveX, y: effectiveY + shunt.height / 2 }, label: "bottom" },
+                                { dir: { x: -1, y: 0 }, origin: { x: effectiveX - shunt.width / 2, y: effectiveY }, label: "left" },
+                                { dir: { x: 1, y: 0 }, origin: { x: effectiveX + shunt.width / 2, y: effectiveY }, label: "right" }
+                            ]
+
+                            return rays.map((ray, idx) => {
+                                const rayOrigin = ray.origin
+                                const intersections: { wallId: string, pt: Point, dist: number, thickness: number }[] = []
+
+                                walls.forEach(w => {
+                                    const rayEnd = {
+                                        x: rayOrigin.x + ray.dir.x * 5000,
+                                        y: rayOrigin.y + ray.dir.y * 5000
                                     }
-                                });
-                            });
+                                    const pt = getLineIntersection(w.start, w.end, rayOrigin, rayEnd)
+                                    if (pt) {
+                                        const dist = Math.sqrt(Math.pow(pt.x - rayOrigin.x, 2) + Math.pow(pt.y - rayOrigin.y, 2))
+                                        intersections.push({ wallId: w.id, pt, dist, thickness: w.thickness })
+                                    }
+                                })
 
-                            return vertexGroups.filter(({ connections }) => {
-                                return connections.some(c => selectedWallIds.includes(c.wallId) || c.wallId === hoveredWallId);
-                            }).map(({ point, connections }, idx) => {
-                                const isSelected = connections.some(c => selectedWallIds.includes(c.wallId));
-                                // Generate a stable and unique key using sorted connections
-                                const vertexKey = `v-${connections.map(c => `${c.wallId}-${c.type}`).sort().join('-')}`;
+                                // Check intersections with OTHER SHUNTS
+                                shunts.forEach(s => {
+                                    if (s.id === shunt.id) return
 
-                                return (
-                                    <Circle
-                                        key={vertexKey}
-                                        name="vertex-handle"
-                                        x={point.x}
-                                        y={point.y}
-                                        radius={(isSelected ? 10 : 7) / zoom}
-                                        fill="#1e293b"
-                                        stroke="#ffffff"
-                                        strokeWidth={2 / zoom}
-                                        hitStrokeWidth={20 / zoom}
-                                        draggable={false}
-                                        onPointerDown={(e) => {
-                                            e.cancelBubble = true
-                                            const stage = e.target.getStage()
-                                            if (stage) {
-                                                stageRef.current = stage // Capture stage reference
+                                    // Simplified bounding box check for non-rotated shunts (standard)
+                                    // Ideally should use 4 corners if rotation allowed.
+                                    // Assuming axis-aligned for now or using simple rect logic.
+                                    const halfW = s.width / 2
+                                    const halfH = s.height / 2
+                                    const corners = [
+                                        { x: s.x - halfW, y: s.y - halfH },
+                                        { x: s.x + halfW, y: s.y - halfH },
+                                        { x: s.x + halfW, y: s.y + halfH },
+                                        { x: s.x - halfW, y: s.y + halfH }
+                                    ]
+                                    // Edges: 0-1, 1-2, 2-3, 3-0
+                                    const edges = [
+                                        { start: corners[0], end: corners[1] },
+                                        { start: corners[1], end: corners[2] },
+                                        { start: corners[2], end: corners[3] },
+                                        { start: corners[3], end: corners[0] }
+                                    ]
 
-                                                onStartDragWall()
-                                                isDraggingVertexRef.current = true
-                                                dragStartPos.current = { ...point }
+                                    const rayEnd = {
+                                        x: rayOrigin.x + ray.dir.x * 5000,
+                                        y: rayOrigin.y + ray.dir.y * 5000
+                                    }
 
-                                                const transform = stage.getAbsoluteTransform().copy()
-                                                transform.invert()
-                                                const pos = stage.getPointerPosition()
+                                    edges.forEach(edge => {
+                                        const pt = getLineIntersection(edge.start, edge.end, rayOrigin, rayEnd)
+                                        if (pt) {
+                                            const dist = Math.sqrt(Math.pow(pt.x - rayOrigin.x, 2) + Math.pow(pt.y - rayOrigin.y, 2))
+                                            // Treat shunt obstacle as 0 thickness surface (hit exactly on edge)
+                                            intersections.push({ wallId: s.id, pt, dist, thickness: 0 })
+                                        }
+                                    })
+                                })
 
-                                                // PointerEvent available in e.evt for react-konva
-                                                const nativeEvent = (e.evt as PointerEvent)
-                                                pointerTypeRef.current = nativeEvent.pointerType
+                                // Sort by distance
+                                intersections.sort((a, b) => a.dist - b.dist)
 
-                                                if (pos) {
-                                                    // Determinar si aplicamos offset
-                                                    const isTouch = nativeEvent.pointerType === "touch" || forceTouchOffset
+                                // Show closest if exists and < threshold
+                                if (intersections.length > 0 && intersections[0].dist < 500) {
+                                    const best = intersections[0]
+                                    const bestPt = best.pt
 
-                                                    let adjustedY = pos.y
-                                                    if (isTouch) {
-                                                        adjustedY -= touchOffset
-                                                    }
+                                    // Calculate distance to SURFACE, not center
+                                    const centerDist = best.dist
+                                    const surfaceDist = Math.max(0, centerDist - best.thickness / 2)
 
-                                                    // Use adjusted position for start to maintain distance from finger
-                                                    dragStartPointerPos.current = transform.point({ x: pos.x, y: adjustedY })
-                                                }
+                                    // Determine if we should show this measurement
+                                    // User requested to hide 0 values. Let's use a small threshold.
+                                    if (surfaceDist < 0.5 && !(editingMeas?.shuntId === shunt.id && editingMeas?.index === idx)) return null
 
-                                                // Determine walls to move
-                                                const selectedConnections = connections.filter(c => selectedWallIds.includes(c.wallId)).map(c => c.wallId)
-                                                draggingVertexWallIds.current = selectedConnections.length > 0 ? selectedConnections : connections.map(c => c.wallId)
+                                    const isEditing = editingMeas?.shuntId === shunt.id && editingMeas?.index === idx
 
-                                                if (nativeEvent.pointerType !== "touch") {
-                                                    document.body.style.cursor = 'move'
-                                                }
-                                            }
-                                        }}
-                                        onMouseEnter={(e: any) => {
-                                            const stage = e.target.getStage();
-                                            if (stage) stage.container().style.cursor = 'move';
-                                        }}
-                                        onMouseLeave={(e: any) => {
-                                            const stage = e.target.getStage();
-                                            if (stage) stage.container().style.cursor = 'default';
-                                        }}
-                                    />
-                                );
-                            });
+                                    // Adjust visual endpoint to wall surface
+                                    const surfacePointX = best.pt.x - ray.dir.x * (best.thickness / 2)
+                                    const surfacePointY = best.pt.y - ray.dir.y * (best.thickness / 2)
+
+                                    const relStartX = rayOrigin.x - shunt.x
+                                    const relStartY = rayOrigin.y - shunt.y
+                                    const relEndX = surfacePointX - shunt.x
+                                    const relEndY = surfacePointY - shunt.y
+
+                                    return (
+                                        <Group key={idx}>
+                                            {/* Line */}
+                                            <Line
+                                                points={[relStartX, relStartY, relEndX, relEndY]}
+                                                stroke="#000000"
+                                                strokeWidth={1.5}
+                                            />
+                                            {/* Startpoint Circle */}
+                                            <Circle
+                                                x={relStartX}
+                                                y={relStartY}
+                                                radius={3.5}
+                                                fill="white"
+                                                stroke="#000000"
+                                                strokeWidth={1.5}
+                                            />
+                                            {/* Endpoint Circle */}
+                                            <Circle
+                                                x={relEndX}
+                                                y={relEndY}
+                                                radius={3.5}
+                                                fill="white"
+                                                stroke="#000000"
+                                                strokeWidth={1.5}
+                                            />
+                                            {/* Label Group - CLICKABLE */}
+                                            <Group
+                                                name="measurement-group"
+                                                x={(relStartX + relEndX) / 2}
+                                                y={(relStartY + relEndY) / 2}
+                                                listening={true}
+                                                onMouseEnter={(e) => {
+                                                    const container = e.target.getStage()?.container()
+                                                    if (container) container.style.cursor = "pointer"
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    const container = e.target.getStage()?.container()
+                                                    if (container) container.style.cursor = "default"
+                                                }}
+                                                onMouseDown={(e) => {
+                                                    e.cancelBubble = true
+                                                }}
+                                                onClick={(e) => {
+                                                    e.cancelBubble = true
+                                                    const absPos = e.target.getAbsolutePosition()
+                                                    setEditingMeas({
+                                                        shuntId: shunt.id,
+                                                        index: idx,
+                                                        currentDist: surfaceDist,
+                                                        screenPos: { x: absPos.x, y: absPos.y },
+                                                        dir: ray.dir,
+                                                        wallPoint: bestPt,
+                                                        wallThickness: best.thickness,
+                                                        shuntWidth: shunt.width,
+                                                        shuntHeight: shunt.height,
+                                                        shuntRotation: shunt.rotation
+                                                    })
+                                                }}
+                                                onTap={(e) => {
+                                                    e.cancelBubble = true
+                                                    const absPos = e.target.getAbsolutePosition()
+                                                    setEditingMeas({
+                                                        shuntId: shunt.id,
+                                                        index: idx,
+                                                        currentDist: surfaceDist,
+                                                        screenPos: { x: absPos.x, y: absPos.y },
+                                                        dir: ray.dir,
+                                                        wallPoint: bestPt,
+                                                        wallThickness: best.thickness,
+                                                        shuntWidth: shunt.width,
+                                                        shuntHeight: shunt.height,
+                                                        shuntRotation: shunt.rotation
+                                                    })
+                                                }}
+                                            >
+                                                {!isEditing && (
+                                                    <>
+                                                        <Rect
+                                                            name="measurement-rect"
+                                                            width={40} height={20}
+                                                            x={-20} y={-10}
+                                                            fill="white"
+                                                            cornerRadius={2}
+                                                            stroke="#000000"
+                                                            strokeWidth={1}
+                                                            listening={true}
+                                                        />
+                                                        <Text
+                                                            name="measurement-text"
+                                                            text={`${surfaceDist.toFixed(1)}`}
+                                                            fontSize={11}
+                                                            fill="#000000"
+                                                            width={40}
+                                                            x={-20} y={-5}
+                                                            align="center"
+                                                            fontStyle="bold"
+                                                            listening={true}
+                                                        />
+                                                    </>
+                                                )}
+                                            </Group>
+                                        </Group>
+                                    )
+                                }
+                                return null
+                            })
                         })()}
+                    </Group>
+                    )
+                        })}
 
-                        {/* 2. Herramienta de Calibración (Ultima posición para máxima visibilidad) */}
-                        {isCalibrating && calibrationPoints && (
+                    {/* Renderizar etiquetas de habitación (CAPA SUPERIOR - Encima de shunts) */}
+                    {rooms.map((room: Room) => {
+                        const centroid = {
+                            x: room.polygon.reduce((sum: number, p: Point) => sum + p.x, 0) / room.polygon.length,
+                            y: room.polygon.reduce((sum: number, p: Point) => sum + p.y, 0) / room.polygon.length
+                        }
+                        const labelPos = room.visualCenter || centroid
+
+                        return (
+                            <Group
+                                key={`label-${room.id}`}
+                                name="room-label"
+                                x={labelPos.x} y={labelPos.y}
+                                onClick={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
+                                onTap={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
+                                listening={false} // Pass through clicks to underlying elements if needed? No, user probably wants to select room by clicking label.
+                            >
+                                {/* We enable listening so user can select room by clicking the text */}
+                                <Text
+                                    name="room-label-text"
+                                    y={-10}
+                                    text={room.name}
+                                    fontSize={18}
+                                    fill="#1e293b"
+                                    fontStyle="bold"
+                                    align="center"
+                                    offsetX={30}
+                                />
+                                <Text
+                                    name="room-label-text"
+                                    y={5}
+                                    text={`${room.area.toFixed(2)} m²`}
+                                    fontSize={14}
+                                    fill="#64748b"
+                                    align="center"
+                                    offsetX={30}
+                                />
+                            </Group>
+                        )
+                    })}
+
+                    {/* Renderizar muro actual (fantasma) con medida */}
+                    {currentWall && (() => {
+                        const dx = currentWall.end.x - currentWall.start.x
+                        const dy = currentWall.end.y - currentWall.start.y
+                        const lengthPx = Math.sqrt(dx * dx + dy * dy)
+                        const lengthCm = lengthPx // Was Math.round(lengthPx)
+
+                        const isVertical = Math.abs(currentWall.end.x - currentWall.start.x) < 0.1
+                        const isHorizontal = Math.abs(currentWall.end.y - currentWall.start.y) < 0.1
+
+                        return (
                             <Group>
+                                {/* Guías de alineación */}
+                                {isVertical && (
+                                    <Line
+                                        points={[currentWall.start.x, -5000, currentWall.start.x, 5000]}
+                                        stroke="#0284c7"
+                                        strokeWidth={1 / zoom}
+                                        dash={[10, 10]}
+                                        opacity={0.3}
+                                        listening={false}
+                                    />
+                                )}
+                                {isHorizontal && (
+                                    <Line
+                                        points={[-5000, currentWall.start.y, 5000, currentWall.start.y]}
+                                        stroke="#0284c7"
+                                        strokeWidth={1 / zoom}
+                                        dash={[10, 10]}
+                                        opacity={0.3}
+                                        listening={false}
+                                    />
+                                )}
                                 <Line
-                                    points={[calibrationPoints.p1.x, calibrationPoints.p1.y, calibrationPoints.p2.x, calibrationPoints.p2.y]}
+                                    points={[currentWall.start.x, currentWall.start.y, currentWall.end.x, currentWall.end.y]}
+                                    stroke="#0284c7"
+                                    strokeWidth={15}
+                                    opacity={0.8}
+                                    lineCap="round"
+                                    lineJoin="round"
+                                />
+                                <Text
+                                    x={(currentWall.start.x + currentWall.end.x) / 2}
+                                    y={(currentWall.start.y + currentWall.end.y) / 2 - 20}
+                                    text={`${lengthCm.toFixed(1)}`}
+                                    fontSize={14}
+                                    fill="#0284c7"
+                                    fontStyle="bold"
+                                    align="center"
+                                />
+                            </Group>
+                        )
+                    })()}
+
+                    {/* Guías inteligentes de alineación */}
+                    {alignmentGuides && mousePos && (
+                        <Group listening={false}>
+                            {alignmentGuides.x !== undefined && (
+                                <Line
+                                    points={[alignmentGuides.x, -5000, alignmentGuides.x, 5000]}
+                                    stroke="#0ea5e9"
+                                    strokeWidth={1.5 / zoom}
+                                    dash={[10, 5]}
+                                    opacity={0.8}
+                                />
+                            )}
+                            {alignmentGuides.y !== undefined && (
+                                <Line
+                                    points={[-5000, alignmentGuides.y, 5000, alignmentGuides.y]}
+                                    stroke="#0ea5e9"
+                                    strokeWidth={1.5 / zoom}
+                                    dash={[10, 5]}
+                                    opacity={0.8}
+                                />
+                            )}
+                        </Group>
+                    )}
+
+                    {/* Indicador visual de Snapping */}
+                    {(() => {
+                        const p = mousePos
+                        if (!p) return null
+                        const isWallTool = activeTool === "wall"
+                        const isDragging = !!wallSnapshot
+
+                        if (!snappingEnabled || (!isWallTool && !isDragging)) return null
+
+                        // 1. Prioridad: Vértice
+                        const vertex = findNearestVertex(p, 15 / zoom)
+                        if (vertex) {
+                            return (
+                                <Circle
+                                    x={vertex.x}
+                                    y={vertex.y}
+                                    radius={8 / zoom}
+                                    stroke="#0ea5e9"
+                                    strokeWidth={3 / zoom}
+                                    fill="white"
+                                    opacity={0.9}
+                                    listening={false}
+                                />
+                            )
+                        }
+
+                        // 2. Fallback: Edge (Borde de muro)
+                        const edgeThreshold = 15 / zoom
+                        let nearestEdge: Point | null = null
+                        const snapWS = wallSnapshot || walls
+                        snapWS.forEach(w => {
+                            const projected = projectPointOnSegment(p, w.start, w.end)
+                            const d = Math.sqrt(Math.pow(p.x - projected.x, 2) + Math.pow(p.y - projected.y, 2))
+                            if (d < edgeThreshold) nearestEdge = projected
+                        })
+
+                        if (nearestEdge) {
+                            const ne = nearestEdge as Point
+                            return (
+                                <Rect
+                                    x={ne.x - 5 / zoom}
+                                    y={ne.y - 5 / zoom}
+                                    width={10 / zoom}
+                                    height={10 / zoom}
+                                    stroke="#0ea5e9"
+                                    strokeWidth={2 / zoom}
+                                    fill="white"
+                                    rotation={45}
+                                    offsetX={0}
+                                    offsetY={0}
+                                    opacity={0.8}
+                                    listening={false}
+                                />
+                            )
+                        }
+                        return null
+                    })()}
+                    {/* Prop cursor */}
+                    {activeTool === "ruler" && mousePos && (
+                        <Circle x={mousePos.x} y={mousePos.y} radius={2 / zoom} fill="#f97316" listening={false} />
+                    )}
+
+                    {/* RENDERIZAR REGLA (RULER) */}
+                    {rulerPoints && (
+                        <Group>
+                            <Arrow
+                                points={[rulerPoints.start.x, rulerPoints.start.y, rulerPoints.end.x, rulerPoints.end.y]}
+                                stroke="#f97316"
+                                strokeWidth={2 / zoom}
+                                pointerLength={10 / zoom}
+                                pointerWidth={10 / zoom}
+                                fill="#f97316"
+                                pointerAtBeginning={true}
+                                dash={[10, 5]}
+                            />
+                            {(() => {
+                                const dist = Math.sqrt(
+                                    Math.pow(rulerPoints.end.x - rulerPoints.start.x, 2) +
+                                    Math.pow(rulerPoints.end.y - rulerPoints.start.y, 2)
+                                ).toFixed(1)
+                                const midX = (rulerPoints.start.x + rulerPoints.end.x) / 2
+                                const midY = (rulerPoints.start.y + rulerPoints.end.y) / 2
+                                return (
+                                    <Group x={midX} y={midY - 15 / zoom}>
+                                        <Rect
+                                            width={60 / zoom}
+                                            height={20 / zoom}
+                                            fill="#f97316"
+                                            cornerRadius={4 / zoom}
+                                            offsetX={30 / zoom}
+                                            offsetY={10 / zoom}
+                                        />
+                                        <Text
+                                            text={`${dist}`}
+                                            fontSize={12 / zoom}
+                                            fill="white"
+                                            fontStyle="bold"
+                                            width={60 / zoom}
+                                            align="center"
+                                            offsetX={30 / zoom}
+                                            offsetY={6 / zoom}
+                                        />
+                                    </Group>
+                                )
+                            })()}
+                        </Group>
+                    )}
+
+                    {/* ================================================================== */}
+                    {/* CAPA FINAL: TIRADORES Y CALIBRACIÓN (SIEMPRE ENCIMA DE TODO) */}
+                    {/* ================================================================== */}
+
+                    {/* 1. Tiradores de selección de muros */}
+                    {/* 1. Tiradores de selección de muros (Agrupados y con mejor hit-area) */}
+                    {(() => {
+                        const vertexGroups: { point: Point, connections: { wallId: string, type: 's' | 'e' }[] }[] = [];
+                        const UI_MERGE_TOLERANCE = 3;
+
+                        walls.forEach(w => {
+                            [{ p: w.start, type: 's' as const }, { p: w.end, type: 'e' as const }].forEach(({ p, type }) => {
+                                const existing = vertexGroups.find(v =>
+                                    Math.abs(v.point.x - p.x) < UI_MERGE_TOLERANCE &&
+                                    Math.abs(v.point.y - p.y) < UI_MERGE_TOLERANCE
+                                );
+                                if (existing) {
+                                    existing.connections.push({ wallId: w.id, type });
+                                } else {
+                                    vertexGroups.push({ point: p, connections: [{ wallId: w.id, type }] });
+                                }
+                            });
+                        });
+
+                        return vertexGroups.filter(({ connections }) => {
+                            return connections.some(c => selectedWallIds.includes(c.wallId) || c.wallId === hoveredWallId);
+                        }).map(({ point, connections }, idx) => {
+                            const isSelected = connections.some(c => selectedWallIds.includes(c.wallId));
+                            // Generate a stable and unique key using sorted connections
+                            const vertexKey = `v-${connections.map(c => `${c.wallId}-${c.type}`).sort().join('-')}`;
+
+                            return (
+                                <Circle
+                                    key={vertexKey}
+                                    name="vertex-handle"
+                                    x={point.x}
+                                    y={point.y}
+                                    radius={(isSelected ? 10 : 7) / zoom}
+                                    fill="#1e293b"
+                                    stroke="#ffffff"
+                                    strokeWidth={2 / zoom}
+                                    hitStrokeWidth={20 / zoom}
+                                    draggable={false}
+                                    onPointerDown={(e) => {
+                                        e.cancelBubble = true
+                                        const stage = e.target.getStage()
+                                        if (stage) {
+                                            stageRef.current = stage // Capture stage reference
+
+                                            onStartDragWall()
+                                            isDraggingVertexRef.current = true
+                                            dragStartPos.current = { ...point }
+
+                                            const transform = stage.getAbsoluteTransform().copy()
+                                            transform.invert()
+                                            const pos = stage.getPointerPosition()
+
+                                            // PointerEvent available in e.evt for react-konva
+                                            const nativeEvent = (e.evt as PointerEvent)
+                                            pointerTypeRef.current = nativeEvent.pointerType
+
+                                            if (pos) {
+                                                // Determinar si aplicamos offset
+                                                const isTouch = nativeEvent.pointerType === "touch" || forceTouchOffset
+
+                                                let adjustedY = pos.y
+                                                if (isTouch) {
+                                                    adjustedY -= touchOffset
+                                                }
+
+                                                // Use adjusted position for start to maintain distance from finger
+                                                dragStartPointerPos.current = transform.point({ x: pos.x, y: adjustedY })
+                                            }
+
+                                            // Determine walls to move
+                                            const selectedConnections = connections.filter(c => selectedWallIds.includes(c.wallId)).map(c => c.wallId)
+                                            draggingVertexWallIds.current = selectedConnections.length > 0 ? selectedConnections : connections.map(c => c.wallId)
+
+                                            if (nativeEvent.pointerType !== "touch") {
+                                                document.body.style.cursor = 'move'
+                                            }
+                                        }
+                                    }}
+                                    onMouseEnter={(e: any) => {
+                                        const stage = e.target.getStage();
+                                        if (stage) stage.container().style.cursor = 'move';
+                                    }}
+                                    onMouseLeave={(e: any) => {
+                                        const stage = e.target.getStage();
+                                        if (stage) stage.container().style.cursor = 'default';
+                                    }}
+                                />
+                            );
+                        });
+                    })()}
+
+                    {/* 2. Herramienta de Calibración (Ultima posición para máxima visibilidad) */}
+                    {isCalibrating && calibrationPoints && (
+                        <Group>
+                            <Line
+                                points={[calibrationPoints.p1.x, calibrationPoints.p1.y, calibrationPoints.p2.x, calibrationPoints.p2.y]}
+                                stroke="#fbbf24"
+                                strokeWidth={4 / zoom}
+                                dash={[10, 5]}
+                                shadowBlur={4 / zoom}
+                                shadowColor="rgba(0,0,0,0.3)"
+                            />
+                            <Group
+                                x={calibrationPoints.p1.x}
+                                y={calibrationPoints.p1.y}
+                                draggable
+                                onDragMove={(e) => onUpdateCalibrationPoint?.("p1", { x: e.target.x(), y: e.target.y() })}
+                            >
+                                <Circle
+                                    radius={15 / zoom}
+                                    fill="white"
                                     stroke="#fbbf24"
                                     strokeWidth={4 / zoom}
-                                    dash={[10, 5]}
-                                    shadowBlur={4 / zoom}
-                                    shadowColor="rgba(0,0,0,0.3)"
+                                    shadowBlur={10 / zoom}
+                                    shadowOpacity={0.4}
+                                    shadowColor="rgba(0,0,0,0.5)"
                                 />
-                                <Group
-                                    x={calibrationPoints.p1.x}
-                                    y={calibrationPoints.p1.y}
-                                    draggable
-                                    onDragMove={(e) => onUpdateCalibrationPoint?.("p1", { x: e.target.x(), y: e.target.y() })}
-                                >
-                                    <Circle
-                                        radius={15 / zoom}
-                                        fill="white"
-                                        stroke="#fbbf24"
-                                        strokeWidth={4 / zoom}
-                                        shadowBlur={10 / zoom}
-                                        shadowOpacity={0.4}
-                                        shadowColor="rgba(0,0,0,0.5)"
-                                    />
-                                    <Line points={[-22 / zoom, 0, 22 / zoom, 0]} stroke="#fbbf24" strokeWidth={2 / zoom} />
-                                    <Line points={[0, -22 / zoom, 0, 22 / zoom]} stroke="#fbbf24" strokeWidth={2 / zoom} />
-                                </Group>
-                                <Group
-                                    x={calibrationPoints.p2.x}
-                                    y={calibrationPoints.p2.y}
-                                    draggable
-                                    onDragMove={(e) => onUpdateCalibrationPoint?.("p2", { x: e.target.x(), y: e.target.y() })}
-                                >
-                                    <Circle
-                                        radius={15 / zoom}
-                                        fill="white"
-                                        stroke="#fbbf24"
-                                        strokeWidth={4 / zoom}
-                                        shadowBlur={10 / zoom}
-                                        shadowOpacity={0.4}
-                                        shadowColor="rgba(0,0,0,0.5)"
-                                    />
-                                    <Line points={[-22 / zoom, 0, 22 / zoom, 0]} stroke="#fbbf24" strokeWidth={2 / zoom} />
-                                    <Line points={[0, -22 / zoom, 0, 22 / zoom]} stroke="#fbbf24" strokeWidth={2 / zoom} />
-                                </Group>
-                                <Group
-                                    x={(calibrationPoints.p1.x + calibrationPoints.p2.x) / 2}
-                                    y={(calibrationPoints.p1.y + calibrationPoints.p2.y) / 2}
-                                >
-                                    <Rect
-                                        width={100 / zoom}
-                                        height={28 / zoom}
-                                        fill="#fbbf24"
-                                        cornerRadius={6 / zoom}
-                                        offsetX={50 / zoom}
-                                        offsetY={45 / zoom}
-                                        shadowBlur={10 / zoom}
-                                        shadowOpacity={0.2}
-                                    />
-                                    <Text
-                                        text={`${calibrationTargetValue || 0} cm`}
-                                        fontSize={16 / zoom}
-                                        fill="white"
-                                        fontStyle="bold"
-                                        width={100 / zoom}
-                                        align="center"
-                                        offsetX={50 / zoom}
-                                        offsetY={39 / zoom}
-                                    />
-                                </Group>
+                                <Line points={[-22 / zoom, 0, 22 / zoom, 0]} stroke="#fbbf24" strokeWidth={2 / zoom} />
+                                <Line points={[0, -22 / zoom, 0, 22 / zoom]} stroke="#fbbf24" strokeWidth={2 / zoom} />
                             </Group>
-                        )}
-                    </Group>
-                    {/* Phantom Arc Guide */}
-                    {/* RENDERIZAR ARCO FANTASMA (PHANTOM ARC) */}
-                    {phantomArc && (() => {
+                            <Group
+                                x={calibrationPoints.p2.x}
+                                y={calibrationPoints.p2.y}
+                                draggable
+                                onDragMove={(e) => onUpdateCalibrationPoint?.("p2", { x: e.target.x(), y: e.target.y() })}
+                            >
+                                <Circle
+                                    radius={15 / zoom}
+                                    fill="white"
+                                    stroke="#fbbf24"
+                                    strokeWidth={4 / zoom}
+                                    shadowBlur={10 / zoom}
+                                    shadowOpacity={0.4}
+                                    shadowColor="rgba(0,0,0,0.5)"
+                                />
+                                <Line points={[-22 / zoom, 0, 22 / zoom, 0]} stroke="#fbbf24" strokeWidth={2 / zoom} />
+                                <Line points={[0, -22 / zoom, 0, 22 / zoom]} stroke="#fbbf24" strokeWidth={2 / zoom} />
+                            </Group>
+                            <Group
+                                x={(calibrationPoints.p1.x + calibrationPoints.p2.x) / 2}
+                                y={(calibrationPoints.p1.y + calibrationPoints.p2.y) / 2}
+                            >
+                                <Rect
+                                    width={100 / zoom}
+                                    height={28 / zoom}
+                                    fill="#fbbf24"
+                                    cornerRadius={6 / zoom}
+                                    offsetX={50 / zoom}
+                                    offsetY={45 / zoom}
+                                    shadowBlur={10 / zoom}
+                                    shadowOpacity={0.2}
+                                />
+                                <Text
+                                    text={`${calibrationTargetValue || 0}`}
+                                    fontSize={16 / zoom}
+                                    fill="white"
+                                    fontStyle="bold"
+                                    width={100 / zoom}
+                                    align="center"
+                                    offsetX={50 / zoom}
+                                    offsetY={39 / zoom}
+                                />
+                            </Group>
+                        </Group>
+                    )}
+                </Group>
+                {/* Phantom Arc Guide */}
+                {/* RENDERIZAR ARCO FANTASMA (PHANTOM ARC) */}
+                {
+                    phantomArc && (() => {
                         const points = generateArcPoints(phantomArc.start, phantomArc.end, phantomArc.depth)
                         const flatPoints: number[] = []
                         points.forEach(p => flatPoints.push(p.x * zoom + offset.x, p.y * zoom + offset.y))
@@ -2683,478 +3265,587 @@ export const CanvasEngine = ({
                                 )}
                             </Group>
                         )
-                    })()}
+                    })()
+                }
 
-                </Layer>
-            </Stage>
+            </Layer>
+        </Stage>
 
             {
-                ((selectedWall && uiPos) || selectedRoom || (selectedElement && currentEPos)) && editMode && (
-                    <div
-                        onMouseDown={(e) => {
-                            e.stopPropagation()
-                            setIsDraggingMenuState(true)
-                            menuDragStart.current = { x: e.clientX - menuDragOffset.x, y: e.clientY - menuDragOffset.y }
-                        }}
-                        onTouchStart={(e) => {
-                            e.stopPropagation()
-                            setIsDraggingMenuState(true)
-                            const touch = e.touches[0]
-                            menuDragStart.current = { x: touch.clientX - menuDragOffset.x, y: touch.clientY - menuDragOffset.y }
-                        }}
-                        className="flex flex-col"
-                        style={{
-                            position: 'absolute',
-                            left: Math.max(100, Math.min(window.innerWidth - 100, (selectedRoom
-                                ? (calculatePolygonCentroid(selectedRoom.polygon).x * zoom + offset.x)
-                                : (selectedElement && currentEPos)
-                                    ? currentEPos.x
-                                    : uiPos?.x || 0
-                            ) + menuDragOffset.x)),
-                            top: Math.max(80, Math.min(window.innerHeight - 80, (selectedRoom
-                                ? (calculatePolygonCentroid(selectedRoom.polygon).y * zoom + offset.y - 40)
-                                : (selectedElement && currentEPos)
-                                    ? currentEPos.y - 80
-                                    : (uiPos ? uiPos.y - 100 : 0)
-                            ) + menuDragOffset.y)),
-                            transform: 'translateX(-50%) translateY(-100%)', // Anchor bottom-center
-                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                            backdropFilter: 'blur(12px)',
-                            padding: '4px',
-                            borderRadius: '16px',
-                            boxShadow: '0 20px 50px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)',
-                            zIndex: 1000,
-                            pointerEvents: 'auto',
-                            cursor: isDraggingMenuState ? 'grabbing' : 'grab',
-                            animation: 'fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                            minWidth: 'auto',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center'
-                        }}
-                    >
-                        {/* Drag Handle Bar */}
-                        <div className="w-full h-4 flex justify-center items-center mb-1 cursor-grab active:cursor-grabbing">
-                            <div className="w-12 h-1.5 bg-slate-200 rounded-full hover:bg-slate-300 transition-colors" />
-                        </div>
+        ((selectedWall && uiPos) || selectedRoom || (selectedElement && currentEPos)) && editMode && (
+            <div
+                onMouseDown={(e) => {
+                    e.stopPropagation()
+                    setIsDraggingMenuState(true)
+                    menuDragStart.current = { x: e.clientX - menuDragOffset.x, y: e.clientY - menuDragOffset.y }
+                }}
+                onTouchStart={(e) => {
+                    e.stopPropagation()
+                    setIsDraggingMenuState(true)
+                    const touch = e.touches[0]
+                    menuDragStart.current = { x: touch.clientX - menuDragOffset.x, y: touch.clientY - menuDragOffset.y }
+                }}
+                className="flex flex-col"
+                style={{
+                    position: 'absolute',
+                    left: Math.max(100, Math.min(window.innerWidth - 100, (selectedRoom
+                        ? (calculatePolygonCentroid(selectedRoom.polygon).x * zoom + offset.x)
+                        : (selectedElement && currentEPos)
+                            ? currentEPos.x
+                            : uiPos?.x || 0
+                    ) + menuDragOffset.x)),
+                    top: Math.max(80, Math.min(window.innerHeight - 80, (selectedRoom
+                        ? (calculatePolygonCentroid(selectedRoom.polygon).y * zoom + offset.y - 40)
+                        : (selectedElement && currentEPos)
+                            ? currentEPos.y - 80
+                            : (uiPos ? uiPos.y - 100 : 0)
+                    ) + menuDragOffset.y)),
+                    transform: 'translateX(-50%) translateY(-100%)', // Anchor bottom-center
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(12px)',
+                    padding: '4px',
+                    borderRadius: '16px',
+                    boxShadow: '0 20px 50px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)',
+                    zIndex: 1000,
+                    pointerEvents: 'auto',
+                    cursor: isDraggingMenuState ? 'grabbing' : 'grab',
+                    animation: 'fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                    minWidth: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center'
+                }}
+            >
+                {/* Drag Handle Bar */}
+                <div className="w-full h-4 flex justify-center items-center mb-1 cursor-grab active:cursor-grabbing">
+                    <div className="w-12 h-1.5 bg-slate-200 rounded-full hover:bg-slate-300 transition-colors" />
+                </div>
 
-                        <div className="flex items-center gap-0.5">
-                            {editMode === "menu" ? (
+                <div className="flex items-center gap-0.5">
+                    {editMode === "menu" ? (
+                        <>
+                            {selectedWall && (
                                 <>
-                                    {selectedWall && (
+                                    <MenuButton
+                                        icon={<Scissors className="h-3.5 w-3.5" />}
+                                        onClick={() => onSplitWall?.(selectedWall.id)}
+                                        title="Dividir tabique"
+                                    />
+                                    <MenuButton
+                                        icon={<SquareDashed className={`h-3.5 w-3.5 ${selectedWall.isInvisible ? 'text-sky-500 fill-sky-50' : ''}`} />}
+                                        onClick={() => onUpdateWallInvisible(selectedWall.id, !selectedWall.isInvisible)}
+                                        title="Separador de estancias"
+                                    />
+                                </>
+                            )}
+                            {selectedElement && (
+                                <>
+                                    <MenuButton
+                                        icon={<Copy className="h-3.5 w-3.5" />}
+                                        onClick={() => onCloneElement(selectedElement.type, selectedElement.id)}
+                                    />
+                                    {selectedElement.type === "door" && (
                                         <>
                                             <MenuButton
-                                                icon={<Scissors className="h-3.5 w-3.5" />}
-                                                onClick={() => onSplitWall?.(selectedWall.id)}
-                                                title="Dividir tabique"
+                                                icon={<FlipHorizontal className="h-3.5 w-3.5" />}
+                                                onClick={() => {
+                                                    const el = doors.find(d => d.id === selectedElement.id)
+                                                    if (el) onUpdateElement("door", el.id, { flipX: !el.flipX })
+                                                }}
                                             />
                                             <MenuButton
-                                                icon={<SquareDashed className={`h-3.5 w-3.5 ${selectedWall.isInvisible ? 'text-sky-500 fill-sky-50' : ''}`} />}
-                                                onClick={() => onUpdateWallInvisible(selectedWall.id, !selectedWall.isInvisible)}
-                                                title="Separador de estancias"
+                                                icon={<FlipVertical className="h-3.5 w-3.5" />}
+                                                onClick={() => {
+                                                    const el = doors.find(d => d.id === selectedElement.id)
+                                                    if (el) onUpdateElement("door", el.id, { flipY: !el.flipY })
+                                                }}
+                                            />
+                                            <MenuButton
+                                                icon={<Spline className="h-3.5 w-3.5" />}
+                                                onClick={() => {
+                                                    const el = doors.find(d => d.id === selectedElement.id)
+                                                    if (el) {
+                                                        const types = ["single", "double", "sliding"] as const
+                                                        // @ts-ignore
+                                                        const currentIdx = types.indexOf(el.openType || "single")
+                                                        const nextType = types[(currentIdx + 1) % types.length]
+                                                        // @ts-ignore
+                                                        onUpdateElement("door", el.id, { openType: nextType })
+                                                    }
+                                                }}
+                                                title="Cambiar tipo apertura"
                                             />
                                         </>
                                     )}
-                                    {selectedElement && (
+                                </>
+                            )}
+                            <MenuButton
+                                icon={<Pencil className="h-3.5 w-3.5" />}
+                                onClick={() => setEditMode(selectedWall ? "thickness" : selectedElement ? "length" : "room")}
+                                title="Editar"
+                            />
+                            <div className="w-px h-4 bg-slate-100 mx-0.5" />
+                            {selectedRoomId && (
+                                <>
+                                    {isAdvancedEnabled && (
                                         <>
                                             <MenuButton
                                                 icon={<Copy className="h-3.5 w-3.5" />}
-                                                onClick={() => onCloneElement(selectedElement.type, selectedElement.id)}
-                                            />
-                                            {selectedElement.type === "door" && (
-                                                <>
-                                                    <MenuButton
-                                                        icon={<FlipHorizontal className="h-3.5 w-3.5" />}
-                                                        onClick={() => {
-                                                            const el = doors.find(d => d.id === selectedElement.id)
-                                                            if (el) onUpdateElement("door", el.id, { flipX: !el.flipX })
-                                                        }}
-                                                    />
-                                                    <MenuButton
-                                                        icon={<FlipVertical className="h-3.5 w-3.5" />}
-                                                        onClick={() => {
-                                                            const el = doors.find(d => d.id === selectedElement.id)
-                                                            if (el) onUpdateElement("door", el.id, { flipY: !el.flipY })
-                                                        }}
-                                                    />
-                                                    <MenuButton
-                                                        icon={<Spline className="h-3.5 w-3.5" />}
-                                                        onClick={() => {
-                                                            const el = doors.find(d => d.id === selectedElement.id)
-                                                            if (el) {
-                                                                const types = ["single", "double", "sliding"] as const
-                                                                // @ts-ignore
-                                                                const currentIdx = types.indexOf(el.openType || "single")
-                                                                const nextType = types[(currentIdx + 1) % types.length]
-                                                                // @ts-ignore
-                                                                onUpdateElement("door", el.id, { openType: nextType })
-                                                            }
-                                                        }}
-                                                        title="Cambiar tipo apertura"
-                                                    />
-                                                </>
-                                            )}
-                                        </>
-                                    )}
-                                    <MenuButton
-                                        icon={<Pencil className="h-3.5 w-3.5" />}
-                                        onClick={() => setEditMode(selectedWall ? "thickness" : selectedElement ? "length" : "room")}
-                                        title="Editar"
-                                    />
-                                    <div className="w-px h-4 bg-slate-100 mx-0.5" />
-                                    {selectedRoomId && (
-                                        <>
-                                            {isAdvancedEnabled && (
-                                                <>
-                                                    <MenuButton
-                                                        icon={<Copy className="h-3.5 w-3.5" />}
-                                                        onClick={() => onCloneRoom(selectedRoomId)}
-                                                        title="Clonar Habitación"
-                                                    />
-                                                    <div className="w-px h-4 bg-slate-100 mx-0.5" />
-                                                </>
-                                            )}
-                                            <MenuButton
-                                                icon={<Trash2 className="h-3.5 w-3.5" />}
-                                                onClick={() => onDeleteRoom(selectedRoomId)}
-                                                variant="danger"
-                                                title="Eliminar Habitación"
+                                                onClick={() => onCloneRoom(selectedRoomId)}
+                                                title="Clonar Habitación"
                                             />
                                             <div className="w-px h-4 bg-slate-100 mx-0.5" />
                                         </>
                                     )}
-                                    {(selectedWall || selectedElement) && (
-                                        <MenuButton
-                                            icon={<Trash2 className="h-3.5 w-3.5" />}
-                                            onClick={() => {
-                                                if (selectedWall) onDeleteWall(selectedWall.id)
-                                                else if (selectedElement) onDeleteElement(selectedElement.type, selectedElement.id)
-                                            }}
-                                            variant="danger"
-                                            title="Eliminar"
-                                        />
-                                    )}
+                                    <MenuButton
+                                        icon={<Trash2 className="h-3.5 w-3.5" />}
+                                        onClick={() => onDeleteRoom(selectedRoomId)}
+                                        variant="danger"
+                                        title="Eliminar Habitación"
+                                    />
                                     <div className="w-px h-4 bg-slate-100 mx-0.5" />
-                                    <button
-                                        onClick={() => {
-                                            onSelectWall(null)
-                                            onSelectRoom(null)
-                                            onSelectElement(null)
-                                        }}
-                                        onMouseDown={(e) => e.stopPropagation()}
-                                        className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </button>
                                 </>
-                            ) : editMode === "room" || editMode === "room-custom" ? (
-                                <div className="flex flex-col gap-2 p-2 min-w-[180px]">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase">{editMode === "room-custom" ? "Nombre Personalizado" : "Tipo de Habitación"}</span>
-                                        <button onClick={() => setEditMode("menu")} className="text-slate-400 hover:text-slate-600">
-                                            <X className="h-3 w-3" />
-                                        </button>
-                                    </div>
+                            )}
+                            {(selectedWall || selectedElement) && (
+                                <MenuButton
+                                    icon={<Trash2 className="h-3.5 w-3.5" />}
+                                    onClick={() => {
+                                        if (selectedWall) onDeleteWall(selectedWall.id)
+                                        else if (selectedElement) onDeleteElement(selectedElement.type, selectedElement.id)
+                                    }}
+                                    variant="danger"
+                                    title="Eliminar"
+                                />
+                            )}
+                            <div className="w-px h-4 bg-slate-100 mx-0.5" />
+                            <button
+                                onClick={() => {
+                                    onSelectWall(null)
+                                    onSelectRoom(null)
+                                    onSelectElement(null)
+                                }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+                        </>
+                    ) : editMode === "room" || editMode === "room-custom" ? (
+                        <div className="flex flex-col gap-2 p-2 min-w-[180px]">
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase">{editMode === "room-custom" ? "Nombre Personalizado" : "Tipo de Habitación"}</span>
+                                <button onClick={() => setEditMode("menu")} className="text-slate-400 hover:text-slate-600">
+                                    <X className="h-3 w-3" />
+                                </button>
+                            </div>
 
-                                    {editMode === "room" ? (
-                                        <div className="grid grid-cols-2 gap-1">
-                                            {roomTypes.map(type => (
-                                                <button
-                                                    key={type}
-                                                    onClick={() => {
-                                                        if (selectedRoomId) {
-                                                            if (type === "Otro") {
-                                                                setEditMode("room-custom")
-                                                                setEditLength("") // Usamos editLength para el nombre personalizado
-                                                                return
-                                                            }
-
-                                                            // Logic for smart numbering
-                                                            // 1. Find other rooms of the SAME type
-                                                            const others = rooms.filter(r => r.id !== selectedRoomId && r.name.startsWith(type))
-
-                                                            if (others.length === 0) {
-                                                                // First one is just "Type" (e.g. "Cocina")
-                                                                onUpdateRoom(selectedRoomId, { name: type })
-                                                            } else {
-                                                                // There are others. We need to assign a number.
-                                                                // Check if there is a "plain" room (e.g. just "Cocina") that needs to become "Cocina 1"
-                                                                const plainRoom = others.find(r => r.name === type)
-                                                                if (plainRoom) {
-                                                                    onUpdateRoom(plainRoom.id, { name: `${type} 1` })
-                                                                }
-
-                                                                // Find next available number
-                                                                const usedNumbers = others.map(r => {
-                                                                    const match = r.name.match(/\d+$/)
-                                                                    // If it has a number, use it. If it's plain "Name", treat as 1 (since we just renamed it implicitly)
-                                                                    return match ? parseInt(match[0]) : (r.name === type ? 1 : 0)
-                                                                }).filter(n => n > 0)
-
-                                                                // If we found a plain room, we definitely used 1
-                                                                if (plainRoom && !usedNumbers.includes(1)) usedNumbers.push(1)
-
-                                                                let nextNum = 1
-                                                                while (usedNumbers.includes(nextNum)) nextNum++
-
-                                                                onUpdateRoom(selectedRoomId, { name: `${type} ${nextNum}` })
-                                                            }
-
-                                                            setEditMode(null)
-                                                            onSelectRoom(null)
-                                                        }
-                                                    }}
-                                                    className="text-[11px] px-2 py-1.5 bg-slate-50 hover:bg-sky-50 hover:text-sky-600 rounded-md text-left transition-colors"
-                                                >
-                                                    {type}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col gap-2">
-                                            <input
-                                                type="text"
-                                                autoFocus
-                                                value={editLength}
-                                                placeholder="Ej: Despensa..."
-                                                onChange={(e) => setEditLength(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' && selectedRoomId) {
-                                                        onUpdateRoom(selectedRoomId, { name: editLength })
-                                                        setEditMode(null)
-                                                        onSelectRoom(null)
-                                                    }
-                                                    if (e.key === 'Escape') setEditMode("room")
-                                                }}
-                                                className="w-full p-2 border-2 border-slate-200 rounded-lg text-sm font-semibold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
-                                            />
-                                            <div className="flex gap-1 justify-end">
-                                                <button
-                                                    onClick={() => setEditMode("room")}
-                                                    className="text-[10px] px-2 py-1 text-slate-400 hover:text-slate-600"
-                                                >
-                                                    Cancelar
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        if (selectedRoomId) {
-                                                            onUpdateRoom(selectedRoomId, { name: editLength })
-                                                            setEditMode(null)
-                                                            onSelectRoom(null)
-                                                        }
-                                                    }}
-                                                    className="text-[10px] bg-sky-500 text-white px-2 py-1 rounded-md font-bold"
-                                                >
-                                                    Guardar
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {editMode === "room" && (
+                            {editMode === "room" ? (
+                                <div className="grid grid-cols-2 gap-1">
+                                    {roomTypes.map(type => (
                                         <button
-                                            onClick={() => setEditMode("menu")}
-                                            className="mt-1 text-[11px] font-medium text-sky-600 hover:text-sky-700 underline text-center"
-                                        >
-                                            Volver al menú
-                                        </button>
-                                    )}
-                                </div>
-                            ) : editMode === "thickness" ? (
-                                <div className="flex items-center gap-3 px-3 py-1.5">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">Grosor pared</span>
-                                    <div className="flex items-center gap-1">
-                                        <NumericInput
-                                            label="Grosor de pared"
-                                            value={editThickness}
-                                            setter={setEditThickness}
-                                            onEnter={(val) => {
-                                                const finalVal = val !== undefined ? val : editThickness
-                                                if (selectedWall) {
-                                                    onUpdateWallThickness(selectedWall.id, parseInt(finalVal))
-                                                    setEditMode("menu")
+                                            key={type}
+                                            onClick={() => {
+                                                if (selectedRoomId) {
+                                                    if (type === "Otro") {
+                                                        setEditMode("room-custom")
+                                                        setEditLength("") // Usamos editLength para el nombre personalizado
+                                                        return
+                                                    }
+
+                                                    // Logic for smart numbering
+                                                    // 1. Find other rooms of the SAME type
+                                                    const others = rooms.filter(r => r.id !== selectedRoomId && r.name.startsWith(type))
+
+                                                    if (others.length === 0) {
+                                                        // First one is just "Type" (e.g. "Cocina")
+                                                        onUpdateRoom(selectedRoomId, { name: type })
+                                                    } else {
+                                                        // There are others. We need to assign a number.
+                                                        // Check if there is a "plain" room (e.g. just "Cocina") that needs to become "Cocina 1"
+                                                        const plainRoom = others.find(r => r.name === type)
+                                                        if (plainRoom) {
+                                                            onUpdateRoom(plainRoom.id, { name: `${type} 1` })
+                                                        }
+
+                                                        // Find next available number
+                                                        const usedNumbers = others.map(r => {
+                                                            const match = r.name.match(/\d+$/)
+                                                            // If it has a number, use it. If it's plain "Name", treat as 1 (since we just renamed it implicitly)
+                                                            return match ? parseInt(match[0]) : (r.name === type ? 1 : 0)
+                                                        }).filter(n => n > 0)
+
+                                                        // If we found a plain room, we definitely used 1
+                                                        if (plainRoom && !usedNumbers.includes(1)) usedNumbers.push(1)
+
+                                                        let nextNum = 1
+                                                        while (usedNumbers.includes(nextNum)) nextNum++
+
+                                                        onUpdateRoom(selectedRoomId, { name: `${type} ${nextNum}` })
+                                                    }
+
+                                                    setEditMode(null)
+                                                    onSelectRoom(null)
                                                 }
                                             }}
-                                        />
-                                        {!isMobile && <span className="text-[10px] font-semibold text-slate-400">cm</span>}
-                                    </div>
-                                    <button
-                                        onClick={() => setEditMode("menu")}
-                                        className="p-1 hover:bg-slate-100 rounded-full text-slate-400"
-                                    >
-                                        <X className="h-3.5 w-3.5" />
-                                    </button>
+                                            className="text-[11px] px-2 py-1.5 bg-slate-50 hover:bg-sky-50 hover:text-sky-600 rounded-md text-left transition-colors"
+                                        >
+                                            {type}
+                                        </button>
+                                    ))}
                                 </div>
-                            ) : editMode === "length" ? (
-                                <div className="flex flex-col items-center gap-1 min-w-[160px]">
-                                    {selectedWall && (
-                                        <>
-                                            <div className="flex items-center justify-between w-full px-2 mb-1">
-                                                <span className="text-[9px] font-bold text-slate-400 uppercase">
-                                                    {editFace === "interior" ? "Lado Azul" : "Lado Naranja"}
-                                                </span>
-                                                <div className="flex gap-1">
-                                                    <button onClick={() => setEditFace("interior")} className={`w-3 h-3 rounded-full border ${editFace === 'interior' ? 'bg-sky-500 border-sky-600' : 'bg-slate-200 border-slate-300'}`} title="Lado Azul (Interior)" />
-                                                    <button onClick={() => setEditFace("exterior")} className={`w-3 h-3 rounded-full border ${editFace === 'exterior' ? 'bg-amber-500 border-amber-600' : 'bg-slate-200 border-slate-300'}`} title="Lado Naranja (Exterior)" />
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2 px-2 py-1">
-                                                <button
-                                                    onClick={() => {
-                                                        const targetLen = parseInt(editLength)
-                                                        if (isNaN(targetLen)) return
+                            ) : (
+                                <div className="flex flex-col gap-2">
+                                    <input
+                                        type="text"
+                                        autoFocus
+                                        value={editLength}
+                                        placeholder="Ej: Despensa..."
+                                        onChange={(e) => setEditLength(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && selectedRoomId) {
+                                                onUpdateRoom(selectedRoomId, { name: editLength })
+                                                setEditMode(null)
+                                                onSelectRoom(null)
+                                            }
+                                            if (e.key === 'Escape') setEditMode("room")
+                                        }}
+                                        className="w-full p-2 border-2 border-slate-200 rounded-lg text-sm font-semibold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
+                                    />
+                                    <div className="flex gap-1 justify-end">
+                                        <button
+                                            onClick={() => setEditMode("room")}
+                                            className="text-[10px] px-2 py-1 text-slate-400 hover:text-slate-600"
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                if (selectedRoomId) {
+                                                    onUpdateRoom(selectedRoomId, { name: editLength })
+                                                    setEditMode(null)
+                                                    onSelectRoom(null)
+                                                }
+                                            }}
+                                            className="text-[10px] bg-sky-500 text-white px-2 py-1 rounded-md font-bold"
+                                        >
+                                            Guardar
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
-                                                        // FIXED: Start/Up Arrow Logic (Single Segment)
-                                                        const dx = selectedWall.end.x - selectedWall.start.x
-                                                        const dy = selectedWall.end.y - selectedWall.start.y
-                                                        const centerLength = Math.sqrt(dx * dx + dy * dy)
+                            {editMode === "room" && (
+                                <button
+                                    onClick={() => setEditMode("menu")}
+                                    className="mt-1 text-[11px] font-medium text-sky-600 hover:text-sky-700 underline text-center"
+                                >
+                                    Volver al menú
+                                </button>
+                            )}
+                        </div>
+                    ) : editMode === "thickness" ? (
+                        <div className="flex items-center gap-3 px-3 py-1.5">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">Grosor pared</span>
+                            <div className="flex items-center gap-1">
+                                <NumericInput
+                                    label="Grosor de pared"
+                                    value={editThickness}
+                                    step={0.1}
+                                    setter={setEditThickness}
+                                    onEnter={(val) => {
+                                        const finalVal = val !== undefined ? val : editThickness
+                                        if (selectedWall) {
+                                            onUpdateWallThickness(selectedWall.id, parseFloat(finalVal))
+                                            setEditMode("menu")
+                                        }
+                                    }}
+                                />
+                                {/* Unit removed per user request */}
+                            </div>
+                            <button
+                                onClick={() => setEditMode("menu")}
+                                className="p-1 hover:bg-slate-100 rounded-full text-slate-400"
+                            >
+                                <X className="h-3.5 w-3.5" />
+                            </button>
+                        </div>
+                    ) : editMode === "length" ? (
+                        <div className="flex flex-col items-center gap-1 min-w-[160px]">
+                            {selectedWall && (
+                                <>
+                                    <div className="flex items-center justify-between w-full px-2 mb-1">
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase">
+                                            {editFace === "interior" ? "Lado Azul" : "Lado Naranja"}
+                                        </span>
+                                        <div className="flex gap-1">
+                                            <button onClick={() => setEditFace("interior")} className={`w-3 h-3 rounded-full border ${editFace === 'interior' ? 'bg-sky-500 border-sky-600' : 'bg-slate-200 border-slate-300'}`} title="Lado Azul (Interior)" />
+                                            <button onClick={() => setEditFace("exterior")} className={`w-3 h-3 rounded-full border ${editFace === 'exterior' ? 'bg-amber-500 border-amber-600' : 'bg-slate-200 border-slate-300'}`} title="Lado Naranja (Exterior)" />
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 px-2 py-1">
+                                        <button
+                                            onClick={() => {
+                                                const targetLen = parseFloat(editLength)
+                                                if (isNaN(targetLen)) return
 
-                                                        const chainIds = new Set([selectedWall.id])
-                                                        let currentTotal = centerLength
-                                                        if (editFace !== "center") {
-                                                            const nx = -dy / centerLength
-                                                            const ny = dx / centerLength
-                                                            const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
-                                                            currentTotal += getFaceOffsetAt(selectedWall, selectedWall.start, faceNormal, chainIds) +
-                                                                getFaceOffsetAt(selectedWall, selectedWall.end, faceNormal, chainIds)
-                                                        }
+                                                // FIXED: Start/Up Arrow Logic (Single Segment)
+                                                const dx = selectedWall.end.x - selectedWall.start.x
+                                                const dy = selectedWall.end.y - selectedWall.start.y
+                                                const centerLength = Math.sqrt(dx * dx + dy * dy)
 
-                                                        const delta = targetLen - currentTotal
-                                                        if (selectedWall && Math.abs(delta) > 0.01) {
-                                                            onUpdateWallLength(selectedWall.id, centerLength + delta, "left")
-                                                        }
+                                                const chainIds = new Set([selectedWall.id])
+                                                let currentTotal = centerLength
 
-                                                        setEditMode("menu")
-                                                    }}
-                                                    className="p-1.5 bg-slate-100 text-slate-600 hover:bg-sky-100 hover:text-sky-600 rounded-md transition-all"
-                                                >
-                                                    {Math.abs(selectedWall.start.y - selectedWall.end.y) < 1 ? "←" : "↑"}
-                                                </button>
-                                                <div className="flex items-center gap-1 bg-white border-2 border-slate-100 rounded-lg px-2 py-1">
-                                                    <NumericInput
-                                                        label={editFace === "interior" ? "Medida Azul" : "Medida Naranja"}
-                                                        value={editLength}
-                                                        setter={setEditLength}
-                                                        onEnter={(val) => {
-                                                            const finalVal = val !== undefined ? val : editLength
-                                                            const targetLen = parseInt(finalVal)
-                                                            if (isNaN(targetLen) || !selectedWall) return
+                                                if (editFace !== "center") {
+                                                    const nx = -dy / centerLength
+                                                    const ny = dx / centerLength
+                                                    const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
 
-                                                            const dx = selectedWall.end.x - selectedWall.start.x
-                                                            const dy = selectedWall.end.y - selectedWall.start.y
-                                                            const centerLength = Math.sqrt(dx * dx + dy * dy)
-                                                            const chainIds = new Set([selectedWall.id])
-                                                            let currentTotal = centerLength
-                                                            if (editFace !== "center") {
-                                                                const nx = -dy / centerLength
-                                                                const ny = dx / centerLength
-                                                                const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
-                                                                currentTotal += getFaceOffsetAt(selectedWall, selectedWall.start, faceNormal, chainIds) +
-                                                                    getFaceOffsetAt(selectedWall, selectedWall.end, faceNormal, chainIds)
-                                                            }
-                                                            const delta = targetLen - currentTotal
-                                                            onUpdateWallLength(selectedWall.id, centerLength + delta, "right")
-                                                            setEditMode("menu")
-                                                        }}
-                                                    />
-                                                    {!isMobile && <span className="text-[10px] font-bold text-slate-400">cm</span>}
-                                                </div>
-                                                <button
-                                                    onClick={() => {
-                                                        const targetLen = parseInt(editLength)
-                                                        if (isNaN(targetLen)) return
+                                                    const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
+                                                    const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
+                                                    const isInterior = (editFace === "interior") || isPointInAnyRoom(testP)
 
-                                                        // FIXED: End/Down Arrow Logic (Single Segment)
-                                                        const dx = selectedWall.end.x - selectedWall.start.x
-                                                        const dy = selectedWall.end.y - selectedWall.start.y
-                                                        const centerLength = Math.sqrt(dx * dx + dy * dy)
+                                                    const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, isInterior)
+                                                    const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, isInterior)
+                                                    const chainLen = centerLength + back.addedLen + forward.addedLen
 
-                                                        const chainIds = new Set([selectedWall.id])
-                                                        let currentTotal = centerLength
-                                                        if (editFace !== "center") {
-                                                            const nx = -dy / centerLength
-                                                            const ny = dx / centerLength
-                                                            const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
-                                                            currentTotal += getFaceOffsetAt(selectedWall, selectedWall.start, faceNormal, chainIds) +
-                                                                getFaceOffsetAt(selectedWall, selectedWall.end, faceNormal, chainIds)
-                                                        }
+                                                    const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || selectedWall
+                                                    const terminalEndWall = walls.find(w => w.id === forward.terminalWallId) || selectedWall
 
-                                                        const delta = targetLen - currentTotal
-                                                        if (selectedWall && Math.abs(delta) > 0.01) {
-                                                            onUpdateWallLength(selectedWall.id, centerLength + delta, "right")
-                                                        }
+                                                    currentTotal = chainLen +
+                                                        getFaceOffsetAt(terminalEndWall, forward.terminal, faceNormal, chainIds, true) -
+                                                        getFaceOffsetAt(terminalStartWall, back.terminal, faceNormal, chainIds, false)
+                                                }
 
-                                                        setEditMode("menu")
-                                                    }}
-                                                    className="p-1.5 bg-slate-100 text-slate-600 hover:bg-sky-100 hover:text-sky-600 rounded-md transition-all"
-                                                >
-                                                    {Math.abs(selectedWall.start.y - selectedWall.end.y) < 1 ? "→" : "↓"}
-                                                </button>
-                                            </div>
-                                        </>
-                                    )}
-                                    {selectedElement && (
-                                        <div className="flex flex-col gap-1.5 px-3 py-2">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Ancho</span>
-                                                <NumericInput
-                                                    label="Ancho"
-                                                    value={editLength}
-                                                    setter={setEditLength}
-                                                    onEnter={(val) => {
-                                                        const finalVal = val !== undefined ? val : editLength
-                                                        const updates: any = { width: parseInt(finalVal) }
-                                                        if (selectedElement.type === "window" && editHeight) updates.height = parseInt(editHeight)
-                                                        onUpdateElement(selectedElement.type, selectedElement.id, updates)
-                                                        setEditMode("menu")
-                                                    }}
-                                                />
-                                                {!isMobile && <span className="text-[9px] font-bold text-slate-400">cm</span>}
-                                            </div>
-                                            {selectedElement.type === "window" && (
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Alto</span>
-                                                    <NumericInput
-                                                        label="Alto"
-                                                        value={editHeight}
-                                                        setter={setEditHeight}
-                                                        onEnter={(val) => {
-                                                            const finalVal = val !== undefined ? val : editHeight
-                                                            onUpdateElement(selectedElement.type, selectedElement.id, {
-                                                                width: parseInt(editLength), // Width uses state, assume it's stable or handled by other input
-                                                                height: parseInt(finalVal)
-                                                            })
-                                                            setEditMode("menu")
-                                                        }}
-                                                    />
-                                                    {!isMobile && <span className="text-[9px] font-bold text-slate-400">cm</span>}
-                                                </div>
-                                            )}
-                                            <button
-                                                onClick={() => {
-                                                    const updates: any = { width: parseInt(editLength) }
-                                                    if (selectedElement.type === "window") updates.height = parseInt(editHeight)
-                                                    onUpdateElement(selectedElement.type, selectedElement.id, updates)
+                                                const delta = targetLen - currentTotal
+                                                if (selectedWall && Math.abs(delta) > 0.01) {
+                                                    onUpdateWallLength(selectedWall.id, centerLength + delta, "left", faceNormal)
+                                                }
+
+                                                setEditMode("menu")
+                                            }}
+                                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-sky-100 hover:text-sky-600 rounded-md transition-all"
+                                        >
+                                            {Math.abs(selectedWall.start.y - selectedWall.end.y) < 1 ? "←" : "↑"}
+                                        </button>
+                                        <div className="flex items-center gap-1 bg-white border-2 border-slate-100 rounded-lg px-2 py-1">
+                                            <NumericInput
+                                                label={editFace === "interior" ? "Medida Azul" : "Medida Naranja"}
+                                                value={editLength}
+                                                step={0.1}
+                                                setter={setEditLength}
+                                                onEnter={(val) => {
+                                                    const finalVal = val !== undefined ? val : editLength
+                                                    const targetLen = parseFloat(finalVal)
+                                                    if (isNaN(targetLen) || !selectedWall) return
+
+                                                    const dx = selectedWall.end.x - selectedWall.start.x
+                                                    const dy = selectedWall.end.y - selectedWall.start.y
+                                                    const centerLength = Math.sqrt(dx * dx + dy * dy)
+                                                    const chainIds = new Set([selectedWall.id])
+
+                                                    const nx = -dy / centerLength
+                                                    const ny = dx / centerLength
+                                                    const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
+
+                                                    const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
+                                                    const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
+                                                    const isInterior = (editFace === "interior") || isPointInAnyRoom(testP)
+
+                                                    const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, isInterior)
+                                                    const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, isInterior)
+                                                    const chainLen = centerLength + back.addedLen + forward.addedLen
+
+                                                    const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || selectedWall
+                                                    const terminalEndWall = walls.find(w => w.id === forward.terminalWallId) || selectedWall
+
+                                                    currentTotal = chainLen +
+                                                        getFaceOffsetAt(terminalEndWall, forward.terminal, faceNormal, chainIds, true) -
+                                                        getFaceOffsetAt(terminalStartWall, back.terminal, faceNormal, chainIds, false)
+                                                    const delta = targetLen - currentTotal
+                                                    if (selectedWall && Math.abs(delta) > 0.01) {
+                                                        onUpdateWallLength(selectedWall.id, centerLength + delta, "right", faceNormal)
+                                                    }
                                                     setEditMode("menu")
                                                 }}
-                                                className="mt-1 w-full py-1 bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold rounded transition-colors"
-                                            >
-                                                Guardar
-                                            </button>
+                                            />
+                                            {/* Unit removed per user request */}
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                const targetLen = parseFloat(editLength)
+                                                if (isNaN(targetLen) || !selectedWall) return
+
+                                                const dx = selectedWall.end.x - selectedWall.start.x
+                                                const dy = selectedWall.end.y - selectedWall.start.y
+                                                const centerLength = Math.sqrt(dx * dx + dy * dy)
+                                                const chainIds = new Set([selectedWall.id])
+
+                                                const nx = -dy / centerLength
+                                                const ny = dx / centerLength
+                                                const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
+
+                                                const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
+                                                const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
+                                                const isInterior = (editFace === "interior") || isPointInAnyRoom(testP)
+
+                                                const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, isInterior)
+                                                const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, isInterior)
+                                                const chainLen = centerLength + back.addedLen + forward.addedLen
+
+                                                const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || selectedWall
+                                                const terminalEndWall = walls.find(w => w.id === forward.terminalWallId) || selectedWall
+
+                                                let currentTotal = chainLen +
+                                                    getFaceOffsetAt(terminalEndWall, forward.terminal, faceNormal, chainIds, true) -
+                                                    getFaceOffsetAt(terminalStartWall, back.terminal, faceNormal, chainIds, false)
+
+                                                const delta = targetLen - currentTotal
+                                                if (selectedWall && Math.abs(delta) > 0.01) {
+                                                    onUpdateWallLength(selectedWall.id, centerLength + delta, "right", faceNormal)
+                                                }
+                                                setEditMode("menu")
+                                            }}
+                                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-sky-100 hover:text-sky-600 rounded-md transition-all"
+                                        >
+                                            {Math.abs(selectedWall.start.y - selectedWall.end.y) < 1 ? "→" : "↓"}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                            {selectedElement && (
+                                <div className="flex flex-col gap-1.5 px-3 py-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Ancho</span>
+                                        <NumericInput
+                                            label="Ancho"
+                                            value={editLength}
+                                            step={0.1}
+                                            setter={setEditLength}
+                                            onEnter={(val) => {
+                                                const finalVal = val !== undefined ? val : editLength
+                                                const updates: any = { width: parseFloat(finalVal) }
+                                                if (selectedElement.type === "window" && editHeight) updates.height = parseFloat(editHeight)
+                                                onUpdateElement(selectedElement.type, selectedElement.id, updates)
+                                                setEditMode("menu")
+                                            }}
+                                        />
+                                        {/* Unit removed per user request */}
+                                    </div>
+                                    {selectedElement.type === "window" && (
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Alto</span>
+                                            <NumericInput
+                                                label="Alto"
+                                                value={editHeight}
+                                                setter={setEditHeight}
+                                                onEnter={(val) => {
+                                                    const finalVal = val !== undefined ? val : editHeight
+                                                    onUpdateElement(selectedElement.type, selectedElement.id, {
+                                                        width: parseFloat(editLength), // Width uses state, assume it's stable or handled by other input
+                                                        height: parseFloat(finalVal)
+                                                    })
+                                                    setEditMode("menu")
+                                                }}
+                                            />
+                                            {/* Unit removed per user request */}
                                         </div>
                                     )}
+                                    <button
+                                        onClick={() => {
+                                            const updates: any = { width: parseFloat(editLength) }
+                                            if (selectedElement.type === "window") updates.height = parseFloat(editHeight)
+                                            onUpdateElement(selectedElement.type, selectedElement.id, updates)
+                                            setEditMode("menu")
+                                        }}
+                                        className="mt-1 w-full py-1 bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold rounded transition-colors"
+                                    >
+                                        Guardar
+                                    </button>
                                 </div>
-                            ) : null}
+                            )}
                         </div>
-                        <style>{`
+                    ) : null}
+                </div>
+                <style>{`
                         @keyframes fadeIn {
                             from { opacity: 0; transform: translate(-50%, 15px) scale(0.95); }
                             to { opacity: 1; transform: translate(-50%, 0) scale(1); }
                         }
                     `}</style>
-                    </div>
-                )
+            </div >
+        )
+    }
+    {/* Measurement Input Overlay */ }
+    {
+        editingMeas && (() => {
+            const handleCommit = (rawVal: string) => {
+                const val = parseFloat(rawVal.replace(/,/g, '.'))
+                if (!isNaN(val) && onUpdateShunt) {
+                    const thicknessOffset = (editingMeas.wallThickness || 10) / 2
+                    const isHorizontal = Math.abs(editingMeas.dir.x) > 0.5
+                    const rotation = (editingMeas.shuntRotation || 0) % 180
+                    const is90Deg = Math.abs(rotation - 90) < 1
+                    const effectiveWidth = is90Deg ? (editingMeas.shuntHeight || 30) : (editingMeas.shuntWidth || 30)
+                    const effectiveHeight = is90Deg ? (editingMeas.shuntWidth || 30) : (editingMeas.shuntHeight || 30)
+                    const columnHalfSize = isHorizontal ? effectiveWidth / 2 : effectiveHeight / 2
+
+                    const targetCenterDist = val + thicknessOffset + columnHalfSize
+                    const newX = editingMeas.wallPoint.x - editingMeas.dir.x * targetCenterDist
+                    const newY = editingMeas.wallPoint.y - editingMeas.dir.y * targetCenterDist
+
+                    // Only update if value actually changed significantly (avoid micro-drifts)
+                    if (Math.abs(val - editingMeas.currentDist) > 0.05) {
+                        onUpdateShunt(editingMeas.shuntId, { x: newX, y: newY })
+                    }
+                }
+                setEditingMeas(null)
             }
+
+            return (
+                <div
+                    style={{
+                        position: "absolute",
+                        left: editingMeas.screenPos.x,
+                        top: editingMeas.screenPos.y,
+                        transform: "translate(-50%, -50%)",
+                        zIndex: 100
+                    }}
+                    className="flex items-center gap-1"
+                >
+                    <input
+                        autoFocus
+                        type="text"
+                        inputMode="decimal"
+                        defaultValue={editingMeas.currentDist.toFixed(1)}
+                        onBlur={(e) => handleCommit(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                                handleCommit(e.currentTarget.value)
+                            } else if (e.key === "Escape") {
+                                setEditingMeas(null)
+                            }
+                        }}
+                        className="w-16 px-1 py-0.5 text-center text-xs font-bold border border-black rounded shadow-sm focus:outline-none ring-2 ring-sky-500 bg-white"
+                    />
+                    {/* Mobile/Touch Confirm Button */}
+                    <button
+                        onMouseDown={(e) => {
+                            // Prevent blur from firing before this click is processed
+                            e.preventDefault()
+                            // Find the input to get its value
+                            const input = e.currentTarget.previousElementSibling as HTMLInputElement
+                            if (input) handleCommit(input.value)
+                        }}
+                        className="bg-green-500 text-white p-0.5 rounded shadow-sm flex items-center justify-center hover:bg-green-600 w-6 h-6"
+                    >
+                        <Check className="h-4 w-4" />
+                    </button>
+                </div>
+            )
+        })()
+    }
+
         </div >
     )
 }

@@ -83,7 +83,7 @@ export default function EditorPlanosPage() {
 
   const fetchRecentPlans = async () => {
     try {
-      const response = await fetch("/api/editor-planos/plans")
+      const response = await fetch("/api/editor-planos/list")
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))

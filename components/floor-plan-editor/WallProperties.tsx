@@ -65,10 +65,11 @@ export function WallProperties({
 
             <div className="space-y-3">
                 <div className="space-y-1">
-                    <Label className="text-xs text-slate-500">Longitud (cm)</Label>
+                    <Label className="text-xs text-slate-500">Longitud</Label>
                     <Input
                         type="number"
-                        value={Math.round(localLength)}
+                        step={0.1}
+                        value={localLength}
                         onChange={(e) => setLocalLength(parseFloat(e.target.value) || 0)}
                         onBlur={handleLengthBlur}
                         className="h-8 text-sm"
@@ -76,9 +77,10 @@ export function WallProperties({
                 </div>
 
                 <div className="space-y-1">
-                    <Label className="text-xs text-slate-500">Grosor (cm)</Label>
+                    <Label className="text-xs text-slate-500">Grosor</Label>
                     <Input
                         type="number"
+                        step={0.1}
                         value={lThick}
                         onChange={(e) => setLThick(parseFloat(e.target.value) || 0)}
                         onBlur={handleThicknessBlur}

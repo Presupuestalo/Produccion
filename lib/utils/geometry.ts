@@ -69,7 +69,7 @@ export function isSamePoint(p1: Point, p2: Point, tolerance = 1.0): boolean {
 /**
  * Utilidades geométricas para intersecciones
  */
-function getLineIntersection(p1: Point, p2: Point, p3: Point, p4: Point): Point | null {
+export function getLineIntersection(p1: Point, p2: Point, p3: Point, p4: Point): Point | null {
     const denominator = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y)
     if (denominator === 0) return null
 
@@ -374,7 +374,7 @@ export function detectRoomsGeometrically(walls: Wall[], previousRooms: Room[] = 
         const centroid = calculatePolygonCentroid(room.polygon)
         let bestMatch: Room | null = null
 
-        let minDist = 50
+        let minDist = 150 // Increased from 50 to allow for larger movements without losing ID
 
         previousRooms.forEach(prev => {
             if (usedPrevIds.has(prev.id)) return
@@ -394,11 +394,77 @@ export function detectRoomsGeometrically(walls: Wall[], previousRooms: Room[] = 
                 id: bm.id,
                 name: bm.name,
                 color: bm.color,
-                visualCenter: room.visualCenter
+                visualCenter: room.visualCenter // Will be refined later
             })
         } else {
             finalRooms.push({ ...room, id: `room-${Date.now()}-${Math.random()}`, name: "" })
         }
+    })
+
+    // CONTAINMENT DETECTION for Label Placement
+    // We want to find if any room is INSIDE another room.
+    // If Room B is inside Room A, we pass B's polygon as a hole to A's polylabel calculation.
+
+    // Helper to check if a polygon is inside another (approx by centroid)
+    // Detailed check: All points of B inside A.
+    // Optimization: Just check centroid or one point if we assume non-overlapping boundaries for distinct rooms.
+    // We already know boundaries don't cross (from planar graph extraction), so one point is enough.
+
+    const isPointInPoly = (p: Point, poly: Point[]) => {
+        let inside = false
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+            const xi = poly[i].x, yi = poly[i].y
+            const xj = poly[j].x, yj = poly[j].y
+            const intersect = ((yi > p.y) !== (yj > p.y)) &&
+                (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi)
+            if (intersect) inside = !inside
+        }
+        return inside
+    }
+
+    // We need to use valid containment logic. 
+    // We can reuse `polylabel`'s internal distance function if we exported it, but simple point-in-poly is fine.
+
+    // We need to build a dependency graph or just iterate since N is small (< 50 usually).
+    // Identify holes for each room.
+    const roomHoles: Map<string, Point[][]> = new Map()
+
+    finalRooms.forEach(outer => {
+        const holes: Point[][] = []
+        finalRooms.forEach(inner => {
+            if (outer.id === inner.id) return
+            // Check if inner is inside outer.
+            // Heuristic: Check if inner's visualCenter (or centroid) is inside outer.
+            // And Outer area > Inner area.
+            if (outer.area > inner.area) {
+                // Use a point from the inner polygon to test.
+                // Ideally use VisualCenter which is guaranteed to be inside.
+                const pTest = inner.visualCenter || inner.polygon[0]
+
+                // Reuse point-in-poly logic.
+                // Copied from above (detectRoomsGeometrically internal or polylabel)
+                let inside = false
+                const poly = outer.polygon
+                for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+                    const pi = poly[i], pj = poly[j]
+                    if (((pi.y > pTest.y) !== (pj.y > pTest.y)) && (pTest.x < (pj.x - pi.x) * (pTest.y - pi.y) / (pj.y - pi.y) + pi.x)) inside = !inside
+                }
+
+                if (inside) {
+                    holes.push(inner.polygon)
+                }
+            }
+        })
+        roomHoles.set(outer.id, holes)
+    })
+
+    // Recalculate visual centers with holes
+    finalRooms.forEach(room => {
+        const holes = roomHoles.get(room.id) || []
+        if (holes.length > 0) {
+            room.visualCenter = polylabel(room.polygon, holes)
+        }
+        // If no holes, the initial polylabel was correct (or we could re-run to be safe, but unnecessary optimization)
     })
 
     // Pass 2: Assign unique names and IDs to new/unmatched rooms
@@ -409,10 +475,10 @@ export function detectRoomsGeometrically(walls: Wall[], previousRooms: Room[] = 
             room.id = room.id || `room-${Date.now()}-${idx}-${Math.random()}`
 
             let n = 1
-            while (usedNames.has(`Habitación ${n}`)) {
+            while (usedNames.has(`H${n}`)) {
                 n++
             }
-            room.name = `Habitación ${n}`
+            room.name = `H${n}`
             usedNames.add(room.name)
             room.color = getRandomColor()
         }
@@ -437,7 +503,7 @@ function calculatePolygonSignedArea(points: Point[]): number {
     return (area / 2) / 10000
 }
 
-export function polylabel(polygon: Point[], precision = 1.0): Point {
+export function polylabel(polygon: Point[], holes: Point[][] = [], precision = 1.0): Point {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
     polygon.forEach(p => {
         minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x)
@@ -464,19 +530,51 @@ export function polylabel(polygon: Point[], precision = 1.0): Point {
         return (inside ? 1 : -1) * Math.sqrt(minDistSq)
     }
 
+    // Function to get distance from point to shape (taking holes into account)
+    const getDist = (x: number, y: number) => {
+        let d = pointToPolygonDist(x, y, polygon)
+        if (d <= 0) return d // Outside of main polygon
+
+        // If inside main polygon, check holes
+        for (const hole of holes) {
+            const dHole = pointToPolygonDist(x, y, hole)
+            if (dHole > 0) {
+                // Point is INSIDE a hole, so it is OUTSIDE the valid area.
+                // Distance to hole boundary is dHole.
+                // Since it's invalid, we treat it as negative distance to the "boundary" (hole edge)
+                // But logically, if we are inside a hole, we want to maximize distance to its edge?
+                // No, Polylabel maximizes distance to NEAREST boundary.
+                // If inside hole, distance is negative?
+                // Standard: dist is positive inside, negative outside.
+                // Hole is "outside" space. So if inside hole, dist should be negative?
+                // Yes. But pointToPolygonDist(hole) returns positive if inside hole.
+                // So we subtract it? Or return -dHole?
+                // If deep inside hole, -dHole is negative. Boundary is 0.
+                d = Math.min(d, -dHole)
+            } else {
+                // Outside hole. dHole is negative (distance to hole center-ish or boundary).
+                // Distance to hole boundary is -dHole (positive).
+                // Example: 5m away from hole edge. dHole = -5. Dist to barrier = 5.
+                // We want min(d_outer, dist_to_hole_barrier)
+                d = Math.min(d, -dHole)
+            }
+        }
+        return d
+    }
+
     let cx = 0, cy = 0
     polygon.forEach(p => { cx += p.x; cy += p.y })
     cx /= polygon.length; cy /= polygon.length
 
     let bestPoint = { x: cx, y: cy }
-    let maxDist = pointToPolygonDist(cx, cy, polygon)
+    let maxDist = getDist(cx, cy)
 
     const search = (cellX: number, cellY: number, size: number) => {
         const steps = 8
         const step = size / steps
         for (let x = cellX; x <= cellX + size; x += step) {
             for (let y = cellY; y <= cellY + size; y += step) {
-                const dist = pointToPolygonDist(x, y, polygon)
+                const dist = getDist(x, y)
                 if (dist > maxDist) {
                     maxDist = dist
                     bestPoint = { x, y }
@@ -493,7 +591,7 @@ export function polylabel(polygon: Point[], precision = 1.0): Point {
     const step = currentSize / divisions
     for (let x = minX; x < maxX; x += step) {
         for (let y = minY; y < maxY; y += step) {
-            const dist = pointToPolygonDist(x + step / 2, y + step / 2, polygon)
+            const dist = getDist(x + step / 2, y + step / 2)
             if (dist + (step * 1.4) > maxDist) {
                 search(x, y, step)
             }
