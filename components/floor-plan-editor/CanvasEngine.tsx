@@ -122,6 +122,7 @@ const ShuntItem = React.memo(({
     return (
         <Group
             id={`shunt-${shunt.id}`}
+            name={`shunt-${shunt.id}`}
             x={shunt.x}
             y={shunt.y}
             draggable={activeTool === "select"}
@@ -145,8 +146,15 @@ const ShuntItem = React.memo(({
                         const p = { x, y }
                         const { point: proj, t } = getClosestPointOnSegment(p, w.start, w.end)
                         if (t >= 0 && t <= 1) {
+                            const isHorizontalWall = Math.abs(w.start.y - w.end.y) < 1
+                            const rotation = (shunt.rotation || 0) % 180
+                            const is90 = Math.abs(rotation - 90) < 1
+                            const effW = is90 ? shunt.height : shunt.width
+                            const effH = is90 ? shunt.width : shunt.height
+                            const halfSize = isHorizontalWall ? effH / 2 : effW / 2
+
                             const distToAxis = Math.sqrt(Math.pow(p.x - proj.x, 2) + Math.pow(p.y - proj.y, 2))
-                            const targetDist = (w.thickness / 2) + (shunt.width / 2)
+                            const targetDist = (w.thickness / 2) + halfSize
                             if (Math.abs(distToAxis - targetDist) < bestDist) {
                                 let v = { x: p.x - proj.x, y: p.y - proj.y }
                                 const len = Math.sqrt(v.x * v.x + v.y * v.y)
@@ -855,7 +863,10 @@ export const CanvasEngine = ({
             if (!editMode) setEditMode("menu")
             const el = selectedElement.type === "door"
                 ? doors.find(d => d.id === selectedElement.id)
-                : windows.find(w => w.id === selectedElement.id)
+                : selectedElement.type === "window"
+                    ? windows.find(w => w.id === selectedElement.id)
+                    : shunts.find(s => s.id === selectedElement.id)
+
             if (el) {
                 setEditLength(el.width.toFixed(1))
                 if ('height' in el) setEditHeight(el.height.toFixed(1))
@@ -871,13 +882,25 @@ export const CanvasEngine = ({
         if (!selectedElement) return null
         const el = selectedElement.type === "door"
             ? doors.find(d => d.id === selectedElement.id)
-            : windows.find(w => w.id === selectedElement.id)
+            : selectedElement.type === "window"
+                ? windows.find(w => w.id === selectedElement.id)
+                : shunts.find(s => s.id === selectedElement.id)
+
         if (!el) return null
-        const wall = walls.find(w => w.id === el.wallId)
+
+        if (selectedElement.type === "shunt") {
+            const shunt = el as Shunt
+            return {
+                x: shunt.x * zoom + offset.x,
+                y: shunt.y * zoom + offset.y
+            }
+        }
+
+        const wall = walls.find(w => w.id === (el as any).wallId)
         if (!wall) return null
         return {
-            x: (wall.start.x + el.t * (wall.end.x - wall.start.x)) * zoom + offset.x,
-            y: (wall.start.y + el.t * (wall.end.y - wall.start.y)) * zoom + offset.y
+            x: (wall.start.x + (el as any).t * (wall.end.x - wall.start.x)) * zoom + offset.x,
+            y: (wall.start.y + (el as any).t * (wall.end.y - wall.start.y)) * zoom + offset.y
         }
     }
 
@@ -1441,9 +1464,16 @@ export const CanvasEngine = ({
 
         // Si es táctil, buscamos qué hay "bajo el puntero virtual" (80px arriba)
         // En vez de usar e.target directamente.
-        const virtualTarget = isTouchInteraction ? stage.getIntersection({ x: stagePos.x, y: adjustedY }) : e.target
-        const targetName = virtualTarget?.name() || ""
-        const isBackground = !virtualTarget || virtualTarget === stage
+        let virtualTarget = isTouchInteraction ? stage.getIntersection({ x: stagePos.x, y: adjustedY }) : e.target
+        if (virtualTarget && virtualTarget !== stage) {
+            const name = virtualTarget.attrs?.name || virtualTarget.name?.() || ""
+            if (!name) {
+                const ancestor = virtualTarget.findAncestor?.((n: any) => !!(n.attrs?.name || n.name?.()))
+                if (ancestor) virtualTarget = ancestor
+            }
+        }
+        const targetName = virtualTarget?.attrs?.name || virtualTarget?.name?.() || ""
+        const isBackground = !virtualTarget || virtualTarget === stage || targetName === "grid-rect"
 
         const isRightClick = e.evt.button === 2
         const isMiddleClick = e.evt.button === 1
@@ -1454,7 +1484,15 @@ export const CanvasEngine = ({
             return
         }
 
-        if (isRightClick || isMiddleClick || isBackground || (activeTool === "select" && !targetName.startsWith("wall-") && !targetName.startsWith("door-") && !targetName.startsWith("window-") && !targetName.startsWith("shunt-") && !targetName.startsWith("vertex-") && !targetName.startsWith("measurement-"))) {
+        const isProtected = targetName.startsWith("wall-") ||
+            targetName.startsWith("door-") ||
+            targetName.startsWith("window-") ||
+            targetName.startsWith("shunt-") ||
+            targetName.startsWith("vertex-") ||
+            targetName.startsWith("measurement-") ||
+            targetName.startsWith("room-")
+
+        if (isRightClick || isMiddleClick || isBackground || (activeTool === "select" && !isProtected)) {
             onSelectWall(null)
             onSelectRoom(null)
             onSelectElement(null)
@@ -2393,6 +2431,46 @@ export const CanvasEngine = ({
                             />
                         ))}
 
+                        {/* Renderizar etiquetas de habitación (CAPA SUPERIOR - Encima de shunts) */}
+                        {rooms.map((room: Room) => {
+                            const centroid = {
+                                x: room.polygon.reduce((sum: number, p: Point) => sum + p.x, 0) / room.polygon.length,
+                                y: room.polygon.reduce((sum: number, p: Point) => sum + p.y, 0) / room.polygon.length
+                            }
+                            const labelPos = room.visualCenter || centroid
+
+                            return (
+                                <Group
+                                    key={`label-${room.id}`}
+                                    name="room-label"
+                                    x={labelPos.x} y={labelPos.y}
+                                    onClick={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
+                                    onTap={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
+                                    listening={false}
+                                >
+                                    <Text
+                                        name="room-label-text"
+                                        y={-10}
+                                        text={room.name}
+                                        fontSize={18}
+                                        fill="#1e293b"
+                                        fontStyle="bold"
+                                        align="center"
+                                        offsetX={30}
+                                    />
+                                    <Text
+                                        name="room-label-text"
+                                        y={5}
+                                        text={`${room.area.toFixed(2)} m²`}
+                                        fontSize={14}
+                                        fill="#64748b"
+                                        align="center"
+                                        offsetX={30}
+                                    />
+                                </Group>
+                            )
+                        })}
+
                         {/* Shunt Measurements - Global Overlay (Separate Layer) */}
                         {shunts.map(shunt => {
                             const isSelected = selectedElement?.id === shunt.id && selectedElement?.type === "shunt"
@@ -2468,25 +2546,63 @@ export const CanvasEngine = ({
                                     const isEditing = editingMeas?.shuntId === shunt.id && editingMeas?.index === idx
 
                                     return (
-                                        <Group key={`${shunt.id}-${idx}`}>
+                                        <Group
+                                            key={`${shunt.id}-${idx}`}
+                                            name={`measurement-${shunt.id}-${idx}`}
+                                            onMouseDown={(e) => { e.cancelBubble = true; e.evt.stopPropagation(); }}
+                                            onPointerDown={(e) => { e.cancelBubble = true; e.evt.stopPropagation(); }}
+                                        >
                                             <Line
                                                 points={[startX, startY, endX, endY]}
                                                 stroke="#000000"
                                                 strokeWidth={1.5}
+                                                listening={false}
                                             />
                                             <Circle
                                                 x={startX} y={startY} radius={3.5} fill="white" stroke="#000000" strokeWidth={1.5}
+                                                listening={false}
                                             />
                                             <Circle
                                                 x={endX} y={endY} radius={3.5} fill="white" stroke="#000000" strokeWidth={1.5}
+                                                listening={false}
                                             />
                                             {!isEditing && (
                                                 <Group
+                                                    name={`measurement-${shunt.id}-${idx}`}
                                                     x={(startX + endX) / 2}
                                                     y={(startY + endY) / 2}
+                                                    listening={true}
+                                                    onMouseDown={(e) => { e.cancelBubble = true; e.evt.stopPropagation(); }}
+                                                    onPointerDown={(e) => { e.cancelBubble = true; e.evt.stopPropagation(); }}
+                                                    onMouseEnter={(e) => {
+                                                        const container = e.target.getStage()?.container()
+                                                        if (container) container.style.cursor = "pointer"
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        const container = e.target.getStage()?.container()
+                                                        if (container) container.style.cursor = "default"
+                                                    }}
                                                     onClick={(e) => {
                                                         e.cancelBubble = true
-                                                        const absPos = e.target.getAbsolutePosition()
+                                                        e.evt.stopPropagation()
+                                                        const absPos = e.currentTarget.getAbsolutePosition()
+                                                        setEditingMeas({
+                                                            shuntId: shunt.id,
+                                                            index: idx,
+                                                            dir: ray.dir,
+                                                            currentDist: surfaceDist,
+                                                            screenPos: { x: absPos.x, y: absPos.y },
+                                                            wallPoint: best.pt,
+                                                            wallThickness: best.thickness,
+                                                            shuntWidth: shunt.width,
+                                                            shuntHeight: shunt.height,
+                                                            shuntRotation: shunt.rotation
+                                                        })
+                                                    }}
+                                                    onTap={(e) => {
+                                                        e.cancelBubble = true
+                                                        e.evt.stopPropagation()
+                                                        const absPos = e.currentTarget.getAbsolutePosition()
                                                         setEditingMeas({
                                                             shuntId: shunt.id,
                                                             index: idx,
@@ -2501,6 +2617,12 @@ export const CanvasEngine = ({
                                                         })
                                                     }}
                                                 >
+                                                    {/* Hit Area enlarged even more and make it explicit */}
+                                                    <Rect
+                                                        width={100} height={60} x={-50} y={-30}
+                                                        fill="rgba(255,255,255,0.01)" // Almost transparent but listening
+                                                        listening={true}
+                                                    />
                                                     <Rect
                                                         width={40} height={20} x={-20} y={-10}
                                                         fill="white" stroke="#000000" strokeWidth={1} cornerRadius={2}
@@ -2517,47 +2639,6 @@ export const CanvasEngine = ({
                                 }
                                 return null
                             })
-                        })}
-
-                        {/* Renderizar etiquetas de habitación (CAPA SUPERIOR - Encima de shunts) */}
-                        {rooms.map((room: Room) => {
-                            const centroid = {
-                                x: room.polygon.reduce((sum: number, p: Point) => sum + p.x, 0) / room.polygon.length,
-                                y: room.polygon.reduce((sum: number, p: Point) => sum + p.y, 0) / room.polygon.length
-                            }
-                            const labelPos = room.visualCenter || centroid
-
-                            return (
-                                <Group
-                                    key={`label-${room.id}`}
-                                    name="room-label"
-                                    x={labelPos.x} y={labelPos.y}
-                                    onClick={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
-                                    onTap={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
-                                    listening={false} // Pass through clicks to underlying elements if needed? No, user probably wants to select room by clicking label.
-                                >
-                                    {/* We enable listening so user can select room by clicking the text */}
-                                    <Text
-                                        name="room-label-text"
-                                        y={-10}
-                                        text={room.name}
-                                        fontSize={18}
-                                        fill="#1e293b"
-                                        fontStyle="bold"
-                                        align="center"
-                                        offsetX={30}
-                                    />
-                                    <Text
-                                        name="room-label-text"
-                                        y={5}
-                                        text={`${room.area.toFixed(2)} m²`}
-                                        fontSize={14}
-                                        fill="#64748b"
-                                        align="center"
-                                        offsetX={30}
-                                    />
-                                </Group>
-                            )
                         })}
 
                         {/* Renderizar muro actual (fantasma) con medida */}
@@ -3064,7 +3145,7 @@ export const CanvasEngine = ({
             </Stage>
 
             {
-                ((selectedWall && uiPos) || selectedRoom || (selectedElement && currentEPos)) && editMode && (
+                ((selectedWall && uiPos) || selectedRoom || (selectedElement && currentEPos)) && editMode && !editingMeas && (
                     <div
                         onMouseDown={(e) => {
                             e.stopPropagation()
@@ -3387,11 +3468,12 @@ export const CanvasEngine = ({
 
                                                         const chainIds = new Set([selectedWall.id])
                                                         let currentTotal = centerLength
+                                                        let faceNormal: Point | undefined = undefined
 
                                                         if (editFace !== "center") {
                                                             const nx = -dy / centerLength
                                                             const ny = dx / centerLength
-                                                            const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
+                                                            faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
 
                                                             const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
                                                             const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
@@ -3435,25 +3517,30 @@ export const CanvasEngine = ({
                                                             const dy = selectedWall.end.y - selectedWall.start.y
                                                             const centerLength = Math.sqrt(dx * dx + dy * dy)
                                                             const chainIds = new Set([selectedWall.id])
+                                                            let currentTotal = centerLength
+                                                            let faceNormal: Point | undefined = undefined
 
-                                                            const nx = -dy / centerLength
-                                                            const ny = dx / centerLength
-                                                            const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
+                                                            if (editFace !== "center") {
+                                                                const nx = -dy / centerLength
+                                                                const ny = dx / centerLength
+                                                                faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
 
-                                                            const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
-                                                            const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
-                                                            const isInterior = (editFace === "interior") || isPointInAnyRoom(testP)
+                                                                const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
+                                                                const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
+                                                                const isInterior = (editFace === "interior") || isPointInAnyRoom(testP)
 
-                                                            const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, isInterior)
-                                                            const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, isInterior)
-                                                            const chainLen = centerLength + back.addedLen + forward.addedLen
+                                                                const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, isInterior)
+                                                                const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, isInterior)
+                                                                const chainLen = centerLength + back.addedLen + forward.addedLen
 
-                                                            const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || selectedWall
-                                                            const terminalEndWall = walls.find(w => w.id === forward.terminalWallId) || selectedWall
+                                                                const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || selectedWall
+                                                                const terminalEndWall = walls.find(w => w.id === forward.terminalWallId) || selectedWall
 
-                                                            currentTotal = chainLen +
-                                                                getFaceOffsetAt(terminalEndWall, forward.terminal, faceNormal, chainIds, true) -
-                                                                getFaceOffsetAt(terminalStartWall, back.terminal, faceNormal, chainIds, false)
+                                                                currentTotal = chainLen +
+                                                                    getFaceOffsetAt(terminalEndWall, forward.terminal, faceNormal, chainIds, true) -
+                                                                    getFaceOffsetAt(terminalStartWall, back.terminal, faceNormal, chainIds, false)
+                                                            }
+
                                                             const delta = targetLen - currentTotal
                                                             if (selectedWall && Math.abs(delta) > 0.01) {
                                                                 onUpdateWallLength(selectedWall.id, centerLength + delta, "right", faceNormal)
@@ -3517,14 +3604,14 @@ export const CanvasEngine = ({
                                                     onEnter={(val) => {
                                                         const finalVal = val !== undefined ? val : editLength
                                                         const updates: any = { width: parseFloat(finalVal) }
-                                                        if (selectedElement.type === "window" && editHeight) updates.height = parseFloat(editHeight)
+                                                        if ((selectedElement.type === "window" || selectedElement.type === "shunt") && editHeight) updates.height = parseFloat(editHeight)
                                                         onUpdateElement(selectedElement.type, selectedElement.id, updates)
                                                         setEditMode("menu")
                                                     }}
                                                 />
                                                 {/* Unit removed per user request */}
                                             </div>
-                                            {selectedElement.type === "window" && (
+                                            {(selectedElement.type === "window" || selectedElement.type === "shunt") && (
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Alto</span>
                                                     <NumericInput
@@ -3534,19 +3621,18 @@ export const CanvasEngine = ({
                                                         onEnter={(val) => {
                                                             const finalVal = val !== undefined ? val : editHeight
                                                             onUpdateElement(selectedElement.type, selectedElement.id, {
-                                                                width: parseFloat(editLength), // Width uses state, assume it's stable or handled by other input
+                                                                width: parseFloat(editLength),
                                                                 height: parseFloat(finalVal)
                                                             })
                                                             setEditMode("menu")
                                                         }}
                                                     />
-                                                    {/* Unit removed per user request */}
                                                 </div>
                                             )}
                                             <button
                                                 onClick={() => {
                                                     const updates: any = { width: parseFloat(editLength) }
-                                                    if (selectedElement.type === "window") updates.height = parseFloat(editHeight)
+                                                    if (selectedElement.type === "window" || selectedElement.type === "shunt") updates.height = parseFloat(editHeight)
                                                     onUpdateElement(selectedElement.type, selectedElement.id, updates)
                                                     setEditMode("menu")
                                                 }}
@@ -3574,7 +3660,7 @@ export const CanvasEngine = ({
                     const handleCommit = (rawVal: string) => {
                         const val = parseFloat(rawVal.replace(/,/g, '.'))
                         if (!isNaN(val) && onUpdateShunt) {
-                            const thicknessOffset = (editingMeas.wallThickness || 10) / 2
+                            const thicknessOffset = (editingMeas.wallThickness ?? 10) / 2
                             const isHorizontal = Math.abs(editingMeas.dir.x) > 0.5
                             const rotation = (editingMeas.shuntRotation || 0) % 180
                             const is90Deg = Math.abs(rotation - 90) < 1

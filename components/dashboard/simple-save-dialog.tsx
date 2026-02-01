@@ -19,9 +19,10 @@ interface SimpleSaveDialogProps {
     onOpenChange: (open: boolean) => void
     onSave: (name: string) => void
     isLoading: boolean
+    container?: HTMLElement | null
 }
 
-export function SimpleSaveDialog({ open, onOpenChange, onSave, isLoading }: SimpleSaveDialogProps) {
+export function SimpleSaveDialog({ open, onOpenChange, onSave, isLoading, container }: SimpleSaveDialogProps) {
     const [name, setName] = useState("")
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -33,7 +34,7 @@ export function SimpleSaveDialog({ open, onOpenChange, onSave, isLoading }: Simp
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent container={container} className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Guardar Plano</DialogTitle>
                     <DialogDescription>

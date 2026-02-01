@@ -16,8 +16,14 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, FileText, ClipboardList, Spline, Menu, Square } from "lucide-react"
+import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Minimize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, RefreshCw, FileText, ClipboardList, Spline, Menu, Square, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
@@ -30,21 +36,27 @@ import { useRouter } from "next/navigation"
 import { useFeatureFlags } from "@/hooks/use-feature-flags"
 import { detectRoomsGeometrically, fragmentWalls, getClosestPointOnSegment, isPointOnSegment, isSamePoint, cleanupAndMergeWalls, calculateBoundingBox, rotatePoint, generateArcPoints } from "@/lib/utils/geometry"
 
+import { useToast } from "@/hooks/use-toast"
+import { ToastProvider } from "@/components/ui/toast-provider"
+
 interface Point { x: number; y: number }
 interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean }
 interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point }
-interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" }
+interface Door { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" }
 interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean }
 interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number }
 
 export const EditorContainer = forwardRef((props: any, ref) => {
     const containerRef = useRef<HTMLDivElement>(null)
     const editorWrapperRef = useRef<HTMLDivElement>(null)
+    const [fullscreenContainer, setFullscreenContainer] = useState<HTMLElement | null>(null)
+    const [isFullscreen, setIsFullscreen] = useState(false)
     const canvasEngineRef = useRef<CanvasEngineRef>(null)
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
     const [zoom, setZoom] = useState(1)
     const [offset, setOffset] = useState({ x: 0, y: 0 })
     const router = useRouter()
+    const { toast } = useToast()
 
     // Feature Flags
     const { isFeatureEnabled } = useFeatureFlags()
@@ -60,13 +72,20 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [activeTool, _setActiveTool] = useState<"select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt">("wall")
     // ... (rest of state)
     const [gridRotation, setGridRotation] = useState<number>(props.initialData?.gridRotation || 0)
+    // Toolbar visibility
+    const [isToolbarVisible, setIsToolbarVisible] = useState(true)
+
+    // Toolbar Grouping and Search
+    // Rotation/Translation Drag Support
+    const [isRotating, setIsRotating] = useState(false)
+    const lastRotationX = useRef<number>(0)
 
     // Arc Tool State
     const [arcCreationStep, setArcCreationStep] = useState<"start" | "end" | "depth">("start")
     const [phantomArc, setPhantomArc] = useState<{ start: Point, end: Point, depth: number } | undefined>(undefined)
 
     // Wrapper to ensure clean state transitions
-    const setActiveTool = (tool: "select" | "wall" | "door" | "window" | "ruler" | "arc") => {
+    const setActiveTool = (tool: "select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt") => {
         _setActiveTool(tool)
         setCurrentWall(null)
         setRulerState({ active: false, start: null, end: null })
@@ -107,14 +126,20 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         if (!editorWrapperRef.current) return
 
         if (!document.fullscreenElement) {
-            editorWrapperRef.current.requestFullscreen().catch((e: any) => console.error(e))
+            editorWrapperRef.current.requestFullscreen()
+                .then(() => setIsFullscreen(true))
+                .catch((e: any) => console.error(e))
         } else {
-            document.exitFullscreen().catch((e: any) => console.error(e))
+            document.exitFullscreen()
+                .then(() => setIsFullscreen(false))
+                .catch((e: any) => console.error(e))
         }
     }
 
     useImperativeHandle(ref, () => ({
-        clearPlan: executeClearPlan
+        clearPlan: executeClearPlan,
+        fullscreenContainer,
+        isFullscreen
     }))
 
     // Limpiar estados al cambiar de herramienta o cancelar
@@ -272,16 +297,50 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         const updateDimensions = () => {
             if (containerRef.current) {
                 setDimensions({
-                    width: containerRef.current.offsetWidth,
-                    height: containerRef.current.offsetHeight,
+                    width: containerRef.current.clientWidth,
+                    height: containerRef.current.clientHeight
                 })
             }
         }
 
         updateDimensions()
         window.addEventListener("resize", updateDimensions)
-        return () => window.removeEventListener("resize", updateDimensions)
-    }, [])
+
+        // Global mouse/touch handlers for rotation drag
+        const handleGlobalMove = (clientX: number) => {
+            if (isRotating) {
+                const delta = clientX - lastRotationX.current
+                if (Math.abs(delta) > 5) {
+                    handleRotatePlanInteractive(delta > 0 ? 1 : -1)
+                    lastRotationX.current = clientX
+                }
+            }
+        }
+
+        const handleGlobalMouseMove = (e: MouseEvent) => handleGlobalMove(e.clientX)
+        const handleGlobalTouchMove = (e: TouchEvent) => handleGlobalMove(e.touches[0].clientX)
+
+        const handleGlobalUp = () => {
+            if (isRotating) {
+                setIsRotating(false)
+                saveStateToHistory() // Save final state after rotation drag ends
+                document.body.style.cursor = 'default'
+            }
+        }
+
+        window.addEventListener("mousemove", handleGlobalMouseMove)
+        window.addEventListener("mouseup", handleGlobalUp)
+        window.addEventListener("touchmove", handleGlobalTouchMove)
+        window.addEventListener("touchend", handleGlobalUp)
+
+        return () => {
+            window.removeEventListener("resize", updateDimensions)
+            window.removeEventListener("mousemove", handleGlobalMouseMove)
+            window.removeEventListener("mouseup", handleGlobalUp)
+            window.removeEventListener("touchmove", handleGlobalTouchMove)
+            window.removeEventListener("touchend", handleGlobalUp)
+        }
+    }, [isRotating])
 
     const handleResetView = () => {
         setZoom(1)
@@ -586,7 +645,10 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     const handleRotatePlan = (angleIncrement: number) => {
         saveStateToHistory()
+        handleRotatePlanInteractive(angleIncrement)
+    }
 
+    const handleRotatePlanInteractive = (angleIncrement: number) => {
         // 1. Calcular el centro del plano actual
         const { center } = calculateBoundingBox(walls, rooms)
 
@@ -604,20 +666,16 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             visualCenter: r.visualCenter ? rotatePoint(r.visualCenter, center, angleIncrement) : undefined
         }))
 
-        // 4. Rotar Fondo (si existe)
-        // La rotación del fondo es más compleja porque depende de su propio centro y offset.
-        // Simplificación: Giramos el background alrededor del centro del plano también.
-        // Esto cambia su posición X,Y y su rotación interna.
+        // 4. Rotar Shunts
+        const rotatedShunts = shunts.map(s => ({
+            ...s,
+            ...rotatePoint({ x: s.x, y: s.y }, center, angleIncrement),
+            rotation: (s.rotation || 0) + angleIncrement
+        }))
+
+        // 5. Rotar Fondo (si existe)
         let newBgConfig = { ...bgConfig }
         if (bgImage) {
-            // Posición actual del centro de la imagen (aproximada)
-            // Esto requeriría saber el tamaño original de la imagen, que no tenemos aquí fácil.
-            // Asumimos que el usuario ajustará si se descuadra mucho, O rotamos solo la propiedad 'rotation'
-            // si la imagen estaba centrada en el mismo sitio.
-            // PERO el usuario pidió que gire "todo el plano".
-            // Si la imagen rota sobre SU centro, y el plano sobre OTRO centro, se desalinean.
-            // Lo ideal es rotar la posición (x,y) de la imagen alrededor del centro del plano.
-
             const bgPos = { x: bgConfig.x, y: bgConfig.y }
             const newBgPos = rotatePoint(bgPos, center, angleIncrement)
             newBgConfig.x = newBgPos.x
@@ -627,8 +685,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
         setWalls(rotatedWalls)
         setRooms(rotatedRooms)
+        setShunts(rotatedShunts)
         setBgConfig(newBgConfig)
-        // Grid Rotation can stay 0 or be used for visual alignment independently
     }
 
     const handleCloneElement = (type: "door" | "window" | "shunt", id: string) => {
@@ -922,7 +980,9 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             const fragmented = fragmentWalls(prevWalls)
             const detectedRooms = detectRoomsGeometrically(fragmented)
 
-            const updatedWalls = fragmented.map(w => {
+            // 1. Identificar muros exteriores
+            const outerWallIds = new Set<string>()
+            fragmented.forEach(w => {
                 let count = 0
                 for (const room of detectedRooms) {
                     for (let i = 0; i < room.polygon.length; i++) {
@@ -934,14 +994,55 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                         }
                     }
                 }
-
-                if (count === 1) {
-                    return { ...w, thickness: 20 }
-                }
-                return w
+                if (count === 1) outerWallIds.add(w.id)
             })
 
-            return cleanupAndMergeWalls(updatedWalls)
+            // 2. Identificar actualizaciones de vértices para ortogonalizar la fachada
+            const vertexUpdates = new Map<string, { x?: number, y?: number }>()
+            const getPointKey = (p: Point) => `${Math.round(p.x * 10) / 10},${Math.round(p.y * 10) / 10}`
+
+            fragmented.forEach(w => {
+                if (!outerWallIds.has(w.id)) return
+
+                const dx = Math.abs(w.end.x - w.start.x)
+                const dy = Math.abs(w.end.y - w.start.y)
+                const len = Math.sqrt(dx * dx + dy * dy)
+                if (len < 5) return // Ignorar segmentos minúsculos
+
+                // Umbral de 15 grados (~0.25 ratio) para considerar "casi recto"
+                const isNearHorizontal = dy < dx && (dy / len) < 0.25
+                const isNearVertical = dx < dy && (dx / len) < 0.25
+
+                if (isNearHorizontal) {
+                    const avgY = (w.start.y + w.end.y) / 2
+                    const k1 = getPointKey(w.start), k2 = getPointKey(w.end)
+                    vertexUpdates.set(k1, { ...vertexUpdates.get(k1), y: avgY })
+                    vertexUpdates.set(k2, { ...vertexUpdates.get(k2), y: avgY })
+                } else if (isNearVertical) {
+                    const avgX = (w.start.x + w.end.x) / 2
+                    const k1 = getPointKey(w.start), k2 = getPointKey(w.end)
+                    vertexUpdates.set(k1, { ...vertexUpdates.get(k1), x: avgX })
+                    vertexUpdates.set(k2, { ...vertexUpdates.get(k2), x: avgX })
+                }
+            })
+
+            // 3. Aplicar cambios a TODOS los muros fragmentados para mantener conexiones
+            const straightenedWalls = fragmented.map(w => {
+                const k1 = getPointKey(w.start)
+                const k2 = getPointKey(w.end)
+                const up1 = vertexUpdates.get(k1)
+                const up2 = vertexUpdates.get(k2)
+
+                const isOuter = outerWallIds.has(w.id)
+                return {
+                    ...w,
+                    start: { ...w.start, ...up1 },
+                    end: { ...w.end, ...up2 },
+                    thickness: isOuter ? 20 : w.thickness
+                }
+            })
+
+            return cleanupAndMergeWalls(straightenedWalls)
         })
     }
 
@@ -1434,8 +1535,17 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 if (response.ok) {
                     const data = await response.json()
                     console.log("[v0] Plano guardado con ID:", data.id)
+                    toast({
+                        title: "Guardado correctamente",
+                        description: `El plano se ha guardado con ID: ${data.id?.substring(0, 8)}...`,
+                    })
                 } else {
                     console.error("[v0] Error al guardar plano:", await response.text())
+                    toast({
+                        title: "Error al guardar",
+                        description: "Hubo un problema al guardar el plano. Inténtalo de nuevo.",
+                        variant: "destructive"
+                    })
                 }
             }
         } catch (error) {
@@ -1474,20 +1584,37 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     }
 
     // Fullscreen auto-management on orientation change
+    // Fullscreen and Orientation Management
     useEffect(() => {
-        if (!isMobile) return
-
         const handleRotation = () => {
+            if (!isMobile) return
+
             const isLandscape = window.innerWidth > window.innerHeight
             if (isLandscape && !document.fullscreenElement) {
                 // Try auto-trigger
-                toggleFullscreen()
+                // toggleFullscreen() // Auto-trigger often blocked by browser policy without user interaction
             }
         }
 
-        window.addEventListener("resize", handleRotation)
-        return () => window.removeEventListener("resize", handleRotation)
+        const handleFullscreenChange = () => {
+            const isFull = !!document.fullscreenElement || !!(document as any).webkitFullscreenElement || !!(document as any).mozFullScreenElement
+            setIsFullscreen(isFull)
+        }
 
+        window.addEventListener("resize", handleRotation)
+        document.addEventListener("fullscreenchange", handleFullscreenChange)
+        document.addEventListener("webkitfullscreenchange", handleFullscreenChange)
+        document.addEventListener("mozfullscreenchange", handleFullscreenChange)
+
+        // Initial check
+        handleFullscreenChange()
+
+        return () => {
+            window.removeEventListener("resize", handleRotation)
+            document.removeEventListener("fullscreenchange", handleFullscreenChange)
+            document.removeEventListener("webkitfullscreenchange", handleFullscreenChange)
+            document.removeEventListener("mozfullscreenchange", handleFullscreenChange)
+        }
     }, [isMobile])
 
     // Keyboard support for moving shunts
@@ -1526,21 +1653,13 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     }, [selectedElement, shunts]) // Re-bind when shunts change to get latest positions
 
     return (
-        <div ref={editorWrapperRef} className="flex flex-col h-full bg-slate-50 p-2 gap-2 relative overflow-hidden">
-            <style jsx global>{`
-                :fullscreen {
-                    background: #f8fafc !important; /* slate-50 */
-                    padding: 0 !important;
-                    margin: 0 !important;
-                    width: 100vw !important;
-                    height: 100vh !important;
-                    display: flex !important;
-                    flex-direction: column !important;
-                }
-                :fullscreen > .p-2 { 
-                    padding: 0.5rem !important; /* Keep toolbar padding if needed or adjust */
-                }
-            `}</style>
+        <div
+            ref={(node) => {
+                editorWrapperRef.current = node
+                if (node !== fullscreenContainer) setFullscreenContainer(node)
+            }}
+            className="flex flex-col h-full bg-slate-50 relative overflow-hidden"
+        >
             <MobileOrientationGuard onEnterFullscreen={toggleFullscreen} />
 
             {/* Prompt for fullscreen if in landscape but not active (Mobile only) */}
@@ -1558,235 +1677,178 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     </Card>
                 </div>
             )}
-            {/* Toolbar */}
-            <Card className="p-2 flex flex-nowrap items-center justify-between bg-white/95 backdrop-blur-md border-slate-200 shadow-sm z-20 gap-x-2 overflow-x-auto no-scrollbar">
-                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-full pb-1 md:pb-0 h-9">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="w-9 h-9 text-slate-500 hover:text-slate-900"
-                        title="Volver"
-                        onClick={handleBack}
-                    >
-                        <ArrowLeft className="h-5 w-5" />
-                    </Button>
-                    <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
 
-                    {/* Primary Tools */}
-                    {[
-                        { id: "select", icon: MousePointer2, title: "Seleccionar (S)" },
-                        { id: "wall", icon: Pencil, title: "Muro (W)" },
-                        // ...(isFeatureEnabled("ADVANCED_EDITOR") ? [{ id: "arc", icon: Spline, title: "Arco" }] : []),
-                        { id: "arc", icon: Spline, title: "Arco" },
-                        { id: "door", icon: DoorClosed, title: "Puerta (D)" },
-                        { id: "window", icon: Layout, title: "Ventana (V)" },
-                        { id: "shunt", icon: Square, title: "Columna" },
-                        { id: "ruler", icon: Ruler, title: "Regla (M)" },
-                    ].map((tool) => (
-                        <Button
-                            key={tool.id}
-                            variant={activeTool === tool.id ? "default" : "ghost"}
-                            size="icon"
-                            onClick={() => setActiveTool(tool.id as any)}
-                            title={tool.title}
-                            className="flex-shrink-0 w-9 h-9"
-                        >
-                            <tool.icon className="h-4 w-4" />
-                        </Button>
-                    ))}
 
-                    <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
 
-                    {/* Mobile Menu for Interaction Settings (Visible) */}
-                    {isMobile && (
-                        <div>
-                            <Sheet>
-                                <SheetTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="w-9 h-9 text-orange-600">
-                                        <Sliders className="h-4 w-4" />
-                                    </Button>
-                                </SheetTrigger>
-                                <SheetContent side="bottom" className="h-[40vh]" container={editorWrapperRef.current}>
-                                    <SheetHeader>
-                                        <SheetTitle>Ajustes de Interacción</SheetTitle>
-                                    </SheetHeader>
-                                    <div className="space-y-6 py-6">
-                                        <div className="flex items-center justify-between">
-                                            <div className="space-y-1">
-                                                <Label className="text-base">Forzar Offset Táctil</Label>
-                                                <p className="text-sm text-slate-500">Aplica el desplazamiento siempre (útil si falla la detección).</p>
-                                            </div>
-                                            <Switch
-                                                checked={forceTouchOffset}
-                                                onCheckedChange={setForceTouchOffset}
-                                            />
-                                        </div>
 
-                                        <div className="space-y-4">
-                                            <div className="flex justify-between">
-                                                <Label className="text-base">Separación del Dedo: {touchOffset}px</Label>
-                                            </div>
-                                            <input
-                                                type="range"
-                                                min="0"
-                                                max="150"
-                                                step="5"
-                                                value={touchOffset}
-                                                onChange={(e) => setTouchOffset(parseInt(e.target.value))}
-                                                className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
-                                            />
-                                            <div className="flex justify-between text-xs text-slate-400">
-                                                <span>Mínimo (0)</span>
-                                                <span>Máximo (150)</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </SheetContent>
-                            </Sheet>
-                        </div>
-                    )}
 
-                    {/* Mobile Menu for Secondary Actions */}
-                    {isMobile && (
-                        <div>
-                            <Sheet>
-                                <SheetTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="w-9 h-9">
-                                        <Menu className="h-4 w-4" />
-                                    </Button>
-                                </SheetTrigger>
-                                <SheetContent side="bottom" className="h-[50vh]" container={editorWrapperRef.current}>
-                                    <SheetHeader>
-                                        <SheetTitle>Herramientas y Acciones</SheetTitle>
-                                    </SheetHeader>
-                                    <div className="grid grid-cols-4 gap-4 py-4">
-                                        <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={handleUndo} disabled={history.length === 0}>
-                                            <Undo2 className="h-5 w-5" />
-                                            <span className="text-xs">Deshacer</span>
-                                        </Button>
-                                        <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={handleRedo} disabled={redoHistory.length === 0}>
-                                            <Redo2 className="h-5 w-5" />
-                                            <span className="text-xs">Rehacer</span>
-                                        </Button>
-                                        <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={() => handleRotatePlan(-15)}>
-                                            <RotateCcw className="h-5 w-5" />
-                                            <span className="text-xs">Rotar -15</span>
-                                        </Button>
-                                        <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={() => handleRotatePlan(15)}>
-                                            <RotateCw className="h-5 w-5" />
-                                            <span className="text-xs">Rotar +15</span>
-                                        </Button>
-                                        <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={applyPerimeterThickness}>
-                                            <Building2 className="h-5 w-5" />
-                                            <span className="text-xs">Fachada</span>
-                                        </Button>
-                                        <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={() => setSnappingEnabled(!snappingEnabled)}>
-                                            <Magnet className={`h-5 w-5 ${!snappingEnabled ? 'text-slate-400' : 'text-blue-500'}`} />
-                                            <span className="text-xs">Imanes</span>
-                                        </Button>
-                                        <Button variant="outline" className="flex flex-col gap-2 h-20 border-red-200 text-red-600" onClick={executeClearPlan}>
-                                            <Trash2 className="h-5 w-5" />
-                                            <span className="text-xs">Limpiar</span>
-                                        </Button>
-                                        <Button variant="outline" className="flex flex-col gap-2 h-20" onClick={toggleFullscreen}>
-                                            <Maximize2 className="h-5 w-5" />
-                                            <span className="text-xs">Pantalla</span>
-                                        </Button>
-                                    </div>
-                                </SheetContent>
-                            </Sheet>
-                        </div>
-                    )}
 
-                    {/* Desktop Secondary Actions (Hidden on Mobile) */}
-                    <div className="hidden md:flex items-center gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => document.getElementById('bg-import')?.click()}>
-                            <ImagePlus className="h-4 w-4" />
-                        </Button>
-                        <input type="file" id="bg-import" className="hidden" accept="image/*" onChange={handleImportImage} />
-
-                        <Button variant="ghost" size="icon" onClick={handleUndo} disabled={history.length === 0}><Undo2 className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={handleRedo} disabled={redoHistory.length === 0}><Redo2 className="h-4 w-4" /></Button>
-
-                        <div className="w-px h-6 bg-slate-200 mx-1" />
-
-                        <Button variant="ghost" size="icon" onClick={() => handleRotatePlan(-15)}><RotateCcw className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleRotatePlan(15)}><RotateCw className="h-4 w-4" /></Button>
-                        <Button variant={snappingEnabled ? "default" : "ghost"} size="icon" onClick={() => setSnappingEnabled(!snappingEnabled)}>
-                            <Magnet className="h-4 w-4" />
-                        </Button>
-
-                        <div className="w-px h-6 bg-slate-200 mx-1" />
-
-                        <Button variant="ghost" size="icon" onClick={applyPerimeterThickness} className="text-orange-600 hover:bg-orange-50"><Building2 className="h-4 w-4" /></Button>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-red-500 hover:bg-red-50"><Trash2 className="h-4 w-4" /></Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Limpiar todo el plano?</AlertDialogTitle>
-                                    <AlertDialogDescription>Esta acción no se puede deshacer fácilmente.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={executeClearPlan} className="bg-red-600">Limpiar</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </div>
-
-                </div>
-
-                <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
-                    <Sheet>
-                        <SheetTrigger asChild>
-                            <Button variant="ghost" size="sm" className="hidden md:flex gap-2">
-                                <FileText className="h-4 w-4" />
-                                <span className="text-xs">Resumen</span>
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent className="overflow-y-auto w-[400px] sm:w-[540px]" container={editorWrapperRef.current}>
-                            <SheetHeader className="mb-4">
-                                <SheetTitle>Resumen del Plano</SheetTitle>
-                            </SheetHeader>
-                            <FloorPlanSummary
-                                walls={walls}
-                                doors={doors}
-                                windows={windows}
-                                rooms={rooms}
-                            />
-                        </SheetContent>
-                    </Sheet>
-                    <div className="w-px h-6 bg-slate-200 mx-1" />
-
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="hidden sm:inline-flex"
-                        onClick={() => {
-                            if (!document.fullscreenElement) {
-                                editorWrapperRef.current?.requestFullscreen().catch((e: any) => console.error(e))
-                            } else {
-                                document.exitFullscreen().catch((e: any) => console.error(e))
-                            }
-                        }}
-                    >
-                        <Maximize2 className="h-4 w-4 text-slate-500" />
-                    </Button>
-                    <Button
-                        size="sm"
-                        className="bg-orange-600 hover:bg-orange-700 h-8 px-3 text-xs md:text-sm"
-                        onClick={handleSave}
-                        disabled={isSaving}
-                    >
-                        {isSaving ? "..." : "Guardar"}
-                        {!isSaving && <Save className="h-3 w-3 ml-1 md:ml-2" />}
-                    </Button>
-                </div>
-            </Card>
 
             <div ref={containerRef} className="flex-1 relative border-t border-slate-200 overflow-hidden bg-slate-50">
+                {/* Vertical Collapsible Toolbar */}
+                <div className={`absolute left-0 top-0 z-40 transition-all duration-300 ease-in-out flex items-start ${!isToolbarVisible ? "-translate-x-full" : "translate-x-0"}`}>
+                    <Card className="p-2 flex flex-col items-center gap-2 bg-white/95 backdrop-blur-md border-slate-200 shadow-xl pointer-events-auto rounded-l-none rounded-tl-none border-l-0 border-t-0">
+                        {!isFullscreen && (
+                            <>
+                                <Button variant="ghost" size="icon" onClick={handleBack} title="Volver" className="w-9 h-9">
+                                    <ArrowLeft className="h-5 w-5 text-slate-500" />
+                                </Button>
+                                <div className="h-px w-6 bg-slate-200 my-1 flex-shrink-0" />
+                            </>
+                        )}
+
+                        <Button variant={activeTool === "select" ? "default" : "ghost"} size="icon" onClick={() => setActiveTool("select")} title="Seleccionar (S)" className="w-9 h-9">
+                            <MousePointer2 className="h-4 w-4" />
+                        </Button>
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant={["wall", "arc", "door", "window", "shunt"].includes(activeTool) ? "default" : "ghost"}
+                                    size="icon"
+                                    title="Dibujar Herramientas"
+                                    className="w-9 h-9 relative"
+                                >
+                                    <Pencil className="h-4 w-4" />
+                                    <ChevronDown className="h-2.5 w-2.5 absolute bottom-0.5 right-0.5 opacity-40" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent container={fullscreenContainer} side="right" align="start" className="w-48 ml-2">
+                                <DropdownMenuItem onClick={() => setActiveTool("wall")} className="gap-2">
+                                    <Pencil className="h-4 w-4" /> <span>Muros (W)</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setActiveTool("arc")} className="gap-2">
+                                    <Spline className="h-4 w-4" /> <span>Arco</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setActiveTool("door")} className="gap-2">
+                                    <DoorClosed className="h-4 w-4" /> <span>Puerta (D)</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setActiveTool("window")} className="gap-2">
+                                    <Layout className="h-4 w-4" /> <span>Ventana (V)</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setActiveTool("shunt")} className="gap-2">
+                                    <Square className="h-4 w-4" /> <span>Columna</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <Button variant={activeTool === "ruler" ? "default" : "ghost"} size="icon" onClick={() => setActiveTool("ruler")} title="Regla (M)" className="w-9 h-9">
+                            <Ruler className="h-4 w-4" />
+                        </Button>
+
+                        <div className="h-px w-6 bg-slate-200 my-1 flex-shrink-0" />
+
+                        <Button variant="ghost" size="icon" onClick={handleUndo} disabled={history.length === 0} title="Deshacer (Ctrl+Z)" className="w-9 h-9">
+                            <Undo2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={handleRedo} disabled={redoHistory.length === 0} title="Rehacer (Ctrl+Y)" className="w-9 h-9">
+                            <Redo2 className="h-4 w-4" />
+                        </Button>
+
+                        <div className="h-px w-6 bg-slate-200 my-1 flex-shrink-0" />
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" title="Más Acciones" className="w-9 h-9 relative">
+                                    <RefreshCw className="h-4 w-4 text-slate-500" />
+                                    <ChevronDown className="h-2.5 w-2.5 absolute bottom-0.5 right-0.5 opacity-40 text-slate-500" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent container={fullscreenContainer} side="right" align="start" className="w-48 ml-2">
+                                <DropdownMenuItem onClick={() => handleRotatePlan(-15)} className="gap-2">
+                                    <RotateCcw className="h-4 w-4" /> <span>Girar Antihorario ([)</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleRotatePlan(15)} className="gap-2">
+                                    <RotateCw className="h-4 w-4" /> <span>Girar Horario (])</span>
+                                </DropdownMenuItem>
+                                <Separator className="my-1" />
+                                <DropdownMenuItem onClick={() => setSnappingEnabled(!snappingEnabled)} className="gap-2">
+                                    <Magnet className={`h-4 w-4 ${snappingEnabled ? "text-blue-600" : "text-slate-400"}`} />
+                                    <span>Snapping: {snappingEnabled ? "ON" : "OFF"}</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => document.getElementById('bg-import')?.click()} className="gap-2">
+                                    <ImagePlus className="h-4 w-4" /> <span>Importar Imagen</span>
+                                </DropdownMenuItem>
+                                <Separator className="my-1" />
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <div className="flex items-center gap-2 px-2 py-1.5 text-sm text-red-500 hover:bg-red-50 cursor-pointer rounded-sm">
+                                            <Trash2 className="h-4 w-4" /> <span>Limpiar Plano</span>
+                                        </div>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent container={fullscreenContainer}>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>¿Limpiar todo el plano?</AlertDialogTitle>
+                                            <AlertDialogDescription>Esta acción no se puede deshacer fácilmente.</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={executeClearPlan} className="bg-red-600">Limpiar</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <div className="h-px w-6 bg-slate-200 my-1 flex-shrink-0" />
+
+                        <Sheet onOpenChange={setShowSummary} open={showSummary}>
+                            <SheetTrigger asChild>
+                                <Button variant="ghost" size="icon" title="Resumen" className="w-9 h-9 text-slate-500">
+                                    <FileText className="h-4 w-4" />
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent container={fullscreenContainer} side="left" className="overflow-y-auto w-[400px] sm:w-[540px]">
+                                <SheetHeader className="mb-4">
+                                    <SheetTitle>Resumen del Plano</SheetTitle>
+                                </SheetHeader>
+                                <FloorPlanSummary
+                                    walls={walls}
+                                    doors={doors}
+                                    windows={windows}
+                                    rooms={rooms}
+                                />
+                            </SheetContent>
+                        </Sheet>
+
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            className="w-9 h-9 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            title="Guardar"
+                        >
+                            {isSaving ? "..." : <Save className="h-4 w-4" />}
+                        </Button>
+
+                        <div className="h-px w-6 bg-slate-200 my-1 flex-shrink-0" />
+
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="w-9 h-9"
+                            onClick={toggleFullscreen}
+                            title="Pantalla Completa"
+                        >
+                            <Maximize2 className="h-4 w-4 text-slate-500" />
+                        </Button>
+                    </Card>
+
+                    {/* Handle (Pestañita) */}
+                    <div className="self-center">
+                        <Button
+                            variant="secondary"
+                            size="icon"
+                            onClick={() => setIsToolbarVisible(!isToolbarVisible)}
+                            className={`w-5 h-12 rounded-l-none rounded-r-md border-l-0 shadow-md bg-white/90 backdrop-blur-sm hover:bg-white -ml-px border-slate-200 transition-all ${!isToolbarVisible ? "translate-x-[calc(100%+1rem)]" : ""}`}
+                            title={isToolbarVisible ? "Ocultar Herramientas" : "Mostrar Herramientas"}
+                        >
+                            {isToolbarVisible ? <ChevronLeft className="h-3 w-3 text-slate-400" /> : <ChevronRight className="h-3 w-3 text-slate-400" />}
+                        </Button>
+                    </div>
+                </div>
+                <input type="file" id="bg-import" className="hidden" accept="image/*" onChange={handleImportImage} />
                 <CanvasEngine
                     onReady={(api) => { canvasEngineRef.current = api }}
                     width={dimensions.width}
@@ -1940,15 +2002,19 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             </div>
 
             {/* Global Toaster Portal for Fullscreen */}
+            {/* Global Toaster Portal for Fullscreen */}
             <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none">
                 {/* Toaster should be mounted at root normally, but for fullscreen api 
                     we might need a specific container inside the fullscreen wrapper. 
-                    However, radix-ui toast usually portals to body. 
-                    If fullscreen is on 'editorWrapperRef', only children are visible. 
-                    So we might need to portal toasts INTO here or allow Toast to assume z-index.
-                    Radix Toaster usually handles this, but let's check.
                 */}
             </div>
+
+            {/* Render local ToastProvider when in fullscreen to ensure visibility */}
+            {isFullscreen && (
+                <div className="absolute inset-0 pointer-events-none z-[100]">
+                    <ToastProvider />
+                </div>
+            )}
 
         </div >
     )

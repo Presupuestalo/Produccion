@@ -58,13 +58,14 @@ export default function NuevoPlanoPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] bg-slate-50 overflow-hidden">
+    <div className="h-[calc(100vh-4rem+2rem)] md:h-[calc(100vh-4rem+3rem)] -mx-4 -my-4 md:-mx-6 md:-my-6 bg-slate-50 overflow-hidden">
       <EditorContainer
         ref={editorRef}
         onSave={handleEditorSave} // Intercept save
       />
 
       <SimpleSaveDialog
+        container={editorRef.current?.fullscreenContainer}
         open={showSaveDialog}
         onOpenChange={setShowSaveDialog}
         onSave={handleDialogSave}

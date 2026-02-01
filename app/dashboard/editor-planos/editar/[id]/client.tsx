@@ -54,7 +54,7 @@ export default function EditPlanClient({
     }
 
     return (
-        <div className="h-[calc(100vh-4rem)] bg-slate-50 overflow-hidden">
+        <div className="h-[calc(100vh-4rem+2rem)] md:h-[calc(100vh-4rem+3rem)] -mx-4 -my-4 md:-mx-6 md:-my-6 bg-slate-50 overflow-hidden">
             <MobileOrientationGuard />
             <EditorContainer
                 ref={editorRef}
