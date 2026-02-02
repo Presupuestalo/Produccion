@@ -85,7 +85,7 @@ const SPANISH_PROVINCES = [
   "Zaragoza",
 ]
 
-const STRUCTURE_TYPES = ["Hormigón", "Ladrillo", "Acero", "Madera", "Mixta", "Otro"]
+const STRUCTURE_TYPES = ["Hormigón", "Madera", "Mixta", "Otro"]
 
 export function EditProjectForm({ projectId }: { projectId: string }) {
   const router = useRouter()
@@ -352,17 +352,6 @@ export function EditProjectForm({ projectId }: { projectId: string }) {
                   value={projectData.title}
                   onChange={(e) => setProjectData((prev) => ({ ...prev, title: e.target.value }))}
                   placeholder="Reforma integral"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="description">Descripción</Label>
-                <Textarea
-                  id="description"
-                  value={projectData.description}
-                  onChange={(e) => setProjectData((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="Descripción del proyecto..."
-                  rows={3}
                 />
               </div>
 

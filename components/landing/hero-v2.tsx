@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Sparkles, ShieldCheck, Zap } from "lucide-react"
+import { ArrowRight, Sparkles, Zap, BadgeCheck, FileText } from "lucide-react"
 
 export function HeroV2() {
     return (
@@ -11,7 +11,7 @@ export function HeroV2() {
             <div className="absolute inset-0 overflow-hidden">
                 <div
                     className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                    style={{ backgroundImage: "url('/modern-home-renovation.png')" }}
+                    style={{ backgroundImage: "url('/hero-man.jpg')" }}
                 />
                 <div className="absolute inset-0 bg-black/70" />
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10" />
@@ -28,15 +28,15 @@ export function HeroV2() {
 
                 {/* Title */}
                 <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 text-white animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                    La Era de la Reforma <br />
+                    Presupuesta tu Reforma <br />
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-orange-600 to-orange-800">
-                        Profesional ha Llegado
+                        Con Precisión Profesional
                     </span>
                 </h1>
 
                 {/* Subtitle */}
                 <p className="max-w-3xl mx-auto text-lg md:text-xl text-gray-400 mb-12 text-pretty animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-200">
-                    Perfecto para propietarios, diseñadores, arquitectos y coordinadores de gremios. Obtén valoraciones precisas y control total sobre tus reformas sin costes ocultos.
+                    Genera presupuestos precisos en <span className="text-white font-semibold">minutos</span>, no días. Ahorra cientos de horas de trabajo con la herramienta más rápida del mercado.
                 </p>
 
                 {/* CTAs */}
@@ -47,26 +47,21 @@ export function HeroV2() {
                             <ArrowRight className="h-5 w-5" />
                         </Link>
                     </Button>
-                    <Button asChild variant="outline" size="lg" className="h-14 px-8 text-lg font-semibold text-white border-white/10 bg-white/5 hover:bg-white/10 rounded-full backdrop-blur-sm transition-all">
-                        <Link href="#features">
-                            Descubrir Herramientas
-                        </Link>
-                    </Button>
                 </div>
 
                 {/* Social Proofish info */}
-                <div className="mt-20 flex flex-wrap justify-center gap-8 md:gap-16 opacity-50 animate-in fade-in duration-1000 delay-700">
+                <div className="mt-20 flex flex-wrap justify-center gap-8 md:gap-16 animate-in fade-in duration-1000 delay-700 bg-black/40 backdrop-blur-md py-4 px-8 rounded-full border border-white/10">
                     <div className="flex items-center gap-2 text-white">
-                        <ShieldCheck className="h-5 w-5 text-orange-500" />
-                        <span className="font-medium">Seguro y Privado</span>
+                        <BadgeCheck className="h-5 w-5 text-orange-500" />
+                        <span className="font-medium">Precios de Mercado Reales</span>
                     </div>
                     <div className="flex items-center gap-2 text-white">
                         <Zap className="h-5 w-5 text-orange-500" />
-                        <span className="font-medium">9.5x Más Rápido</span>
+                        <span className="font-medium">Cálculo Inmediato</span>
                     </div>
                     <div className="flex items-center gap-2 text-white">
-                        <Users className="h-5 w-5 text-orange-500" />
-                        <span className="font-medium">Propietarios y Profesionales</span>
+                        <FileText className="h-5 w-5 text-orange-500" />
+                        <span className="font-medium">Informes Profesionales</span>
                     </div>
                 </div>
             </div>

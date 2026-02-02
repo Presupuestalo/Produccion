@@ -1164,17 +1164,6 @@ export function ProjectForm({
                       {formData.dueDate ? new Date(formData.dueDate).toLocaleDateString("es-ES") : "Sin fecha"}
                     </div>
                   </div>
-
-                  <div className="grid gap-2 max-w-2xl">
-                    <Label htmlFor="description">Descripción</Label>
-                    <Textarea
-                      id="description"
-                      placeholder="Describe brevemente el proyecto"
-                      className="min-h-[100px]"
-                      value={formData.description}
-                      onChange={handleChange}
-                    />
-                  </div>
                 </div>
               </div>
 
@@ -1313,10 +1302,9 @@ export function ProjectForm({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Hormigón">Hormigón</SelectItem>
-                          <SelectItem value="Ladrillo">Ladrillo</SelectItem>
-                          <SelectItem value="Acero">Acero</SelectItem>
                           <SelectItem value="Madera">Madera</SelectItem>
                           <SelectItem value="Mixta">Mixta</SelectItem>
+                          <SelectItem value="Otro">Otro</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
