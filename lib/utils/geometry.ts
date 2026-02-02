@@ -193,11 +193,31 @@ export function fragmentWalls(walls: Wall[]): Wall[] {
  */
 export function cleanupAndMergeWalls(walls: Wall[]): Wall[] {
     const TOLERANCE = 0.1 // Reduced from 1.0 to allow finer movements/inversions without deletion
+
     // 1. Remove zero-length walls
     let processed = walls.filter(w => {
         const len = Math.sqrt(Math.pow(w.end.x - w.start.x, 2) + Math.pow(w.end.y - w.start.y, 2))
         return len > TOLERANCE
     })
+
+    // 2. Pre-cleanup: Remove exact duplicates (overlapping walls)
+    // This prevents "annihilation" where two identical walls try to merge into an invalid state
+    for (let i = 0; i < processed.length; i++) {
+        for (let j = i + 1; j < processed.length; j++) {
+            const w1 = processed[i]
+            const w2 = processed[j]
+
+            // Check if they are identical (same start/end or swapped start/end)
+            const matchDirect = isSamePoint(w1.start, w2.start) && isSamePoint(w1.end, w2.end)
+            const matchReverse = isSamePoint(w1.start, w2.end) && isSamePoint(w1.end, w2.start)
+
+            if (matchDirect || matchReverse) {
+                // Duplicate found! Remove w2
+                processed.splice(j, 1)
+                j-- // Adjust index
+            }
+        }
+    }
 
     let merged = true
     while (merged) {
@@ -210,14 +230,19 @@ export function cleanupAndMergeWalls(walls: Wall[]): Wall[] {
                 // Must have same thickness
                 if (w1.thickness !== w2.thickness) continue
 
-                // Must be collinear
+                // Check for colinearity
+                // Vector 1
                 const dx1 = w1.end.x - w1.start.x
                 const dy1 = w1.end.y - w1.start.y
+                const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1)
+
+                // Vector 2
                 const dx2 = w2.end.x - w2.start.x
                 const dy2 = w2.end.y - w2.start.y
-
-                const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1)
                 const len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2)
+
+                if (len1 < TOLERANCE || len2 < TOLERANCE) continue
+
                 const ux1 = dx1 / len1, uy1 = dy1 / len1
                 const ux2 = dx2 / len2, uy2 = dy2 / len2
 
@@ -225,7 +250,7 @@ export function cleanupAndMergeWalls(walls: Wall[]): Wall[] {
                 const dot = Math.abs(ux1 * ux2 + uy1 * uy2)
                 if (dot < 0.999) continue
 
-                // Must share exactly one vertex
+                // Must share exactly one vertex to be candidates for sequential merge
                 let shared: Point | null = null
                 let p1: Point | null = null
                 let p2: Point | null = null
@@ -236,7 +261,20 @@ export function cleanupAndMergeWalls(walls: Wall[]): Wall[] {
                 else if (isSamePoint(w1.start, w2.start)) { shared = w1.start; p1 = w1.end; p2 = w2.end }
 
                 if (shared && p1 && p2) {
-                    // CRITICAL: The shared vertex must NOT have other wall connections
+                    // Check if they are actually overlapping (one inside the other)
+                    // If shared vertex is one end, they extend each other OR overlap.
+                    // Since we removed exact duplicates, we just need to check if they "fold back"
+                    // If dot product is -1 (opposing directions) and they share start-start, they overlap.
+                    // But here dot is abs(), so we need real dot.
+                    const realDot = ux1 * ux2 + uy1 * uy2
+
+                    // Case 1: Sequential Merge (Extension)
+                    // They proceed in same direction (approx) and share end->start
+                    // OR they oppose and share end->end (1->2, 3->2)
+
+                    // We need to ensure the shared vertex has NO OTHER CONNECTIONS to be safe to merge.
+                    // If 3 walls meet at a T-junction (one collinear, one perpendicular), we should NOT merge the collinear ones
+                    // because it would destroy the T-junction vertex.
                     const otherConnections = processed.filter(w =>
                         w.id !== w1.id && w.id !== w2.id &&
                         (isSamePoint(w.start, shared!) || isSamePoint(w.end, shared!))
@@ -256,6 +294,11 @@ export function cleanupAndMergeWalls(walls: Wall[]): Wall[] {
                         break
                     }
                 }
+
+                // Case 2: Overlapping but not identical (one contains the other, or partial overlap)
+                // If they are collinear and overlapping, fragmentWalls should have theoretically split them.
+                // But if they weren't split correctly, we might have issues.
+                // Assuming fragmentWalls ran before this, we only deal with sequential segments.
             }
             if (merged) break
         }

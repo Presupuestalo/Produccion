@@ -16,7 +16,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Minimize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, RefreshCw, FileText, ClipboardList, Spline, Menu, Square, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react"
+import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Minimize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, LayoutGrid, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, RefreshCw, FileText, ClipboardList, Spline, Menu, Square, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import {
     DropdownMenu,
@@ -43,7 +43,7 @@ interface Point { x: number; y: number }
 interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean }
 interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point }
 interface Door { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" }
-interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean }
+interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean; openType?: "single" | "double" }
 interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number }
 
 export const EditorContainer = forwardRef((props: any, ref) => {
@@ -99,6 +99,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
     const [showSummary, setShowSummary] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
+    const [showAllQuotes, setShowAllQuotes] = useState(false)
 
 
     // Historial para deshacer/rehacer
@@ -121,6 +122,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [touchOffset, setTouchOffset] = useState(40)
     const [forceTouchOffset, setForceTouchOffset] = useState(false)
     const [rulerState, setRulerState] = useState<{ start: Point | null, end: Point | null, active: boolean }>({ start: null, end: null, active: false })
+    const [isDrawMenuOpen, setIsDrawMenuOpen] = useState(false)
 
     const toggleFullscreen = () => {
         if (!editorWrapperRef.current) return
@@ -694,14 +696,44 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         if (type === "door") {
             const door = doors.find(d => d.id === id)
             if (door) {
-                const newDoor = { ...door, id: `door-${Date.now()}`, t: Math.min(0.9, door.t + 0.1) }
+                const wall = walls.find(w => w.id === door.wallId)
+                let increment = 0.1
+                if (wall) {
+                    const wallLen = Math.sqrt(Math.pow(wall.end.x - wall.start.x, 2) + Math.pow(wall.end.y - wall.start.y, 2))
+                    if (wallLen > 0) increment = (door.width + 10) / wallLen // Width + 10cm gap
+                }
+
+                // Try placing to the right (higher t)
+                let newT = door.t + increment
+                // If runs off the end, try to the left
+                if (newT > 0.95) newT = door.t - increment
+
+                // Clamp
+                newT = Math.max(0.05, Math.min(0.95, newT))
+
+                const newDoor = { ...door, id: `door-${Date.now()}`, t: newT }
                 setDoors([...doors, newDoor])
                 setSelectedElement({ type: "door", id: newDoor.id })
             }
         } else if (type === "window") {
             const window = windows.find(w => w.id === id)
             if (window) {
-                const newWindow = { ...window, id: `window-${Date.now()}`, t: Math.min(0.9, window.t + 0.1) }
+                const wall = walls.find(w => w.id === window.wallId)
+                let increment = 0.1
+                if (wall) {
+                    const wallLen = Math.sqrt(Math.pow(wall.end.x - wall.start.x, 2) + Math.pow(wall.end.y - wall.start.y, 2))
+                    if (wallLen > 0) increment = (window.width + 10) / wallLen // Width + 10cm gap
+                }
+
+                // Try placing to the right (higher t)
+                let newT = window.t + increment
+                // If runs off the end, try to the left
+                if (newT > 0.95) newT = window.t - increment
+
+                // Clamp
+                newT = Math.max(0.05, Math.min(0.95, newT))
+
+                const newWindow = { ...window, id: `window-${Date.now()}`, t: newT }
                 setWindows([...windows, newWindow])
                 setSelectedElement({ type: "window", id: newWindow.id })
             }
@@ -974,7 +1006,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         saveStateToHistory()
     }
 
-    const applyPerimeterThickness = () => {
+    const applyFacadeHighlight = () => {
         saveStateToHistory()
         setWalls(prevWalls => {
             const fragmented = fragmentWalls(prevWalls)
@@ -997,54 +1029,14 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 if (count === 1) outerWallIds.add(w.id)
             })
 
-            // 2. Identificar actualizaciones de vértices para ortogonalizar la fachada
-            const vertexUpdates = new Map<string, { x?: number, y?: number }>()
-            const getPointKey = (p: Point) => `${Math.round(p.x * 10) / 10},${Math.round(p.y * 10) / 10}`
-
-            fragmented.forEach(w => {
-                if (!outerWallIds.has(w.id)) return
-
-                const dx = Math.abs(w.end.x - w.start.x)
-                const dy = Math.abs(w.end.y - w.start.y)
-                const len = Math.sqrt(dx * dx + dy * dy)
-                if (len < 5) return // Ignorar segmentos minúsculos
-
-                // Umbral de 15 grados (~0.25 ratio) para considerar "casi recto"
-                const isNearHorizontal = dy < dx && (dy / len) < 0.25
-                const isNearVertical = dx < dy && (dx / len) < 0.25
-
-                if (isNearHorizontal) {
-                    const avgY = (w.start.y + w.end.y) / 2
-                    const k1 = getPointKey(w.start), k2 = getPointKey(w.end)
-                    vertexUpdates.set(k1, { ...vertexUpdates.get(k1), y: avgY })
-                    vertexUpdates.set(k2, { ...vertexUpdates.get(k2), y: avgY })
-                } else if (isNearVertical) {
-                    const avgX = (w.start.x + w.end.x) / 2
-                    const k1 = getPointKey(w.start), k2 = getPointKey(w.end)
-                    vertexUpdates.set(k1, { ...vertexUpdates.get(k1), x: avgX })
-                    vertexUpdates.set(k2, { ...vertexUpdates.get(k2), x: avgX })
-                }
-            })
-
-            // 3. Aplicar cambios a TODOS los muros fragmentados para mantener conexiones
-            const straightenedWalls = fragmented.map(w => {
-                const k1 = getPointKey(w.start)
-                const k2 = getPointKey(w.end)
-                const up1 = vertexUpdates.get(k1)
-                const up2 = vertexUpdates.get(k2)
-
-                const isOuter = outerWallIds.has(w.id)
-                return {
-                    ...w,
-                    start: { ...w.start, ...up1 },
-                    end: { ...w.end, ...up2 },
-                    thickness: isOuter ? 20 : w.thickness
-                }
-            })
-
-            return cleanupAndMergeWalls(straightenedWalls)
+            // 2. Aplicar grosor solo a muros exteriores, SIN ortogonalizar
+            return fragmented.map(w => ({
+                ...w,
+                thickness: outerWallIds.has(w.id) ? 20 : w.thickness
+            }))
         })
     }
+
 
     const handleUpdateWallLength = (id: string, newLength: number, side: "left" | "right", faceNormal?: Point) => {
         saveStateToHistory()
@@ -1686,22 +1678,22 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
             <div ref={containerRef} className="flex-1 relative border-t border-slate-200 overflow-hidden bg-slate-50">
                 {/* Vertical Collapsible Toolbar */}
-                <div className={`absolute left-0 top-0 z-40 transition-all duration-300 ease-in-out flex items-start ${!isToolbarVisible ? "-translate-x-full" : "translate-x-0"}`}>
+                <div className={`absolute left-0 ${isFullscreen ? "top-0" : "top-[50px]"} z-40 transition-all duration-300 ease-in-out flex items-start ${!isToolbarVisible ? "-translate-x-full" : "translate-x-0"}`}>
                     <Card className="p-2 flex flex-col items-center gap-2 bg-white/95 backdrop-blur-md border-slate-200 shadow-xl pointer-events-auto rounded-l-none rounded-tl-none border-l-0 border-t-0">
                         {!isFullscreen && (
                             <>
-                                <Button variant="ghost" size="icon" onClick={handleBack} title="Volver" className="w-9 h-9">
-                                    <ArrowLeft className="h-5 w-5 text-slate-500" />
+                                <Button variant="ghost" size="icon" onClick={handleBack} title="Volver" className="w-9 h-9 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+                                    <ArrowLeft className="h-5 w-5" />
                                 </Button>
                                 <div className="h-px w-6 bg-slate-200 my-1 flex-shrink-0" />
                             </>
                         )}
-
+                        {/* ... existing tool buttons ... */}
                         <Button variant={activeTool === "select" ? "default" : "ghost"} size="icon" onClick={() => setActiveTool("select")} title="Seleccionar (S)" className="w-9 h-9">
                             <MousePointer2 className="h-4 w-4" />
                         </Button>
 
-                        <DropdownMenu>
+                        <DropdownMenu onOpenChange={setIsDrawMenuOpen}>
                             <DropdownMenuTrigger asChild>
                                 <Button
                                     variant={["wall", "arc", "door", "window", "shunt"].includes(activeTool) ? "default" : "ghost"}
@@ -1710,7 +1702,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                     className="w-9 h-9 relative"
                                 >
                                     <Pencil className="h-4 w-4" />
-                                    <ChevronDown className="h-2.5 w-2.5 absolute bottom-0.5 right-0.5 opacity-40" />
+                                    <ChevronRight className={`h-2.5 w-2.5 absolute bottom-0.5 right-0.5 opacity-50 transition-transform duration-300 ${isDrawMenuOpen ? "rotate-180" : ""}`} />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent container={fullscreenContainer} side="right" align="start" className="w-48 ml-2">
@@ -1729,11 +1721,23 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 <DropdownMenuItem onClick={() => setActiveTool("shunt")} className="gap-2">
                                     <Square className="h-4 w-4" /> <span>Columna</span>
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => { setActiveTool("wall"); applyFacadeHighlight(); toast({ title: "Fachada", description: "Dibujar muro de fachada" }) }} className="gap-2">
+                                    <Building2 className="h-4 w-4" /> <span>Fachada</span>
+                                </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
 
                         <Button variant={activeTool === "ruler" ? "default" : "ghost"} size="icon" onClick={() => setActiveTool("ruler")} title="Regla (M)" className="w-9 h-9">
                             <Ruler className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant={showAllQuotes ? "default" : "ghost"}
+                            size="icon"
+                            onClick={() => setShowAllQuotes(!showAllQuotes)}
+                            title={showAllQuotes ? "Ocultar todas las cotas" : "Mostrar todas las cotas"}
+                            className="w-9 h-9"
+                        >
+                            <LayoutGrid className={`h-4 w-4 ${showAllQuotes ? "text-white" : "text-slate-600"}`} />
                         </Button>
 
                         <div className="h-px w-6 bg-slate-200 my-1 flex-shrink-0" />
@@ -1747,48 +1751,30 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
                         <div className="h-px w-6 bg-slate-200 my-1 flex-shrink-0" />
 
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" title="Más Acciones" className="w-9 h-9 relative">
-                                    <RefreshCw className="h-4 w-4 text-slate-500" />
-                                    <ChevronDown className="h-2.5 w-2.5 absolute bottom-0.5 right-0.5 opacity-40 text-slate-500" />
+                        <Button variant="ghost" size="icon" onClick={() => document.getElementById('bg-import')?.click()} title="Importar Imagen" className="w-9 h-9 text-slate-600 hover:text-orange-600 hover:bg-orange-50">
+                            <ImagePlus className="h-4 w-4" />
+                        </Button>
+
+                        <div className="h-px w-6 bg-slate-200 my-1 flex-shrink-0" />
+
+                        {/* Trash directly on bar */}
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="w-9 h-9 text-red-500 hover:bg-red-50 hover:text-red-600" title="Limpiar Plano">
+                                    <Trash2 className="h-4 w-4" />
                                 </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent container={fullscreenContainer} side="right" align="start" className="w-48 ml-2">
-                                <DropdownMenuItem onClick={() => handleRotatePlan(-15)} className="gap-2">
-                                    <RotateCcw className="h-4 w-4" /> <span>Girar Antihorario ([)</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleRotatePlan(15)} className="gap-2">
-                                    <RotateCw className="h-4 w-4" /> <span>Girar Horario (])</span>
-                                </DropdownMenuItem>
-                                <Separator className="my-1" />
-                                <DropdownMenuItem onClick={() => setSnappingEnabled(!snappingEnabled)} className="gap-2">
-                                    <Magnet className={`h-4 w-4 ${snappingEnabled ? "text-blue-600" : "text-slate-400"}`} />
-                                    <span>Snapping: {snappingEnabled ? "ON" : "OFF"}</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => document.getElementById('bg-import')?.click()} className="gap-2">
-                                    <ImagePlus className="h-4 w-4" /> <span>Importar Imagen</span>
-                                </DropdownMenuItem>
-                                <Separator className="my-1" />
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <div className="flex items-center gap-2 px-2 py-1.5 text-sm text-red-500 hover:bg-red-50 cursor-pointer rounded-sm">
-                                            <Trash2 className="h-4 w-4" /> <span>Limpiar Plano</span>
-                                        </div>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent container={fullscreenContainer}>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Limpiar todo el plano?</AlertDialogTitle>
-                                            <AlertDialogDescription>Esta acción no se puede deshacer fácilmente.</AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={executeClearPlan} className="bg-red-600">Limpiar</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent container={fullscreenContainer}>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Limpiar todo el plano?</AlertDialogTitle>
+                                    <AlertDialogDescription>Esta acción no se puede deshacer fácilmente.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={executeClearPlan} className="bg-red-600">Limpiar</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
 
                         <div className="h-px w-6 bg-slate-200 my-1 flex-shrink-0" />
 
@@ -1798,7 +1784,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                     <FileText className="h-4 w-4" />
                                 </Button>
                             </SheetTrigger>
-                            <SheetContent container={fullscreenContainer} side="left" className="overflow-y-auto w-[400px] sm:w-[540px]">
+                            <SheetContent container={fullscreenContainer} side="right" className="overflow-y-auto w-[400px] sm:w-[540px]">
                                 <SheetHeader className="mb-4">
                                     <SheetTitle>Resumen del Plano</SheetTitle>
                                 </SheetHeader>
@@ -1807,6 +1793,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                     doors={doors}
                                     windows={windows}
                                     rooms={rooms}
+                                    shunts={shunts}
                                 />
                             </SheetContent>
                         </Sheet>
@@ -1932,11 +1919,13 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     forceTouchOffset={forceTouchOffset}
                     shunts={shunts}
                     onUpdateShunt={handleUpdateShunt}
+                    hideFloatingUI={showSummary}
+                    showAllQuotes={showAllQuotes}
                 />
 
 
 
-                {bgImage && (
+                {bgImage && !showSummary && (
                     <div className="absolute top-4 right-4 p-4 bg-white/95 backdrop-blur-md rounded-xl border border-slate-200 shadow-xl w-72 animate-in fade-in slide-in-from-right-4 hidden md:block">
                         {/* Desktop BG Config - Keep existing logic here if needed, or move to Menu */}
                         {/* For brevity, I'm hiding it on mobile and keeping the desktop generic one, 
@@ -1947,56 +1936,28 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 )}
 
                 {/* Properties Panel for Selected Element */}
-                {selectedElement && (
+                {selectedElement && !showSummary && (
                     <div className="absolute top-20 right-4 z-30">
                         {(() => {
-                            if (selectedElement.type === "door") {
-                                const door = doors.find(d => d.id === selectedElement.id)
-                                if (!door) return null
-                                return (
-                                    <ElementProperties
-                                        elementId={door.id}
-                                        type="door"
-                                        width={door.width}
-                                        onUpdateWidth={(id, w) => handleUpdateElement("door", id, { width: w })}
-                                        onDelete={(id) => handleDeleteElement("door", id)}
-                                        onClose={() => setSelectedElement(null)}
-                                    />
-                                )
-                            } else if (selectedElement.type === "window") {
-                                const win = windows.find(w => w.id === selectedElement.id)
-                                if (!win) return null
-                                return (
-                                    <ElementProperties
-                                        elementId={win.id}
-                                        type="window"
-                                        width={win.width}
-                                        height={win.height}
-                                        onUpdateWidth={(id, w) => handleUpdateElement("window", id, { width: w })}
-                                        onUpdateHeight={(id, h) => handleUpdateElement("window", id, { height: h })}
-                                        onDelete={(id) => handleDeleteElement("window", id)}
-                                        onClose={() => setSelectedElement(null)}
-                                    />
-                                )
-                            } else if (selectedElement.type === "shunt") {
-                                const shunt = shunts.find(s => s.id === selectedElement.id)
-                                if (!shunt) return null
-                                return (
-                                    <ElementProperties
-                                        elementId={shunt.id}
-                                        type="shunt"
-                                        width={shunt.width}
-                                        height={shunt.height}
-                                        onUpdateWidth={(id, w) => handleUpdateElement("shunt", id, { width: w })}
-                                        onUpdateHeight={(id, h) => handleUpdateElement("shunt", id, { height: h })}
-                                        onClone={(id) => handleCloneElement("shunt", id)}
-                                        onDelete={(id) => handleDeleteElement("shunt", id)}
-                                        onClose={() => setSelectedElement(null)}
-                                    />
-                                )
-                            }
+                            // Shunt properties removed as per user request (inline editing)
                             return null
                         })()}
+                    </div>
+                )}
+
+                {/* Floating Navigation Controls (Right Bottom) */}
+                {!showSummary && (
+                    <div className="absolute bottom-6 right-6 flex flex-col gap-1 items-center p-1 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-lg shadow-sm z-30 opacity-70 hover:opacity-100 transition-opacity duration-200">
+                        <Button variant="ghost" size="icon" onClick={() => handleRotatePlan(15)} title="Girar (])" className="w-8 h-8 rounded-md hover:bg-slate-200/50">
+                            <RotateCw className="h-4 w-4 text-slate-600" />
+                        </Button>
+                        <div className="w-5 h-px bg-slate-200 my-0.5" />
+                        <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.min(3, z + 0.1))} title="Acercar" className="w-8 h-8 rounded-md hover:bg-slate-200/50">
+                            <ZoomIn className="h-4 w-4 text-slate-600" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} title="Alejar" className="w-8 h-8 rounded-md hover:bg-slate-200/50">
+                            <ZoomOut className="h-4 w-4 text-slate-600" />
+                        </Button>
                     </div>
                 )}
             </div>

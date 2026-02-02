@@ -6,18 +6,33 @@ import { Separator } from "@/components/ui/separator"
 import { Room, Wall, isPointOnSegment } from "@/lib/utils/geometry"
 import { Ruler, DoorOpen, Maximize, Boxes } from "lucide-react"
 
-interface Door { id: string; wallId: string; width: number }
-interface Window { id: string; wallId: string; width: number }
+// Helper for point in polygon
+function isPointInPolygon(p: { x: number, y: number }, polygon: { x: number, y: number }[]) {
+    let inside = false
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].x, yi = polygon[i].y
+        const xj = polygon[j].x, yj = polygon[j].y
+        const intersect = ((yi > p.y) !== (yj > p.y)) &&
+            (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi)
+        if (intersect) inside = !inside
+    }
+    return inside
+}
+
+interface Door { id: string; wallId: string; width: number, openType?: "single" | "double" | "sliding" }
+interface Window { id: string; wallId: string; width: number, openType?: "single" | "double" }
+interface Shunt { id: string; x: number; y: number; width: number; height: number }
 
 interface FloorPlanSummaryProps {
     rooms: Room[]
     walls: Wall[]
     doors: Door[]
     windows: Window[]
+    shunts: Shunt[]
 }
 
-export function FloorPlanSummary({ rooms, walls, doors, windows }: FloorPlanSummaryProps) {
-    // 1. Global Stats (Exclude invisible walls)
+export function FloorPlanSummary({ rooms, walls, doors, windows, shunts }: FloorPlanSummaryProps) {
+    // 1. Global Stats
     const totalArea = rooms.reduce((acc, r) => acc + r.area, 0)
     const totalWallsLength = walls.reduce((acc, w) => {
         if (w.isInvisible) return acc
@@ -25,61 +40,52 @@ export function FloorPlanSummary({ rooms, walls, doors, windows }: FloorPlanSumm
         return acc + len
     }, 0) / 100 // Convert cm to meters
 
+    // Global Breakdown
+    const doorsSimple = doors.filter(d => !d.openType || d.openType === "single").length
+    const doorsDouble = doors.filter(d => d.openType === "double").length
+    const doorsSliding = doors.filter(d => d.openType === "sliding").length
     const totalDoors = doors.length
+
+    const winSimple = windows.filter(w => !w.openType || w.openType === "single").length
+    const winDouble = windows.filter(w => w.openType === "double").length
     const totalWindows = windows.length
 
     // 2. Per Room Stats
     const roomStats = rooms.map(room => {
-        // Calculate Perimeter
-        let perimeter = 0
+        // Calculate Wall Perimeter
+        let wallPerimeter = 0
         for (let i = 0; i < room.polygon.length; i++) {
             const p1 = room.polygon[i]
             const p2 = room.polygon[(i + 1) % room.polygon.length]
             const segmentLen = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2))
 
             // Check if this segment corresponds to an invisible wall
-            // We check if the midpoint of the segment lies on any invisible wall
             const midX = (p1.x + p2.x) / 2
             const midY = (p1.y + p2.y) / 2
 
-            // Should match exactly an invisible wall segment or be part of it
             const isOnInvisible = walls.some(w => {
                 if (!w.isInvisible) return false
-                // Check if midpoint of polygon edge is on the wall segment
-                // Tolerance 1.0 is default in geometry utils
                 return isPointOnSegment({ x: midX, y: midY }, w.start, w.end)
             })
 
             if (!isOnInvisible) {
-                perimeter += segmentLen
+                wallPerimeter += segmentLen
             }
         }
 
-        // Count associated doors/windows
-        const roomWalls = walls.filter(w => {
-            const TOL = 5.0
-            const isSame = (p1: { x: number, y: number }, p2: { x: number, y: number }) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
+        // Calculate Column (Shunt) Perimeter
+        // A shunt is inside if its center is inside the room polygon
+        const roomShunts = shunts.filter(s => isPointInPolygon({ x: s.x, y: s.y }, room.polygon))
+        const columnPerimeter = roomShunts.reduce((acc, s) => acc + (s.width * 2 + s.height * 2), 0)
 
-            // A wall belongs to a room if BOTH its start and end are vertices of the room polygon?
-            // No, walls are shared. A wall is "part of" the room if it aligns with the polygon edges.
-            // We can use the same logic as above: check if wall midpoint is on room polygon perimeter?
-            // Or check if wall endpoints match polygon vertices.
-
-            // Since walls are fragmented, wall endpoints should match polygon vertices (possibly skipping vertices if wall is long? no, fragmentation ensures split).
-
-            const startIn = room.polygon.some(p => isSame(p, w.start))
-            const endIn = room.polygon.some(p => isSame(p, w.end))
-            return startIn && endIn
-        })
-
-        const roomDoors = doors.filter(d => roomWalls.some(w => w.id === d.wallId)).length
-        const roomWindows = windows.filter(win => roomWalls.some(w => w.id === win.wallId)).length
+        const wallPerimM = wallPerimeter / 100
+        const colPerimM = columnPerimeter / 100
 
         return {
             ...room,
-            perimeter: perimeter / 100, // m
-            doorCount: roomDoors,
-            windowCount: roomWindows
+            wallPerimeter: wallPerimM,
+            columnPerimeter: colPerimM,
+            totalPerimeter: wallPerimM + colPerimM
         }
     })
 
@@ -112,6 +118,20 @@ export function FloorPlanSummary({ rooms, walls, doors, windows }: FloorPlanSumm
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
                         <div className="text-xl font-bold">{totalDoors}</div>
+                        <div className="text-[10px] text-muted-foreground mt-2 space-y-1">
+                            <div className="flex justify-between items-center">
+                                <span>Abatibles</span>
+                                <span className="font-medium text-foreground">{doorsSimple}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span>Dobles</span>
+                                <span className="font-medium text-foreground">{doorsDouble}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span>Correderas</span>
+                                <span className="font-medium text-foreground">{doorsSliding}</span>
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -121,6 +141,16 @@ export function FloorPlanSummary({ rooms, walls, doors, windows }: FloorPlanSumm
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
                         <div className="text-xl font-bold">{totalWindows}</div>
+                        <div className="text-[10px] text-muted-foreground mt-2 space-y-1">
+                            <div className="flex justify-between items-center">
+                                <span>Simples</span>
+                                <span className="font-medium text-foreground">{winSimple}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span>Dobles</span>
+                                <span className="font-medium text-foreground">{winDouble}</span>
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
@@ -135,19 +165,19 @@ export function FloorPlanSummary({ rooms, walls, doors, windows }: FloorPlanSumm
                             <TableRow>
                                 <TableHead className="w-[100px] h-8 text-xs">Habitación</TableHead>
                                 <TableHead className="h-8 text-xs text-right">Área</TableHead>
-                                <TableHead className="h-8 text-xs text-right">Perímetro</TableHead>
-                                <TableHead className="h-8 text-xs text-right">P.</TableHead>
-                                <TableHead className="h-8 text-xs text-right">V.</TableHead>
+                                <TableHead className="h-8 text-xs text-right">P. Muros</TableHead>
+                                <TableHead className="h-8 text-xs text-right text-orange-600">P. Col.</TableHead>
+                                <TableHead className="h-8 text-xs text-right font-bold">P. Total</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {roomStats.map((room) => (
                                 <TableRow key={room.id} className="h-9">
-                                    <TableCell className="font-medium text-xs py-1">{room.name || "-"}</TableCell>
+                                    <TableCell className="font-medium text-xs py-1 truncate max-w-[100px]" title={room.name}>{room.name || "-"}</TableCell>
                                     <TableCell className="text-xs text-right py-1">{room.area.toFixed(2)}</TableCell>
-                                    <TableCell className="text-xs text-right py-1">{room.perimeter.toFixed(2)}</TableCell>
-                                    <TableCell className="text-xs text-right py-1">{room.doorCount}</TableCell>
-                                    <TableCell className="text-xs text-right py-1">{room.windowCount}</TableCell>
+                                    <TableCell className="text-xs text-right py-1">{room.wallPerimeter.toFixed(2)}</TableCell>
+                                    <TableCell className="text-xs text-right py-1 text-orange-600 font-medium">{room.columnPerimeter > 0 ? room.columnPerimeter.toFixed(2) : "-"}</TableCell>
+                                    <TableCell className="text-xs text-right py-1 font-bold">{room.totalPerimeter.toFixed(2)}</TableCell>
                                 </TableRow>
                             ))}
                             {roomStats.length === 0 && (
