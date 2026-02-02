@@ -31,6 +31,7 @@ import {
   Gift,
   Crown,
   PenTool,
+  ShieldCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/ui/logo"
