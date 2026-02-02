@@ -240,6 +240,7 @@ export interface GlobalConfig {
   removeAllCeramic?: boolean // Nueva propiedad para picar toda la cerámica
   tileAllFloors?: boolean // Nueva propiedad para embaldosar todo el suelo
   entranceDoorType?: boolean
+  lacquerEntranceDoor?: boolean
   paintCeilings?: boolean
 }
 

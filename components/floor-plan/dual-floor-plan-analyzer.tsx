@@ -292,6 +292,11 @@ export function DualFloorPlanAnalyzer({
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text()
         console.error("[v0] Upload failed:", errorText)
+
+        if (uploadResponse.status === 401) {
+          throw new Error("Sesión expirada. Por favor, recarga la página.")
+        }
+
         throw new Error("Error al subir plano")
       }
 
@@ -308,8 +313,8 @@ export function DualFloorPlanAnalyzer({
       console.log("[v0] Analysis response status:", analysisResponse.status)
 
       if (!analysisResponse.ok) {
-        const errorData = await analysisResponse.json()
-        console.error("[v0] Analysis failed:", errorData)
+        const errorData = await analysisResponse.json().catch(e => ({ error: "Error parsing error response", details: String(e) }))
+        console.error("[v0] Analysis failed:", JSON.stringify(errorData, null, 2))
 
         if (errorData.errorType === "invalid_floor_plan") {
           toast({
@@ -323,7 +328,13 @@ export function DualFloorPlanAnalyzer({
           return
         }
 
-        throw new Error(errorData.error || "Error al analizar plano")
+        // Mostrar error específico si lo hay
+        const errorDetails = errorData.details || ""
+        const errorMessage = errorData.error || "Error al analizar plano"
+
+        console.error("[v0] Full server error:", errorData.fullError)
+
+        throw new Error(`${errorMessage}${errorDetails ? `: ${errorDetails}` : ''}`)
       }
 
       const { analysis } = await analysisResponse.json()
@@ -353,7 +364,12 @@ export function DualFloorPlanAnalyzer({
           method: "POST",
           body: beforeFormData,
         })
-        if (!beforeUploadResponse.ok) throw new Error("Error al subir plano 'antes'")
+        if (!beforeUploadResponse.ok) {
+          if (beforeUploadResponse.status === 401) {
+            throw new Error("Sesión expirada. Por favor, recarga la página.")
+          }
+          throw new Error("Error al subir plano 'antes'")
+        }
         const { imageUrl: beforeImageUrl } = await beforeUploadResponse.json()
         console.log("[v0] 'Before' plan uploaded:", beforeImageUrl)
 
@@ -364,7 +380,12 @@ export function DualFloorPlanAnalyzer({
           method: "POST",
           body: afterFormData,
         })
-        if (!afterUploadResponse.ok) throw new Error("Error al subir plano 'después'")
+        if (!afterUploadResponse.ok) {
+          if (afterUploadResponse.status === 401) {
+            throw new Error("Sesión expirada. Por favor, recarga la página.")
+          }
+          throw new Error("Error al subir plano 'después'")
+        }
         const { imageUrl: afterImageUrl } = await afterUploadResponse.json()
         console.log("[v0] 'After' plan uploaded:", afterImageUrl)
 
@@ -374,7 +395,13 @@ export function DualFloorPlanAnalyzer({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ imageUrl: beforeImageUrl }),
         })
-        if (!beforeAnalysisResponse.ok) throw new Error("Error al analizar plano 'antes'")
+        if (!beforeAnalysisResponse.ok) {
+          const errorData = await beforeAnalysisResponse.json().catch(e => ({ error: "Error parsing error response", details: String(e) }))
+          console.error("[v0] 'Before' analysis failed:", JSON.stringify(errorData, null, 2))
+          const errorDetails = errorData.details || ""
+          const errorMessage = errorData.error || "Error al analizar plano 'antes'"
+          throw new Error(`${errorMessage}${errorDetails ? `: ${errorDetails}` : ''}`)
+        }
         const { analysis: beforeData } = await beforeAnalysisResponse.json()
         console.log("[v0] 'Before' analysis complete, rooms:", beforeData.rooms?.length)
         setBeforeAnalysis(beforeData)
@@ -385,7 +412,13 @@ export function DualFloorPlanAnalyzer({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ imageUrl: afterImageUrl }),
         })
-        if (!afterAnalysisResponse.ok) throw new Error("Error al analizar plano 'después'")
+        if (!afterAnalysisResponse.ok) {
+          const errorData = await afterAnalysisResponse.json().catch(e => ({ error: "Error parsing error response", details: String(e) }))
+          console.error("[v0] 'After' analysis failed:", JSON.stringify(errorData, null, 2))
+          const errorDetails = errorData.details || ""
+          const errorMessage = errorData.error || "Error al analizar plano 'después'"
+          throw new Error(`${errorMessage}${errorDetails ? `: ${errorDetails}` : ''}`)
+        }
         const { analysis: afterData } = await afterAnalysisResponse.json()
         console.log("[v0] 'After' analysis complete, rooms:", afterData.rooms?.length)
         setAfterAnalysis(afterData)

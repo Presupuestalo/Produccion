@@ -994,6 +994,28 @@ export function GlobalConfigSection({
                   </div>
                 </CardContent>
               </Card>
+
+              <Card className="border-2 border-blue-100 hover:border-blue-300 transition-colors duration-200 bg-gradient-to-br from-blue-50/30 to-transparent">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-shrink-0 w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
+                        <Paintbrush className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <Label htmlFor="lacquerEntranceDoor" className="font-medium cursor-pointer text-sm">
+                        ¿Lacar puerta de entrada?
+                      </Label>
+                    </div>
+                    <Switch
+                      id="lacquerEntranceDoor"
+                      checked={config.lacquerEntranceDoor || false}
+                      onCheckedChange={(checked) => {
+                        handleConfigUpdate({ lacquerEntranceDoor: checked as boolean })
+                      }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </>
         )}

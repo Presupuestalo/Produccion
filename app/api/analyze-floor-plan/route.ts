@@ -65,7 +65,20 @@ const analysisSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
+    // 1. Verificar API Key de Groq
+    if (!process.env.GROQ_API_KEY) {
+      console.error("[v0] CRITICAL: GROQ_API_KEY environment variable is missing")
+      return Response.json(
+        { error: "Error de configuración del servidor: Falta API Key de IA" },
+        { status: 500 }
+      )
+    }
+
+    const body = await request.json().catch(err => {
+      console.error("[v0] Error parsing request JSON:", err)
+      throw new Error("Invalid JSON body")
+    })
+
     const { imageUrl, skipValidation } = body
 
     if (!imageUrl) {
@@ -80,10 +93,10 @@ export async function POST(request: Request) {
     try {
       const imageResponse = await fetch(imageUrl)
       if (!imageResponse.ok) {
-        throw new Error(`Error al obtener la imagen: ${imageResponse.statusText}`)
+        throw new Error(`Error al obtener la imagen: ${imageResponse.status} ${imageResponse.statusText}`)
       }
       const arrayBuffer = await imageResponse.arrayBuffer()
-      let buffer = Buffer.from(new Uint8Array(arrayBuffer))
+      let buffer = Buffer.from(arrayBuffer as any)
       console.log("[v0] Archivo descargado correctamente, tamaño:", buffer.length, "bytes")
 
       // Si es PDF, convertir a imagen
@@ -106,16 +119,17 @@ export async function POST(request: Request) {
 
     console.log("[v0] Usando modelo:", VISION_GROQ_MODEL)
 
-    const result = await generateObject({
-      model: groqProvider(VISION_GROQ_MODEL),
-      schema: analysisSchema,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Eres un experto arquitecto español analizando planos de viviendas. Analiza este plano con MÁXIMA PRECISIÓN.
+    try {
+      const result = await generateObject({
+        model: groqProvider(VISION_GROQ_MODEL),
+        schema: analysisSchema,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Eres un experto arquitecto español analizando planos de viviendas. Analiza este plano con MÁXIMA PRECISIÓN.
 
 IMPORTANTE: TODA TU RESPUESTA DEBE ESTAR EN ESPAÑOL.
 
@@ -234,28 +248,45 @@ Usa exactamente estos valores:
 Si la imagen NO es un plano de vivienda, marca isValid como false.
 
 TODO EN ESPAÑOL, SIN EXCEPCIÓN.`,
-            },
-            {
-              type: "image",
-              image: imageContent,
-            },
-          ],
-        },
-      ],
-    })
+              },
+              {
+                type: "image",
+                image: imageContent,
+              },
+            ],
+          },
+        ],
+      })
 
-    console.log("[v0] Análisis completado:", JSON.stringify(result.object, null, 2))
+      console.log("[v0] Análisis completado:", JSON.stringify(result.object, null, 2))
 
-    return Response.json({
-      success: true,
-      analysis: result.object,
-    })
-  } catch (error) {
-    console.error("[v0] Error en análisis de plano:", error)
+      return Response.json({
+        success: true,
+        analysis: result.object,
+      })
+    } catch (aiError: any) {
+      console.error("[v0] Error específico de AI/GenerateObject:", aiError)
+      // Intentar extraer más info si es un error de API
+      const details = aiError.cause || aiError.message || JSON.stringify(aiError)
+      throw new Error(`Fallo en la generación de IA: ${details}`)
+    }
+
+  } catch (error: any) {
+    // Loguear el error completo con todas sus propiedades
+    console.error("[v0] Error NO CONTROLADO en análisis de plano:", error)
+    if (error && typeof error === 'object') {
+      try {
+        console.error("[v0] Error details:", JSON.stringify(error, Object.getOwnPropertyNames(error)))
+      } catch (e) {
+        console.error("[v0] Could not stringify error details")
+      }
+    }
+
     return Response.json(
       {
         error: "Error al analizar el plano",
         details: error instanceof Error ? error.message : "Error desconocido",
+        fullError: String(error)
       },
       { status: 500 },
     )

@@ -135,7 +135,14 @@ export function FloorPlanAnalyzer({ onRoomsDetected, projectId }: FloorPlanAnaly
         description: `Se han identificado ${analysis.rooms.length} habitaciones`,
       })
     } catch (error: any) {
-      console.error("Error al analizar plano:", error)
+      console.error("Error al analizar plano (Full Object):", error)
+      if (typeof error === 'object') {
+        try {
+          console.error("Error details stringified:", JSON.stringify(error, Object.getOwnPropertyNames(error)))
+        } catch (e) {
+          console.error("Could not stringify error details")
+        }
+      }
       toast({
         title: "Error en el análisis",
         description: error.message || "No se pudo analizar el plano. Inténtalo de nuevo.",
