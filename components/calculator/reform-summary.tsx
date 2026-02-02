@@ -255,10 +255,6 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
       newSummary.instalacionCaldera = 1
     }
 
-    if (globalConfig?.lacquerEntranceDoor) {
-      newSummary.lacarPuertaEntrada = 1
-    }
-
     if (globalConfig?.entranceDoorType) {
       newSummary.puertaAcorazada = 1
     }
