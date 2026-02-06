@@ -161,7 +161,14 @@ Detecta si la cocina cambió de tipo entre el plano "antes" y "después":
   Se detecta cuando la cocina creció (más metros cuadrados) pero mantiene paredes 
   que la separan del salón.
 
-EJEMPLOS DE DETECCIí“N:
+⚠️ CRÍTICO: VERIFICACIÓN DE ADYACENCIA Y DISTANCIA ⚠️
+Para determinar si se ha unido la cocina con el salón, verifica FÍSICAMENTE en el plano:
+1. **ADYACENCIA**: ¿Están la cocina y el salón "pared con pared" en el plano original? Si están separados por un pasillo, baño u otra habitación, NO se pueden unir simplemente tirando un tabique.
+2. **DISTANCIA**: Si la cocina está en un extremo de la casa y el salón en otro (no adyacentes), CUALQUIER apertura de la cocina (ej: a una terraza o galería) NO la convierte en "cocina_americana". 
+3. **TERRAZAS/GALERÍAS**: Fíjate bien si la pared que se elimina da al exterior o a una terraza/tendedero. Abrir la cocina a una terraza NO es abrirla al salón.
+4. **FALSOS POSITIVOS**: Si detectas que se ha tirado un tabique en la cocina, PREGÚNTATE: ¿QUÉ HAY AL OTRO LADO DE ESE TABIQUE? Si no es el salón HOY, no digas que se une al salón.
+
+EJEMPLOS DE DETECCIÓN:
 
 1. Si en "antes" la cocina tenía pared con el salón y en "después" no hay pared:
    → beforeType: "cocina", afterType: "cocina_americana"
@@ -171,6 +178,9 @@ EJEMPLOS DE DETECCIí“N:
    
 3. Si en "antes" ya estaba abierta al salón y sigue igual:
    → beforeType: "cocina_americana", afterType: "cocina_americana"
+
+4. Si se tira el tabique entre Cocina y Terraza (pero el salón está lejos):
+   → beforeType: "cocina", afterType: "cocina" (o "cocina_abierta" si gana metros), PERO NUNCA "cocina_americana".
 
 Calcula los metros totales de tabiques eliminados y añadidos.
 MUY IMPORTANTE - VISIÓN GLOBAL Y CAMBIOS GEOMÉTRICOS:
