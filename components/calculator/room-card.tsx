@@ -28,6 +28,8 @@ import {
   Zap,
   SquareIcon,
   Copy,
+  Pencil,
+
 } from "lucide-react"
 import type {
   Room,
@@ -43,6 +45,7 @@ import type {
   ElectricalConfig, // Import ElectricalConfig
   CurrentCeilingStatus, // Import CurrentCeilingStatus
   CalefaccionType, // Import CalefaccionType
+  RoomType, // Import RoomType
 } from "@/types/calculator"
 import { v4 as uuidv4 } from "uuid"
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -168,6 +171,7 @@ export function RoomCard({
 
   // Estado para el modal del editor de formas
   const [isShapeEditorOpen, setIsShapeEditorOpen] = useState(false)
+  const [isEditingName, setIsEditingName] = useState(false)
 
   const safeStandardHeight = standardHeight && standardHeight > 0 ? standardHeight : 2.6
 
@@ -1201,7 +1205,62 @@ export function RoomCard({
             </Button>
             <div className="flex items-center gap-1">
               {getRoomIcon()}
-              <CardTitle className="text-sm">{formatRoomTitle()}</CardTitle>
+              {isEditingName ? (
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={room.type}
+                    onValueChange={(value) => {
+                      updateRoom(room.id, {
+                        type: value as RoomType,
+                        name: "", // Clear custom name to let type take precedence
+                        // If switching to "Otro", we might want to keep the customRoomType or clear it
+                        // For now let's keep it simple
+                      })
+                      setIsEditingName(false)
+                    }}
+                  >
+                    <SelectTrigger className="h-7 w-[180px] text-xs">
+                      <SelectValue placeholder="Seleccionar tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Salón">Salón</SelectItem>
+                      <SelectItem value="Cocina">Cocina</SelectItem>
+                      <SelectItem value="Cocina Americana">Cocina Americana</SelectItem>
+                      <SelectItem value="Baño">Baño</SelectItem>
+                      <SelectItem value="Dormitorio">Dormitorio</SelectItem>
+                      <SelectItem value="Pasillo">Pasillo</SelectItem>
+                      <SelectItem value="Hall">Hall</SelectItem>
+                      <SelectItem value="Terraza">Terraza</SelectItem>
+                      <SelectItem value="Trastero">Trastero</SelectItem>
+                      <SelectItem value="Vestidor">Vestidor</SelectItem>
+                      <SelectItem value="Otro">Otro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={() => setIsEditingName(false)}
+                  >
+                    <ChevronUp className="h-3 w-3 rotate-90" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm">{formatRoomTitle()}</CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground opacity-50 hover:opacity-100"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setIsEditingName(true)
+                    }}
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
               {isReform && needsNewElectricalInstallation && (
                 <div className="flex items-center gap-1 ml-2">
                   <QuickSummaryIcon icon={Zap} content={getElectricalSummary()} label="Resumen de electricidad" />
