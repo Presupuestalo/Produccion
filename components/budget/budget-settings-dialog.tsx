@@ -179,6 +179,8 @@ export function BudgetSettingsDialog({ projectId, budgetId, onSettingsSaved }: B
 
         if (error) {
           console.error("[v0] Error updating budget settings:", error)
+          console.error("[v0] Error details:", JSON.stringify(error, null, 2))
+          console.error("[v0] Form data sent:", formData)
           throw error
         }
       } else {
@@ -191,6 +193,8 @@ export function BudgetSettingsDialog({ projectId, budgetId, onSettingsSaved }: B
 
         if (error) {
           console.error("[v0] Error creating budget settings:", error)
+          console.error("[v0] Error details:", JSON.stringify(error, null, 2))
+          console.error("[v0] Data sent:", { project_id: projectId, status: "draft", ...formData })
           throw error
         }
       }

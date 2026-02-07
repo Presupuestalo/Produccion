@@ -220,6 +220,7 @@ export async function generateBudgetPDF(
     }
 
     // 3. TEXTO DE PRESENTACIÓN
+    console.log("[DEBUG PDF] Checking introduction text:", settings?.introduction_text)
     if (settings?.introduction_text) {
       console.log("[v0] Adding introduction text...")
       doc.setFontSize(9)
@@ -230,6 +231,8 @@ export async function generateBudgetPDF(
       doc.text(lines, 15, yPosition)
       yPosition += lines.length * 4 + 8
       console.log("[v0] Introduction text added, yPosition:", yPosition)
+    } else {
+      console.log("[DEBUG PDF] No introduction text found")
     }
 
     doc.setFontSize(14)
@@ -603,12 +606,14 @@ export async function generateBudgetPDF(
     yPosition += 10
 
     // 7. NOTAS ACLARATORIAS
+    console.log("[DEBUG PDF] Checking additional notes:", settings?.additional_notes)
     if (settings?.additional_notes) {
       if (yPosition > 240) {
         doc.addPage()
         yPosition = 20
       }
 
+      console.log("[v0] Adding additional notes...")
       doc.setFontSize(11)
       doc.setFont("helvetica", "bold")
       doc.setTextColor(textColor[0], textColor[1], textColor[2])
@@ -621,6 +626,9 @@ export async function generateBudgetPDF(
 
       const notesLines = doc.splitTextToSize(settings.additional_notes, 180)
       doc.text(notesLines, 15, yPosition)
+      console.log("[v0] Additional notes added")
+    } else {
+      console.log("[DEBUG PDF] No additional notes found")
     }
 
     addFooter()

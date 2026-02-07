@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { BudgetService } from "@/lib/services/budget-service"
 import { createClient } from "@/lib/supabase/client"
 import type { Budget } from "@/lib/types/budget"
-import { FileText, Plus, Loader2, Trash2 } from "lucide-react"
+import { FileText, Plus, Loader2, Trash2, AlertTriangle } from "lucide-react"
 import { formatCurrency } from "@/lib/utils/format"
 import { formatDistanceToNow } from "date-fns"
 import { es } from "date-fns/locale"
@@ -31,6 +31,7 @@ interface BudgetListProps {
   isGenerating?: boolean
   hasData?: boolean
   refreshTrigger?: number
+  currentDataHash?: string
 }
 
 export function BudgetList({
@@ -40,6 +41,7 @@ export function BudgetList({
   isGenerating = false,
   hasData = true,
   refreshTrigger = 0,
+  currentDataHash,
 }: BudgetListProps) {
   const [budgets, setBudgets] = useState<Budget[]>([])
   const [loading, setLoading] = useState(true)
@@ -94,8 +96,7 @@ export function BudgetList({
       await BudgetService.deleteBudget(budgetId, supabase)
       setBudgets((prev) => prev.filter((b) => b.id !== budgetId))
       setBudgetToDelete(null)
-      toast({
-        title: "Presupuesto eliminado",
+      toast.success("Presupuesto eliminado", {
         description: "El presupuesto se ha eliminado correctamente",
       })
     } catch (err: any) {
@@ -117,8 +118,7 @@ export function BudgetList({
       await BudgetService.deleteAllBudgets(projectId, supabase)
       setBudgets([])
       setShowDeleteAllDialog(false)
-      toast({
-        title: "Presupuestos eliminados",
+      toast.success("Presupuestos eliminados", {
         description: "Se han eliminado todos los presupuestos del proyecto",
       })
     } catch (err: any) {
@@ -235,6 +235,15 @@ export function BudgetList({
           </div>
         </div>
 
+        {budgets.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+            <p className="text-sm text-amber-800">
+              Si has modificado datos en la calculadora, genera un nuevo presupuesto para reflejar los cambios actuales.
+            </p>
+          </div>
+        )}
+
         <div className="space-y-2">
           {budgets.map((budget) => (
             <Card key={budget.id} className="hover:border-primary/50 transition-colors">
@@ -253,6 +262,11 @@ export function BudgetList({
                     <p className="text-sm text-muted-foreground">
                       v{budget.version_number} •{" "}
                       {formatDistanceToNow(new Date(budget.created_at), { addSuffix: true, locale: es })}
+                      {currentDataHash && budgets[0]?.id === budget.id && budgets.length > 1 && (
+                        <span className="ml-2 inline-flex items-center text-blue-600 text-xs font-medium bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                          Más reciente
+                        </span>
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">

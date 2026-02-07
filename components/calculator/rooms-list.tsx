@@ -16,6 +16,7 @@ interface RoomsListProps {
   electricalConfig?: ElectricalConfig
   duplicateRoom?: (roomId: string) => void
   demolitionRooms?: Room[]
+  highlightedRoomId?: string | null
 }
 
 export function RoomsList({
@@ -30,13 +31,26 @@ export function RoomsList({
   electricalConfig,
   duplicateRoom,
   demolitionRooms = [],
+  highlightedRoomId,
 }: RoomsListProps) {
+  // Calcular conteo de habitaciones por tipo
+  const roomCounts = rooms.reduce(
+    (acc, room) => {
+      acc[room.type] = (acc[room.type] || 0) + 1
+      return acc
+    },
+    {} as Record<string, number>,
+  )
+
   return (
     <div className="space-y-4">
       {rooms.map((room) => {
         const matchingDemolitionRoom = isReform
           ? demolitionRooms.find((dr) => dr.type === room.type && dr.number === room.number)
           : undefined
+
+        // Mostrar número si hay más de una habitación del mismo tipo o si siempre debería mostrarse
+        const forceShowNumber = roomCounts[room.type] > 1
 
         return (
           <RoomCard
@@ -53,6 +67,9 @@ export function RoomsList({
             electricalConfig={electricalConfig}
             onDuplicate={duplicateRoom}
             demolitionRoom={matchingDemolitionRoom}
+            isHighlighted={room.id === highlightedRoomId}
+            forceShowNumber={forceShowNumber}
+            existingRooms={rooms}
           />
         )
       })}

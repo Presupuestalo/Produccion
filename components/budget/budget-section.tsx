@@ -16,9 +16,10 @@ import * as SubscriptionLimitsService from "@/lib/services/subscription-limits-s
 interface BudgetSectionProps {
   projectId: string
   calculatorData?: any
+  calculatorLastSaved?: Date | null
 }
 
-export function BudgetSection({ projectId, calculatorData }: BudgetSectionProps) {
+export function BudgetSection({ projectId, calculatorData, calculatorLastSaved }: BudgetSectionProps) {
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -26,6 +27,18 @@ export function BudgetSection({ projectId, calculatorData }: BudgetSectionProps)
   const [showLimitDialog, setShowLimitDialog] = useState(false)
   const [limitData, setLimitData] = useState<{ current: number; limit: number; canUpgrade: boolean } | null>(null)
   const { toast } = useToast()
+
+  // Generate a simple hash of calculator data for comparison
+  const calculateDataHash = (data: any): string => {
+    if (!data) return ""
+    try {
+      return JSON.stringify(data)
+    } catch {
+      return ""
+    }
+  }
+
+  const currentDataHash = calculateDataHash(calculatorData)
 
   useEffect(() => {
     const hideAlert = localStorage.getItem("hideBudgetInfoAlert")
@@ -182,6 +195,7 @@ export function BudgetSection({ projectId, calculatorData }: BudgetSectionProps)
         isGenerating={isGenerating}
         hasData={hasData}
         refreshTrigger={refreshKey}
+        currentDataHash={currentDataHash}
       />
 
       {limitData && (

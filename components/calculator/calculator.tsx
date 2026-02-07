@@ -34,23 +34,21 @@ import {
   getPartitions, // Importar getPartitions
   getWallLinings, // Importar getWallLinings
 } from "@/lib/services/calculator-service"
+import { getSupabase } from "@/lib/supabase/client"
 import { canAddRoom } from "@/lib/services/subscription-limits-service"
 import { InfoIcon } from "lucide-react"
 import { RoomsList } from "./rooms-list"
+import { checkRoomConflict } from "@/lib/room-validation"
+import { getProjectById } from "@/lib/services/project-service"
+
+import { PartitionsSection, type Partition, type WallLining } from "./partitions-section"
+import { WindowsSection } from "./windows-section"
 import { DemolitionSummary } from "./demolition-summary"
 import { ReformSummary } from "./reform-summary"
 import { ElectricalSection } from "./electrical-section"
 import { RoomsSummary } from "./rooms-summary"
 import { AppointmentsHistory } from "./appointments-history"
-
-import { getProjectById } from "@/lib/services/project-service"
-
-import { PartitionsSection, type Partition, type WallLining } from "./partitions-section"
-import { WindowsSection } from "./windows-section"
 import { BudgetSection } from "@/components/budget/budget-section"
-import { getSupabase } from "@/lib/supabase/client" // Importar cliente Supabase
-
-// Importar AlertDialog and its components
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,6 +59,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+
+
 
 // Importar PaymentsSection
 import { PaymentsSection } from "@/components/payments/payments-section"
@@ -257,10 +257,10 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   const [tableExists, setTableExists] = useState<boolean>(false) // Estado para indicar si la tabla existe
   const [isConfigLoaded, setIsConfigLoaded] = useState<boolean>(false) // Estado para indicar si la configuración se ha cargado
   const [lastSaved, setLastSaved] = useState<Date | null>(null) // Estado para la fecha del último guardado
-  const [databaseError, setDatabaseError] = useState<{ show: boolean; instructions: string }>({
-    show: false,
-    instructions: "",
-  }) // Estado para errores de DB
+  const [databaseError, setDatabaseError] = useState<{ show: boolean; instructions?: string }>({ show: false })
+  const [highlightedRoomId, setHighlightedRoomId] = useState<string | null>(null)
+
+  // Referencia para saber si es la carga inicial
   const [calculatorOpen, setCalculatorOpen] = useState<boolean>(false) // Estado para controlar la apertura de la calculadora
   const [calculatorField, setCalculatorField] = useState<{
     roomId: string
@@ -276,6 +276,18 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   const [hasApprovedBudget, setHasApprovedBudget] = useState(false)
   // Add state for approved budget object
   const [approvedBudget, setApprovedBudget] = useState<any | null>(null)
+
+  const [validationAlert, setValidationAlert] = useState<{
+    isOpen: boolean
+    title: string
+    description: string
+    onConfirm: () => void
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    onConfirm: () => { },
+  })
 
   // Get user profile for user type detection
   const { userType } = useUserProfile()
@@ -1389,89 +1401,112 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     const handler = activeTab === "demolition" ? setRooms : setReformRooms
     const existingRooms = activeTab === "demolition" ? rooms : reformRooms
 
-    const roomsOfSameType = existingRooms.filter((r) => r.type === selectedRoomType)
-    const nextNumber = roomsOfSameType.length + 1
-
-    const isCeramicRoom = selectedRoomType === "Baño" || selectedRoomType === "Cocina"
-    const isTerrace = selectedRoomType === "Terraza"
-
-    let defaultFloorType: string
-    let defaultFloorMaterial: string
-    let defaultWallMaterial: string
-
-    if (activeTab === "demolition") {
-      defaultFloorType = isCeramicRoom ? "Cerámica" : "Madera"
-      defaultFloorMaterial = defaultFloorType
-      defaultWallMaterial = isCeramicRoom ? "Cerámica" : "Pintura"
-    } else {
-      if (isCeramicRoom) {
-        // Baño y Cocina: cerámico
-        defaultFloorMaterial = "Cerámico"
-        defaultWallMaterial = "Cerámica"
-      } else if (isTerrace) {
-        // Terraza: cerámico suelo, paredes sin modificar
-        defaultFloorMaterial = "Cerámico"
-        defaultWallMaterial = "No se modifica"
-      } else {
-        // Todo lo demás (Salón, Dormitorio, Cocina Americana, Cocina Abierta, Pasillo, etc.)
-        defaultFloorMaterial = "Parquet flotante"
-        defaultWallMaterial = "Lucir y pintar"
-      }
-      defaultFloorType = isCeramicRoom || isTerrace ? "Cerámico" : "Madera"
+    // Validation Check
+    const { hasConflict, message } = checkRoomConflict(selectedRoomType, existingRooms)
+    if (hasConflict && message) {
+      setValidationAlert({
+        isOpen: true,
+        title: "Posible duplicidad o conflicto",
+        description: message,
+        onConfirm: () => proceedAddRoom(activeTab, existingRooms, handler),
+      })
+      return
     }
 
-    const defaultRemoveWallTiles = activeTab === "demolition" && isCeramicRoom ? true : undefined
-    const defaultRemoveFloor = activeTab === "demolition" && isCeramicRoom ? true : undefined
-    const defaultHasDoors = activeTab === "demolition" ? true : false
-
-    const defaultDoorList = defaultHasDoors ? [{ id: uuidv4(), type: "Abatible" as const }] : []
-
-    const newRoom: Room = {
-      id: uuidv4(),
-      type: selectedRoomType,
-      number: nextNumber,
-      width: 0,
-      length: 0,
-      area: 0,
-      perimeter: 0,
-      measurementMode: "rectangular",
-      wallType: "Ladrillo",
-      floorType: defaultFloorType,
-      ceilingType: "Yeso Laminado",
-      floorMaterial: defaultFloorMaterial,
-      wallMaterial: defaultWallMaterial,
-      windows: [],
-      doors: [],
-      doorList: defaultDoorList, // Usar doorList por defecto
-      notes: "",
-      material: "default",
-      wallThickness: 10,
-      floorThickness: 0.01,
-      ceilingThickness: 0.01,
-      wallTileThickness: 0.01,
-      floorTileThickness: 0.01,
-      gotele: false,
-      skirting: false,
-      wallpaperRemoval: false,
-      demolishWalls: false,
-      demolishCeiling: false,
-      removeWoodenFloor: false,
-      removeWallTiles: defaultRemoveWallTiles,
-      removeFloorTiles: false,
-      removeFloor: defaultRemoveFloor,
-      removeBathroomElements: false,
-      removeMoldings: false,
-      removeKitchenFurniture: false,
-      removeBedroomFurniture: false,
-      removeRadiators: false,
-      removeMortarBase: false,
-      hasDoors: defaultHasDoors,
-      demolitionCost: 0,
-      reformCost: 0,
-    }
-
-    handler((prevRooms) => [newRoom, ...prevRooms])
+    proceedAddRoom(activeTab, existingRooms, handler)
   }, [activeTab, rooms, reformRooms, setRooms, setReformRooms, selectedRoomType, projectId, toast])
+
+  const proceedAddRoom = useCallback(
+    (
+      currentTab: string,
+      currentExistingRooms: Room[],
+      handler: React.Dispatch<React.SetStateAction<Room[]>>
+    ) => {
+      // Re-calculate derived values since we are in a callback/continuation
+      // or duplicate logic slightly. Best to extract "creation logic" into helper but limited scope here.
+      // Use values from closure or re-derive.
+      const roomsOfSameType = currentExistingRooms.filter((r) => r.type === selectedRoomType)
+      const nextNumber = roomsOfSameType.length + 1
+
+      const isCeramicRoom = selectedRoomType === "Baño" || selectedRoomType === "Cocina"
+      const isTerrace = selectedRoomType === "Terraza"
+
+      let defaultFloorType: string
+      let defaultFloorMaterial: string
+      let defaultWallMaterial: string
+
+      if (currentTab === "demolition") {
+        defaultFloorType = isCeramicRoom ? "Cerámica" : "Madera"
+        defaultFloorMaterial = defaultFloorType
+        defaultWallMaterial = isCeramicRoom ? "Cerámica" : "Pintura"
+      } else {
+        if (isCeramicRoom) {
+          defaultFloorMaterial = "Cerámico"
+          defaultWallMaterial = "Cerámica"
+        } else if (isTerrace) {
+          defaultFloorMaterial = "Cerámico"
+          defaultWallMaterial = "No se modifica"
+        } else {
+          defaultFloorMaterial = "Parquet flotante"
+          defaultWallMaterial = "Lucir y pintar"
+        }
+        defaultFloorType = isCeramicRoom || isTerrace ? "Cerámico" : "Madera"
+      }
+
+      const defaultRemoveWallTiles = currentTab === "demolition" && isCeramicRoom ? true : undefined
+      const defaultRemoveFloor = currentTab === "demolition" && isCeramicRoom ? true : undefined
+      const defaultHasDoors = currentTab === "demolition" ? true : false
+      const defaultDoorList = defaultHasDoors ? [{ id: uuidv4(), type: "Abatible" as const }] : []
+
+      const newRoom: Room = {
+        id: uuidv4(),
+        type: selectedRoomType,
+        number: nextNumber,
+        width: 0,
+        length: 0,
+        area: 0,
+        perimeter: 0,
+        measurementMode: "rectangular",
+        wallType: "Ladrillo",
+        floorType: defaultFloorType,
+        ceilingType: "Yeso Laminado",
+        floorMaterial: defaultFloorMaterial,
+        wallMaterial: defaultWallMaterial,
+        windows: [],
+        doors: [],
+        doorList: defaultDoorList,
+        notes: "",
+        material: "default",
+        wallThickness: 10,
+        floorThickness: 0.01,
+        ceilingThickness: 0.01,
+        wallTileThickness: 0.01,
+        floorTileThickness: 0.01,
+        gotele: false,
+        skirting: false,
+        wallpaperRemoval: false,
+        demolishWalls: false,
+        demolishCeiling: false,
+        removeWoodenFloor: false,
+        removeWallTiles: defaultRemoveWallTiles,
+        removeFloorTiles: false,
+        removeFloor: defaultRemoveFloor,
+        removeBathroomElements: false,
+        removeMoldings: false,
+        removeKitchenFurniture: false,
+        removeBedroomFurniture: false,
+        removeRadiators: false,
+        removeMortarBase: false,
+        hasDoors: defaultHasDoors,
+        demolitionCost: 0,
+        reformCost: 0,
+      }
+
+      handler((prevRooms) => [newRoom, ...prevRooms])
+      setHighlightedRoomId(newRoom.id)
+    },
+    [selectedRoomType]
+  )
 
   const duplicateRoom = useCallback(
     async (roomId: string) => {
@@ -1495,8 +1530,34 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       const roomToDuplicate = existingRooms.find((r) => r.id === roomId)
       if (!roomToDuplicate) return
 
+      // Validation Check for Duplication
+      const { hasConflict, message } = checkRoomConflict(roomToDuplicate.type, existingRooms)
+      if (hasConflict && message) {
+        setValidationAlert({
+          isOpen: true,
+          title: "Posible duplicidad o conflicto",
+          description: message,
+          onConfirm: () => proceedDuplicateRoom(activeTab, existingRooms, handler, roomToDuplicate),
+        })
+        return
+      }
+
+      proceedDuplicateRoom(activeTab, existingRooms, handler, roomToDuplicate)
+    },
+    [activeTab, rooms, reformRooms, setRooms, setReformRooms, projectId, toast],
+  )
+
+  const proceedDuplicateRoom = useCallback(
+    (
+      currentTab: string,
+      currentExistingRooms: Room[],
+      handler: React.Dispatch<React.SetStateAction<Room[]>>,
+      roomToDuplicate: Room
+    ) => {
       // Encontrar todas las habitaciones del mismo tipo
-      const roomsOfSameType = existingRooms.filter((r) => r.type === roomToDuplicate.type)
+      // Note: Re-filter from currentExistingRooms to be safe, though usage of closure in proceedDuplicateRoom is tricky if not careful.
+      // Better to pass currentExistingRooms explicitly.
+      const roomsOfSameType = currentExistingRooms.filter((r) => r.type === roomToDuplicate.type)
       const nextNumber = Math.max(...roomsOfSameType.map((r) => r.number || 0)) + 1
 
       // Crear la habitación duplicada con un nuevo ID y número incrementado
@@ -1522,13 +1583,14 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       }
 
       handler((prevRooms) => [duplicatedRoom, ...prevRooms])
+      setHighlightedRoomId(duplicatedRoom.id)
 
       toast({
         title: "Habitación duplicada",
         description: `Se ha creado una copia de ${roomToDuplicate.type} ${roomToDuplicate.number}`,
       })
     },
-    [activeTab, rooms, reformRooms, setRooms, setReformRooms, projectId, toast],
+    [toast]
   )
 
   const removeRoom = useCallback(
@@ -2233,6 +2295,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                   globalConfig={reformConfig}
                   electricalConfig={electricalConfig}
                   demolitionRooms={rooms}
+                  highlightedRoomId={highlightedRoomId}
                 />
               </div>
 
@@ -2297,7 +2360,6 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
             </TabsContent>
           )}
 
-          {/* Presupuesto TabsContent - Hidden but accessible via button */}
           <TabsContent value="presupuesto" className="space-y-6">
             <BudgetSection
               projectId={projectId}
@@ -2318,6 +2380,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                 },
                 globalConfig: globalConfig,
               }}
+              calculatorLastSaved={lastSaved}
             />
           </TabsContent>
 
@@ -2350,6 +2413,26 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={() => (window.location.href = "/dashboard/planes")}>
               Ver Planes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={validationAlert.isOpen} onOpenChange={(isOpen) => setValidationAlert(prev => ({ ...prev, isOpen }))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{validationAlert.title}</AlertDialogTitle>
+            <AlertDialogDescription>{validationAlert.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setValidationAlert(prev => ({ ...prev, isOpen: false }))}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              validationAlert.onConfirm()
+              setValidationAlert(prev => ({ ...prev, isOpen: false }))
+            }}>
+              Continuar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

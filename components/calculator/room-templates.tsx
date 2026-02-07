@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import type { Room, RoomType } from "@/types/calculator"
 import { canAddRoom } from "@/lib/services/subscription-limits-service"
+import { getDefaultMaterials } from "@/lib/room-utils"
 
 interface RoomTemplatesProps {
   addRoom: (room: Room) => void
@@ -32,18 +33,7 @@ export function RoomTemplates({ addRoom, standardHeight, projectId, activeTab = 
   const [showRoomLimitDialog, setShowRoomLimitDialog] = useState(false)
   const [roomLimitMessage, setRoomLimitMessage] = useState("")
 
-  const getDefaultMaterials = (roomType: string) => {
-    switch (roomType) {
-      case "Baño":
-      case "Cocina":
-        return { floor: "Cerámico", wall: "Cerámica" }
-      case "Terraza":
-        return { floor: "Cerámico", wall: "No se modifica" }
-      default:
-        // Cocina Americana, Cocina Abierta, Salón, Dormitorio, etc.
-        return { floor: "Parquet flotante", wall: "Lucir y pintar" }
-    }
-  }
+
 
   const createRoom = async () => {
     if (projectId) {
@@ -65,7 +55,8 @@ export function RoomTemplates({ addRoom, standardHeight, projectId, activeTab = 
 
     const roomNumber = 1
 
-    const defaultMaterials = getDefaultMaterials(selectedType)
+    const isReform = activeTab === "reform"
+    const defaultMaterials = getDefaultMaterials(selectedType, isReform)
 
     const newRoom: Room = {
       id: crypto.randomUUID(), // Usando crypto.randomUUID()
@@ -80,8 +71,8 @@ export function RoomTemplates({ addRoom, standardHeight, projectId, activeTab = 
       area: 0,
       perimeter: 0,
       wallSurface: 0,
-      floorMaterial: defaultMaterials.floor,
-      wallMaterial: defaultMaterials.wall,
+      floorMaterial: defaultMaterials.floor as any,
+      wallMaterial: defaultMaterials.wall as any,
       windows: [],
       demolishWall: false,
       demolishCeiling: false,

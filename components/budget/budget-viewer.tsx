@@ -211,13 +211,60 @@ export function BudgetViewer({ projectId, budgetId, onBudgetUpdated }: BudgetVie
         }
       }
 
-      const finalSettings = budgetSettings
-        ? {
-          ...budgetSettings,
-          introduction_text: budget.custom_introduction_text || budgetSettings.introduction_text,
-          additional_notes: budget.custom_additional_notes || budgetSettings.additional_notes,
+      // Load company defaults for texts
+      let companyDefaults = {
+        presentation: "",
+        notes: "",
+      }
+
+      if (user) {
+        const { data: userSettings } = await supabase
+          .from("user_company_settings")
+          .select("default_presentation_text, default_clarification_notes")
+          .eq("user_id", user.id)
+          .maybeSingle()
+
+        if (userSettings) {
+          companyDefaults = {
+            presentation: userSettings.default_presentation_text || "",
+            notes: userSettings.default_clarification_notes || "",
+          }
+          console.log("[DEBUG] Company defaults loaded:", companyDefaults)
         }
-        : null
+      }
+
+      const finalSettings = {
+        ...(budgetSettings || {
+          show_vat: false,
+          vat_percentage: 21,
+          adjustments: [],
+          introduction_text: "",
+          additional_notes: "",
+        }),
+        introduction_text:
+          budget.custom_introduction_text ||
+          budgetSettings?.introduction_text ||
+          companyDefaults.presentation ||
+          "",
+        additional_notes:
+          budget.custom_additional_notes ||
+          budgetSettings?.additional_notes ||
+          companyDefaults.notes ||
+          "",
+      }
+
+      console.log("[DEBUG] Budget custom texts:", {
+        custom_introduction_text: budget.custom_introduction_text,
+        custom_additional_notes: budget.custom_additional_notes,
+      })
+      console.log("[DEBUG] Budget settings texts:", {
+        introduction_text: budgetSettings?.introduction_text,
+        additional_notes: budgetSettings?.additional_notes,
+      })
+      console.log("[DEBUG] Final settings for PDF:", {
+        introduction_text: finalSettings.introduction_text,
+        additional_notes: finalSettings.additional_notes,
+      })
 
       const { data: project, error: projectError } = await supabase
         .from("projects")
