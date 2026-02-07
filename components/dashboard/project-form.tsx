@@ -1115,22 +1115,18 @@ export function ProjectForm({
                 Cliente
               </TabsTrigger>
             )}
-            {!isHomeowner && (
-              <>
-                <TabsTrigger
-                  value="license"
-                  className="flex-shrink-0 whitespace-nowrap px-3 py-2 text-sm font-medium rounded-md transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted"
-                >
-                  Licencia
-                </TabsTrigger>
-                <TabsTrigger
-                  value="contract"
-                  className="flex-shrink-0 whitespace-nowrap px-3 py-2 text-sm font-medium rounded-md transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted"
-                >
-                  Contrato
-                </TabsTrigger>
-              </>
-            )}
+            <TabsTrigger
+              value="license"
+              className="flex-shrink-0 whitespace-nowrap px-3 py-2 text-sm font-medium rounded-md transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted"
+            >
+              Licencia
+            </TabsTrigger>
+            <TabsTrigger
+              value="contract"
+              className="flex-shrink-0 whitespace-nowrap px-3 py-2 text-sm font-medium rounded-md transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted"
+            >
+              Contrato
+            </TabsTrigger>
             {!isHomeowner && (
               <TabsTrigger
                 value="demolition"
@@ -1506,26 +1502,28 @@ export function ProjectForm({
         )}
       </Tabs>
 
-      <div className="sticky bottom-0 bg-background border-t pt-4 pb-6 -mx-4 px-4 md:mx-0 md:px-0">
-        <Button type="submit" className="w-full" size="lg" disabled={isLoading || saveSuccess}>
-          {isLoading ? (
-            <>
-              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-              Guardando cambios...
-            </>
-          ) : saveSuccess ? (
-            <>
-              <Check className="h-5 w-5 mr-2" />
-              Cambios guardados
-            </>
-          ) : (
-            <>
-              <Save className="h-5 w-5 mr-2" />
-              Guardar cambios
-            </>
-          )}
-        </Button>
-      </div>
+      {activeTab !== "demolition" && (
+        <div className="sticky bottom-0 bg-background border-t pt-4 pb-6 -mx-4 px-4 md:mx-0 md:px-0">
+          <Button type="submit" className="w-full" size="lg" disabled={isLoading || saveSuccess}>
+            {isLoading ? (
+              <>
+                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                Guardando cambios...
+              </>
+            ) : saveSuccess ? (
+              <>
+                <Check className="h-5 w-5 mr-2" />
+                Cambios guardados
+              </>
+            ) : (
+              <>
+                <Save className="h-5 w-5 mr-2" />
+                Guardar cambios
+              </>
+            )}
+          </Button>
+        </div>
+      )}
     </form>
   )
 }

@@ -80,18 +80,13 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
   const checkAccess = async () => {
     try {
       const limits = await getSubscriptionLimits()
-      // El contrato está habilitado para Basic y Pro.
-      // Basándome en la estructura de PLAN_LIMITS, 'pdfWatermark' es false para Basic y Pro.
-      // O podemos usar otra propiedad. El usuario dice: "no habilitado para el plan free, si para basic y pro"
-      // En PLAN_LIMITS: free tiene maxCustomPrices: 0, basic tiene 100, pro tiene null.
-      // Usaremos una lógica de plan: si el plan es 'free', bloqueamos.
-
+      // El contrato ahora está habilitado para todas las suscripciones (Free, Basic y Pro)
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
         const plan = profile?.plan?.toLowerCase() || 'free'
-        const isFree = plan === 'free' || plan === 'gratuito'
-        setHasContractAccess(!isFree)
+        // El contrato ahora está habilitado para todas las suscripciones
+        setHasContractAccess(true)
       }
     } catch (error) {
       console.error("Error checking contract access:", error)
