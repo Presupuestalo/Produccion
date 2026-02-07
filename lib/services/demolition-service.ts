@@ -101,13 +101,33 @@ export async function saveProjectDemolitionSettings(projectId: string, settings:
     }
 
     if (result.error) {
+      console.error("Error de Supabase al guardar - ERROR COMPLETO:", result.error)
+      console.error("Error stringificado:", JSON.stringify(result.error, null, 2))
+      console.error("Tipo de error:", typeof result.error)
+      console.error("Propiedades del error:", Object.keys(result.error))
+      console.error("Error de Supabase al guardar:", {
+        message: result.error.message,
+        details: result.error.details,
+        hint: result.error.hint,
+        code: result.error.code,
+      })
       throw result.error
     }
 
+    console.log("[v0] Ajustes de demolición guardados exitosamente")
     return true
-  } catch (error) {
-    console.error("Error al guardar ajustes de demolición:", error)
-    return false
+  } catch (error: any) {
+    console.error("CATCH - Error completo:", error)
+    console.error("CATCH - Error stringificado:", JSON.stringify(error))
+    console.error("CATCH - Tipo:", typeof error)
+    console.error("Error al guardar ajustes de demolición:", {
+      message: error?.message || "Sin mensaje de error",
+      code: error?.code || "Sin código",
+      details: error?.details || "Sin detalles",
+      hint: error?.hint || "Sin sugerencia",
+      fullError: error,
+    })
+    throw error
   }
 }
 

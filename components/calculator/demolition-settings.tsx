@@ -58,6 +58,11 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
     console.log("[v0] Save button clicked, projectId:", projectId)
     if (!projectId) {
       console.log("[v0] No projectId, aborting save")
+      toast({
+        title: "Error",
+        description: "No se puede guardar: falta el ID del proyecto",
+        variant: "destructive",
+      })
       return
     }
 
@@ -82,11 +87,12 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
       setTimeout(() => setSaveSuccess(false), 2000)
 
       console.log("[v0] Demolition settings saved successfully")
-    } catch (error) {
+    } catch (error: any) {
       console.error("[v0] Error saving demolition settings:", error)
+      const errorMessage = error?.message || "Error desconocido al guardar los ajustes"
       toast({
         title: "Error al guardar",
-        description: "No se pudieron guardar los ajustes de demolición",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
