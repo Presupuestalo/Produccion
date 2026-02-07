@@ -297,16 +297,17 @@ export function CreateProjectButton() {
       return
     }
 
-    if (userType !== "homeowner" && !formData.client.trim()) {
-      console.log("[v0] ❌ Error: Cliente requerido")
-      toast({
-        title: "Cliente requerido",
-        description: "Por favor, introduce el nombre del cliente",
-        variant: "destructive",
-      })
-      setActiveTab("client")
-      return
-    }
+    // El nombre del cliente ya no es obligatorio para reducir el rebote
+    // if (userType !== "homeowner" && !formData.client.trim()) {
+    //   console.log("[v0] ❌ Error: Cliente requerido")
+    //   toast({
+    //     title: "Cliente requerido",
+    //     description: "Por favor, introduce el nombre del cliente",
+    //     variant: "destructive",
+    //   })
+    //   setActiveTab("client")
+    //   return
+    // }
 
     setIsLoading(true)
     console.log("[v0] 📝 Datos a enviar:", formData)
@@ -563,10 +564,9 @@ export function CreateProjectButton() {
               </DialogHeader>
 
               <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-                <TabsList className={`grid w-full ${userType === "homeowner" ? "grid-cols-2" : "grid-cols-3"}`}>
+                <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="project">Proyecto</TabsTrigger>
                   <TabsTrigger value="location">Ubicación Obra</TabsTrigger>
-                  {userType !== "homeowner" && <TabsTrigger value="client">Cliente</TabsTrigger>}
                 </TabsList>
 
                 <TabsContent value="project" className="space-y-4 pt-4">
@@ -582,16 +582,7 @@ export function CreateProjectButton() {
                       />
                     </div>
 
-                    <div className="grid gap-2">
-                      <Label htmlFor="description">Descripción</Label>
-                      <Textarea
-                        id="description"
-                        placeholder="Descripción del proyecto"
-                        className="min-h-[80px]"
-                        value={formData.description}
-                        onChange={handleChange}
-                      />
-                    </div>
+
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-2">
@@ -809,74 +800,7 @@ export function CreateProjectButton() {
                   </div>
                 </TabsContent>
 
-                {userType !== "homeowner" && (
-                  <TabsContent value="client" className="space-y-4 pt-4">
-                    <div className="grid gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="client">Nombre del cliente *</Label>
-                        <Input
-                          id="client"
-                          placeholder="Nombre del cliente"
-                          value={formData.client}
-                          onChange={handleChange}
-                          required
-                        />
-                      </div>
 
-                      <div className="grid gap-2">
-                        <Label htmlFor="client_dni">DNI/NIF del cliente</Label>
-                        <Input
-                          id="client_dni"
-                          placeholder="12345678A"
-                          value={formData.client_dni}
-                          onChange={handleChange}
-                        />
-                      </div>
-
-                      <div className="grid gap-2">
-                        <Label htmlFor="clientEmail">Correo electrónico</Label>
-                        <Input
-                          id="clientEmail"
-                          type="email"
-                          placeholder="cliente@ejemplo.com"
-                          value={formData.clientEmail}
-                          onChange={handleChange}
-                        />
-                      </div>
-
-                      <div className="grid gap-2">
-                        <Label htmlFor="clientPhone">Teléfono</Label>
-                        <Input
-                          id="clientPhone"
-                          placeholder="Número de teléfono"
-                          value={formData.clientPhone}
-                          onChange={handleChange}
-                        />
-                      </div>
-
-                      <div className="grid gap-2">
-                        <Label htmlFor="client_address">Dirección del cliente</Label>
-                        <Input
-                          id="client_address"
-                          placeholder="Dirección del cliente"
-                          value={formData.client_address}
-                          onChange={handleChange}
-                        />
-                      </div>
-
-                      <div className="grid gap-2">
-                        <Label htmlFor="clientNotes">Notas</Label>
-                        <Textarea
-                          id="clientNotes"
-                          placeholder="Notas adicionales sobre el cliente"
-                          className="min-h-[80px]"
-                          value={formData.clientNotes}
-                          onChange={handleChange}
-                        />
-                      </div>
-                    </div>
-                  </TabsContent>
-                )}
               </Tabs>
 
               <DialogFooter className="mt-6">

@@ -71,19 +71,23 @@ export function BudgetSettingsDialog({ projectId, budgetId, onSettingsSaved }: B
         }
       }
 
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        console.error("[BudgetSettingsDialog] No hay usuario autenticado")
+        return
+      }
+
+      console.log("[v0] Current user ID:", user.id)
+
       const { data: budgetSettings, error: budgetError } = await supabase
         .from("budget_settings")
         .select("*")
         .eq("project_id", projectId)
+        .eq("user_id", user.id)
         .maybeSingle()
-
-      if (budgetError && budgetError.code !== "PGRST116") {
-        throw budgetError
-      }
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
 
       let companyDefaults = {
         presentation: "",
@@ -184,9 +188,18 @@ export function BudgetSettingsDialog({ projectId, budgetId, onSettingsSaved }: B
           throw error
         }
       } else {
-        console.log("[v0] Creating new budget settings")
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (!user) {
+          throw new Error("No hay usuario autenticado")
+        }
+
+        console.log("[v0] Creating new budget settings for user:", user.id)
         const { error } = await supabase.from("budget_settings").insert({
           project_id: projectId,
+          user_id: user.id,
           status: "draft",
           ...formData,
         })
@@ -194,7 +207,7 @@ export function BudgetSettingsDialog({ projectId, budgetId, onSettingsSaved }: B
         if (error) {
           console.error("[v0] Error creating budget settings:", error)
           console.error("[v0] Error details:", JSON.stringify(error, null, 2))
-          console.error("[v0] Data sent:", { project_id: projectId, status: "draft", ...formData })
+          console.error("[v0] Data sent:", { project_id: projectId, user_id: user.id, status: "draft", ...formData })
           throw error
         }
       }

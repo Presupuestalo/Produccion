@@ -240,16 +240,17 @@ export function DemolitionSummary({
 
     setTotalDebris(newTotalDebris)
 
-    const containerSize = verifiedContainerSize
-    const newContainersNeeded = Math.ceil(newTotalDebris / containerSize)
+    const containerSizeValue = demolitionSettings.containerSize || verifiedContainerSize || 5
+    const newContainersNeeded = Math.ceil(newTotalDebris / containerSizeValue)
 
     console.log(
       "[v0] Container calculation - Total debris:",
       newTotalDebris,
       "Container size:",
-      containerSize,
+      containerSizeValue,
       "Containers needed:",
       newContainersNeeded,
+      "Using setting from props:", demolitionSettings.containerSize !== undefined
     )
 
     setContainersNeeded(newContainersNeeded)
@@ -364,11 +365,11 @@ export function DemolitionSummary({
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0"
+              className="h-8 w-8 p-0 hover:bg-orange-50 transition-colors"
               onClick={goToProjectDemolitionSettings}
               title="Ajustes de cálculo de escombros"
             >
-              <Settings2 className="h-4 w-4 text-orange-500" />
+              <Settings2 className="h-4 w-4 text-orange-500 hover:text-orange-600 hover:scale-110 hover:rotate-90 transition-all duration-300" />
             </Button>
           )}
         </CardHeader>
@@ -743,15 +744,15 @@ export function DemolitionSummary({
 
             <div className="font-bold text-lg">Contenedores necesarios:</div>
             <div className="text-right font-bold text-lg">
-              {Math.ceil(totalDebris / verifiedContainerSize)} ({verifiedContainerSize} m³)
+              {containersNeeded} ({demolitionSettings.containerSize || verifiedContainerSize || 5} m³)
               <Button
                 variant="ghost"
                 size="sm"
-                className="ml-2 h-6 w-6 p-0"
+                className="ml-2 h-6 w-6 p-0 hover:bg-orange-50 transition-colors"
                 onClick={goToProjectDemolitionSettings}
                 title="Modificar tamaño de contenedor"
               >
-                <Settings2 className="h-3 w-3 text-orange-500" />
+                <Settings2 className="h-3 w-3 text-orange-500 hover:text-orange-600 hover:scale-110 hover:rotate-90 transition-all duration-300" />
               </Button>
             </div>
 

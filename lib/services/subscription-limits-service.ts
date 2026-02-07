@@ -38,7 +38,7 @@ export interface AIUsageResult {
 
 const PLAN_LIMITS: Record<string, SubscriptionLimits> = {
   free: {
-    maxProjects: 1,
+    maxProjects: null, // Ilimitado
     maxBudgets: 1,
     maxRooms: 3,
     aiDailyLimit: 3,

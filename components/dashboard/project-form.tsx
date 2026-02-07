@@ -1340,13 +1340,12 @@ export function ProjectForm({
               <h3 className="text-lg font-semibold mb-4">Información del Cliente</h3>
               <div className="grid gap-4">
                 <div className="grid gap-2 max-w-2xl">
-                  <Label htmlFor="client">Nombre del cliente *</Label>
+                  <Label htmlFor="client">Nombre del cliente</Label>
                   <Input
                     id="client"
                     placeholder="Nombre completo del cliente"
                     value={formData.client}
                     onChange={handleChange}
-                    required
                   />
                 </div>
 

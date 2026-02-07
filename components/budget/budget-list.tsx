@@ -70,10 +70,15 @@ export function BudgetList({
         const acceptedBudget = data.find((b) => b.status === "approved")
         setHasAcceptedBudget(!!acceptedBudget)
 
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
         const { data: settings } = await supabase
           .from("budget_settings")
           .select("status")
           .eq("project_id", projectId)
+          .eq("user_id", user?.id)
           .maybeSingle()
 
         setBudgetSettings(settings)

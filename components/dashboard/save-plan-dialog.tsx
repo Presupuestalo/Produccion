@@ -152,10 +152,9 @@ export function SavePlanDialog({ open, onOpenChange, onSave, isLoading = false }
                     </DialogHeader>
 
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-                        <TabsList className="grid w-full grid-cols-3">
+                        <TabsList className="grid w-full grid-cols-2">
                             <TabsTrigger value="project">Proyecto</TabsTrigger>
                             <TabsTrigger value="location">Ubicación</TabsTrigger>
-                            <TabsTrigger value="client">Cliente</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="project" className="space-y-4 pt-4">
@@ -171,16 +170,7 @@ export function SavePlanDialog({ open, onOpenChange, onSave, isLoading = false }
                                     />
                                 </div>
 
-                                <div className="grid gap-2">
-                                    <Label htmlFor="description">Descripción</Label>
-                                    <Textarea
-                                        id="description"
-                                        placeholder="Descripción del proyecto"
-                                        className="min-h-[80px]"
-                                        value={formData.description}
-                                        onChange={handleChange}
-                                    />
-                                </div>
+
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="grid gap-2">
@@ -292,15 +282,7 @@ export function SavePlanDialog({ open, onOpenChange, onSave, isLoading = false }
                             </div>
                         </TabsContent>
 
-                        <TabsContent value="client" className="space-y-4 pt-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="client">Nombre del Cliente</Label>
-                                <Input id="client" value={formData.client} onChange={handleChange} placeholder="Nombre del cliente" />
-                            </div>
-                            <div className="p-4 bg-blue-50 text-blue-800 text-sm rounded-md">
-                                <p>Si eres propietario, puedes dejar esto en blanco o poner tu nombre.</p>
-                            </div>
-                        </TabsContent>
+
                     </Tabs>
 
                     <DialogFooter className="mt-6">

@@ -210,13 +210,15 @@ export default function ProjectPage() {
               </>
             )}
             {project.user_type === "professional" && <PublishProjectButton project={project} />}
-            <Button asChild variant="outline" size="sm" className="h-9">
-              <Link href={`/dashboard/projects/${projectId}/edit`}>
-                <Settings className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">Ajustes</span>
-                <span className="sm:hidden sr-only">Ajustes</span>
-              </Link>
-            </Button>
+            {project.user_type !== "owner" && (
+              <Button asChild variant="outline" size="sm" className="h-9">
+                <Link href={`/dashboard/projects/${projectId}/edit`}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span className="hidden sm:inline">Ajustes</span>
+                  <span className="sm:hidden sr-only">Ajustes</span>
+                </Link>
+              </Button>
+            )}
           </div>
 
           <div className="lg:hidden w-full">
