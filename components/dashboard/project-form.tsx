@@ -306,6 +306,7 @@ export function ProjectForm({
         city: project.city || "",
         province: project.province || "",
         country: project.country || "",
+        country_code: project.country_code || "ES",
         ceiling_height: project.ceiling_height ?? "",
         structure_type: project.structure_type || "",
         has_elevator: project.has_elevator || "",
