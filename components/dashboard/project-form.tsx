@@ -1130,13 +1130,15 @@ export function ProjectForm({
                 </TabsTrigger>
               </>
             )}
-            <TabsTrigger
-              value="demolition"
-              className={`flex-shrink-0 whitespace-nowrap px-3 py-2 text-sm font-medium rounded-md transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted ${hasAnyValidationError ? "text-red-500" : ""}`}
-            >
-              Ajustes
-              {hasAnyValidationError && <AlertCircle className="h-3 w-3 ml-1 inline" />}
-            </TabsTrigger>
+            {!isHomeowner && (
+              <TabsTrigger
+                value="demolition"
+                className={`flex-shrink-0 whitespace-nowrap px-3 py-2 text-sm font-medium rounded-md transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted ${hasAnyValidationError ? "text-red-500" : ""}`}
+              >
+                Ajustes
+                {hasAnyValidationError && <AlertCircle className="h-3 w-3 ml-1 inline" />}
+              </TabsTrigger>
+            )}
           </TabsList>
         </div>
         {/* End of tab styling change */}
@@ -1488,17 +1490,19 @@ export function ProjectForm({
           )}
         </TabsContent>
 
-        <TabsContent value="demolition" className="space-y-4 pt-4">
-          <div className="grid gap-4">
-            <DemolitionSettingsComponent
-              settings={demolitionSettings}
-              updateSettings={(updates) => {
-                setDemolitionSettings((prev) => ({ ...prev, ...updates }))
-              }}
-              projectId={project?.id}
-            />
-          </div>
-        </TabsContent>
+        {!isHomeowner && (
+          <TabsContent value="demolition" className="space-y-4 pt-4">
+            <div className="grid gap-4">
+              <DemolitionSettingsComponent
+                settings={demolitionSettings}
+                updateSettings={(updates) => {
+                  setDemolitionSettings((prev) => ({ ...prev, ...updates }))
+                }}
+                projectId={project?.id}
+              />
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
 
       <div className="sticky bottom-0 bg-background border-t pt-4 pb-6 -mx-4 px-4 md:mx-0 md:px-0">
