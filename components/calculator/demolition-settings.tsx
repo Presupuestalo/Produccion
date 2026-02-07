@@ -618,6 +618,7 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
         {isEditing && (
           <div className="flex gap-2 pt-4 border-t">
             <Button
+              type="button"
               onClick={() => {
                 console.log("[v0] Save button clicked!")
                 handleSave()
