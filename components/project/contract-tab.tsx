@@ -67,6 +67,7 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
   const [bankAccount, setBankAccount] = useState("")
   const [companyData, setCompanyData] = useState<any>(null)
   const [hasContractAccess, setHasContractAccess] = useState<boolean>(true)
+  const [canUseAI, setCanUseAI] = useState<boolean>(true)
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)
   const { toast } = useToast()
 
@@ -83,10 +84,14 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
       // El contrato ahora está habilitado para todas las suscripciones (Free, Basic y Pro)
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
-        const plan = profile?.plan?.toLowerCase() || 'free'
-        // El contrato ahora está habilitado para todas las suscripciones
+        // Obtenemos el plan de suscripción del perfil
+        const { data: profile } = await supabase.from('profiles').select('plan, subscription_plan').eq('id', user.id).single()
+        const plan = (profile?.plan || profile?.subscription_plan || 'free').toLowerCase()
+        const isFree = plan === 'free' || plan === 'gratuito'
+
+        // El contrato ahora está habilitado para todas las suscripciones, pero la IA no para los free
         setHasContractAccess(true)
+        setCanUseAI(!isFree)
       }
     } catch (error) {
       console.error("Error checking contract access:", error)
@@ -934,43 +939,45 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
         </Card>
       </div>
 
-      <Card className="p-6 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20">
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-purple-600" />
-            <h4 className="font-medium">Generar Cláusula con IA</h4>
+      {canUseAI && (
+        <Card className="p-6 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 shadow-sm border-purple-100 dark:border-purple-900/50">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-600" />
+              <h4 className="font-medium">Generar Cláusula con IA</h4>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Describe qué tipo de cláusula necesitas y la IA la generará por ti
+            </p>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Ej: Cláusula sobre penalizaciones por retraso en la entrega"
+                value={newClausePrompt}
+                onChange={(e) => setNewClausePrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    handleGenerateClauseWithAI()
+                  }
+                }}
+              />
+              <Button onClick={handleGenerateClauseWithAI} disabled={isGeneratingClause}>
+                {isGeneratingClause ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Generando...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generar
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Describe qué tipo de cláusula necesitas y la IA la generará por ti
-          </p>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Ej: Cláusula sobre penalizaciones por retraso en la entrega"
-              value={newClausePrompt}
-              onChange={(e) => setNewClausePrompt(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault()
-                  handleGenerateClauseWithAI()
-                }
-              }}
-            />
-            <Button onClick={handleGenerateClauseWithAI} disabled={isGeneratingClause}>
-              {isGeneratingClause ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generando...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Generar
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      </Card>
+        </Card>
+      )}
     </div>
   )
 }

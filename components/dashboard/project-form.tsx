@@ -973,7 +973,13 @@ export function ProjectForm({
 
       if (!isEmbedded) {
         setTimeout(() => {
-          router.push(`/dashboard/projects/${projectId}`)
+          // Si estamos editando un proyecto existente, nos quedamos en la edición y preservamos la pestaña
+          // Si es un proyecto nuevo, redirigimos a la vista general del proyecto
+          const destination = project?.id
+            ? `/dashboard/projects/${projectId}/edit?tab=${activeTab}`
+            : `/dashboard/projects/${projectId}`
+
+          router.push(destination)
           router.refresh()
         }, 500)
       }

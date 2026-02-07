@@ -43,24 +43,28 @@ ALTER TABLE contracts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contract_clauses ENABLE ROW LEVEL SECURITY;
 
 -- License documents policies
+DROP POLICY IF EXISTS "Users can view their own license documents" ON license_documents;
 CREATE POLICY "Users can view their own license documents"
   ON license_documents FOR SELECT
   USING (auth.uid() IN (
     SELECT user_id FROM projects WHERE id = license_documents.project_id
   ));
 
+DROP POLICY IF EXISTS "Users can insert their own license documents" ON license_documents;
 CREATE POLICY "Users can insert their own license documents"
   ON license_documents FOR INSERT
   WITH CHECK (auth.uid() IN (
     SELECT user_id FROM projects WHERE id = license_documents.project_id
   ));
 
+DROP POLICY IF EXISTS "Users can update their own license documents" ON license_documents;
 CREATE POLICY "Users can update their own license documents"
   ON license_documents FOR UPDATE
   USING (auth.uid() IN (
     SELECT user_id FROM projects WHERE id = license_documents.project_id
   ));
 
+DROP POLICY IF EXISTS "Users can delete their own license documents" ON license_documents;
 CREATE POLICY "Users can delete their own license documents"
   ON license_documents FOR DELETE
   USING (auth.uid() IN (
@@ -68,18 +72,21 @@ CREATE POLICY "Users can delete their own license documents"
   ));
 
 -- Contracts policies
+DROP POLICY IF EXISTS "Users can view their own contracts" ON contracts;
 CREATE POLICY "Users can view their own contracts"
   ON contracts FOR SELECT
   USING (auth.uid() IN (
     SELECT user_id FROM projects WHERE id = contracts.project_id
   ));
 
+DROP POLICY IF EXISTS "Users can insert their own contracts" ON contracts;
 CREATE POLICY "Users can insert their own contracts"
   ON contracts FOR INSERT
   WITH CHECK (auth.uid() IN (
     SELECT user_id FROM projects WHERE id = contracts.project_id
   ));
 
+DROP POLICY IF EXISTS "Users can update their own contracts" ON contracts;
 CREATE POLICY "Users can update their own contracts"
   ON contracts FOR UPDATE
   USING (auth.uid() IN (
@@ -87,6 +94,7 @@ CREATE POLICY "Users can update their own contracts"
   ));
 
 -- Contract clauses policies
+DROP POLICY IF EXISTS "Users can view their own contract clauses" ON contract_clauses;
 CREATE POLICY "Users can view their own contract clauses"
   ON contract_clauses FOR SELECT
   USING (auth.uid() IN (
@@ -95,6 +103,7 @@ CREATE POLICY "Users can view their own contract clauses"
     WHERE c.id = contract_clauses.contract_id
   ));
 
+DROP POLICY IF EXISTS "Users can insert their own contract clauses" ON contract_clauses;
 CREATE POLICY "Users can insert their own contract clauses"
   ON contract_clauses FOR INSERT
   WITH CHECK (auth.uid() IN (
@@ -103,6 +112,7 @@ CREATE POLICY "Users can insert their own contract clauses"
     WHERE c.id = contract_clauses.contract_id
   ));
 
+DROP POLICY IF EXISTS "Users can update their own contract clauses" ON contract_clauses;
 CREATE POLICY "Users can update their own contract clauses"
   ON contract_clauses FOR UPDATE
   USING (auth.uid() IN (
@@ -111,6 +121,7 @@ CREATE POLICY "Users can update their own contract clauses"
     WHERE c.id = contract_clauses.contract_id
   ));
 
+DROP POLICY IF EXISTS "Users can delete their own contract clauses" ON contract_clauses;
 CREATE POLICY "Users can delete their own contract clauses"
   ON contract_clauses FOR DELETE
   USING (auth.uid() IN (
