@@ -45,6 +45,22 @@ export default function ProjectPage() {
     }
   }, [searchParams])
 
+  // Efecto separado para manejar el cambio de pestaña inicial una vez que el calculador está listo
+  useEffect(() => {
+    if (loading) return
+
+    const tab = searchParams.get("tab")
+    if (tab) {
+      const timer = setTimeout(() => {
+        if (calculatorRef.current && "setActiveTab" in calculatorRef.current) {
+          console.log("[v0] Cambiando a pestaña desde URL:", tab)
+          calculatorRef.current.setActiveTab(tab === "budgets" ? "presupuesto" : tab)
+        }
+      }, 800) // Un poco más de tiempo para asegurar que todo el estado interno del calculador se ha cargado
+      return () => clearTimeout(timer)
+    }
+  }, [loading, searchParams])
+
   useEffect(() => {
     const fetchProject = async () => {
       try {

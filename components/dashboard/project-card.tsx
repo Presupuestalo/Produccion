@@ -1,7 +1,7 @@
 "use client"
 import Link from "next/link"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Calendar, MapPin, User, MoreHorizontal, Eye, Edit, FileText, Trash2, Loader2 } from "lucide-react"
+import { Calendar, MapPin, User, MoreHorizontal, Eye, Edit, FileText, Trash2, Loader2, LayoutDashboard, FileCheck } from "lucide-react"
 import type { Project } from "@/types/project"
 import { Button } from "@/components/ui/button"
 import {
@@ -254,10 +254,35 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
             </div>
           </div>
 
-          <Button variant="outline" size="sm" className="w-full bg-transparent" onClick={handleBudgetClick}>
-            <FileText className="h-4 w-4 mr-2" />
-            Ver proyecto
-          </Button>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs h-9 bg-slate-50/50 hover:bg-slate-100 hover:text-orange-600 transition-all border-slate-200"
+              onClick={() => router.push(`/dashboard/projects/${project.id}`)}
+            >
+              <LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />
+              Proyecto
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs h-9 bg-slate-50/50 hover:bg-slate-100 hover:text-orange-600 transition-all border-slate-200"
+              onClick={handleBudgetClick}
+            >
+              <FileText className="h-3.5 w-3.5 mr-1.5" />
+              Presupuestos
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs h-9 bg-slate-50/50 hover:bg-slate-100 hover:text-orange-600 transition-all border-slate-200"
+              onClick={() => router.push(`/dashboard/projects/${project.id}/edit?tab=contract`)}
+            >
+              <FileCheck className="h-3.5 w-3.5 mr-1.5" />
+              Contrato
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

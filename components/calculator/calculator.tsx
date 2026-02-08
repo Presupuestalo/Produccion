@@ -206,6 +206,7 @@ export interface CalculatorHandle {
   ) => void
   handleApplyDiff: (diff: any) => void // Callback for dashboard
   setActiveTab: (tab: string) => void // Añadiendo método para cambiar el tab activo desde fuera
+  addStandaloneWindow: () => void // Nueva función para añadir ventanas independientes
 }
 
 const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calculator(
@@ -1940,6 +1941,70 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     setActiveTab: (tab: string) => {
       setActiveTab(tab)
     },
+    addStandaloneWindow: () => {
+      // Buscar si ya existe la habitación "Otras ventanas"
+      const handler = reformRooms.length > 0 || rooms.length === 0 ? setReformRooms : setRooms
+      const existingRooms = reformRooms.length > 0 || rooms.length === 0 ? reformRooms : rooms
+
+      let extrasRoom = existingRooms.find(r => r.customRoomType === "Otras ventanas" || r.name === "Otras ventanas")
+
+      if (!extrasRoom) {
+        extrasRoom = {
+          id: uuidv4(),
+          name: "Otras ventanas",
+          type: "Otro",
+          customRoomType: "Otras ventanas",
+          number: 1,
+          doors: 0,
+          falseCeiling: false,
+          moldings: false,
+          measurementMode: "area-perimeter",
+          width: 0,
+          length: 0,
+          area: 0,
+          perimeter: 0,
+          wallArea: 0,
+          ceilingArea: 0,
+          floorMaterial: "No se modifica",
+          wallMaterial: "No se modifica",
+          ceilingMaterial: "Pintura",
+          windows: [],
+          removeFloor: false,
+          removeWallMaterial: false,
+          removeCeilingMaterial: false
+        }
+        handler((prev) => [extrasRoom!, ...prev])
+      }
+
+      // El añadir la ventana en sí se puede manejar aquí o en el componente WindowsSection
+      // Para que sea atómico, añadimos una ventana vacía por defecto
+      const defaultWidth = 1.2
+      const defaultHeight = 1.2
+      const newWindow: Window = {
+        id: crypto.randomUUID(),
+        width: defaultWidth,
+        height: defaultHeight,
+        type: "Oscilo-Batiente",
+        material: "PVC",
+        hasBlind: true,
+        glassType: "Doble",
+        hasMosquitera: false,
+        description: "",
+        price: 0,
+        innerColor: "Blanco",
+        outerColor: "Blanco",
+        hasCatFlap: false,
+        hasFixedPanel: false,
+        hasMotor: false,
+      }
+
+      handler((prev) => prev.map(r => r.id === extrasRoom!.id ? { ...r, windows: [...(r.windows || []), newWindow] } : r))
+
+      toast({
+        title: "Ventana añadida",
+        description: "Se ha añadido una ventana en la sección 'Otras ventanas'",
+      })
+    }
   }))
 
   // Añadir lógica para inicializar datos si están presentes
@@ -2328,6 +2393,66 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               rooms={reformRooms.length > 0 ? reformRooms : rooms}
               updateRoom={updateRoom}
               projectId={projectId}
+              onAddStandaloneWindow={() => {
+                // Llamar a la función local que implementamos
+                const handler = reformRooms.length > 0 || rooms.length === 0 ? setReformRooms : setRooms
+                const existingRooms = reformRooms.length > 0 || rooms.length === 0 ? reformRooms : rooms
+
+                let extrasRoom = existingRooms.find(r => r.customRoomType === "Otras ventanas" || r.name === "Otras ventanas")
+
+                if (!extrasRoom) {
+                  extrasRoom = {
+                    id: uuidv4(),
+                    name: "Otras ventanas",
+                    type: "Otro",
+                    customRoomType: "Otras ventanas",
+                    number: 1,
+                    doors: 0,
+                    falseCeiling: false,
+                    moldings: false,
+                    measurementMode: "area-perimeter",
+                    width: 0,
+                    length: 0,
+                    area: 0,
+                    perimeter: 0,
+                    wallArea: 0,
+                    ceilingArea: 0,
+                    floorMaterial: "No se modifica",
+                    wallMaterial: "No se modifica",
+                    ceilingMaterial: "Pintura",
+                    windows: [],
+                    removeFloor: false,
+                    removeWallMaterial: false,
+                    removeCeilingMaterial: false
+                  }
+                  handler((prev) => [extrasRoom!, ...prev])
+                }
+
+                const newWindow: Window = {
+                  id: crypto.randomUUID(),
+                  width: 1.2,
+                  height: 1.2,
+                  type: "Oscilo-Batiente",
+                  material: "PVC",
+                  hasBlind: true,
+                  glassType: "Doble",
+                  hasMosquitera: false,
+                  description: "",
+                  price: 0,
+                  innerColor: "Blanco",
+                  outerColor: "Blanco",
+                  hasCatFlap: false,
+                  hasFixedPanel: false,
+                  hasMotor: false,
+                }
+
+                handler((prev) => prev.map(r => r.id === extrasRoom!.id ? { ...r, windows: [...(r.windows || []), newWindow] } : r))
+
+                toast({
+                  title: "Ventana añadida",
+                  description: "Se ha añadido una ventana en la sección 'Otras ventanas'",
+                })
+              }}
             />
           </TabsContent>
 

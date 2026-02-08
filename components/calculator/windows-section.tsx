@@ -22,6 +22,7 @@ type WindowsSectionProps = {
   rooms: Room[]
   updateRoom: (roomId: string, updates: Partial<Room>) => void
   projectId: string
+  onAddStandaloneWindow?: () => void
 }
 
 const windowTypeIcons: Record<string, React.ReactNode> = {
@@ -167,7 +168,7 @@ const WINDOW_PRICE_PER_SQM: Record<string, number> = {
   default: 400, // Precio por defecto para países no especificados
 }
 
-export function WindowsSection({ rooms, updateRoom, projectId }: WindowsSectionProps) {
+export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWindow }: WindowsSectionProps) {
   const [priceInputs, setPriceInputs] = useState<Record<string, string>>({})
   const [dimensionInputs, setDimensionInputs] = useState<Record<string, { width: string; height: string }>>({})
   const [projectData, setProjectData] = useState<{
@@ -491,19 +492,17 @@ export function WindowsSection({ rooms, updateRoom, projectId }: WindowsSectionP
       <body>
         <div class="header">
           <!-- Add company header with logo and data -->
-          ${
-            companyData?.company_name
-              ? `
+          ${companyData?.company_name
+        ? `
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e5730e;">
-            ${
-              companyData?.company_logo_url
-                ? `
+            ${companyData?.company_logo_url
+          ? `
             <div style="flex-shrink: 0;">
               <img src="${companyData.company_logo_url}" alt="Logo" style="max-height: 60px; max-width: 150px; object-fit: contain;" crossorigin="anonymous" />
             </div>
             `
-                : ""
-            }
+          : ""
+        }
             <div style="text-align: right; font-size: 11px; color: #666;">
               <div style="font-weight: bold; font-size: 14px; color: #333; margin-bottom: 4px;">${companyData.company_name}</div>
               ${companyData?.company_tax_id ? `<div>CIF/NIF: ${companyData.company_tax_id}</div>` : ""}
@@ -513,20 +512,19 @@ export function WindowsSection({ rooms, updateRoom, projectId }: WindowsSectionP
             </div>
           </div>
           `
-              : ""
-          }
+        : ""
+      }
           <h1>Informe de Ventanas</h1>
           <div class="header-info">
             <p><span class="header-label">Proyecto:</span> ${projectData?.title || "Sin nombre"}</p>
             <p><span class="header-label">Cliente:</span> ${projectData?.client || "Sin especificar"}</p>
             <!-- Add project address -->
-            ${
-              projectData?.street || projectData?.city
-                ? `
+            ${projectData?.street || projectData?.city
+        ? `
             <p><span class="header-label">Dirección:</span> ${[projectData?.street, projectData?.city, projectData?.postalCode].filter(Boolean).join(", ")}</p>
             `
-                : ""
-            }
+        : ""
+      }
           </div>
         </div>
     `
@@ -715,13 +713,24 @@ export function WindowsSection({ rooms, updateRoom, projectId }: WindowsSectionP
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Ventanas</CardTitle>
+          <CardTitle>Gestión de Ventanas</CardTitle>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <Button onClick={onAddStandaloneWindow} variant="default" size="sm" className="bg-orange-600 hover:bg-orange-700">
+              <Plus className="h-4 w-4 mr-2" />
+              Añadir Ventana
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">
-            No hay habitaciones en la sección de reforma. Copia o añade habitaciones en la pestaña "Reforma" para
-            gestionar sus ventanas.
-          </p>
+          <div className="text-center py-8 border-2 border-dashed rounded-lg bg-slate-50/50">
+            <p className="text-muted-foreground mb-4">
+              No hay ventanas registradas todavía.
+            </p>
+            <p className="text-sm text-slate-500 max-w-md mx-auto">
+              Puedes añadir ventanas habitación por habitación desde la pestaña de "Reforma",
+              o usar el botón superior para añadir ventanas sueltas (por ejemplo, si solo vas a cambiar carpintería).
+            </p>
+          </div>
         </CardContent>
       </Card>
     )
@@ -737,6 +746,11 @@ export function WindowsSection({ rooms, updateRoom, projectId }: WindowsSectionP
             <Button onClick={handleExportToPDF} variant="outline" size="sm">
               <Download className="h-4 w-4 mr-2" />
               Exportar a PDF
+            </Button>
+            {/* Add Standalone Window button */}
+            <Button onClick={onAddStandaloneWindow} variant="default" size="sm" className="bg-orange-600 hover:bg-orange-700">
+              <Plus className="h-4 w-4 mr-2" />
+              Añadir Ventana
             </Button>
           </div>
           {isOwner && (
@@ -774,11 +788,10 @@ export function WindowsSection({ rooms, updateRoom, projectId }: WindowsSectionP
                                 <Button
                                   key={type}
                                   variant={window.glassType === type ? "default" : "outline"}
-                                  className={`h-auto flex flex-col items-center justify-center p-2 gap-1 transition-colors ${
-                                    window.glassType === type
-                                      ? "bg-primary text-primary-foreground hover:bg-primary/75"
-                                      : "border-2 hover:bg-primary hover:text-primary-foreground hover:border-primary"
-                                  }`}
+                                  className={`h-auto flex flex-col items-center justify-center p-2 gap-1 transition-colors ${window.glassType === type
+                                    ? "bg-primary text-primary-foreground hover:bg-primary/75"
+                                    : "border-2 hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                                    }`}
                                   onClick={() => {
                                     const updates: Partial<Window> = { glassType: type }
                                     if (type === "Puerta Balcón" && window.height < 2) {
@@ -809,11 +822,10 @@ export function WindowsSection({ rooms, updateRoom, projectId }: WindowsSectionP
                                 <Button
                                   key={type}
                                   variant={window.type === type ? "default" : "outline"}
-                                  className={`h-auto flex flex-col items-center justify-center p-2 gap-1 transition-colors ${
-                                    window.type === type
-                                      ? "bg-primary text-primary-foreground hover:bg-primary/75"
-                                      : "border-2 hover:bg-primary hover:text-primary-foreground hover:border-primary"
-                                  }`}
+                                  className={`h-auto flex flex-col items-center justify-center p-2 gap-1 transition-colors ${window.type === type
+                                    ? "bg-primary text-primary-foreground hover:bg-primary/75"
+                                    : "border-2 hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                                    }`}
                                   onClick={() => updateWindow(room.id, window.id, { type: type as any })}
                                 >
                                   {windowTypeIcons[type]}

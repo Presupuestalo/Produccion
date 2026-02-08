@@ -866,7 +866,7 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6"
+                    className="h-6 w-6 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors"
                     onClick={() => handleMoveClauseUp(index)}
                     disabled={index === 0}
                   >
@@ -875,7 +875,7 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6"
+                    className="h-6 w-6 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors"
                     onClick={() => handleMoveClauseDown(index)}
                     disabled={index === clauses.length - 1}
                   >
@@ -889,8 +889,13 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
                   className="flex-1 min-h-[80px]"
                   placeholder="Escribe el texto de la cláusula..."
                 />
-                <Button variant="ghost" size="icon" onClick={() => handleDeleteClause(index)} className="mt-2">
-                  <Trash2 className="h-4 w-4 text-destructive" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDeleteClause(index)}
+                  className="mt-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200"
+                >
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             </Card>
