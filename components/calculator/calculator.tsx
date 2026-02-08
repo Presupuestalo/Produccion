@@ -4,7 +4,7 @@ import { useImperativeHandle } from "react"
 
 import type React from "react"
 
-import { useState, useEffect, useCallback, useRef, forwardRef } from "react"
+import { useState, useEffect, useCallback, useRef, forwardRef, useMemo } from "react"
 import { v4 as uuidv4 } from "uuid"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, Copy, Plus, Save, CheckCircle2 } from "lucide-react"
@@ -953,6 +953,17 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     calculateStateHash,
     isLoadingFromDB,
   ])
+
+  // Filtrar habitaciones para mostrar en la lista (ocultar "Otras ventanas")
+  const visibleRooms = useMemo(
+    () => rooms.filter((r) => r.customRoomType !== "Otras ventanas" && r.name !== "Otras ventanas"),
+    [rooms]
+  )
+
+  const visibleReformRooms = useMemo(
+    () => reformRooms.filter((r) => r.customRoomType !== "Otras ventanas" && r.name !== "Otras ventanas"),
+    [reformRooms]
+  )
 
   useEffect(() => {
     // Saltar durante la carga inicial
@@ -2150,7 +2161,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
             <div className="lg:grid lg:grid-cols-[240px_1.5fr_1fr] lg:gap-6 lg:max-w-none lg:mx-0">
               {/* COLUMNA IZQUIERDA: Resumen de habitaciones y citas (solo desktop) */}
               <div className="hidden lg:block space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
-                <RoomsSummary rooms={rooms} />
+                <RoomsSummary rooms={visibleRooms} />
                 {!isOwner && <AppointmentsHistory projectId={projectId} />}
               </div>
 
@@ -2167,7 +2178,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
                 <div className="space-y-2">
                   {/* Alerta si no todas las habitaciones tienen medidas */}
-                  {rooms.length > 0 && !allRoomsHaveMeasurements(rooms) && (
+                  {visibleRooms.length > 0 && !allRoomsHaveMeasurements(visibleRooms) && (
                     <Alert variant="destructive">
                       <AlertTriangle className="h-4 w-4" />
                       <AlertDescription>Completa las medidas de todas las habitaciones.</AlertDescription>
@@ -2203,7 +2214,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                       <Button
                         onClick={addRoom}
                         className="gap-1 flex-1 sm:w-auto sm:min-w-[120px]"
-                        disabled={!allRoomsHaveMeasurements(rooms)}
+                        disabled={!allRoomsHaveMeasurements(visibleRooms)}
                       >
                         <Plus className="h-4 w-4" /> Añadir
                       </Button>
@@ -2215,7 +2226,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                         onClick={copyRoomsToReform}
                         className="lg:hidden h-10 w-10 border-blue-200 text-blue-600"
                         title="Copiar a Reforma"
-                        disabled={!allRoomsHaveMeasurements(rooms)}
+                        disabled={!allRoomsHaveMeasurements(visibleRooms)}
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
@@ -2229,11 +2240,11 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                       size="default"
                       onClick={copyRoomsToReform}
                       className="w-full gap-1 bg-blue-600 hover:bg-blue-700 font-medium"
-                      disabled={!allRoomsHaveMeasurements(rooms)}
+                      disabled={!allRoomsHaveMeasurements(visibleRooms)}
                     >
                       <Copy className="h-4 w-4" />
                       Copiar a Reforma
-                      {!allRoomsHaveMeasurements(rooms) && (
+                      {!allRoomsHaveMeasurements(visibleRooms) && (
                         <span className="ml-1 text-xs opacity-70">(Completa medidas)</span>
                       )}
                     </Button>
@@ -2241,7 +2252,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                 </div>
 
                 <RoomsList
-                  rooms={rooms}
+                  rooms={visibleRooms}
                   updateRoom={updateRoom}
                   removeRoom={removeRoom}
                   duplicateRoom={duplicateRoom} // Pasar la función duplicateRoom
@@ -2285,7 +2296,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
             <div className="lg:grid lg:grid-cols-[240px_1.5fr_1fr] lg:gap-6 lg:max-w-none lg:mx-0">
               {/* COLUMNA IZQUIERDA: Resumen de habitaciones y citas (solo desktop) */}
               <div className="hidden lg:block space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
-                <RoomsSummary rooms={reformRooms} />
+                <RoomsSummary rooms={visibleReformRooms} />
                 {!isOwner && <AppointmentsHistory projectId={projectId} />}
               </div>
 
@@ -2302,7 +2313,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
                 <div className="space-y-2">
                   {/* Alerta si no todas las habitaciones tienen medidas */}
-                  {reformRooms.length > 0 && !allRoomsHaveMeasurements(reformRooms) && (
+                  {visibleReformRooms.length > 0 && !allRoomsHaveMeasurements(visibleReformRooms) && (
                     <Alert variant="destructive">
                       <AlertTriangle className="h-4 w-4" />
                       <AlertDescription>Completa las medidas de todas las habitaciones.</AlertDescription>
@@ -2337,7 +2348,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                     <Button
                       onClick={addRoom}
                       className="gap-1 w-full sm:w-auto sm:min-w-[120px]"
-                      disabled={!allRoomsHaveMeasurements(reformRooms)}
+                      disabled={!allRoomsHaveMeasurements(visibleReformRooms)}
                     >
                       <Plus className="h-4 w-4" /> Añadir
                     </Button>
@@ -2346,7 +2357,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
                 {/* Lista de habitaciones de reforma */}
                 <RoomsList
-                  rooms={reformRooms}
+                  rooms={visibleReformRooms}
                   updateRoom={updateRoom}
                   removeRoom={removeRoom}
                   duplicateRoom={duplicateRoom}

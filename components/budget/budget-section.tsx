@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { BudgetList } from "./budget-list"
 import { BudgetViewer } from "./budget-viewer"
 import { Button } from "@/components/ui/button"
@@ -62,17 +62,20 @@ export function BudgetSection({ projectId, calculatorData, calculatorLastSaved }
       return
     }
 
+    const hasWindows = (calculatorData.reform?.rooms || []).some((r: any) => r.windows?.length > 0) ||
+      (calculatorData.rooms || []).some((r: any) => r.windows?.length > 0)
+
     const hasRooms =
       calculatorData.demolition?.rooms?.length > 0 ||
-      calculatorData.rooms?.length > 0 ||
-      calculatorData.reform?.rooms?.length > 0 ||
+      calculatorData.rooms?.filter((r: any) => r.customRoomType !== "Otras ventanas").length > 0 ||
+      calculatorData.reform?.rooms?.filter((r: any) => r.customRoomType !== "Otras ventanas").length > 0 ||
       calculatorData.reform_rooms?.length > 0
 
-    if (!hasRooms) {
+    if (!hasRooms && !hasWindows) {
       toast({
         variant: "destructive",
         title: "Datos incompletos",
-        description: "Debes añadir al menos una habitación en Demolición o Reforma para generar un presupuesto",
+        description: "Debes añadir al menos una habitación o una ventana para generar un presupuesto",
       })
       return
     }
@@ -156,11 +159,15 @@ export function BudgetSection({ projectId, calculatorData, calculatorLastSaved }
     )
   }
 
+  const hasWindows = (calculatorData?.reform?.rooms || []).some((r: any) => r.windows?.length > 0) ||
+    (calculatorData?.rooms || []).some((r: any) => r.windows?.length > 0)
+
   const hasData =
     calculatorData?.demolition?.rooms?.length > 0 ||
     calculatorData?.rooms?.length > 0 ||
     calculatorData?.reform?.rooms?.length > 0 ||
-    calculatorData?.reform_rooms?.length > 0
+    calculatorData?.reform_rooms?.length > 0 ||
+    hasWindows
 
   return (
     <div className="space-y-6">
