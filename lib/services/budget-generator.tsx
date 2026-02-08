@@ -949,12 +949,12 @@ export class BudgetGenerator {
       console.log("[v0] BudgetGenerator - NO se genera partida de capa autonivelante (total = 0)")
     }
 
-    // Tapado de rozas (siempre 1 unidad si hay reforma)
-    if (this.hasReform()) {
+    // Tapado de rozas (solo si hay habitaciones reales en reforma)
+    if (this.hasRealRooms()) {
       console.log("[v0] BudgetGenerator - Generando partida: Tapado de rozas 1 ud")
       this.addLineItem("02-A-12", 1, "Tapado de rozas")
     } else {
-      console.log("[v0] BudgetGenerator - NO se genera partida de tapado de rozas (no reform)")
+      console.log("[v0] BudgetGenerator - NO se genera partida de tapado de rozas (no real rooms)")
     }
 
     // Colocación de molduras
@@ -974,12 +974,12 @@ export class BudgetGenerator {
       console.log("[v0] BudgetGenerator - NO se genera partida de cajetín puerta corredera (total doors = 0)")
     }
 
-    // Ayuda a gremios (siempre 1 si hay reforma)
-    if (this.hasReform()) {
+    // Ayuda a gremios (solo si hay habitaciones reales en reforma)
+    if (this.hasRealRooms()) {
       console.log("[v0] BudgetGenerator - Generando partida: Ayuda a gremios 1 ud")
       this.addLineItem("02-A-15", 1, "Ayuda a gremios")
     } else {
-      console.log("[v0] BudgetGenerator - NO se genera partida de ayuda a gremios (no reform)")
+      console.log("[v0] BudgetGenerator - NO se genera partida de ayuda a gremios (no real rooms)")
     }
 
     // Aislantes térmicos
@@ -1685,7 +1685,7 @@ export class BudgetGenerator {
    * 08. LIMPIEZA - Genera partidas de limpieza
    */
   private generateCleaningItems() {
-    if (this.hasReform()) {
+    if (this.hasRealRooms()) {
       const { reform } = this.calculatorData
       const roomCount = reform?.rooms?.length || 0
       const periodicCleanings = Math.ceil(roomCount / 2)
@@ -1700,7 +1700,7 @@ export class BudgetGenerator {
       console.log("[v0] BudgetGenerator - Generando partida: Limpieza final 1 ud (250€)")
       this.addLineItem("08-L-02", 1, undefined, 250.0)
     } else {
-      console.log("[v0] BudgetGenerator - NO se generan partidas de limpieza (no reform)")
+      console.log("[v0] BudgetGenerator - NO se generan partidas de limpieza (no real rooms)")
     }
   }
 
@@ -2094,6 +2094,15 @@ export class BudgetGenerator {
 
   private hasReform(): boolean {
     return !!this.calculatorData.reform
+  }
+
+  private hasRealRooms(): boolean {
+    const { reform } = this.calculatorData
+    if (!reform || !reform.rooms || !Array.isArray(reform.rooms)) return false
+
+    return reform.rooms.some(
+      (r: any) => r.customRoomType !== "Otras ventanas" && r.name !== "Otras ventanas"
+    )
   }
 
   private hasElectricalWork(): boolean {
