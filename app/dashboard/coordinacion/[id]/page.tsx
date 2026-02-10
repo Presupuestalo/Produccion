@@ -186,7 +186,7 @@ export default function ProjectDetailPage() {
 
       const typesMap = new Map<string, { name: string; icon: string }>()
       if (typesData) {
-        typesData.forEach(t => typesMap.set(t.id, { name: t.name, icon: t.icon }))
+        typesData.forEach((t: { id: string; name: string; icon: string }) => typesMap.set(t.id, { name: t.name, icon: t.icon }))
       }
 
       // 4. Combinar datos
