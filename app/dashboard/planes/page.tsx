@@ -166,7 +166,7 @@ export default function PlanesPage() {
         window.history.replaceState({}, '', url.toString())
       }
     }
-  }, [currentPlan, loading, router])
+  }, [currentPlan, loading])
 
   const calculateSavings = (monthlyPrice: number) => {
     const yearlyWithoutDiscount = monthlyPrice * 12
