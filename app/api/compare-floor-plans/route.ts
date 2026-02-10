@@ -102,17 +102,17 @@ export async function POST(request: Request) {
     console.log("[v0] - After:", afterImageUrl)
 
     // Descargar imágenes antes de enviarlas a Groq
-    async function fetchImage(url: string) {
+    async function fetchImage(url: string): Promise<Buffer | string> {
       try {
         const response = await fetch(url)
         if (!response.ok) throw new Error(`Status ${response.status}`)
         const arrayBuffer = await response.arrayBuffer()
-        let buffer = Buffer.from(new Uint8Array(arrayBuffer))
+        let buffer: Buffer = Buffer.from(new Uint8Array(arrayBuffer))
 
         // Si es PDF, convertir a imagen
         if (isPdf(buffer) || url.toLowerCase().endsWith(".pdf")) {
           console.log(`[v0] Se detectó un PDF en ${url}, convirtiendo a imagen...`)
-          buffer = await convertPdfToImage(buffer as any)
+          buffer = await convertPdfToImage(buffer)
         }
 
         return buffer
