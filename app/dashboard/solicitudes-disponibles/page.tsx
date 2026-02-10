@@ -745,8 +745,8 @@ export default function SolicitudesDisponiblesPage() {
                             </h3>
                             {getProposalBadge()}
                             {(acquired.lead.lead_type === "premium" ||
-                              acquired.lead.budget_snapshot?.line_items?.length > 0 ||
-                              acquired.lead.budget_snapshot?.lineItems?.length > 0) && (
+                              (acquired.lead.budget_snapshot?.line_items?.length || 0) > 0 ||
+                              (acquired.lead.budget_snapshot?.lineItems?.length || 0) > 0) && (
                                 <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 flex items-center gap-1">
                                   <Crown className="h-3 w-3 fill-current" />
                                   PREMIUM
