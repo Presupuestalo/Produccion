@@ -233,25 +233,21 @@ export function BudgetViewer({ projectId, budgetId, onBudgetUpdated }: BudgetVie
         }
       }
 
-      const finalSettings = {
-        ...(budgetSettings || {
-          show_vat: false,
-          vat_percentage: 21,
-          adjustments: [],
-          introduction_text: "",
-          additional_notes: "",
-        }),
-        introduction_text:
-          budget.custom_introduction_text ||
-          budgetSettings?.introduction_text ||
-          companyDefaults.presentation ||
-          "",
-        additional_notes:
-          budget.custom_additional_notes ||
-          budgetSettings?.additional_notes ||
-          companyDefaults.notes ||
-          "",
-      }
+      const finalSettings = budgetSettings
+        ? {
+          ...budgetSettings,
+          introduction_text:
+            budget.custom_introduction_text ||
+            budgetSettings.introduction_text ||
+            companyDefaults.presentation ||
+            "",
+          additional_notes:
+            budget.custom_additional_notes ||
+            budgetSettings.additional_notes ||
+            companyDefaults.notes ||
+            "",
+        }
+        : null
 
       console.log("[DEBUG] Budget custom texts:", {
         custom_introduction_text: budget.custom_introduction_text,
@@ -262,8 +258,8 @@ export function BudgetViewer({ projectId, budgetId, onBudgetUpdated }: BudgetVie
         additional_notes: budgetSettings?.additional_notes,
       })
       console.log("[DEBUG] Final settings for PDF:", {
-        introduction_text: finalSettings.introduction_text,
-        additional_notes: finalSettings.additional_notes,
+        introduction_text: finalSettings?.introduction_text,
+        additional_notes: finalSettings?.additional_notes,
       })
 
       const { data: project, error: projectError } = await supabase
