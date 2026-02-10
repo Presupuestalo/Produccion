@@ -190,7 +190,7 @@ export default function ProjectDetailPage() {
       }
 
       // 4. Combinar datos
-      const formattedTrades = (tradesData || []).map(trade => ({
+      const formattedTrades = (tradesData || []).map((trade: any) => ({
         ...trade,
         trade_types: typesMap.get(trade.trade_type_id) || null
       }))
