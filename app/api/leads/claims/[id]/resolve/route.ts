@@ -117,10 +117,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         subject: `Reclamación ${approved ? "aprobada" : "rechazada"} - Presupuéstalo`,
         html: emailClaimResolved({
           professionalName: claim.professional?.full_name || "Profesional",
-          leadTitle: claim.lead_title || "Lead",
+          projectType: claim.lead_title || "Lead",
           approved,
           creditsRefunded: approved ? claim.credits_to_refund : undefined,
-          resolutionNotes,
+          adminNotes: resolutionNotes,
         }),
       })
     }
