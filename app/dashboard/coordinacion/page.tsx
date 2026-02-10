@@ -153,7 +153,7 @@ export default function CoordinacionPage() {
       if (error) throw error
 
       const projectsWithCounts =
-        data?.map((project) => ({
+        data?.map((project: any) => ({
           ...project,
           trades_count: project.coordinator_project_trades?.[0]?.count || 0,
         })) || []
