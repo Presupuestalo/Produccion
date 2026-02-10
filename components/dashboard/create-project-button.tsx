@@ -94,7 +94,7 @@ const PROVINCIAS_ESPANA = [
 
 const TIPOS_ESTRUCTURA = ["Hormigón", "Ladrillo", "Acero", "Mixta", "Madera", "Piedra", "Otro"]
 
-export function CreateProjectButton() {
+export function CreateProjectButton({ className }: { className?: string }) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [creationMode, setCreationMode] = useState<"select" | "manual" | "ai">("select")
@@ -462,7 +462,7 @@ export function CreateProjectButton() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           <Button
-            className="gap-2"
+            className={className}
             onClick={(e) => {
               e.preventDefault()
               handleOpenDialog()
