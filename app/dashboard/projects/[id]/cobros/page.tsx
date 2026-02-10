@@ -2,8 +2,13 @@ import { PaymentsSection } from "@/components/payments/payments-section"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
-export default async function CobrosPage({ params }: { params: { id: string } }) {
+export default async function CobrosPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = await createClient()
+
+  if (!supabase) {
+    redirect("/dashboard/projects")
+  }
 
   const {
     data: { user },
@@ -14,7 +19,7 @@ export default async function CobrosPage({ params }: { params: { id: string } })
   const { data: project } = await supabase
     .from("projects")
     .select("*")
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("user_id", user.id)
     .single()
 
@@ -24,7 +29,7 @@ export default async function CobrosPage({ params }: { params: { id: string } })
   const { data: budget } = await supabase
     .from("budgets")
     .select("total")
-    .eq("project_id", params.id)
+    .eq("project_id", id)
     .eq("status", "accepted")
     .maybeSingle()
 
@@ -32,7 +37,7 @@ export default async function CobrosPage({ params }: { params: { id: string } })
 
   return (
     <div className="container mx-auto py-6">
-      <PaymentsSection projectId={params.id} budgetAmount={budgetAmount} />
+      <PaymentsSection projectId={id} budgetAmount={budgetAmount} />
     </div>
   )
 }

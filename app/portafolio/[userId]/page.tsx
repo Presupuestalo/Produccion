@@ -5,14 +5,19 @@ import { Badge } from "@/components/ui/badge"
 import { Star, MapPin, Globe, Phone, Mail } from "lucide-react"
 import Link from "next/link"
 
-export default async function PortafolioPublicoPage({ params }: { params: { userId: string } }) {
-  const supabase = createClient()
+export default async function PortafolioPublicoPage({ params }: { params: Promise<{ userId: string }> }) {
+  const { userId } = await params
+  const supabase = await createClient()
+
+  if (!supabase) {
+    notFound()
+  }
 
   // Obtener perfil del profesional
   const { data: profile } = await supabase
     .from("profiles")
     .select("*")
-    .eq("id", params.userId)
+    .eq("id", userId)
     .eq("user_type", "professional")
     .eq("portfolio_public", true)
     .single()
@@ -25,7 +30,7 @@ export default async function PortafolioPublicoPage({ params }: { params: { user
   const { data: portfolioItems } = await supabase
     .from("professional_portfolio")
     .select("*, projects(*)")
-    .eq("user_id", params.userId)
+    .eq("user_id", userId)
     .eq("is_public", true)
     .order("is_featured", { ascending: false })
     .order("display_order", { ascending: true })

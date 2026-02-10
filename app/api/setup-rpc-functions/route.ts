@@ -5,7 +5,11 @@ export const dynamic = "force-dynamic"
 
 export async function GET() {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
+
+    if (!supabase) {
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
+    }
 
     // Crear función para verificar si una columna existe
     const checkColumnSql = `
@@ -67,15 +71,15 @@ export async function GET() {
     `
 
     // Ejecutar las funciones SQL
-    await supabase.rpc("exec_sql", { sql: checkColumnSql }).catch((error) => {
-      // Si la función ya existe o hay otro error, registrarlo
-      console.error("Error al crear función check_column_exists:", error)
-    })
+    const { error: errorCheck } = await supabase.rpc("exec_sql", { sql: checkColumnSql })
+    if (errorCheck) {
+      console.error("Error al crear función check_column_exists:", errorCheck)
+    }
 
-    await supabase.rpc("exec_sql", { sql: addColumnSql }).catch((error) => {
-      // Si la función ya existe o hay otro error, registrarlo
-      console.error("Error al crear función add_column_if_not_exists:", error)
-    })
+    const { error: errorAdd } = await supabase.rpc("exec_sql", { sql: addColumnSql })
+    if (errorAdd) {
+      console.error("Error al crear función add_column_if_not_exists:", errorAdd)
+    }
 
     // Crear función exec_sql si no existe
     const execSqlSql = `
@@ -90,9 +94,7 @@ export async function GET() {
     `
 
     // Intentar crear la función exec_sql (puede que ya exista)
-    await supabase.rpc("exec_sql", { sql: execSqlSql }).catch(() => {
-      // Ignorar errores, ya que probablemente sea porque la función ya existe
-    })
+    await supabase.rpc("exec_sql", { sql: execSqlSql })
 
     return NextResponse.json({ success: true, message: "Funciones RPC configuradas correctamente" })
   } catch (error) {

@@ -12,11 +12,13 @@ export default async function ProjectPlanPage({
   params,
   searchParams,
 }: {
-  params: { id: string }
-  searchParams: { embedded?: string }
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ embedded?: string }>
 }) {
-  const project = await getProjectById(params.id)
-  const isEmbedded = searchParams.embedded === "true"
+  const { id } = await params
+  const { embedded } = await searchParams
+  const project = await getProjectById(id)
+  const isEmbedded = embedded === "true"
 
   if (!project) {
     notFound()
@@ -32,7 +34,7 @@ export default async function ProjectPlanPage({
       )}
 
       <div className="mt-4">
-        <FloorPlanViewer projectId={params.id} />
+        <FloorPlanViewer projectId={id} />
       </div>
     </div>
   )
