@@ -4,7 +4,7 @@ import { NextResponse } from "next/server"
 
 export async function POST() {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     const { data, error: queryError } = await supabase.from("calculator_data").select("electrical_config").limit(1)
 
