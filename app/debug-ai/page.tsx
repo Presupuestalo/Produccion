@@ -18,7 +18,9 @@ export default function AIDebugPage() {
                 const supabase = await createClient()
 
                 if (!supabase) {
-                  return NextResponse.json({ error: "Failed to initialize Supabase client" }, { status: 500 })
+                    setDebugInfo({ error: "Failed to initialize Supabase client" })
+                    setLoading(false)
+                    return
                 }
 
                 // Get user
