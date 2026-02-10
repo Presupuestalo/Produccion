@@ -707,7 +707,7 @@ export default function SolicitudesDisponiblesPage() {
                 const companiesCount = Number(acquired.lead.offer_count) || 0
                 const maxCompanies = Number(acquired.lead.max_companies) || 3
                 const proposalStatus = acquired.proposal?.status
-                const leadStatus = getLeadStatus(acquired.lead) // obtener estado de la oferta
+                const leadStatus = getLeadStatus(acquired.lead as any) // obtener estado de la oferta
 
                 const getProposalBadge = () => {
                   if (!acquired.proposal_sent) return null
