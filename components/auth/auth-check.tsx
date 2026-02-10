@@ -32,7 +32,7 @@ export function AuthCheck({ children }: { children: React.ReactNode }) {
     checkAuth()
 
     // Suscribirse a cambios en la autenticación
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event: any, session: any) => {
       if (event === "SIGNED_IN" && session) {
         setIsAuthenticated(true)
       } else if (event === "SIGNED_OUT") {
