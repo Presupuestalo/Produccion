@@ -146,10 +146,9 @@ export async function POST(request: NextRequest) {
         subject: "Reclamación recibida - Presupuéstalo",
         html: emailClaimReceived({
           professionalName: profile.full_name || "Profesional",
-          leadTitle: leadTitle || "Lead",
-          reason,
+          projectType: leadTitle || "Lead",
+          claimReason: reason,
           creditsSpent,
-          creditsToRefund,
         }),
       })
     }
@@ -160,17 +159,11 @@ export async function POST(request: NextRequest) {
       emailAdminNewClaim({
         professionalName: profile?.full_name || "Profesional",
         professionalEmail: profile?.email || user.email || "",
-        leadTitle: leadTitle || "Lead",
-        leadCity: leadCity || "",
-        reason,
-        reasonDetails,
-        callAttempts: callAttempts || 0,
+        projectType: leadTitle || "Lead",
+        ownerName: "Cliente", // Nombre no disponible en este contexto
+        claimReason: reason,
+        claimDetails: reasonDetails,
         creditsSpent,
-        creditsToRefund,
-        totalClaims: (profile?.total_claims_submitted || 0) + 1,
-        approvedClaims: profile?.total_claims_approved || 0,
-        rejectedClaims: profile?.total_claims_rejected || 0,
-        claimId: claim.id,
       }),
     )
 
