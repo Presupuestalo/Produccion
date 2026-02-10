@@ -1,0 +1,363 @@
+components/calculator/calculator.tsx(45,34): error TS2459: Module '"./partitions-section"' declares 'Partition' locally, but it is not exported.
+components/calculator/calculator.tsx(45,50): error TS2459: Module '"./partitions-section"' declares 'WallLining' locally, but it is not exported.
+components/calculator/calculator.tsx(395,88): error TS2345: Argument of type '{ wallThickness: number; floorTileThickness: number; wallTileThickness: number; woodExpansionCoef: number; ceramicExpansionCoef: number; containerSize: number; mortarBaseThickness: number; mortarBaseExpansionCoef: number; woodenFloorThickness: number; woodenFloorExpansionCoef: number; }' is not assignable to parameter of type 'DemolitionSettings | (() => DemolitionSettings)'.
+  Type '{ wallThickness: number; floorTileThickness: number; wallTileThickness: number; woodExpansionCoef: number; ceramicExpansionCoef: number; containerSize: number; mortarBaseThickness: number; mortarBaseExpansionCoef: number; woodenFloorThickness: number; woodenFloorExpansionCoef: number; }' is missing the following properties from type 'DemolitionSettings': floorTileExpansionCoef, wallExpansionCoef, ceilingThickness, ceilingExpansionCoef
+components/calculator/calculator.tsx(477,76): error TS2551: Property 'floorType' does not exist on type 'Room'. Did you mean 'doorType'?
+components/calculator/calculator.tsx(483,74): error TS2551: Property 'floorType' does not exist on type 'Room'. Did you mean 'doorType'?
+components/calculator/calculator.tsx(490,93): error TS18048: 'room.wallSurface' is possibly 'undefined'.
+components/calculator/calculator.tsx(494,41): error TS18048: 'room.tiledWallSurfaceArea' is possibly 'undefined'.
+components/calculator/calculator.tsx(500,41): error TS18048: 'room.wallSurface' is possibly 'undefined'.
+components/calculator/calculator.tsx(922,50): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/calculator/calculator.tsx(1061,53): error TS2538: Type 'undefined' cannot be used as an index type.
+components/calculator/calculator.tsx(1069,60): error TS2322: Type '"Toma TV"' is not assignable to type 'ElectricalElementType'.
+components/calculator/calculator.tsx(1310,29): error TS2345: Argument of type '{ standardHeight: number; structureType: "Hormig??n"; heatingType: "No Tiene"; reformHeatingType: "No"; projectId: string; lowerAllCeilings: true; }' is not assignable to parameter of type 'SetStateAction<GlobalConfig>'.
+  Property 'removeWoodenFloor' is missing in type '{ standardHeight: number; structureType: "Hormig??n"; heatingType: "No Tiene"; reformHeatingType: "No"; projectId: string; lowerAllCeilings: true; }' but required in type 'GlobalConfig'.
+components/calculator/calculator.tsx(1318,35): error TS2345: Argument of type '{ wallThickness: number; floorTileThickness: number; wallTileThickness: number; woodExpansionCoef: number; ceramicExpansionCoef: number; containerSize: number; mortarBaseThickness: number; mortarBaseExpansionCoef: number; woodenFloorThickness: number; woodenFloorExpansionCoef: number; }' is not assignable to parameter of type 'SetStateAction<DemolitionSettings>'.
+  Type '{ wallThickness: number; floorTileThickness: number; wallTileThickness: number; woodExpansionCoef: number; ceramicExpansionCoef: number; containerSize: number; mortarBaseThickness: number; mortarBaseExpansionCoef: number; woodenFloorThickness: number; woodenFloorExpansionCoef: number; }' is missing the following properties from type 'DemolitionSettings': floorTileExpansionCoef, wallExpansionCoef, ceilingThickness, ceilingExpansionCoef
+components/calculator/calculator.tsx(1407,41): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/calculator/calculator.tsx(1474,30): error TS2304: Cannot find name 'Door'.
+components/calculator/calculator.tsx(1478,9): error TS2322: Type 'string' is not assignable to type 'RoomType'.
+components/calculator/calculator.tsx(1488,48): error TS2304: Cannot find name 'FloorMaterialType'.
+components/calculator/calculator.tsx(1489,46): error TS2304: Cannot find name 'WallMaterialType'.
+components/calculator/calculator.tsx(1508,9): error TS2322: Type 'boolean | undefined' is not assignable to type 'boolean'.
+  Type 'undefined' is not assignable to type 'boolean'.
+components/calculator/calculator.tsx(1516,9): error TS1117: An object literal cannot have multiple properties with the same name.
+components/calculator/calculator.tsx(1542,43): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/calculator/calculator.tsx(1889,16): error TS2345: Argument of type '{ id: string; floorMaterial: string; floorType: string; wallMaterial: string; removeWallTiles: boolean | undefined; removeFloor: boolean | undefined; hasDoors: boolean; doorList: Door[]; ... 76 more ...; notes?: string | undefined; }[]' is not assignable to parameter of type 'SetStateAction<Room[]>'.
+  Type '{ id: string; floorMaterial: string; floorType: string; wallMaterial: string; removeWallTiles: boolean | undefined; removeFloor: boolean | undefined; hasDoors: boolean; doorList: Door[]; ... 76 more ...; notes?: string | undefined; }[]' is not assignable to type 'Room[]'.
+    Type '{ id: string; floorMaterial: string; floorType: string; wallMaterial: string; removeWallTiles: boolean | undefined; removeFloor: boolean | undefined; hasDoors: boolean; doorList: Door[]; ... 76 more ...; notes?: string; }' is not assignable to type 'Room'.
+      Types of property 'floorMaterial' are incompatible.
+        Type 'string' is not assignable to type 'FloorMaterialType'.
+components/calculator/calculator.tsx(1890,22): error TS2345: Argument of type '{ id: string; floorMaterial: string; wallMaterial: string; windows: Window[]; name: string; doors: number; falseCeiling: boolean; moldings: boolean; measurementMode: MeasurementMode; ... 74 more ...; notes?: string | undefined; }[]' is not assignable to parameter of type 'SetStateAction<Room[]>'.
+  Type '{ id: string; floorMaterial: string; wallMaterial: string; windows: Window[]; name: string; doors: number; falseCeiling: boolean; moldings: boolean; measurementMode: MeasurementMode; ... 74 more ...; notes?: string | undefined; }[]' is not assignable to type 'Room[]'.
+    Type '{ id: string; floorMaterial: string; wallMaterial: string; windows: CalculatorWindow[]; name: string; doors: number; falseCeiling: boolean; moldings: boolean; measurementMode: MeasurementMode; ... 74 more ...; notes?: string; }' is not assignable to type 'Room'.
+      Types of property 'floorMaterial' are incompatible.
+        Type 'string' is not assignable to type 'FloorMaterialType'.
+components/calculator/calculator.tsx(2185,15): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/calculator/calculator.tsx(2196,51): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/calculator/calculator.tsx(2204,19): error TS2322: Type '(newConfig: Partial<GlobalConfig>, isReform: boolean) => void' is not assignable to type '(config: Partial<GlobalConfig>, isReform?: boolean | undefined) => void'.
+  Types of parameters 'isReform' and 'isReform' are incompatible.
+    Type 'boolean | undefined' is not assignable to type 'boolean'.
+      Type 'undefined' is not assignable to type 'boolean'.
+components/calculator/calculator.tsx(2295,19): error TS2322: Type 'CalefaccionType | "ninguna"' is not assignable to type 'CalefaccionType'.
+  Type '"ninguna"' is not assignable to type 'CalefaccionType'.
+components/calculator/calculator.tsx(2296,19): error TS2322: Type 'import("F:/PRESUPUESTALO/WEB-PRODUCCION/types/calculator").GlobalConfig' is not assignable to type 'import("F:/PRESUPUESTALO/WEB-PRODUCCION/types").GlobalConfig'.
+  Types of property 'structureType' are incompatible.
+    Type 'import("F:/PRESUPUESTALO/WEB-PRODUCCION/types/calculator").StructureType | undefined' is not assignable to type 'import("F:/PRESUPUESTALO/WEB-PRODUCCION/types").StructureType | undefined'.
+      Type '"Hormig??n"' is not assignable to type 'StructureType | undefined'.
+components/calculator/calculator.tsx(2331,51): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/calculator/calculator.tsx(2339,19): error TS2322: Type '(newConfig: Partial<GlobalConfig>, isReform: boolean) => void' is not assignable to type '(config: Partial<GlobalConfig>, isReform?: boolean | undefined) => void'.
+  Types of parameters 'isReform' and 'isReform' are incompatible.
+    Type 'boolean | undefined' is not assignable to type 'boolean'.
+      Type 'undefined' is not assignable to type 'boolean'.
+components/calculator/calculator.tsx(2400,19): error TS2322: Type 'CalefaccionType | "ninguna"' is not assignable to type 'CalefaccionType'.
+  Type '"ninguna"' is not assignable to type 'CalefaccionType'.
+components/calculator/calculator.tsx(2402,19): error TS2322: Type 'import("F:/PRESUPUESTALO/WEB-PRODUCCION/types/calculator").GlobalConfig' is not assignable to type 'import("F:/PRESUPUESTALO/WEB-PRODUCCION/types").GlobalConfig'.
+  Types of property 'structureType' are incompatible.
+    Type 'import("F:/PRESUPUESTALO/WEB-PRODUCCION/types/calculator").StructureType | undefined' is not assignable to type 'import("F:/PRESUPUESTALO/WEB-PRODUCCION/types").StructureType | undefined'.
+      Type '"Hormig??n"' is not assignable to type 'StructureType | undefined'.
+components/calculator/calculator.tsx(2437,15): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/calculator/calculator.tsx(2473,23): error TS2741: Property 'color' is missing in type '{ id: string; width: number; height: number; type: "Ventana simple"; material: "PVC"; opening: "Oscilo-Batiente"; hasBlind: true; glassType: "Doble"; hasMosquitera: false; description: string; ... 5 more ...; hasMotor: false; }' but required in type 'Window'.
+components/calculator/calculator.tsx(2529,32): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/calculator/calculator.tsx(2535,15): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/calculator/compact-floor-plans.tsx(75,23): error TS7006: Parameter 'plan' implicitly has an 'any' type.
+components/calculator/demolition-section.tsx(100,22): error TS2322: Type '"warning"' is not assignable to type '"default" | "destructive" | null | undefined'.
+components/calculator/demolition-summary.tsx(293,84): error TS2339: Property 'tiledWallSurfaceArea' does not exist on type 'GlobalConfig'.
+components/calculator/detailed-visualization.tsx(6,24): error TS2307: Cannot find module '@/components/ui/slider' or its corresponding type declarations.
+components/calculator/detailed-visualization.tsx(256,31): error TS7006: Parameter 'value' implicitly has an 'any' type.
+components/calculator/detailed-visualization.tsx(278,31): error TS7006: Parameter 'value' implicitly has an 'any' type.
+components/calculator/electrical-general-panel.tsx(25,5): error TS2561: Object literal may only specify known properties, but 'relocateElectricalConnection' does not exist in type 'ElectricalConfig'. Did you mean to write 'moveElectricalConnection'?
+components/calculator/electrical-general-panel.tsx(45,9): error TS2353: Object literal may only specify known properties, and 'relocateElectricalConnection' does not exist in type 'SetStateAction<ElectricalConfig>'.
+components/calculator/electrical-general-panel.tsx(45,46): error TS2551: Property 'relocateElectricalConnection' does not exist on type 'ElectricalConfig'. Did you mean 'moveElectricalConnection'?
+components/calculator/electrical-general-panel.tsx(156,46): error TS2551: Property 'relocateElectricalConnection' does not exist on type 'ElectricalConfig'. Did you mean 'moveElectricalConnection'?
+components/calculator/electrical-general-panel.tsx(157,76): error TS2561: Object literal may only specify known properties, but 'relocateElectricalConnection' does not exist in type 'Partial<ElectricalConfig>'. Did you mean to write 'moveElectricalConnection'?
+components/calculator/electrical-rooms-compact.tsx(257,17): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+components/calculator/electrical-rooms-compact.tsx(260,17): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+components/calculator/electrical-rooms-compact.tsx(263,17): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+components/calculator/electrical-rooms-compact.tsx(266,17): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+components/calculator/electrical-rooms-compact.tsx(269,17): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+components/calculator/electrical-rooms-compact.tsx(272,17): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+components/calculator/electrical-rooms-compact.tsx(275,17): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+components/calculator/electrical-rooms-compact.tsx(278,17): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+components/calculator/electrical-rooms-compact.tsx(345,35): error TS2345: Argument of type '{ id: string; type: string; quantity: number; }[]' is not assignable to parameter of type 'ElectricalElement[]'.
+  Type '{ id: string; type: string; quantity: number; }' is not assignable to type 'ElectricalElement'.
+    Types of property 'type' are incompatible.
+      Type 'string' is not assignable to type 'ElectricalElementType'.
+components/calculator/electrical-rooms-compact.tsx(382,32): error TS2345: Argument of type '{ id: string; type: string; quantity: number; }[]' is not assignable to parameter of type 'ElectricalElement[]'.
+  Type '{ id: string; type: string; quantity: number; }' is not assignable to type 'ElectricalElement'.
+    Types of property 'type' are incompatible.
+      Type 'string' is not assignable to type 'ElectricalElementType'.
+components/calculator/electrical-rooms-display.tsx(5,78): error TS2307: Cannot find module '@/components/ui/accordion' or its corresponding type declarations.
+components/calculator/electrical-rooms-list.tsx(5,78): error TS2307: Cannot find module '@/components/ui/accordion' or its corresponding type declarations.
+components/calculator/electrical-rooms-list.tsx(279,31): error TS7006: Parameter 'value' implicitly has an 'any' type.
+components/calculator/electrical-rooms-list.tsx(303,66): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/calculator/electrical-rooms-list.tsx(323,68): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/calculator/electrical-rooms-list.tsx(333,79): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/calculator/electrical-section.tsx(175,64): error TS18048: 'element.quantity' is possibly 'undefined'.
+components/calculator/electrical-section.tsx(326,55): error TS2345: Argument of type '(prev: { [roomId: string]: ElectricalElement[]; }) => { [x: string]: ElectricalElement[] | { id: string; type: string; quantity: any; }[]; }' is not assignable to parameter of type 'SetStateAction<{ [roomId: string]: ElectricalElement[]; }>'.
+  Type '(prev: { [roomId: string]: ElectricalElement[]; }) => { [x: string]: ElectricalElement[] | { id: string; type: string; quantity: any; }[]; }' is not assignable to type '(prevState: { [roomId: string]: ElectricalElement[]; }) => { [roomId: string]: ElectricalElement[]; }'.
+    Type '{ [x: string]: ElectricalElement[] | { id: string; type: string; quantity: any; }[]; }' is not assignable to type '{ [roomId: string]: ElectricalElement[]; }'.
+      'string' index signatures are incompatible.
+        Type 'ElectricalElement[] | { id: string; type: string; quantity: any; }[]' is not assignable to type 'ElectricalElement[]'.
+          Type '{ id: string; type: string; quantity: any; }[]' is not assignable to type 'ElectricalElement[]'.
+            Type '{ id: string; type: string; quantity: any; }' is not assignable to type 'ElectricalElement'.
+              Types of property 'type' are incompatible.
+                Type 'string' is not assignable to type 'ElectricalElementType'.
+components/calculator/electrical-section.tsx(332,53): error TS2322: Type '{ id: string; type: string; quantity: any; }[]' is not assignable to type 'ElectricalElement[]'.
+  Type '{ id: string; type: string; quantity: any; }' is not assignable to type 'ElectricalElement'.
+    Types of property 'type' are incompatible.
+      Type 'string' is not assignable to type 'ElectricalElementType'.
+components/calculator/electrical-settings-button.tsx(262,9): error TS2322: Type '"success"' is not assignable to type '"default" | "destructive" | null | undefined'.
+components/calculator/electrical-settings-button.tsx(327,9): error TS2322: Type '"success"' is not assignable to type '"default" | "destructive" | null | undefined'.
+components/calculator/floor-plan-viewer.tsx(130,23): error TS7006: Parameter 'plan' implicitly has an 'any' type.
+components/calculator/floor-plan-viewer.tsx(711,19): error TS2607: JSX element class does not support attributes because it does not have a 'props' property.
+components/calculator/floor-plan-viewer.tsx(711,20): error TS2786: 'Image' cannot be used as a JSX component.
+  Its type 'new (width?: number | undefined, height?: number | undefined) => HTMLImageElement' is not a valid JSX element type.
+    Type 'new (width?: number | undefined, height?: number | undefined) => HTMLImageElement' is not assignable to type 'new (props: any, context: any) => Component<any, any, any>'.
+      Type 'HTMLImageElement' is missing the following properties from type 'Component<any, any, any>': context, setState, forceUpdate, render, and 2 more.
+components/calculator/floor-plan-viewer.tsx(796,19): error TS2607: JSX element class does not support attributes because it does not have a 'props' property.
+components/calculator/floor-plan-viewer.tsx(796,20): error TS2786: 'Image' cannot be used as a JSX component.
+  Its type 'new (width?: number | undefined, height?: number | undefined) => HTMLImageElement' is not a valid JSX element type.
+    Type 'new (width?: number | undefined, height?: number | undefined) => HTMLImageElement' is not assignable to type 'new (props: any, context: any) => Component<any, any, any>'.
+      Type 'HTMLImageElement' is missing the following properties from type 'Component<any, any, any>': context, setState, forceUpdate, render, and 2 more.
+components/calculator/global-config-section.tsx(440,38): error TS2339: Property 'tiledWallSurfaceArea' does not exist on type 'Partial<GlobalConfig>'.
+components/calculator/global-config-section.tsx(442,9): error TS2353: Object literal may only specify known properties, and 'tiledWallSurfaceArea' does not exist in type 'Partial<GlobalConfig>'.
+components/calculator/global-config-section.tsx(442,41): error TS2339: Property 'tiledWallSurfaceArea' does not exist on type 'Partial<GlobalConfig>'.
+components/calculator/global-config-section.tsx(469,24): error TS2345: Argument of type '(WallDemolition | { id: string; length: number; area: number; thickness: number; hasTiles: boolean; tilesSides: string; tileThickness: number; wallHeight: number; })[]' is not assignable to parameter of type 'SetStateAction<WallDemolition[]>'.
+  Type '(WallDemolition | { id: string; length: number; area: number; thickness: number; hasTiles: boolean; tilesSides: string; tileThickness: number; wallHeight: number; })[]' is not assignable to type 'WallDemolition[]'.
+    Type 'WallDemolition | { id: string; length: number; area: number; thickness: number; hasTiles: boolean; tilesSides: string; tileThickness: number; wallHeight: number; }' is not assignable to type 'WallDemolition'.
+      Type '{ id: string; length: number; area: number; thickness: number; hasTiles: boolean; tilesSides: string; tileThickness: number; wallHeight: number; }' is not assignable to type 'WallDemolition'.
+        Types of property 'tilesSides' are incompatible.
+          Type 'string' is not assignable to type '"one" | "both" | undefined'.
+components/calculator/global-config-section.tsx(472,35): error TS2345: Argument of type '(WallDemolition | { id: string; length: number; area: number; thickness: number; hasTiles: boolean; tilesSides: string; tileThickness: number; wallHeight: number; })[]' is not assignable to parameter of type 'WallDemolition[]'.
+  Type 'WallDemolition | { id: string; length: number; area: number; thickness: number; hasTiles: boolean; tilesSides: string; tileThickness: number; wallHeight: number; }' is not assignable to type 'WallDemolition'.
+    Type '{ id: string; length: number; area: number; thickness: number; hasTiles: boolean; tilesSides: string; tileThickness: number; wallHeight: number; }' is not assignable to type 'WallDemolition'.
+      Types of property 'tilesSides' are incompatible.
+        Type 'string' is not assignable to type '"one" | "both" | undefined'.
+components/calculator/global-config-section.tsx(474,70): error TS2345: Argument of type '(WallDemolition | { id: string; length: number; area: number; thickness: number; hasTiles: boolean; tilesSides: string; tileThickness: number; wallHeight: number; })[]' is not assignable to parameter of type 'WallDemolition[]'.
+  Type 'WallDemolition | { id: string; length: number; area: number; thickness: number; hasTiles: boolean; tilesSides: string; tileThickness: number; wallHeight: number; }' is not assignable to type 'WallDemolition'.
+    Type '{ id: string; length: number; area: number; thickness: number; hasTiles: boolean; tilesSides: string; tileThickness: number; wallHeight: number; }' is not assignable to type 'WallDemolition'.
+      Types of property 'tilesSides' are incompatible.
+        Type 'string' is not assignable to type '"one" | "both" | undefined'.
+components/calculator/global-config-section.tsx(487,25): error TS2345: Argument of type '{ wallDemolitions: (WallDemolition | { id: string; length: number; area: number; thickness: number; hasTiles: boolean; tilesSides: string; tileThickness: number; wallHeight: number; })[]; ... 6 more ...; subtractTiledWallArea: boolean; }' is not assignable to parameter of type 'Partial<GlobalConfig>'.
+  Types of property 'wallDemolitions' are incompatible.
+    Type '(WallDemolition | { id: string; length: number; area: number; thickness: number; hasTiles: boolean; tilesSides: string; tileThickness: number; wallHeight: number; })[]' is not assignable to type 'WallDemolition[]'.
+      Type 'WallDemolition | { id: string; length: number; area: number; thickness: number; hasTiles: boolean; tilesSides: string; tileThickness: number; wallHeight: number; }' is not assignable to type 'WallDemolition'.
+        Type '{ id: string; length: number; area: number; thickness: number; hasTiles: boolean; tilesSides: string; tileThickness: number; wallHeight: number; }' is not assignable to type 'WallDemolition'.
+          Types of property 'tilesSides' are incompatible.
+            Type 'string' is not assignable to type '"one" | "both" | undefined'.
+components/calculator/global-config-section.tsx(764,13): error TS2367: This comparison appears to be unintentional because the types '"Caldera + Radiadores" | "Central" | "No" | "Otra" | "Suelo Radiante" | "Aerotermia" | undefined' and '"ninguna"' have no overlap.
+components/calculator/global-config-section.tsx(765,13): error TS2367: This comparison appears to be unintentional because the types '"Caldera + Radiadores" | "Central" | "No" | "Otra" | "Suelo Radiante" | "Aerotermia" | undefined' and '"No Tiene"' have no overlap.
+components/calculator/global-config-section.tsx(978,23): error TS2322: Type 'boolean | "No" | "Lacada" | "Acorazada"' is not assignable to type 'boolean | undefined'.
+  Type '"No"' is not assignable to type 'boolean | undefined'.
+components/calculator/pizarra.tsx(991,41): error TS2345: Argument of type 'React.TouchList' is not assignable to parameter of type 'TouchList'.
+  Property '[Symbol.iterator]' is missing in type 'React.TouchList' but required in type 'TouchList'.
+components/calculator/pizarra.tsx(992,37): error TS2345: Argument of type 'React.TouchList' is not assignable to parameter of type 'TouchList'.
+  Property '[Symbol.iterator]' is missing in type 'React.TouchList' but required in type 'TouchList'.
+components/calculator/pizarra.tsx(1017,44): error TS2345: Argument of type 'React.TouchList' is not assignable to parameter of type 'TouchList'.
+  Property '[Symbol.iterator]' is missing in type 'React.TouchList' but required in type 'TouchList'.
+components/calculator/pizarra.tsx(1018,40): error TS2345: Argument of type 'React.TouchList' is not assignable to parameter of type 'TouchList'.
+  Property '[Symbol.iterator]' is missing in type 'React.TouchList' but required in type 'TouchList'.
+components/calculator/reform-summary.tsx(384,40): error TS7006: Parameter 'element' implicitly has an 'any' type.
+components/calculator/reform-summary.tsx(464,46): error TS2339: Property 'numPoints' does not exist on type 'ElectricalConfig'.
+components/calculator/reform-summary.tsx(465,50): error TS2339: Property 'numSockets' does not exist on type 'ElectricalConfig'.
+components/calculator/reform-summary.tsx(466,53): error TS2339: Property 'numTVPoints' does not exist on type 'ElectricalConfig'.
+components/calculator/reform-summary.tsx(467,60): error TS2339: Property 'numACPoints' does not exist on type 'ElectricalConfig'.
+components/calculator/reform-summary.tsx(468,53): error TS2339: Property 'hasNewPanel' does not exist on type 'ElectricalConfig'.
+components/calculator/room-card.tsx(80,17): error TS2322: Type 'string' is not assignable to type 'never'.
+components/calculator/room-card.tsx(163,11): error TS2739: Type '{ id: string; type: "Abatible"; }' is missing the following properties from type 'Door': width, height
+components/calculator/room-card.tsx(180,17): error TS2345: Argument of type '{ type: string; id: string; width: number; height: number; }[]' is not assignable to parameter of type 'SetStateAction<Door[]>'.
+  Type '{ type: string; id: string; width: number; height: number; }[]' is not assignable to type 'Door[]'.
+    Type '{ type: string; id: string; width: number; height: number; }' is not assignable to type 'Door'.
+      Types of property 'type' are incompatible.
+        Type 'string' is not assignable to type 'DoorType'.
+components/calculator/room-card.tsx(181,26): error TS2322: Type '{ type: string; id: string; width: number; height: number; }[]' is not assignable to type 'Door[]'.
+  Type '{ type: string; id: string; width: number; height: number; }' is not assignable to type 'Door'.
+    Types of property 'type' are incompatible.
+      Type 'string' is not assignable to type 'DoorType'.
+components/calculator/room-card.tsx(242,20): error TS2739: Type '{ id: string; type: "Abatible"; }' is missing the following properties from type 'Door': width, height
+components/calculator/room-card.tsx(311,33): error TS2322: Type '"Lucir y pintar"' is not assignable to type 'WallMaterialType | undefined'.
+components/calculator/room-card.tsx(325,33): error TS2322: Type '"Lucir y pintar"' is not assignable to type 'WallMaterialType | undefined'.
+components/calculator/room-card.tsx(346,13): error TS2367: This comparison appears to be unintentional because the types 'WallMaterialType' and '"Lucir y pintar"' have no overlap.
+components/calculator/room-card.tsx(347,33): error TS2322: Type '"Lucir y pintar"' is not assignable to type 'WallMaterialType | undefined'.
+components/calculator/room-card.tsx(407,46): error TS2367: This comparison appears to be unintentional because the types '"Pintura"' and '"Cer??mica"' have no overlap.
+components/calculator/room-card.tsx(901,20): error TS2304: Cannot find name 'DoorTypeAlias'.
+components/calculator/room-card.tsx(923,52): error TS2304: Cannot find name 'DoorType'.
+components/calculator/room-card.tsx(937,20): error TS2739: Type '{ id: string; type: "Abatible"; }' is missing the following properties from type 'Door': width, height
+components/calculator/room-card.tsx(1057,13): error TS18048: 'element.quantity' is possibly 'undefined'.
+components/calculator/room-card.tsx(1805,97): error TS2304: Cannot find name 'DoorType'.
+components/calculator/room-card.tsx(1818,34): error TS18048: 'room.doorList' is possibly 'undefined'.
+components/calculator/room-card.tsx(1879,56): error TS2367: This comparison appears to be unintentional because the types '"Gotel??"' and '"No se modifica"' have no overlap.
+components/calculator/room-card.tsx(2122,47): error TS2739: Type '{ id: string; type: DoorType; }' is missing the following properties from type 'Door': width, height
+components/calculator/room-card.tsx(2122,83): error TS2304: Cannot find name 'DoorType'.
+components/calculator/room-card.tsx(2138,47): error TS2322: Type 'Door | { id: string; type: DoorType; }' is not assignable to type 'Door'.
+  Type '{ id: string; type: DoorType; }' is missing the following properties from type 'Door': width, height
+components/calculator/room-card.tsx(2138,64): error TS2739: Type '{ id: string; type: DoorType; }' is missing the following properties from type 'Door': width, height
+components/calculator/room-card.tsx(2138,100): error TS2304: Cannot find name 'DoorType'.
+components/calculator/room-card.tsx(2157,79): error TS2304: Cannot find name 'DoorType'.
+components/calculator/room-card.tsx(2170,33): error TS18048: 'room.newDoorList' is possibly 'undefined'.
+components/calculator/room-templates.tsx(77,7): error TS2561: Object literal may only specify known properties, but 'demolishWall' does not exist in type 'Room'. Did you mean to write 'demolishWalls'?
+components/calculator/rooms-list.tsx(120,17): error TS2322: Type 'import("F:/PRESUPUESTALO/WEB-PRODUCCION/types").GlobalConfig | undefined' is not assignable to type 'import("F:/PRESUPUESTALO/WEB-PRODUCCION/types/calculator").GlobalConfig | undefined'.
+  Type 'import("F:/PRESUPUESTALO/WEB-PRODUCCION/types").GlobalConfig' is not assignable to type 'import("F:/PRESUPUESTALO/WEB-PRODUCCION/types/calculator").GlobalConfig'.
+    Types of property 'heatingType' are incompatible.
+      Type 'import("F:/PRESUPUESTALO/WEB-PRODUCCION/types").CalefaccionType | undefined' is not assignable to type 'import("F:/PRESUPUESTALO/WEB-PRODUCCION/types/calculator").CalefaccionType | undefined'.
+        Type '"Solo Acometida de gas"' is not assignable to type 'CalefaccionType | undefined'. Did you mean '"Acometida de Gas"'?
+components/calculator/window-manager.tsx(20,54): error TS2345: Argument of type '{ id: string; type: "Ventana simple"; material: "PVC"; opening: "Oscilo-Batiente"; width: number; height: number; hasBlind: false; color: "Blanco"; }' is not assignable to parameter of type 'Window | (() => Window)'.
+  Type '{ id: string; type: "Ventana simple"; material: "PVC"; opening: "Oscilo-Batiente"; width: number; height: number; hasBlind: false; color: "Blanco"; }' is missing the following properties from type 'Window': glassType, hasMosquitera
+components/calculator/window-manager.tsx(41,18): error TS2345: Argument of type '{ id: string; type: "Ventana simple"; material: "PVC"; opening: "Oscilo-Batiente"; width: number; height: number; hasBlind: false; color: "Blanco"; }' is not assignable to parameter of type 'SetStateAction<Window>'.
+  Type '{ id: string; type: "Ventana simple"; material: "PVC"; opening: "Oscilo-Batiente"; width: number; height: number; hasBlind: false; color: "Blanco"; }' is missing the following properties from type 'Window': glassType, hasMosquitera
+components/calculator/windows-section.tsx(270,34): error TS2339: Property 'country' does not exist on type 'UserProfile'.
+components/calculator/windows-section.tsx(274,11): error TS2739: Type '{ id: string; width: number; height: number; type: "Oscilo-Batiente"; material: "PVC"; hasBlind: true; glassType: "Doble"; hasMosquitera: false; description: string; price: number; innerColor: string; outerColor: string; hasCatFlap: false; hasFixedPanel: false; hasMotor: false; }' is missing the following properties from type 'Window': opening, color
+components/calculator/windows-section.tsx(647,40): error TS2339: Property 'country' does not exist on type 'UserProfile'.
+components/calculator/windows-section.tsx(801,75): error TS2339: Property 'country' does not exist on type 'UserProfile'.
+components/calculator/windows-section.tsx(949,31): error TS2322: Type '{ id: string; placeholder: string; value: string; onChange: (e: ChangeEvent<HTMLInputElement>) => void; className: string; rows: number; }' is not assignable to type 'IntrinsicAttributes & Omit<DetailedHTMLProps<InputHTMLAttributes<HTMLInputElement>, HTMLInputElement>, "ref"> & RefAttributes<...>'.
+  Property 'rows' does not exist on type 'IntrinsicAttributes & Omit<DetailedHTMLProps<InputHTMLAttributes<HTMLInputElement>, HTMLInputElement>, "ref"> & RefAttributes<...>'.
+components/clients/clients-list.tsx(62,23): error TS2551: Property 'clientAddress' does not exist on type 'Project'. Did you mean 'client_address'?
+components/clients/clients-list.tsx(63,42): error TS2551: Property 'clientAddress' does not exist on type 'Project'. Did you mean 'client_address'?
+components/clients/clients-list.tsx(73,30): error TS2551: Property 'clientAddress' does not exist on type 'Project'. Did you mean 'client_address'?
+components/credits/credit-purchase-dialog.tsx(111,73): error TS2322: Type '() => Promise<string | null>' is not assignable to type '() => Promise<string>'.
+  Type 'Promise<string | null>' is not assignable to type 'Promise<string>'.
+    Type 'string | null' is not assignable to type 'string'.
+      Type 'null' is not assignable to type 'string'.
+components/dashboard/create-project-button.tsx(760,25): error TS2322: Type 'string | number | boolean | undefined' is not assignable to type 'string | undefined'.
+  Type 'number' is not assignable to type 'string'.
+components/dashboard/floor-plan-dashboard.tsx(19,28): error TS2307: Cannot find module '@/components/ui/scroll-area' or its corresponding type declarations.
+components/dashboard/homeowner-dashboard.tsx(9,79): error TS2307: Cannot find module '@/components/ui/empty' or its corresponding type declarations.
+components/dashboard/professional-dashboard.tsx(4,79): error TS2307: Cannot find module '@/components/ui/empty' or its corresponding type declarations.
+components/dashboard/project-card.tsx(106,75): error TS2367: This comparison appears to be unintentional because the types '"rejected" | "sent" | "draft"' and '"accepted"' have no overlap.
+components/dashboard/project-card.tsx(251,55): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/dashboard/project-form.tsx(158,102): error TS2345: Argument of type '{ floorTileThickness: string; wallTileThickness: string; woodExpansionCoef: string; ceramicExpansionCoef: string; containerSize: string; mortarBaseThickness: string; mortarBaseExpansionCoef: string; wallExpansionCoef: string; ceilingThickness: string; ceilingExpansionCoef: string; woodenFloorThickness: string; }' is not assignable to parameter of type 'Record<keyof DemolitionSettings, string> | (() => Record<keyof DemolitionSettings, string>)'.
+  Type '{ floorTileThickness: string; wallTileThickness: string; woodExpansionCoef: string; ceramicExpansionCoef: string; containerSize: string; mortarBaseThickness: string; mortarBaseExpansionCoef: string; wallExpansionCoef: string; ceilingThickness: string; ceilingExpansionCoef: string; woodenFloorThickness: string; }' is missing the following properties from type 'Record<keyof DemolitionSettings, string>': wallThickness, woodenFloorExpansionCoef, floorTileExpansionCoef
+components/dashboard/project-form.tsx(234,31): error TS2339: Property 'id' does not exist on type 'ProjectFormData'.
+components/dashboard/project-form.tsx(354,24): error TS2339: Property 'electricalSettings' does not exist on type 'GlobalConfig'.
+components/dashboard/project-form.tsx(356,67): error TS2339: Property 'electricalSettings' does not exist on type 'GlobalConfig'.
+components/dashboard/project-form.tsx(424,9): error TS2353: Object literal may only specify known properties, and 'client_street' does not exist in type 'SetStateAction<ProjectFormData>'.
+components/dashboard/project-form.tsx(532,18): error TS2365: Operator '+' cannot be applied to types 'string | number' and 'number'.
+components/dashboard/project-form.tsx(544,30): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+components/dashboard/project-form.tsx(570,9): error TS2367: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+components/dashboard/project-form.tsx(573,59): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(583,9): error TS2367: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+components/dashboard/project-form.tsx(586,58): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(596,9): error TS2367: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+components/dashboard/project-form.tsx(599,58): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(609,9): error TS2367: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+components/dashboard/project-form.tsx(612,61): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(622,9): error TS2367: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+components/dashboard/project-form.tsx(623,62): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(630,9): error TS2367: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+components/dashboard/project-form.tsx(633,60): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(643,9): error TS2367: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+components/dashboard/project-form.tsx(646,64): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(659,9): error TS2367: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+components/dashboard/project-form.tsx(662,58): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(672,9): error TS2367: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+components/dashboard/project-form.tsx(675,57): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(685,9): error TS2367: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+components/dashboard/project-form.tsx(688,61): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(698,9): error TS2367: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+components/dashboard/project-form.tsx(701,61): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(717,25): error TS2345: Argument of type '{ floorTileThickness: string; wallTileThickness: string; woodExpansionCoef: string; ceramicExpansionCoef: string; containerSize: string; mortarBaseThickness: string; mortarBaseExpansionCoef: string; wallExpansionCoef: string; ceilingThickness: string; ceilingExpansionCoef: string; woodenFloorThickness: string; }' is not assignable to parameter of type 'SetStateAction<Record<keyof DemolitionSettings, string>>'.
+  Type '{ floorTileThickness: string; wallTileThickness: string; woodExpansionCoef: string; ceramicExpansionCoef: string; containerSize: string; mortarBaseThickness: string; mortarBaseExpansionCoef: string; wallExpansionCoef: string; ceilingThickness: string; ceilingExpansionCoef: string; woodenFloorThickness: string; }' is missing the following properties from type 'Record<keyof DemolitionSettings, string>': wallThickness, woodenFloorExpansionCoef, floorTileExpansionCoef
+components/dashboard/project-form.tsx(873,47): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(954,15): error TS2353: Object literal may only specify known properties, and 'electricalSettings' does not exist in type 'GlobalConfig'.
+components/dashboard/project-form.tsx(1004,69): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(1011,68): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(1018,68): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(1023,71): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(1028,64): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(1035,70): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(1042,74): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(1049,68): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(1054,67): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(1061,71): error TS2339: Property 'replace' does not exist on type 'never'.
+components/dashboard/project-form.tsx(1065,27): error TS2339: Property 'woodThickness' does not exist on type '{ wallThickness: number; floorTileThickness: number; wallTileThickness: number; woodExpansionCoef: number; ceramicExpansionCoef: number; containerSize: number; floorTileExpansionCoef: number; ... 6 more ...; ceilingExpansionCoef: number; }'.
+components/dashboard/project-form.tsx(1066,50): error TS2339: Property 'woodThickness' does not exist on type '{ wallThickness: number; floorTileThickness: number; wallTileThickness: number; woodExpansionCoef: number; ceramicExpansionCoef: number; containerSize: number; floorTileExpansionCoef: number; ... 6 more ...; ceilingExpansionCoef: number; }'.
+components/dashboard/project-form.tsx(1067,18): error TS2339: Property 'woodThickness' does not exist on type '{ wallThickness: number; floorTileThickness: number; wallTileThickness: number; woodExpansionCoef: number; ceramicExpansionCoef: number; containerSize: number; floorTileExpansionCoef: number; ... 6 more ...; ceilingExpansionCoef: number; }'.
+components/dashboard/project-form.tsx(1322,23): error TS2322: Type 'string | number | boolean | undefined' is not assignable to type 'string | undefined'.
+  Type 'number' is not assignable to type 'string'.
+components/dashboard/project-form.tsx(1420,41): error TS2339: Property 'client_street' does not exist on type 'ProjectFormData'.
+components/floor-plan-editor/EditorContainer.tsx(1282,31): error TS2322: Type 'Door | { id: string; wallId: string; t: number; width: number; flipX: false; flipY: false; }' is not assignable to type 'Door'.
+  Property 'height' is missing in type '{ id: string; wallId: string; t: number; width: number; flipX: false; flipY: false; }' but required in type 'Door'.
+components/floor-plan-editor/EditorContainer.tsx(1282,41): error TS2741: Property 'height' is missing in type '{ id: string; wallId: string; t: number; width: number; flipX: false; flipY: false; }' but required in type 'Door'.
+components/floor-plan-editor/EditorContainer.tsx(1897,69): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+components/landing/pricing.tsx(302,38): error TS2339: Property 'note' does not exist on type '{ text: string; included: boolean; } | { text: string; included: boolean; } | { text: string; included: boolean; } | { text: string; included: boolean; } | { text: string; included: boolean; } | { text: string; included: boolean; note: string; } | ... 32 more ... | { ...; }'.
+  Property 'note' does not exist on type '{ text: string; included: boolean; }'.
+components/landing/pricing.tsx(303,94): error TS2339: Property 'note' does not exist on type '{ text: string; included: boolean; } | { text: string; included: boolean; } | { text: string; included: boolean; } | { text: string; included: boolean; } | { text: string; included: boolean; } | { text: string; included: boolean; note: string; } | ... 32 more ... | { ...; }'.
+  Property 'note' does not exist on type '{ text: string; included: boolean; }'.
+components/leads/claim-lead-dialog.tsx(114,39): error TS2339: Property 'CLAIM_WINDOW_DAYS' does not exist on type '{ readonly MAX_COMPANIES_PER_LEAD: 3; readonly LEAD_EXPIRATION_DAYS: 30; readonly MIN_DAYS_BEFORE_CLAIM: 2; readonly MAX_DAYS_TO_CLAIM: 7; readonly REFUND_PERCENTAGE: 0.75; readonly MIN_CALL_ATTEMPTS: 3; readonly MAX_CLAIM_REJECTION_BEFORE_FLAG: 3; }'.
+components/leads/landing-phone-verification-modal.tsx(223,17): error TS2322: Type '{ value: string; onChange: (value: string) => void; defaultCountry: string; placeholder: string; }' is not assignable to type 'IntrinsicAttributes & PhoneInputWithCountryProps'.
+  Property 'placeholder' does not exist on type 'IntrinsicAttributes & PhoneInputWithCountryProps'.
+components/leads/marketplace-client.tsx(199,33): error TS2339: Property 'address_city' does not exist on type 'LeadRequest'.
+components/leads/marketplace-client.tsx(199,54): error TS2339: Property 'address_province' does not exist on type 'LeadRequest'.
+components/leads/marketplace-client.tsx(211,29): error TS2339: Property 'homeowner_description' does not exist on type 'LeadRequest'.
+components/leads/marketplace-client.tsx(212,72): error TS2339: Property 'homeowner_description' does not exist on type 'LeadRequest'.
+components/leads/marketplace-client.tsx(218,45): error TS2339: Property 'homeowner_name' does not exist on type 'LeadRequest'.
+components/leads/marketplace-client.tsx(219,46): error TS2339: Property 'homeowner_phone' does not exist on type 'LeadRequest'.
+components/leads/marketplace-client.tsx(220,43): error TS2551: Property 'homeowner_email' does not exist on type 'LeadRequest'. Did you mean 'homeowner_id'?
+components/leads/marketplace-client.tsx(242,11): error TS2322: Type '{ lead: LeadRequest; open: boolean; onOpenChange: Dispatch<SetStateAction<boolean>>; onSuccess: () => void; isAdmin: boolean; }' is not assignable to type 'IntrinsicAttributes & AccessLeadDialogProps'.
+  Property 'open' does not exist on type 'IntrinsicAttributes & AccessLeadDialogProps'.
+components/precios/admin-price-editor.tsx(51,22): error TS7006: Parameter 'item' implicitly has an 'any' type.
+components/precios/price-create-dialog.tsx(3,13): error TS2300: Duplicate identifier 'React'.
+components/precios/price-create-dialog.tsx(5,8): error TS2300: Duplicate identifier 'React'.
+components/project/contract-tab.tsx(371,28): error TS2345: Argument of type '{ margin: number[]; filename: string; image: { type: string; quality: number; }; html2canvas: { scale: number; useCORS: boolean; letterRendering: boolean; logging: boolean; width: number; windowWidth: number; }; jsPDF: { ...; }; pagebreak: { ...; }; }' is not assignable to parameter of type 'Html2PdfOptions'.
+  Types of property 'margin' are incompatible.
+    Type 'number[]' is not assignable to type 'number | [number, number] | [number, number, number, number] | undefined'.
+      Type 'number[]' is not assignable to type '[number, number] | [number, number, number, number]'.
+        Type 'number[]' is not assignable to type '[number, number, number, number]'.
+          Target requires 4 element(s) but source may have fewer.
+components/ui/sheet.tsx(20,26): error TS2322: Type '{ children?: ReactNode; container?: Element | DocumentFragment | null | undefined; forceMount?: true | undefined; className: string; }' is not assignable to type 'IntrinsicAttributes & DialogPortalProps'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & DialogPortalProps'.
+hooks/use-budget-notifications.ts(23,10): error TS7006: Parameter 'payload' implicitly has an 'any' type.
+hooks/use-budget-notifications.ts(36,10): error TS7006: Parameter 'payload' implicitly has an 'any' type.
+hooks/use-budget-notifications.ts(49,10): error TS7006: Parameter 'payload' implicitly has an 'any' type.
+lib/services/appointment-service.ts(101,53): error TS7006: Parameter 'a' implicitly has an 'any' type.
+lib/services/appointment-service.ts(113,28): error TS7006: Parameter 'p' implicitly has an 'any' type.
+lib/services/appointment-service.ts(117,29): error TS7006: Parameter 'appointment' implicitly has an 'any' type.
+lib/services/budget-service.ts(365,42): error TS2339: Property 'code' does not exist on type '{ description: string; sort_order: number; model?: string | undefined; quantity: number; unit: string; category: string; color?: string | undefined; brand?: string | undefined; unit_price: number; ... 5 more ...; price_type?: "custom" | ... 2 more ... | undefined; }'.
+lib/services/budget-service.ts(366,34): error TS2339: Property 'code' does not exist on type '{ description: string; sort_order: number; model?: string | undefined; quantity: number; unit: string; category: string; color?: string | undefined; brand?: string | undefined; unit_price: number; ... 5 more ...; price_type?: "custom" | ... 2 more ... | undefined; }'.
+lib/services/client-service.ts(34,59): error TS7006: Parameter 'p' implicitly has an 'any' type.
+lib/services/credits-service.ts(8,13): error TS18047: 'supabase' is possibly 'null'.
+lib/services/credits-service.ts(14,33): error TS18047: 'supabase' is possibly 'null'.
+lib/services/credits-service.ts(39,27): error TS18047: 'supabase' is possibly 'null'.
+lib/services/demolition-service.ts(5,7): error TS2740: Type '{ wallThickness: number; floorTileThickness: number; wallTileThickness: number; woodExpansionCoef: number; woodenFloorThickness: number; woodenFloorExpansionCoef: number; ceramicExpansionCoef: number; containerSize: number; }' is missing the following properties from type 'DemolitionSettings': floorTileExpansionCoef, mortarBaseThickness, mortarBaseExpansionCoef, wallExpansionCoef, and 2 more.
+lib/services/price-service.ts(559,24): error TS7006: Parameter 'p' implicitly has an 'any' type.
+lib/services/price-service.ts(583,22): error TS7006: Parameter 'p' implicitly has an 'any' type.
+lib/services/price-service.ts(641,57): error TS7006: Parameter 'p' implicitly has an 'any' type.
+lib/services/price-service.ts(643,58): error TS7006: Parameter 'mp' implicitly has an 'any' type.
+lib/services/price-service.ts(652,49): error TS7006: Parameter 'mp' implicitly has an 'any' type.
+lib/services/price-service.ts(677,58): error TS7006: Parameter 'p' implicitly has an 'any' type.
+lib/services/price-service.ts(722,18): error TS7006: Parameter 'price' implicitly has an 'any' type.
+lib/services/price-service.ts(785,57): error TS7006: Parameter 'p' implicitly has an 'any' type.
+lib/services/price-service.ts(789,14): error TS7006: Parameter 'mp' implicitly has an 'any' type.
+lib/services/price-service.ts(790,11): error TS7006: Parameter 'mp' implicitly has an 'any' type.
+lib/services/price-service.ts(815,58): error TS7006: Parameter 'p' implicitly has an 'any' type.
+lib/services/price-service.ts(839,18): error TS7006: Parameter 'price' implicitly has an 'any' type.
+lib/subscription.ts(25,26): error TS2554: Expected 3 arguments, but got 0.
+lib/types/calculator.ts(1,27): error TS2307: Cannot find module './room' or its corresponding type declarations.
+lib/types/calculator.ts(2,35): error TS2307: Cannot find module './globalConfig' or its corresponding type declarations.
+lib/utils/credit-calculator.ts(35,7): error TS2367: This comparison appears to be unintentional because the types 'SubscriptionPlan' and '"enterprise"' have no overlap.
+lib/utils/credit-calculator.ts(35,36): error TS2367: This comparison appears to be unintentional because the types 'SubscriptionPlan' and '"professional"' have no overlap.
+lib/utils/generate-window-report-pdf.tsx(83,18): error TS7006: Parameter 'photo' implicitly has an 'any' type.
+scripts/definitive-debug.ts(1,31): error TS2307: Cannot find module './lib/supabase-admin' or its corresponding type declarations.
+scripts/test-ai-apis.ts(34,13): error TS2353: Object literal may only specify known properties, and 'maxTokens' does not exist in type 'CallSettings & { system?: string | undefined; } & { prompt: string | ModelMessage[]; messages?: undefined; } & { model: LanguageModel; tools?: ToolSet | undefined; ... 13 more ...; _internal?: { ...; } | undefined; }'.

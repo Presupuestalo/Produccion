@@ -277,10 +277,12 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
       height: defaultHeight,
       type: "Oscilo-Batiente",
       material: "PVC",
+      opening: "Oscilo-Batiente", // Added missing property
+      color: "Blanco", // Added missing property
       hasBlind: true,
       glassType: "Doble",
       hasMosquitera: false,
-      description: "",
+      description: `Ventana ${defaultWidth}x${defaultHeight} detectada`, // Updated description
       price: estimatedPrice, // Precio calculado automáticamente
       innerColor: "Blanco",
       outerColor: "Blanco",

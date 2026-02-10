@@ -1,16 +1,5 @@
 // Cambiar "Solo acometida" por "Acometida de Gas" en el tipo CalefaccionType
-export type CalefaccionType = "No Tiene" | "Acometida de Gas" | "Caldera + Radiadores" | "Central" | "Eléctrica"
-
-// Nuevo tipo para aire acondicionado (eliminada la opción "Ventana")
-// export type AirConditioningType =
-//   | "No"
-//   | "Split"
-//   | "Multi-Split"
-//   | "Conductos"
-//   | "Cassette"
-//   | "Portátil"
-//   | "VRV/VRF"
-//   | "Centralizado"
+export type CalefaccionType = "No Tiene" | "Acometida de Gas" | "Caldera + Radiadores" | "Central" | "Eléctrica" | "No"
 
 // Nuevo tipo para radiadores
 export type RadiatorType =
@@ -19,9 +8,13 @@ export type RadiatorType =
   | "Toallero de aluminio"
   | "Radiador eléctrico"
   | "Radiador toallero eléctrico"
+  | "No"
+  | "Convectivo"
+  | "Radiante"
+  | "Otro"
 
 // Nuevo tipo para estructura
-export type StructureType = "Hormigón" | "Madera" | "Mixto"
+export type StructureType = "Hormigón" | "Madera" | "Mixto" | "No" | "Planta Baja" | "Planta Alta" | "Edificio Complejo"
 
 export type RoomType =
   | "Salón"
@@ -35,6 +28,15 @@ export type RoomType =
   | "Terraza"
   | "Trastero"
   | "Vestidor"
+  | "Lavadero"
+  | "Tendedero"
+  | "Estudio"
+  | "Despensa"
+  | "Bodega"
+  | "Garaje"
+  | "Escaleras"
+  | "Otras ventanas"
+  | "Habitación"
   | "Otro"
 
 export type FloorMaterialType =
@@ -44,25 +46,29 @@ export type FloorMaterialType =
   | "Suelo laminado"
   | "Suelo vinílico"
   | "Otro"
+  | "Cerámica"
+  | "Madera"
 
-export type WallMaterialType = "No se modifica" | "Cerámica" | "Gotelé" | "Lucida" | "Otra"
+export type WallMaterialType = "No se modifica" | "Cerámica" | "Gotelé" | "Lucida" | "Otra" | "Pintura" | "Papel" | "Lucir y pintar"
 
-// <END_OF_CHANGE>
-
-export type CeilingMaterial = "Pintura" | "Gotelé" | "Papel"
+export type CeilingMaterial = "Pintura" | "Gotelé" | "Papel" | "Placa de yeso laminado" | "Ladrillo" | "Madera" | "Otro" | "No se modifica"
 
 // Añadir el tipo MeasurementMode
 export type MeasurementMode = "rectangular" | "area-perimeter"
 
 // Añadir los nuevos tipos para la configuración de reforma
-export type EntranceDoorType = boolean
-export type ReformHeatingType = "No" | "Caldera + Radiadores" | "Eléctrica" | "Suelo Radiante" | "Aerotermia" | "Otra"
+export type EntranceDoorType = boolean | "No" | "Lacada" | "Acorazada"
+export type ReformHeatingType = "No" | "Caldera + Radiadores" | "Eléctrica" | "Suelo Radiante" | "Aerotermia" | "Otra" | "Central"
 
 // Nuevo tipo para los tipos de puertas (Corredera doble cambiada a Corredera doble empotrada)
-export type DoorType = "Abatible" | "Corredera empotrada" | "Corredera exterior con carril"
+export type DoorType =
+  | "Abatible"
+  | "Corredera empotrada"
+  | "Corredera exterior con carril"
+  | "Corredera doble empotrada"
 
 // Tipos para ventanas
-export type WindowType = "Doble" | "Puerta Balcón" | "Sencillo" | "Ventana simple" | "Fijo sin apertura" | "Velux"
+export type WindowType = "Doble" | "Puerta Balcón" | "Sencillo" | "Ventana simple" | "Fijo sin apertura" | "Velux" | "Oscilo-Batiente"
 export type WindowMaterial = "PVC" | "Aluminio" | "Madera"
 export type WindowOpening =
   | "Fija"
@@ -73,7 +79,11 @@ export type WindowOpening =
   | "Corredera"
   | "Oscilo-Paralela"
   | "Plegable"
-export type WindowColor = "Blanco" | "Dos colores" | "Otro"
+  | "Osciloparalela"
+  | "Paralela"
+  | "Sin apertura"
+export type WindowColor = "Blanco" | "Dos colores" | "Otro" | "Negro" | "Gris Antracita" | "Imitación Madera"
+export type GlassType = "Doble" | "Puerta Balcón" | "Sencillo"
 
 // Interfaz para ventanas
 export interface Window {
@@ -85,8 +95,15 @@ export interface Window {
   height: number // en metros
   hasBlind: boolean // con o sin persiana
   color: WindowColor
-  hasFixedPanel?: boolean // Añadido campo para fijo (panel fijo arriba o abajo)
-  hasMotor?: boolean // Añadido campo para motor eléctrico
+  glassType: GlassType
+  hasMosquitera: boolean
+  innerColor?: string
+  outerColor?: string
+  hasCatFlap?: boolean
+  description?: string
+  price?: number
+  hasFixedPanel?: boolean
+  hasMotor?: boolean
 }
 
 // Interfaz para puertas
@@ -102,6 +119,7 @@ export interface Radiator {
   id: string
   type: RadiatorType
   modules?: number // Número de módulos (solo para radiadores, no para toalleros)
+  power?: number
 }
 
 // Añadir el tipo BathroomElement a los tipos existentes
@@ -134,8 +152,19 @@ export type ElectricalElementType =
   | "Enchufe TV"
   | "Enchufe Ethernet"
   | "Tira LED"
+  | "Sencillo"
+  | "Toma TV"
 
 // Interfaz para elementos eléctricos en habitaciones
+export interface ElectricalElement {
+  id?: string
+  type: ElectricalElementType
+  quantity?: number
+}
+
+export type CurrentCeilingStatus = "lowered_remove" | "lowered_keep" | "no_false_ceiling"
+
+// Interfaz para habitaciones
 export interface Room {
   id: string
   name: string
@@ -151,8 +180,8 @@ export interface Room {
   perimeter: number
   wallArea: number
   ceilingArea: number
-  floorMaterial: FloorMaterialType | "Cerámica" | "Madera" | "Otro"
-  wallMaterial: WallMaterialType | "Pintura" | "Gotelé" | "Cerámica"
+  floorMaterial: FloorMaterialType
+  wallMaterial: WallMaterialType
   ceilingMaterial: CeilingMaterial
   windows: Window[] // Array de ventanas para esta habitación
   customHeight?: number // Nueva propiedad para altura personalizada
@@ -170,13 +199,13 @@ export interface Room {
   lowerCeiling?: boolean // Nueva propiedad para bajar techo
   newCeilingHeight?: number // Nueva propiedad para la nueva altura del techo
   currentCeilingHeight?: number // Altura actual del techo para falsos techos
-  currentCeilingStatus?: "lowered_remove" | "lowered_keep" | "no_false_ceiling"
+  currentCeilingStatus?: CurrentCeilingStatus
   hasExistingFalseCeiling?: boolean
   existingCeilingHeight?: number
   removeExistingCeiling?: boolean
   removeFalseCeiling?: boolean
-  electricalElements?: any[] // Temporary backward compatibility properties - to be removed after refactoring
-  outlets?: number // Temporary backward compatibility properties - to be removed after refactoring
+  electricalElements?: ElectricalElement[]
+  outlets?: number
   switches?: number
   lightPoints?: number
   tvPoints?: number
@@ -192,6 +221,37 @@ export interface Room {
   hasKitchenFurniture?: boolean
   hasBedroomFurniture?: boolean
   hasRadiator?: boolean
+  wallSurface?: number // Superficie de paredes (para cálculos de alicatado)
+  tiledWallSurfaceArea?: number // Superficie específica de alicatado
+  removeMortarBase?: boolean // Para indicar si se debe retirar solera de mortero
+  removeWallTiles?: boolean // Para indicar si se debe retirar alicatado
+  removeFloorTiles?: boolean
+  removeBathroomElements?: boolean
+  removeMoldings?: boolean
+  removeKitchenFurniture?: boolean
+  removeBedroomFurniture?: boolean
+  removeRadiators?: boolean
+  removeSewagePipes?: boolean
+  hasDoors?: boolean
+  wallThickness?: number
+  floorThickness?: number
+  ceilingThickness?: number
+  wallTileThickness?: number
+  floorTileThickness?: number
+  gotele?: boolean
+  skirting?: boolean
+  wallpaperRemoval?: boolean
+  demolishWalls?: boolean
+  demolishCeiling?: boolean
+  removeWoodenFloor?: boolean
+  demolitionCost?: number
+  reformCost?: number
+  newBathroomElements?: boolean
+  wallCeramicRemoval?: boolean
+  material?: string
+  notes?: string
+  floorType?: string
+  demolishWall?: boolean
 }
 
 // Añadir la interfaz para los derribos de tabiques
@@ -204,6 +264,7 @@ export interface WallDemolition {
   tilesSides?: "one" | "both"
   tileThickness?: number
   wallHeight?: number
+  material?: string
 }
 
 // Actualizar la interfaz GlobalConfig para incluir aire acondicionado y termo eléctrico
@@ -217,7 +278,6 @@ export interface GlobalConfig {
   wallDemolitionArea?: number
   wallThickness?: number // Para compatibilidad con código existente
   tiledWallDemolitionArea?: number
-  tiledWallSurfaceArea?: number
   wallDebrisVolume?: number
   tileDebrisVolume?: number
   totalWallDebrisVolume?: number
@@ -239,8 +299,11 @@ export interface GlobalConfig {
   allWallsHaveGotele?: boolean // Nueva propiedad para indicar si todas las paredes tienen gotelé
   removeAllCeramic?: boolean // Nueva propiedad para picar toda la cerámica
   tileAllFloors?: boolean // Nueva propiedad para embaldosar todo el suelo
-  entranceDoorType?: boolean
+  entranceDoorType?: EntranceDoorType
   paintCeilings?: boolean
+  installWaterHeater?: boolean
+  electricalSettings?: any
+  tiledWallSurfaceArea?: number
 }
 
 // Modificar la interfaz DemolitionSummary para añadir la nueva propiedad
@@ -262,6 +325,8 @@ export interface DemolitionSummary {
   totalArea: number // metros cuadrados totales
   radiatorsRemoval?: number // conteo de radiadores a retirar
   mortarBaseRemoval: number // metros cuadrados de solera de mortero
+  hasElevator?: boolean
+  buildingHeight?: number
 }
 
 // Modificar la interfaz DebrisCalculation para añadir el nuevo cálculo de escombros
@@ -309,6 +374,13 @@ export interface ElectricalConfig {
   hasDishwasherCircuit?: boolean // Circuito de Lavavajillas (4 mm²)
   hasDryerCircuit?: boolean // Circuito de Secadora (4 mm²)
   hasWaterHeaterCircuit?: boolean // Circuito de Termo Eléctrico (4 mm²)
+  hasGroundConnection?: boolean
+  relocateElectricalConnection?: boolean
+  numPoints?: number
+  numSockets?: number
+  numTVPoints?: number
+  numACPoints?: number
+  hasNewPanel?: boolean
 }
 
 export interface CalculatorState {
@@ -343,11 +415,20 @@ export interface Cladding {
   id: string
   length: number
   area?: number
-  material: "placa_yeso" | "ladrillo"
+  material: "placa_yeso" | "ladrillo" | "madera" | "otros"
   wallHeight?: number
 }
 
-// Temporary backward compatibility interface
-export interface ElectricalElement {
-  type: ElectricalElementType
+// Tipos para tabiques y trasdosados
+export interface Partition {
+  id: string
+  type: "ladrillo" | "placa_yeso"
+  linearMeters: number
+  height: number
+}
+
+export interface WallLining {
+  id: string
+  linearMeters: number
+  height: number
 }

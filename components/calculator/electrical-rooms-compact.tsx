@@ -239,43 +239,43 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
           const roomType = room.type
           const defaultSettings = parsedSettings[roomType] ||
             parsedSettings["Otro"] || {
-              puntosLuzTecho: 1,
-              enchufes: 2,
-              sencillo: 1,
-              conmutados: 0,
-              cruzamiento: 0,
-              intemperie: 0,
-              tomaTV: 0,
-              focosEmpotrados: 1,
-            }
+            puntosLuzTecho: 1,
+            enchufes: 2,
+            sencillo: 1,
+            conmutados: 0,
+            cruzamiento: 0,
+            intemperie: 0,
+            tomaTV: 0,
+            focosEmpotrados: 1,
+          }
 
           const roomSettings: ElectricalRoomSettings = { ...defaultSettings }
 
           room.electricalElements.forEach((element) => {
             switch (element.id) {
               case "puntosLuzTecho":
-                roomSettings.puntosLuzTecho = element.quantity
+                roomSettings.puntosLuzTecho = element.quantity || 0
                 break
               case "enchufes":
-                roomSettings.enchufes = element.quantity
+                roomSettings.enchufes = element.quantity || 0
                 break
               case "sencillo":
-                roomSettings.sencillo = element.quantity
+                roomSettings.sencillo = element.quantity || 0
                 break
               case "conmutados":
-                roomSettings.conmutados = element.quantity
+                roomSettings.conmutados = element.quantity || 0
                 break
               case "cruzamiento":
-                roomSettings.cruzamiento = element.quantity
+                roomSettings.cruzamiento = element.quantity || 0
                 break
               case "intemperie":
-                roomSettings.intemperie = element.quantity
+                roomSettings.intemperie = element.quantity || 0
                 break
               case "tomaTV":
-                roomSettings.tomaTV = element.quantity
+                roomSettings.tomaTV = element.quantity || 0
                 break
               case "focosEmpotrados":
-                roomSettings.focosEmpotrados = element.quantity
+                roomSettings.focosEmpotrados = element.quantity || 0
                 break
             }
           })
@@ -286,15 +286,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
           const roomType = room.type
           const defaultSettings = parsedSettings[roomType] ||
             parsedSettings["Otro"] || {
-              puntosLuzTecho: 1,
-              enchufes: 2,
-              sencillo: 1,
-              conmutados: 0,
-              cruzamiento: 0,
-              intemperie: 0,
-              tomaTV: 0,
-              focosEmpotrados: 1,
-            }
+            puntosLuzTecho: 1,
+            enchufes: 2,
+            sencillo: 1,
+            conmutados: 0,
+            cruzamiento: 0,
+            intemperie: 0,
+            tomaTV: 0,
+            focosEmpotrados: 1,
+          }
 
           console.log("[v0] LOAD SETTINGS - Using default settings for room type", roomType, ":", defaultSettings)
           console.log("[v0] LOAD SETTINGS - tomaTV value for", roomType, ":", defaultSettings.tomaTV)
@@ -330,15 +330,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
           const hasAllElements = room.electricalElements?.length === 8
 
           if (!hasAllElements) {
-            const formattedElements = [
-              { id: "puntosLuzTecho", type: "Punto de luz techo", quantity: roomElement.puntosLuzTecho || 0 },
-              { id: "enchufes", type: "Enchufe normal", quantity: roomElement.enchufes || 0 },
-              { id: "sencillo", type: "Interruptor", quantity: roomElement.sencillo || 0 },
-              { id: "conmutados", type: "Punto conmutado", quantity: roomElement.conmutados || 0 },
-              { id: "cruzamiento", type: "Punto de cruzamiento", quantity: roomElement.cruzamiento || 0 },
-              { id: "intemperie", type: "Enchufe intemperie", quantity: roomElement.intemperie || 0 },
-              { id: "tomaTV", type: "Toma TV", quantity: roomElement.tomaTV || 0 },
-              { id: "focosEmpotrados", type: "Foco empotrado", quantity: roomElement.focosEmpotrados || 0 },
+            const formattedElements: ElectricalElement[] = [
+              { id: "puntosLuzTecho", type: "Punto de luz techo" as any, quantity: roomElement.puntosLuzTecho || 0 },
+              { id: "enchufes", type: "Enchufe normal" as any, quantity: roomElement.enchufes || 0 },
+              { id: "sencillo", type: "Interruptor" as any, quantity: roomElement.sencillo || 0 },
+              { id: "conmutados", type: "Punto conmutado" as any, quantity: roomElement.conmutados || 0 },
+              { id: "cruzamiento", type: "Punto de cruzamiento" as any, quantity: roomElement.cruzamiento || 0 },
+              { id: "intemperie", type: "Enchufe intemperie" as any, quantity: roomElement.intemperie || 0 },
+              { id: "tomaTV", type: "Toma TV" as any, quantity: roomElement.tomaTV || 0 },
+              { id: "focosEmpotrados", type: "Foco empotrado" as any, quantity: roomElement.focosEmpotrados || 0 },
             ]
 
             console.log("[v0] INITIAL SYNC - Updating room", room.type, "with all 8 elements:", formattedElements)
@@ -365,15 +365,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
 
       if (onUpdateRoom) {
         const roomElement = updated[roomId]
-        const formattedElements = [
-          { id: "puntosLuzTecho", type: "Punto de luz techo", quantity: roomElement.puntosLuzTecho || 0 },
-          { id: "enchufes", type: "Enchufe normal", quantity: roomElement.enchufes || 0 },
-          { id: "sencillo", type: "Interruptor", quantity: roomElement.sencillo || 0 },
-          { id: "conmutados", type: "Punto conmutado", quantity: roomElement.conmutados || 0 },
-          { id: "cruzamiento", type: "Punto de cruzamiento", quantity: roomElement.cruzamiento || 0 },
-          { id: "intemperie", type: "Enchufe intemperie", quantity: roomElement.intemperie || 0 },
-          { id: "tomaTV", type: "Toma TV", quantity: roomElement.tomaTV || 0 },
-          { id: "focosEmpotrados", type: "Foco empotrado", quantity: roomElement.focosEmpotrados || 0 },
+        const formattedElements: ElectricalElement[] = [
+          { id: "puntosLuzTecho", type: "Punto de luz techo" as any, quantity: roomElement.puntosLuzTecho || 0 },
+          { id: "enchufes", type: "Enchufe normal" as any, quantity: roomElement.enchufes || 0 },
+          { id: "sencillo", type: "Interruptor" as any, quantity: roomElement.sencillo || 0 },
+          { id: "conmutados", type: "Punto conmutado" as any, quantity: roomElement.conmutados || 0 },
+          { id: "cruzamiento", type: "Punto de cruzamiento" as any, quantity: roomElement.cruzamiento || 0 },
+          { id: "intemperie", type: "Enchufe intemperie" as any, quantity: roomElement.intemperie || 0 },
+          { id: "tomaTV", type: "Toma TV" as any, quantity: roomElement.tomaTV || 0 },
+          { id: "focosEmpotrados", type: "Foco empotrado" as any, quantity: roomElement.focosEmpotrados || 0 },
         ]
 
         console.log("[v0] Updating room", roomId, "with all 8 elements:", formattedElements)

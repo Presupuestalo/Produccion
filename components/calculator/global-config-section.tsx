@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect, useCallback, useRef } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -17,7 +16,7 @@ import {
   ToyBrick as Brick,
   Palette,
 } from "lucide-react"
-import type { GlobalConfig, CalefaccionType, ReformHeatingType } from "@/types/calculator"
+import type { GlobalConfig, CalefaccionType, ReformHeatingType, WallDemolition, Partition, WallLining } from "@/types/calculator"
 import { saveCalculatorConfig } from "@/lib/services/calculator-config-service"
 import { useToast } from "@/hooks/use-toast"
 import { Switch } from "@/components/ui/switch"
@@ -35,17 +34,7 @@ interface GlobalConfigSectionProps {
   onUpdateAllRoomsLowerCeiling?: (value: boolean) => void
 }
 
-// Interfaz para los derribos de tabiques
-interface WallDemolition {
-  id: string
-  length: number // Metros lineales
-  area?: number // Área calculada (metros lineales * altura)
-  thickness: number
-  hasTiles?: boolean
-  tilesSides?: "one" | "both"
-  tileThickness?: number
-  wallHeight?: number
-}
+
 
 // Constantes para los cálculos
 const DEFAULT_TILE_THICKNESS = 1.5 // 1.5 cm

@@ -4,15 +4,13 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Settings2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { DemolitionSummary as DemolitionSummaryType, DebrisCalculation } from "@/types/calculator"
+import type { DemolitionSummary as DemolitionSummaryType, DebrisCalculation, GlobalConfig, Room, DemolitionSettings as DemolitionSettingsType } from "@/types/calculator"
 import { useRouter } from "next/navigation"
-import type { GlobalConfig, Room } from "@/types"
-import type { DemolitionSettings as DemolitionSettingsType } from "@/types/calculator"
 import { getProjectDemolitionSettings } from "@/lib/services/demolition-service"
 import { formatNumber } from "@/lib/utils/format"
 
 // Interfaz para los derribos de tabiques
-interface WallDemolition {
+interface WallDemolitionSummary {
   id: string
   area: number
   thickness: number
@@ -31,6 +29,7 @@ interface DemolitionSummaryProps {
   globalConfig: GlobalConfig
   demolitionSettings: DemolitionSettingsType
   rooms: Room[] // Valor por defecto: array vacío
+  useTooltip?: boolean
 }
 
 export function DemolitionSummary({
@@ -45,7 +44,7 @@ export function DemolitionSummary({
   const [verifiedContainerSize, setVerifiedContainerSize] = useState<number>(5) // Valor por defecto
   const [verifiedSettings, setVerifiedSettings] = useState<DemolitionSettingsType | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
-  const [wallDemolitions, setWallDemolitions] = useState<WallDemolition[]>([])
+  const [wallDemolitions, setWallDemolitions] = useState<WallDemolitionSummary[]>([])
   const [groupedWallDemolitions, setGroupedWallDemolitions] = useState<GroupedWallDemolition[]>([])
   const [wallDebrisVolume, setWallDebrisVolume] = useState<number>(0)
   const [ceilingDebrisVolume, setCeilingDebrisVolume] = useState<number>(0)
@@ -122,19 +121,27 @@ export function DemolitionSummary({
       }, 0)
 
       setFalseCeilingArea(totalFalseCeilingArea)
-      summary.ceilingDemolition = totalFalseCeilingArea
+      if (summary) {
+        ; (summary as any).ceilingDemolition = totalFalseCeilingArea
+      }
     }
   }, [rooms, summary])
 
   // Actualizar los derribos de tabiques cuando cambia globalConfig
   useEffect(() => {
     if (globalConfig?.wallDemolitions && globalConfig.wallDemolitions.length > 0) {
-      setWallDemolitions(globalConfig.wallDemolitions)
+      setWallDemolitions(
+        globalConfig.wallDemolitions.map((d) => ({
+          id: d.id,
+          area: d.area || 0,
+          thickness: d.thickness,
+        })),
+      )
     } else if (globalConfig?.wallDemolitionArea !== undefined) {
       setWallDemolitions([
         {
           id: "default",
-          area: globalConfig.wallDemolitionArea,
+          area: globalConfig.wallDemolitionArea || 0,
           thickness: globalConfig.wallThickness || 10,
         },
       ])
@@ -216,9 +223,10 @@ export function DemolitionSummary({
     const kitchenFurnitureVolume = (summary?.kitchenFurnitureRemoval || 0) * 3.5
     const bedroomFurnitureVolume = (summary?.bedroomFurnitureRemoval || 0) * 2.0
     const bathroomElementsVolume = (summary?.bathroomElementsRemoval || 0) * 1.5
-    const livingRoomFurnitureVolume = livingRoomFurnitureCount * 2.0
+    const livingRoomFurnitureVolume = (summary as any).livingRoomFurnitureRemoval ? (summary as any).livingRoomFurnitureRemoval * 2.0 : 0
 
-    const newRadiatorsDebrisVolume = radiatorsToRemove * 0.08 // 0.08 m³ per radiator (6-10 elements)
+    const radiatorsToRemove = Number(summary?.radiatorsRemoval || 0)
+    const newRadiatorsDebrisVolume = radiatorsToRemove * 0.08
     setRadiatorsDebrisVolume(newRadiatorsDebrisVolume)
 
     const debrisVolume =

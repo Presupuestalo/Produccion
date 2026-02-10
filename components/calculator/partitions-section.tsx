@@ -6,21 +6,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PlusCircle, Trash2 } from "lucide-react"
 import { formatDecimalInput, parseDecimalInput, sanitizeDecimalInput } from "@/lib/utils/format"
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 
-// Tipos para tabiques y trasdosados
-export interface Partition {
-  id: string
-  type: "ladrillo" | "placa_yeso"
-  linearMeters: number
-  height: number
-}
-
-export interface WallLining {
-  id: string
-  linearMeters: number
-  height: number
-}
+import { type Partition, type WallLining, type Room } from "@/types/calculator"
+export { type Partition, type WallLining }
 
 interface PartitionsSectionProps {
   partitions: Partition[]
@@ -28,7 +17,7 @@ interface PartitionsSectionProps {
   standardHeight: number
   onUpdatePartitions: (partitions: Partition[]) => void
   onUpdateWallLinings: (wallLinings: WallLining[]) => void
-  reformRooms?: any[]
+  reformRooms?: Room[]
 }
 
 export function PartitionsSection({

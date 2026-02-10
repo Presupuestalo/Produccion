@@ -1,3 +1,4 @@
+export * from "./types/calculator"
 export type CalefaccionType = "No" | "Solo Acometida de gas" | "Caldera y Radiadores" | "Eléctrica" | "Central"
 
 export type RoomType =

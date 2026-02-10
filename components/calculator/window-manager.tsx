@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -21,7 +21,7 @@ export function WindowManager({ windows, updateWindows }: WindowManagerProps) {
     id: crypto.randomUUID(),
     type: "Ventana simple",
     material: "PVC",
-    opening: "Oscilobatiente",
+    opening: "Oscilo-Batiente",
     width: 0,
     height: 0,
     hasBlind: false,
@@ -42,7 +42,7 @@ export function WindowManager({ windows, updateWindows }: WindowManagerProps) {
       id: crypto.randomUUID(),
       type: "Ventana simple",
       material: "PVC",
-      opening: "Oscilobatiente",
+      opening: "Oscilo-Batiente",
       width: 0,
       height: 0,
       hasBlind: false,
@@ -171,7 +171,7 @@ export function WindowManager({ windows, updateWindows }: WindowManagerProps) {
                     <SelectValue placeholder="Tipo de apertura" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Oscilobatiente">Oscilobatiente</SelectItem>
+                    <SelectItem value="Oscilo-Batiente">Oscilo-Batiente</SelectItem>
                     <SelectItem value="Osciloparalela">Osciloparalela</SelectItem>
                     <SelectItem value="Paralela">Paralela</SelectItem>
                     <SelectItem value="Sin apertura">Sin apertura</SelectItem>

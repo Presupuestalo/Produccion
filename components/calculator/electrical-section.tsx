@@ -98,26 +98,26 @@ export function ElectricalSection({
         const roomType = room.type
         const defaultElements = parsedSettings[roomType] ||
           parsedSettings["Otro"] || {
-            puntosLuzTecho: 1,
-            enchufes: 2,
-            sencillo: 1,
-            conmutados: 0,
-            cruzamiento: 0,
-            intemperie: 0,
-          }
+          puntosLuzTecho: 1,
+          enchufes: 2,
+          sencillo: 1,
+          conmutados: 0,
+          cruzamiento: 0,
+          intemperie: 0,
+        }
 
         // Convertir a formato de elementos eléctricos
         const formattedElements: ElectricalElement[] = [
           {
             id: "puntosLuzTecho",
-            type: "Punto de luz techo",
+            type: "Punto de luz techo" as any,
             quantity: defaultElements.puntosLuzTecho,
           },
-          { id: "enchufes", type: "Enchufe normal", quantity: defaultElements.enchufes },
-          { id: "sencillo", type: "Interruptor", quantity: defaultElements.sencillo },
-          { id: "conmutados", type: "Punto conmutado", quantity: defaultElements.conmutados },
-          { id: "cruzamiento", type: "Punto de cruzamiento", quantity: defaultElements.cruzamiento },
-          { id: "intemperie", type: "Enchufe intemperie", quantity: defaultElements.intemperie },
+          { id: "enchufes", type: "Enchufe normal" as any, quantity: defaultElements.enchufes },
+          { id: "sencillo", type: "Interruptor" as any, quantity: defaultElements.sencillo },
+          { id: "conmutados", type: "Punto conmutado" as any, quantity: defaultElements.conmutados },
+          { id: "cruzamiento", type: "Punto de cruzamiento" as any, quantity: defaultElements.cruzamiento },
+          { id: "intemperie", type: "Enchufe intemperie" as any, quantity: defaultElements.intemperie },
         ]
 
         initialElements[room.id] = formattedElements
@@ -296,30 +296,30 @@ export function ElectricalSection({
                             const roomType = room.type
                             const defaultElements = parsedSettings[roomType] ||
                               parsedSettings["Otro"] || {
-                                puntosLuzTecho: 1,
-                                enchufes: 2,
-                                sencillo: 1,
-                                conmutados: 0,
-                                cruzamiento: 0,
-                                intemperie: 0,
-                              }
+                              puntosLuzTecho: 1,
+                              enchufes: 2,
+                              sencillo: 1,
+                              conmutados: 0,
+                              cruzamiento: 0,
+                              intemperie: 0,
+                            }
 
                             // Convertir a formato de elementos eléctricos
-                            const formattedElements = [
+                            const formattedElements: ElectricalElement[] = [
                               {
                                 id: "puntosLuzTecho",
-                                type: "Punto de luz techo",
+                                type: "Punto de luz techo" as any,
                                 quantity: defaultElements.puntosLuzTecho,
                               },
-                              { id: "enchufes", type: "Enchufe normal", quantity: defaultElements.enchufes },
-                              { id: "sencillo", type: "Interruptor", quantity: defaultElements.sencillo },
-                              { id: "conmutados", type: "Punto conmutado", quantity: defaultElements.conmutados },
+                              { id: "enchufes", type: "Enchufe normal" as any, quantity: defaultElements.enchufes },
+                              { id: "sencillo", type: "Interruptor" as any, quantity: defaultElements.sencillo },
+                              { id: "conmutados", type: "Punto conmutado" as any, quantity: defaultElements.conmutados },
                               {
                                 id: "cruzamiento",
-                                type: "Punto de cruzamiento",
+                                type: "Punto de cruzamiento" as any,
                                 quantity: defaultElements.cruzamiento,
                               },
-                              { id: "intemperie", type: "Enchufe intemperie", quantity: defaultElements.intemperie },
+                              { id: "intemperie", type: "Enchufe intemperie" as any, quantity: defaultElements.intemperie },
                             ]
 
                             // Actualizar el estado local primero

@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import React, { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatNumber } from "@/lib/utils/format"
+import type { ElectricalConfig } from "@/types/calculator"
 
 interface ReformSummaryProps {
   rooms: any[]
@@ -10,6 +11,7 @@ interface ReformSummaryProps {
   partitions: any[]
   wallLinings: any[]
   country?: string
+  electricalConfig?: ElectricalConfig
 }
 
 interface SummaryData {
@@ -88,7 +90,7 @@ interface SummaryData {
   emisoresTermicos: number
 }
 
-export function ReformSummary({ rooms, globalConfig, partitions = [], wallLinings = [] }: ReformSummaryProps) {
+export function ReformSummary({ rooms, globalConfig, partitions = [], wallLinings = [], electricalConfig }: ReformSummaryProps) {
   const [summary, setSummary] = useState<SummaryData>({
     solera: 0,
     arlita: 0,
@@ -458,8 +460,16 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
       }, 0)
     }
 
+    if (electricalConfig) {
+      newSummary.puntoLuz = electricalConfig.numPoints || 0
+      newSummary.puntoEnchufe = electricalConfig.numSockets || 0
+      newSummary.puntoTelefonoTV = electricalConfig.numTVPoints || 0
+      newSummary.puntoAireAcondicionado = electricalConfig.numACPoints || 0
+      newSummary.cuadroElectrico = electricalConfig.hasNewPanel ? 1 : 0
+    }
+
     setSummary(newSummary)
-  }, [rooms, globalConfig, partitions, wallLinings])
+  }, [rooms, globalConfig, partitions, wallLinings, electricalConfig])
 
   if (!rooms || !Array.isArray(rooms) || rooms.length === 0) {
     return (

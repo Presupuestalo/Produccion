@@ -53,19 +53,18 @@ import type {
   MeasurementMode,
   Window,
   Door,
-  DoorType,
-  Door as DoorTypeAlias,
   RadiatorType,
   BathroomElement,
-  ElectricalConfig, // Import ElectricalConfig
-  CurrentCeilingStatus, // Import CurrentCeilingStatus
-  CalefaccionType, // Import CalefaccionType
-  RoomType, // Import RoomType
+  ElectricalConfig,
+  CurrentCeilingStatus,
+  CalefaccionType,
+  RoomType,
+  GlobalConfig,
+  DoorType,
 } from "@/types/calculator"
 import { getDefaultMaterials } from "@/lib/room-utils"
 import { v4 as uuidv4 } from "uuid"
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { GlobalConfig } from "@/types"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RoomShapeEditorModal } from "./room-shape-editor-modal"
 
@@ -165,6 +164,8 @@ export function RoomCard({
     const newDoor: Door = {
       id: `door-${Date.now()}`,
       type: "Abatible",
+      width: 72,
+      height: 203,
     }
     const newDoorList = [...doorList, newDoor]
     setDoorList(newDoorList)
@@ -177,7 +178,7 @@ export function RoomCard({
     internalUpdateRoom({ doorList: newDoorList })
   }
 
-  const updateDoor = (doorId: string, type: string) => {
+  const updateDoor = (doorId: string, type: DoorType) => {
     const newDoorList = doorList.map((door) => (door.id === doorId ? { ...door, type } : door))
     setDoorList(newDoorList)
     internalUpdateRoom({ doorList: newDoorList })

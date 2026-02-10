@@ -2,7 +2,7 @@
 
 import { useImperativeHandle } from "react"
 
-import type React from "react"
+import React from "react"
 
 import { useState, useEffect, useCallback, useRef, forwardRef, useMemo } from "react"
 import { v4 as uuidv4 } from "uuid"
@@ -21,6 +21,12 @@ import type {
   DemolitionSettings as DemolitionSettingsType,
   DebrisCalculation,
   ElectricalConfig,
+  Window as CalculatorWindow,
+  Door,
+  FloorMaterialType,
+  WallMaterialType,
+  MeasurementMode,
+  RoomType,
 } from "@/types/calculator"
 // Importar servicios para la base de datos
 import {
@@ -291,7 +297,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   })
 
   // Get user profile for user type detection
-  const { userType } = useUserProfile()
+  // userProfile is already destructured at line 218
 
   useEffect(() => {
     // Removed the scrollLeft logic from here as it's now handled within the TabsList styling
@@ -389,6 +395,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     reformHeatingType: "No", // Inicializar con valor por defecto
     projectId: projectId,
     lowerAllCeilings: true,
+    removeWoodenFloor: false, // Inicializar con valor por defecto para cumplir con la interfaz
   })
   const [demolitionSettings, setDemolitionSettings] = useState<DemolitionSettingsType>({
     wallThickness: 10,
@@ -777,9 +784,10 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     lastSaveAttemptRef.current = now
 
     try {
+      const storageKey = `calc_backup_${projectId}`
       const success = await saveAllProjectData(projectId, data)
       if (success) {
-        localStorage.setItem(storageKey, JSON.stringify(dataToSave))
+        localStorage.setItem(storageKey, JSON.stringify(data))
       }
     } catch (error) {
       console.error("Error al guardar:", error)
@@ -848,7 +856,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     const stateToHash = {
       rooms: rooms.map(r => ({ id: r.id, area: r.area, perimeter: r.perimeter, type: r.type, floor: r.floorMaterial, wall: r.wallMaterial, windows: r.windows?.length })),
       reformRooms: reformRooms.map(r => ({ id: r.id, area: r.area, perimeter: r.perimeter, type: r.type, floor: r.floorMaterial, wall: r.wallMaterial })),
-      partitions: partitions.map(p => ({ id: p.id, length: p.length })),
+      partitions: partitions.map(p => ({ id: p.id, linearMeters: p.linearMeters })),
       wallLiningsLength: wallLinings.length,
       demolitionConfig: { h: demolitionConfig.standardHeight, s: demolitionConfig.structureType },
       reformConfig: { h: reformConfig.standardHeight, t: reformConfig.reformHeatingType },
@@ -1312,18 +1320,23 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               projectId: projectId,
               lowerAllCeilings: true,
             })
-            setDemolitionSettings({
-              wallThickness: 10,
-              floorTileThickness: 0.01,
-              wallTileThickness: 0.01,
-              woodExpansionCoef: 1.4,
-              ceramicExpansionCoef: 1.4,
-              containerSize: 5,
-              mortarBaseThickness: 0.08,
-              mortarBaseExpansionCoef: 1.4,
-              woodenFloorThickness: 0.02,
-              woodenFloorExpansionCoef: 1.4,
-            })
+            const initialSettings = {
+              wallThickness: configData.wallThickness || 10,
+              floorTileThickness: 0.015,
+              wallTileThickness: 0.015,
+              woodExpansionCoef: 1.2,
+              ceramicExpansionCoef: 1.5,
+              containerSize: 6,
+              mortarBaseThickness: 0.05,
+              mortarBaseExpansionCoef: 1.3,
+              woodenFloorThickness: 0.015,
+              woodenFloorExpansionCoef: 1.2,
+              floorTileExpansionCoef: 1.5,
+              wallExpansionCoef: 1.3,
+              ceilingThickness: 0.015,
+              ceilingExpansionCoef: 1.3,
+            }
+            setDemolitionSettings(initialSettings)
             setElectricalConfig({
               generalItems: [],
               totalGeneral: 0,
@@ -1468,24 +1481,25 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       const defaultRemoveWallTiles = currentTab === "demolition" && isCeramicRoom ? true : undefined
       const defaultRemoveFloor = currentTab === "demolition" && isCeramicRoom ? true : undefined
       const defaultHasDoors = currentTab === "demolition" ? true : false
-      const defaultDoorList = defaultHasDoors ? [{ id: uuidv4(), type: "Abatible" as const }] : []
+      const defaultDoorList: Door[] = defaultHasDoors ? [{ id: uuidv4(), type: "Abatible", width: 72, height: 203 }] : []
 
       const newRoom: Room = {
         id: uuidv4(),
         type: selectedRoomType,
-        number: nextNumber,
-        width: 0,
-        length: 0,
-        area: 0,
-        perimeter: 0,
+        customRoomType: selectedRoomType === "Otro" ? "" : selectedRoomType,
+        width: 3,
+        length: 4,
+        area: 12,
+        perimeter: 14,
         measurementMode: "rectangular",
         wallType: "Ladrillo",
         floorType: defaultFloorType,
         ceilingType: "Yeso Laminado",
-        floorMaterial: defaultFloorMaterial,
-        wallMaterial: defaultWallMaterial,
+        floorMaterial: defaultFloorMaterial as FloorMaterialType,
+        wallMaterial: defaultWallMaterial as WallMaterialType,
         windows: [],
-        doors: [],
+        radiators: [],
+        electricalElements: [],
         doorList: defaultDoorList,
         notes: "",
         material: "default",
@@ -1510,6 +1524,14 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         removeRadiators: false,
         removeMortarBase: false,
         hasDoors: defaultHasDoors,
+        doors: defaultHasDoors ? 1 : 0,
+        falseCeiling: false,
+        moldings: false,
+        newDoors: false,
+        name: `${selectedRoomType} ${nextNumber}`,
+        wallArea: 0,
+        ceilingArea: 0,
+        ceilingMaterial: "Pintura",
         demolitionCost: 0,
         reformCost: 0,
       }
@@ -1830,8 +1852,18 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
           removeWallTiles: isBathroomOrKitchen ? true : undefined,
           removeFloor: isBathroomOrKitchen ? true : undefined,
           hasDoors: true,
-          doorList: room.doorList || [{ id: uuidv4(), type: "Abatible" as const }],
+          doorList: room.doorList || [{ id: uuidv4(), type: "Abatible", width: 0.72, height: 2.03 }],
           windows: room.windows || [],
+          name: room.name || `${room.type} ${room.number}`,
+          doors: room.doors || (room.doorList?.length || 1),
+          falseCeiling: room.falseCeiling || false,
+          moldings: room.moldings || false,
+          measurementMode: room.measurementMode || "rectangular",
+          wallArea: room.wallArea || 0,
+          ceilingArea: room.ceilingArea || 0,
+          ceilingMaterial: room.ceilingMaterial || "Pintura",
+          removeWallMaterial: room.removeWallMaterial || false,
+          removeCeilingMaterial: room.removeCeilingMaterial || false,
         }
       })
 
@@ -1852,6 +1884,17 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
           floorMaterial: isBathroomOrKitchen || isTerrace ? "Cerámico" : "Parquet flotante",
           wallMaterial: isTerrace ? "No se modifica" : isBathroomOrKitchen ? "Cerámica" : "Lucir y pintar",
           windows: room.windows || [],
+          name: room.name || `${room.type} ${room.number}`,
+          doors: room.doors || (room.doorList?.length || 0),
+          falseCeiling: room.falseCeiling || false,
+          moldings: room.moldings || false,
+          measurementMode: room.measurementMode || "rectangular",
+          wallArea: room.wallArea || 0,
+          ceilingArea: room.ceilingArea || 0,
+          ceilingMaterial: room.ceilingMaterial || "Pintura",
+          removeFloor: room.removeFloor || false,
+          removeWallMaterial: room.removeWallMaterial || false,
+          removeCeilingMaterial: room.removeCeilingMaterial || false,
         }
       })
       setRooms(processedDemolitionRooms)
@@ -1865,8 +1908,8 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   )
 
   useImperativeHandle(ref, () => ({
-    saveCurrentData: () => {
-      handleSave(true)
+    saveCurrentData: async () => {
+      await handleSave(true)
     },
     handleRoomsDetectedFromFloorPlan: (demolitionRooms, reformRooms) => {
       handleRoomsDetectedFromFloorPlan(demolitionRooms, reformRooms)
@@ -1901,10 +1944,10 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       toast({ title: "Cambios aplicados", description: "Partidas de demolición y tabiquería añadidas." })
       setActiveTab("partitions")
     },
-    handlePartitionsDetectedFromFloorPlan: (detectedPartitions: any[]) => {
+    handlePartitionsDetectedFromFloorPlan: (partitionsArr: Array<{ location: string; length: number; type: "remove" | "add" }>) => {
       // 1. Separar tabiques nuevos (add) de derribos (remove)
-      const newPartitions = detectedPartitions.filter(p => !p.type || p.type === 'add')
-      const removalPartitions = detectedPartitions.filter(p => p.type === 'remove')
+      const newPartitions = partitionsArr.filter(p => !p.type || p.type === 'add')
+      const removalPartitions = partitionsArr.filter(p => p.type === 'remove')
 
       // 2. Procesar Tabiques Nuevos (Construcción)
       if (newPartitions.length > 0) {
@@ -1987,29 +2030,28 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         handler((prev) => [extrasRoom!, ...prev])
       }
 
-      // El añadir la ventana en sí se puede manejar aquí o en el componente WindowsSection
+      // El añadir la ventana en sí se puede manejar aquí o en el componente CalculatorWindowsSection
       // Para que sea atómico, añadimos una ventana vacía por defecto
       const defaultWidth = 1.2
       const defaultHeight = 1.2
-      const newWindow: Window = {
+      const newCalculatorWindow: CalculatorWindow = {
         id: crypto.randomUUID(),
         width: defaultWidth,
         height: defaultHeight,
-        type: "Oscilo-Batiente",
+        type: "Ventana simple",
         material: "PVC",
+        opening: "Oscilo-Batiente",
         hasBlind: true,
+        color: "Blanco",
         glassType: "Doble",
         hasMosquitera: false,
-        description: "",
-        price: 0,
-        innerColor: "Blanco",
         outerColor: "Blanco",
         hasCatFlap: false,
         hasFixedPanel: false,
         hasMotor: false,
       }
 
-      handler((prev) => prev.map(r => r.id === extrasRoom!.id ? { ...r, windows: [...(r.windows || []), newWindow] } : r))
+      handler((prev) => prev.map(r => r.id === extrasRoom!.id ? { ...r, windows: [...(r.windows || []), newCalculatorWindow] } : r))
 
       toast({
         title: "Ventana añadida",
@@ -2439,12 +2481,13 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                   handler((prev) => [extrasRoom!, ...prev])
                 }
 
-                const newWindow: Window = {
+                const newWindow: CalculatorWindow = {
                   id: crypto.randomUUID(),
                   width: 1.2,
                   height: 1.2,
-                  type: "Oscilo-Batiente",
+                  type: "Ventana simple",
                   material: "PVC",
+                  opening: "Oscilo-Batiente",
                   hasBlind: true,
                   glassType: "Doble",
                   hasMosquitera: false,
@@ -2457,7 +2500,9 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                   hasMotor: false,
                 }
 
-                handler((prev) => prev.map(r => r.id === extrasRoom!.id ? { ...r, windows: [...(r.windows || []), newWindow] } : r))
+                const currentWindows = Array.isArray(extrasRoom!.windows) ? extrasRoom!.windows : []
+                const updatedWindows = [...currentWindows, newWindow]
+                handler((prev) => prev.map(r => r.id === extrasRoom!.id ? { ...r, windows: updatedWindows } : r))
 
                 toast({
                   title: "Ventana añadida",
