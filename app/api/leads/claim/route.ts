@@ -63,9 +63,9 @@ export async function POST(req: Request) {
     const now = new Date()
     const daysSinceAccess = Math.floor((now.getTime() - accessDate.getTime()) / (1000 * 60 * 60 * 24))
 
-    if (daysSinceAccess < MARKETPLACE_CONFIG.CLAIM_WINDOW_DAYS) {
+    if (daysSinceAccess < MARKETPLACE_CONFIG.MIN_DAYS_BEFORE_CLAIM) {
       return NextResponse.json(
-        { error: `Debes esperar ${MARKETPLACE_CONFIG.CLAIM_WINDOW_DAYS} días desde el acceso para reclamar` },
+        { error: `Debes esperar ${MARKETPLACE_CONFIG.MIN_DAYS_BEFORE_CLAIM} días desde el acceso para reclamar` },
         { status: 400 }
       )
     }
