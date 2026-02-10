@@ -6,8 +6,6 @@ export const dynamic = "force-dynamic"
 export async function GET(request: NextRequest) {
   try {
     // Crear cliente de Supabase con la clave de servicio para acceder a funciones administrativas
-    const supabase = await createClient()
-
     const baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`
 
     // Configurar las URLs de redirección para los diferentes tipos de emails

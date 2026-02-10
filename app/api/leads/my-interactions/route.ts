@@ -6,6 +6,9 @@ import { createClient as createAdminClient } from "@supabase/supabase-js"
 export async function GET() {
   try {
     const supabase = await createClient()
+    if (!supabase) {
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
+    }
 
     const {
       data: { user },

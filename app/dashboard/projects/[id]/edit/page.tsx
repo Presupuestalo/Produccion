@@ -33,6 +33,21 @@ export default async function EditProjectPage({
     // Crear cliente Supabase directamente en la página
     const supabase = await createClient()
 
+    if (!supabase) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[50vh]">
+          <AlertTriangle className="h-16 w-16 text-orange-500 mb-4" />
+          <h1 className="text-2xl font-bold mb-4">Error de configuración</h1>
+          <p className="text-muted-foreground mb-6 text-center max-w-md">
+            No se pudo inicializar el cliente de base de datos. Por favor, contacta con soporte.
+          </p>
+          <Button asChild variant="outline">
+            <Link href="/auth/login">Iniciar sesión</Link>
+          </Button>
+        </div>
+      )
+    }
+
     // Verificar sesión
     const {
       data: { session },

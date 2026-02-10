@@ -6,7 +6,11 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function startCreditPurchaseSession(packageId: string) {
   const supabase = await createClient()
-  
+
+  if (!supabase) {
+    throw new Error('Configuración de servidor incompleta')
+  }
+
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
     throw new Error('Usuario no autenticado')

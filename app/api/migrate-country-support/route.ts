@@ -4,7 +4,11 @@ import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
+
+    if (!supabase) {
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
+    }
 
     // Verificar si el usuario está autenticado
     const {
@@ -91,8 +95,8 @@ export async function POST(request: Request) {
 
     console.log("[v0] RLS policies updated successfully")
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: "Migración completada correctamente",
       details: {
         profiles: "Campos añadidos: full_name, phone, dni_nif, address_*, country, avatar_url",

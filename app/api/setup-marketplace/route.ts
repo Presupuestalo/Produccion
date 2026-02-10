@@ -126,12 +126,15 @@ ALTER TABLE projects ADD COLUMN IF NOT EXISTS created_from_lead_id UUID;
 
 export async function POST() {
   console.log("[v0] Starting marketplace setup...")
-  
+
   try {
     const supabase = await createClient()
+    if (!supabase) {
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
+    }
 
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+
     if (authError || !user) {
       console.error("[v0] Auth error:", authError)
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })

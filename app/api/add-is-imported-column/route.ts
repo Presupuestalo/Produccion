@@ -4,7 +4,11 @@ import { NextResponse } from "next/server"
 
 export async function POST() {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
+
+    if (!supabase) {
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
+    }
 
     // Verificar si la columna ya existe
     const { data, error: queryError } = await supabase.from("price_master").select("is_imported").limit(1)

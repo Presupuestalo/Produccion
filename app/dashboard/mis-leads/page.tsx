@@ -43,6 +43,10 @@ export default function MisLeadsPage() {
     try {
       setIsLoading(true)
       const supabase = await createClient()
+      if (!supabase) {
+        setIsLoading(false)
+        return
+      }
 
       // Obtener los leads que el profesional ha adquirido (accedido)
       const { data: interactions, error: interactionsError } = await supabase

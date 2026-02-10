@@ -5,23 +5,23 @@ export const dynamic = "force-dynamic"
 
 export async function GET() {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
+
+    if (!supabase) {
+      return NextResponse.json({ error: "Configuración de servidor incompleta" }, { status: 500 })
+    }
 
     // Crear la función para verificar si una columna existe si no existe ya
-    await supabase.rpc("create_check_column_exists_function").catch((error) => {
-      // Si la función ya existe, ignorar el error
-      if (!error.message.includes("already exists")) {
-        throw error
-      }
-    })
+    const { error: errorCheck } = await supabase.rpc("create_check_column_exists_function")
+    if (errorCheck && !errorCheck.message.includes("already exists")) {
+      console.error("Error al crear función check_column_exists:", errorCheck)
+    }
 
     // Crear la función para añadir una columna si no existe ya
-    await supabase.rpc("create_add_column_function").catch((error) => {
-      // Si la función ya existe, ignorar el error
-      if (!error.message.includes("already exists")) {
-        throw error
-      }
-    })
+    const { error: errorAdd } = await supabase.rpc("create_add_column_function")
+    if (errorAdd && !errorAdd.message.includes("already exists")) {
+      console.error("Error al crear función add_column_if_not_exists:", errorAdd)
+    }
 
     // Añadir la columna subscription_plan a la tabla profiles
     const { error } = await supabase.rpc("add_column_if_not_exists", {

@@ -208,6 +208,7 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
   useEffect(() => {
     const setupRealtimeListener = async () => {
       const supabase = await createClient()
+      if (!supabase) return
 
       const channel = supabase
         .channel("profile-changes")
@@ -347,6 +348,9 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
 
     try {
       const supabase = await createClient()
+      if (!supabase) {
+        throw new Error('No se pudo conectar con la base de datos')
+      }
 
       const updates: any = {
         full_name: fullName,
@@ -427,6 +431,9 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
 
     try {
       const supabase = await createClient()
+      if (!supabase) {
+        throw new Error('No se pudo conectar con la base de datos')
+      }
 
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: userData.email!,
