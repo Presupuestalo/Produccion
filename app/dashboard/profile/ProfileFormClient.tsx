@@ -220,7 +220,7 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
             table: "profiles",
             filter: `id=eq.${userData.id}`,
           },
-          (payload) => {
+          (payload: any) => {
             console.log("[v0] Profile updated via webhook:", payload)
 
             if (payload.new.subscription_plan !== userData.subscription_plan) {
