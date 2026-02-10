@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
-import { createClient as createAdminClient } from "@supabase/supabase-js"
+import { createClient as createAdminClient, SupabaseClient } from "@supabase/supabase-js"
 import { NextResponse } from "next/server"
 import { Resend } from "resend"
 import { accountDeletedAdminTemplate } from "@/lib/email/templates/account-deleted-email"
@@ -29,7 +29,7 @@ interface Company {
 }
 
 async function saveDeletedUserAndNotify(
-  supabaseAdmin: ReturnType<typeof createAdminClient>,
+  supabaseAdmin: SupabaseClient<any, any, any>,
   userId: string,
   userEmail: string,
 ) {
@@ -81,7 +81,7 @@ async function saveDeletedUserAndNotify(
     const deletedAt = new Date().toISOString()
 
     // Guardar en tabla deleted_users
-    const { error: insertError } = await supabaseAdmin.from("deleted_users").insert({
+    const { error: insertError } = await (supabaseAdmin.from("deleted_users") as any).insert({
       original_user_id: userId,
       email: userEmail,
       full_name: typedProfile?.full_name,
