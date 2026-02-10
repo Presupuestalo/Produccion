@@ -90,7 +90,7 @@ ${text.slice(0, 15000)}`,
       jsonString = jsonString.replace(/```json\s*/g, "").replace(/```\s*/g, "")
 
       // Try to find JSON object in the response
-      const jsonMatch = jsonString.match(/\{[\s\S]*\}/s)
+      const jsonMatch = jsonString.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         jsonString = jsonMatch[0]
       }
