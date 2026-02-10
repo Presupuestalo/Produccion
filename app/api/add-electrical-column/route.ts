@@ -6,6 +6,13 @@ export async function POST() {
   try {
     const supabase = await createClient()
 
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Failed to initialize Supabase client" },
+        { status: 500 }
+      )
+    }
+
     const { data, error: queryError } = await supabase.from("calculator_data").select("electrical_config").limit(1)
 
     if (!queryError) {
@@ -51,7 +58,7 @@ ALTER TABLE public.calculator_data ADD COLUMN IF NOT EXISTS electrical_config JS
     return NextResponse.json(
       {
         error: "Error al verificar la columna electrical_config",
-        details: error.message,
+        details: error instanceof Error ? error.message : String(error),
         needsManualCreation: true,
         instructions: `
 -- Ejecuta este SQL en el Editor SQL de Supabase:
