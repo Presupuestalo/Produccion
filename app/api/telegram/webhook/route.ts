@@ -42,7 +42,7 @@ export async function POST(req: Request) {
             // Check if user exists and is subscribed
             const { data: profile } = await supabaseAdmin
                 .from("profiles")
-                .select("id, subscription_plan")
+                .select("id, subscription_plan, full_name")
                 .eq("id", payloadUserId)
                 .single()
 
