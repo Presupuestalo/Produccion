@@ -52,7 +52,6 @@ export async function GET() {
             const { text } = await generateText({
                 model: groq("llama-3.1-8b-instant"),
                 prompt: "Responde solo con: SI",
-                maxTokens: 5,
             })
 
             diagnostics.tests.push({
@@ -96,7 +95,6 @@ export async function GET() {
             const { text } = await generateText({
                 model: groq("llama-3.3-70b-versatile"),
                 prompt: "Responde solo con: OK",
-                maxTokens: 5,
             })
 
             diagnostics.tests.push({
