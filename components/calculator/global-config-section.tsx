@@ -362,7 +362,7 @@ export function GlobalConfigSection({
 
   const saveData = async () => {
     // Evitar guardados duplicados
-    if (isSavingRef.current || !projectId || isReform) return
+    if (isSavingRef.current || !projectId) return
 
     const updatedConfig = {
       standardHeight: config.standardHeight,
@@ -395,7 +395,7 @@ export function GlobalConfigSection({
     setIsSaving(true)
 
     try {
-      const success = await saveCalculatorConfig(projectId, updatedConfig)
+      const success = await saveCalculatorConfig(projectId, updatedConfig, isReform)
 
       if (success) {
         lastSavedDataRef.current = dataHash
@@ -416,7 +416,7 @@ export function GlobalConfigSection({
   }
 
   useEffect(() => {
-    if (!projectId || isReform) return
+    if (!projectId) return
 
     // Limpiar timeout anterior
     if (saveTimeoutRef.current) {

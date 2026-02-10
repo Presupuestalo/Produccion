@@ -1,22 +1,23 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Settings2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { DemolitionSummary as DemolitionSummaryType, DebrisCalculation } from "@/types/calculator"
+import type {
+  DemolitionSummary as DemolitionSummaryType,
+  DebrisCalculation,
+  GlobalConfig,
+  Room,
+  DemolitionSettings as DemolitionSettingsType,
+  WallDemolition,
+} from "@/types/calculator"
 import { useRouter } from "next/navigation"
-import type { GlobalConfig, Room } from "@/types"
-import type { DemolitionSettings as DemolitionSettingsType } from "@/types/calculator"
 import { getProjectDemolitionSettings } from "@/lib/services/demolition-service"
 import { formatNumber } from "@/lib/utils/format"
 
-// Interfaz para los derribos de tabiques
-interface WallDemolition {
-  id: string
-  area: number
-  thickness: number
-}
+// Usar el tipo WallDemolition de types/calculator.ts
+import type { WallDemolition } from "@/types/calculator"
 
 // Interfaz para los derribos agrupados por grosor
 interface GroupedWallDemolition {
@@ -31,6 +32,7 @@ interface DemolitionSummaryProps {
   globalConfig: GlobalConfig
   demolitionSettings: DemolitionSettingsType
   rooms: Room[] // Valor por defecto: array vacío
+  onOpenSettings?: () => void
 }
 
 export function DemolitionSummary({
@@ -40,6 +42,7 @@ export function DemolitionSummary({
   globalConfig,
   demolitionSettings,
   rooms = [], // Valor por defecto: array vacío
+  onOpenSettings,
 }: DemolitionSummaryProps) {
   const router = useRouter()
   const [verifiedContainerSize, setVerifiedContainerSize] = useState<number>(5) // Valor por defecto
@@ -59,6 +62,12 @@ export function DemolitionSummary({
   const [totalSlidingBoxes, setTotalSlidingBoxes] = useState<number>(0)
   const [approximateBags, setApproximateBags] = useState<number>(0)
   const [radiatorsDebrisVolume, setRadiatorsDebrisVolume] = useState<number>(0) // Added radiator debris volume calculation
+
+  const containerSizeValue = useMemo(() => {
+    return demolitionSettings.containerSize && demolitionSettings.containerSize !== 5
+      ? demolitionSettings.containerSize
+      : (verifiedContainerSize || 5)
+  }, [demolitionSettings.containerSize, verifiedContainerSize])
 
   const radiatorsToRemove = rooms.reduce((total, room) => {
     if (room.hasRadiator) {
@@ -89,7 +98,7 @@ export function DemolitionSummary({
           if (settings && settings.ceilingThickness) {
             const thickness =
               typeof settings.ceilingThickness === "string"
-                ? Number.parseFloat(settings.ceilingThickness.replace(",", "."))
+                ? Number.parseFloat((settings.ceilingThickness as any).replace(",", "."))
                 : settings.ceilingThickness
             setCeilingThickness(thickness)
           }
@@ -97,7 +106,7 @@ export function DemolitionSummary({
           if (settings && settings.ceilingExpansionCoef) {
             const coef =
               typeof settings.ceilingExpansionCoef === "string"
-                ? Number.parseFloat(settings.ceilingExpansionCoef.replace(",", "."))
+                ? Number.parseFloat((settings.ceilingExpansionCoef as any).replace(",", "."))
                 : settings.ceilingExpansionCoef
             setCeilingExpansionCoef(coef)
           }
@@ -240,7 +249,6 @@ export function DemolitionSummary({
 
     setTotalDebris(newTotalDebris)
 
-    const containerSizeValue = demolitionSettings.containerSize || verifiedContainerSize || 5
     const newContainersNeeded = Math.ceil(newTotalDebris / containerSizeValue)
 
     console.log(
@@ -250,7 +258,10 @@ export function DemolitionSummary({
       containerSizeValue,
       "Containers needed:",
       newContainersNeeded,
-      "Using setting from props:", demolitionSettings.containerSize !== undefined
+      "Using setting from props:",
+      demolitionSettings.containerSize !== undefined,
+      "Verified size from DB:",
+      verifiedContainerSize,
     )
 
     setContainersNeeded(newContainersNeeded)
@@ -269,6 +280,7 @@ export function DemolitionSummary({
     debrisCalculation.woodenFloorDebris,
     debrisCalculation.mortarBaseDebris,
     demolitionSettings.containerSize,
+    verifiedContainerSize,
     falseCeilingArea,
     rooms,
     summary?.kitchenFurnitureRemoval,
@@ -744,7 +756,7 @@ export function DemolitionSummary({
 
             <div className="font-bold text-lg">Contenedores necesarios:</div>
             <div className="text-right font-bold text-lg">
-              {containersNeeded} ({demolitionSettings.containerSize || verifiedContainerSize || 5} m³)
+              {containersNeeded} ({containerSizeValue} m³)
               <Button
                 variant="ghost"
                 size="sm"

@@ -192,6 +192,8 @@ export interface Room {
   hasKitchenFurniture?: boolean
   hasBedroomFurniture?: boolean
   hasRadiator?: boolean
+  hasDoors?: boolean
+  removeSewagePipes?: boolean
 }
 
 // Añadir la interfaz para los derribos de tabiques
@@ -262,6 +264,8 @@ export interface DemolitionSummary {
   totalArea: number // metros cuadrados totales
   radiatorsRemoval?: number // conteo de radiadores a retirar
   mortarBaseRemoval: number // metros cuadrados de solera de mortero
+  hasElevator?: boolean | string
+  buildingHeight?: number
 }
 
 // Modificar la interfaz DebrisCalculation para añadir el nuevo cálculo de escombros

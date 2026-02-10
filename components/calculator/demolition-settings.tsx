@@ -17,6 +17,8 @@ interface DemolitionSettingsProps {
   settings: DemolitionSettings
   updateSettings: (settings: Partial<DemolitionSettings>) => void
   projectId?: string
+  hideSaveButton?: boolean
+  onClose?: () => void
 }
 
 // Función para formatear un número al formato xx,xx
@@ -47,7 +49,13 @@ const parseToXXCXX = (input: string): number | null => {
   return null
 }
 
-export function DemolitionSettingsComponent({ settings, updateSettings, projectId }: DemolitionSettingsProps) {
+export function DemolitionSettingsComponent({
+  settings,
+  updateSettings,
+  projectId,
+  hideSaveButton = false,
+  onClose,
+}: DemolitionSettingsProps) {
   const { toast } = useToast()
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -621,7 +629,7 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
           </div>
         </div>
 
-        {isEditing && (
+        {isEditing && !hideSaveButton && (
           <div className="flex gap-2 pt-4 border-t">
             <Button
               type="button"
@@ -649,8 +657,38 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
                 </>
               )}
             </Button>
-            <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsEditing(false)
+                if (onClose) onClose()
+              }}
+            >
               Cancelar
+            </Button>
+          </div>
+        )}
+
+        {isEditing && hideSaveButton && (
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsEditing(false)
+                if (onClose) onClose()
+              }}
+            >
+              Cerrar Edición
+            </Button>
+          </div>
+        )}
+
+        {!isEditing && onClose && (
+          <div className="flex justify-end pt-4 border-t">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cerrar
             </Button>
           </div>
         )}

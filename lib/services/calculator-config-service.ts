@@ -4,7 +4,11 @@ import type { GlobalConfig } from "@/types/calculator"
 /**
  * Guarda la configuración global de la calculadora en Supabase
  */
-export async function saveCalculatorConfig(projectId: string, config: GlobalConfig): Promise<boolean> {
+export async function saveCalculatorConfig(
+  projectId: string,
+  config: GlobalConfig,
+  isReform?: boolean
+): Promise<boolean> {
   try {
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,19 +27,21 @@ export async function saveCalculatorConfig(projectId: string, config: GlobalConf
       throw checkError
     }
 
+    const columnToUpdate = isReform ? "reform_config" : "global_config"
+
     let result
     if (existingData) {
       result = await supabase
         .from("calculator_data")
         .update({
-          global_config: config,
+          [columnToUpdate]: config,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existingData.id)
     } else {
       result = await supabase.from("calculator_data").insert({
         project_id: projectId,
-        global_config: config,
+        [columnToUpdate]: config,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })

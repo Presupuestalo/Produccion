@@ -59,6 +59,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { DemolitionSettings } from "./demolition-settings"
+import { getProjectDemolitionSettings } from "@/lib/services/demolition-service"
 
 
 
@@ -1180,8 +1188,17 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
             }
 
             settings = await getDemolitionSettings(projectId)
+            // Complementar con los ajustes de la tabla dedicada si existen
+            const dedicatedSettings = await getProjectDemolitionSettings(projectId)
+
+            if (dedicatedSettings) {
+              console.log("[SUPABASE] Ajustes de demolición dedicados encontrados:", dedicatedSettings)
+              // Priorizar los ajustes dedicados si existen (son los que se editan desde el formulario de proyecto)
+              settings = { ...settings, ...dedicatedSettings }
+            }
+
             if (settings) {
-              console.log("[SUPABASE] Ajustes de demolición cargados:", settings)
+              console.log("[SUPABASE] Ajustes de demolición finales:", settings)
               setDemolitionSettings(settings)
               setOriginalDemolitionSettings(settings)
             } else {
@@ -2275,6 +2292,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                   globalConfig={demolitionConfig}
                   demolitionSettings={demolitionSettings}
                   rooms={rooms}
+                  onOpenSettings={() => setShowDemolitionSettings(true)}
                 />
               </div>
             </div>
@@ -2288,6 +2306,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                 globalConfig={demolitionConfig}
                 demolitionSettings={demolitionSettings}
                 rooms={rooms}
+                onOpenSettings={() => setShowDemolitionSettings(true)}
               />
             </div>
           </TabsContent>
@@ -2573,6 +2592,22 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Dialog open={showDemolitionSettings} onOpenChange={setShowDemolitionSettings}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Ajustes de Demolición</DialogTitle>
+          </DialogHeader>
+          <DemolitionSettings
+            settings={demolitionSettings}
+            updateSettings={(updates) => {
+              setDemolitionSettings((prev) => ({ ...prev, ...updates }))
+            }}
+            projectId={projectId}
+            hideSaveButton={true}
+            onClose={() => setShowDemolitionSettings(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div >
   )
 })

@@ -424,3 +424,45 @@ export async function saveAllProjectData(
     return false
   }
 }
+/**
+ * Saves only demolition settings to calculator_data table
+ */
+export async function saveDemolitionSettings(projectId: string, settings: DemolitionSettings): Promise<boolean> {
+  if (!projectId) return false
+
+  try {
+    const supabase = await getSupabase()
+    if (!supabase) return false
+
+    const tableExists = await ensureCalculatorTableExists()
+    if (!tableExists) return false
+
+    const { data: existingRecords } = await supabase
+      .from("calculator_data")
+      .select("id")
+      .eq("project_id", projectId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+
+    const existingRecord = Array.isArray(existingRecords) && existingRecords.length > 0 ? existingRecords[0] : null
+
+    const updateData = {
+      project_id: projectId,
+      demolition_settings: settings,
+      updated_at: new Date().toISOString(),
+    }
+
+    let result
+    if (existingRecord) {
+      result = await supabase.from("calculator_data").update(updateData).eq("id", existingRecord.id)
+    } else {
+      result = await supabase.from("calculator_data").insert([updateData])
+    }
+
+    if (result.error) throw result.error
+    return true
+  } catch (error) {
+    console.error("[v0] SAVE_DEMOLITION_SETTINGS: Error:", error)
+    return false
+  }
+}

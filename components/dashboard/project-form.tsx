@@ -13,6 +13,7 @@ import { createProject, updateProject } from "@/lib/services/project-service"
 import type { Project, ProjectFormData } from "@/types/project"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { saveProjectDemolitionSettings, getProjectDemolitionSettings } from "@/lib/services/demolition-service"
+import { saveDemolitionSettings as saveDemolitionSettingsToCalculator } from "@/lib/services/calculator-service"
 import type { DemolitionSettings } from "@/types/calculator"
 import { getCalculatorConfig, saveCalculatorConfig } from "@/lib/services/calculator-config-service"
 import { Button } from "@/components/ui/button"
@@ -918,6 +919,8 @@ export function ProjectForm({
         try {
           console.log("[v0] SUBMIT - Guardando ajustes de demolición")
           await saveProjectDemolitionSettings(projectId, numericDemolitionSettings)
+          // También guardar en la tabla de la calculadora para mantener la sincronización
+          await saveDemolitionSettingsToCalculator(projectId, numericDemolitionSettings)
         } catch (settingsError) {
           console.error("[v0] SUBMIT - Error al guardar ajustes de demolición:", settingsError)
         }
