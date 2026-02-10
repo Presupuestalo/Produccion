@@ -1,10 +1,14 @@
 ﻿export const dynamic = "force-dynamic"
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
 export async function POST() {
   try {
-    const supabase = await createServerClient()
+    const supabase = await createClient()
+
+    if (!supabase) {
+      return NextResponse.json({ error: "Failed to initialize Supabase client" }, { status: 500 })
+    }
 
     const {
       data: { user },

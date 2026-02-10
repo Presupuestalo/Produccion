@@ -1,10 +1,17 @@
 ﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 
 export async function GET() {
   try {
-    const supabase = await createServerClient()
+    const supabase = await createClient()
+
+    if (!supabase) {
+      return NextResponse.json({
+        status: "error",
+        message: "Failed to initialize Supabase client",
+      })
+    }
 
     // Verificar conexión a Supabase
     const { data: profiles, error: profilesError } = await supabase

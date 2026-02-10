@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const supabase = await createServerClient()
-    
+    const supabase = await createClient()
+
+    if (!supabase) {
+      return NextResponse.json({ error: "Failed to initialize Supabase client" }, { status: 500 })
+    }
+
     const { data: { user } } = await supabase.auth.getUser()
-    
+
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
