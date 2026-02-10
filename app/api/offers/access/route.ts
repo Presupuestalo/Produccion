@@ -89,7 +89,6 @@ export async function POST(request: NextRequest) {
       .from("company_credits")
       .update({
         credits_balance: credits.credits_balance - creditsCost,
-        credits_spent_total: supabase.rpc ? creditsCost : creditsCost,
       })
       .eq("company_id", user.id)
 
