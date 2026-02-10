@@ -223,7 +223,7 @@ export default function CoordinacionPage() {
       client_address: project.address || "",
       client_city: project.city || "",
       description: project.description || "",
-      coordination_fee_type: project.coordination_fee_type || "percentage",
+      coordination_fee_type: (project.coordination_fee_type || "percentage") as "percentage" | "fixed",
       coordination_fee_value: project.coordination_fee || 0,
     })
     setEditProjectDialogOpen(true)
