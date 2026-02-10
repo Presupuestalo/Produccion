@@ -422,7 +422,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
         added_by_owner?: boolean
       } = {
         category: categoryName,
-        code: formData.concept_code || null,
+        concept_code: formData.concept_code || undefined,
         concept: formData.concept.toUpperCase(),
         description: formData.description,
         unit: formData.unit,
