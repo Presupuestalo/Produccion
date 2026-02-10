@@ -239,15 +239,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
           const roomType = room.type
           const defaultSettings = parsedSettings[roomType] ||
             parsedSettings["Otro"] || {
-              puntosLuzTecho: 1,
-              enchufes: 2,
-              sencillo: 1,
-              conmutados: 0,
-              cruzamiento: 0,
-              intemperie: 0,
-              tomaTV: 0,
-              focosEmpotrados: 1,
-            }
+            puntosLuzTecho: 1,
+            enchufes: 2,
+            sencillo: 1,
+            conmutados: 0,
+            cruzamiento: 0,
+            intemperie: 0,
+            tomaTV: 0,
+            focosEmpotrados: 1,
+          }
 
           const roomSettings: ElectricalRoomSettings = { ...defaultSettings }
 
@@ -286,15 +286,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
           const roomType = room.type
           const defaultSettings = parsedSettings[roomType] ||
             parsedSettings["Otro"] || {
-              puntosLuzTecho: 1,
-              enchufes: 2,
-              sencillo: 1,
-              conmutados: 0,
-              cruzamiento: 0,
-              intemperie: 0,
-              tomaTV: 0,
-              focosEmpotrados: 1,
-            }
+            puntosLuzTecho: 1,
+            enchufes: 2,
+            sencillo: 1,
+            conmutados: 0,
+            cruzamiento: 0,
+            intemperie: 0,
+            tomaTV: 0,
+            focosEmpotrados: 1,
+          }
 
           console.log("[v0] LOAD SETTINGS - Using default settings for room type", roomType, ":", defaultSettings)
           console.log("[v0] LOAD SETTINGS - tomaTV value for", roomType, ":", defaultSettings.tomaTV)
@@ -425,6 +425,8 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                       type="button"
                       onClick={() => decrementValue(room.id, "puntosLuzTecho")}
                       className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      title="Disminuir puntos de luz de techo"
+                      aria-label="Disminuir puntos de luz de techo"
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -439,12 +441,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                           updateElement(room.id, "puntosLuzTecho", value === "" ? 0 : Number.parseInt(value))
                         }}
                         className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none"
+                        aria-label="Puntos de luz de techo"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => incrementValue(room.id, "puntosLuzTecho")}
                       className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      title="Aumentar puntos de luz de techo"
+                      aria-label="Aumentar puntos de luz de techo"
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -459,6 +464,8 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                       type="button"
                       onClick={() => decrementValue(room.id, "enchufes")}
                       className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      title="Disminuir enchufes"
+                      aria-label="Disminuir enchufes"
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -473,12 +480,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                           updateElement(room.id, "enchufes", value === "" ? 0 : Number.parseInt(value))
                         }}
                         className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none"
+                        aria-label="Enchufes"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => incrementValue(room.id, "enchufes")}
                       className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      title="Aumentar enchufes"
+                      aria-label="Aumentar enchufes"
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -493,6 +503,8 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                       type="button"
                       onClick={() => decrementValue(room.id, "sencillo")}
                       className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      title="Disminuir interruptores sencillos"
+                      aria-label="Disminuir interruptores sencillos"
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -507,12 +519,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                           updateElement(room.id, "sencillo", value === "" ? 0 : Number.parseInt(value))
                         }}
                         className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none"
+                        aria-label="Interruptores sencillos"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => incrementValue(room.id, "sencillo")}
                       className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      title="Aumentar interruptores sencillos"
+                      aria-label="Aumentar interruptores sencillos"
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -527,6 +542,8 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                       type="button"
                       onClick={() => decrementValue(room.id, "conmutados")}
                       className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      title="Disminuir puntos conmutados"
+                      aria-label="Disminuir puntos conmutados"
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -541,12 +558,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                           updateElement(room.id, "conmutados", value === "" ? 0 : Number.parseInt(value))
                         }}
                         className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none"
+                        aria-label="Puntos conmutados"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => incrementValue(room.id, "conmutados")}
                       className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      title="Aumentar puntos conmutados"
+                      aria-label="Aumentar puntos conmutados"
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -561,6 +581,8 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                       type="button"
                       onClick={() => decrementValue(room.id, "cruzamiento")}
                       className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      title="Disminuir puntos de cruzamiento"
+                      aria-label="Disminuir puntos de cruzamiento"
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -575,12 +597,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                           updateElement(room.id, "cruzamiento", value === "" ? 0 : Number.parseInt(value))
                         }}
                         className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none"
+                        aria-label="Puntos de cruzamiento"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => incrementValue(room.id, "cruzamiento")}
                       className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      title="Aumentar puntos de cruzamiento"
+                      aria-label="Aumentar puntos de cruzamiento"
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -595,6 +620,8 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                       type="button"
                       onClick={() => decrementValue(room.id, "intemperie")}
                       className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      title="Disminuir enchufes de intemperie"
+                      aria-label="Disminuir enchufes de intemperie"
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -609,12 +636,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                           updateElement(room.id, "intemperie", value === "" ? 0 : Number.parseInt(value))
                         }}
                         className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none"
+                        aria-label="Enchufes de intemperie"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => incrementValue(room.id, "intemperie")}
                       className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      title="Aumentar enchufes de intemperie"
+                      aria-label="Aumentar enchufes de intemperie"
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -629,6 +659,8 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                       type="button"
                       onClick={() => decrementValue(room.id, "tomaTV")}
                       className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      title="Disminuir tomas de TV"
+                      aria-label="Disminuir tomas de TV"
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -643,12 +675,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                           updateElement(room.id, "tomaTV", value === "" ? 0 : Number.parseInt(value))
                         }}
                         className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none"
+                        aria-label="Tomas de TV"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => incrementValue(room.id, "tomaTV")}
                       className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      title="Aumentar tomas de TV"
+                      aria-label="Aumentar tomas de TV"
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -663,6 +698,8 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                       type="button"
                       onClick={() => decrementValue(room.id, "focosEmpotrados")}
                       className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      title="Disminuir focos empotrados"
+                      aria-label="Disminuir focos empotrados"
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -677,12 +714,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                           updateElement(room.id, "focosEmpotrados", value === "" ? 0 : Number.parseInt(value))
                         }}
                         className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none"
+                        aria-label="Focos empotrados"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => incrementValue(room.id, "focosEmpotrados")}
                       className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      title="Aumentar focos empotrados"
+                      aria-label="Aumentar focos empotrados"
                     >
                       <Plus className="h-3 w-3" />
                     </button>

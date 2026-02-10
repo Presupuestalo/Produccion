@@ -706,8 +706,13 @@ export function RoomCard({
       return
     }
 
-    const value = validateAndParseNumber(widthInput)
+    let value = validateAndParseNumber(widthInput)
     if (value !== null) {
+      // Limitar a un máximo de 20m
+      if (value > 20) {
+        value = 20
+      }
+
       // Update display with formatted value
       setWidthInput(formatDecimal(value))
       updateRoom(room.id, { width: value })
@@ -737,8 +742,13 @@ export function RoomCard({
       return
     }
 
-    const value = validateAndParseNumber(lengthInput)
+    let value = validateAndParseNumber(lengthInput)
     if (value !== null) {
+      // Limitar a un máximo de 20m
+      if (value > 20) {
+        value = 20
+      }
+
       // Update display with formatted value
       setLengthInput(formatDecimal(value))
       updateRoom(room.id, { length: value })
@@ -772,6 +782,9 @@ export function RoomCard({
     if (value !== null) {
       updateRoom(room.id, { area: value })
 
+      // Actualizar el input con el formato correcto (2 decimales)
+      setAreaInput(formatDecimal(value))
+
       // Si tenemos perímetro, actualizar la superficie de pared
       if (room.perimeter) {
         const heightToUse = room.customHeight || safeStandardHeight
@@ -791,6 +804,9 @@ export function RoomCard({
     const value = validateAndParseNumber(perimeterInput)
     if (value !== null) {
       updateRoom(room.id, { perimeter: value })
+
+      // Actualizar el input con el formato correcto (2 decimales)
+      setPerimeterInput(formatDecimal(value))
 
       const heightToUse = room.customHeight || safeStandardHeight
       const newWallSurface = Number.parseFloat((value * heightToUse).toFixed(2))
@@ -1321,13 +1337,13 @@ export function RoomCard({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground opacity-50 hover:opacity-100"
+                      className="h-7 w-7 p-0 text-orange-500 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-all duration-300 opacity-60 hover:opacity-100"
                       onClick={(e) => {
                         e.stopPropagation()
                         setIsEditingName(true)
                       }}
                     >
-                      <Pencil className="h-3 w-3" />
+                      <Pencil className="h-4 w-4 hover:scale-110 hover:rotate-12 transition-all duration-300" />
                     </Button>
                     <Badge variant={isReform ? "default" : "secondary"} className={`ml-2 text-[10px] h-5 ${isReform ? "bg-green-600 hover:bg-green-700" : "bg-orange-500 hover:bg-orange-600 text-white"}`}>
                       {isReform ? "REFORMA" : "DERRIBOS"}
@@ -1343,74 +1359,36 @@ export function RoomCard({
               </div>
             </div>
 
-            <div className="flex items-center gap-1">
-              {/* Resumen compacto de medidas */}
-              <div className="text-xs text-muted-foreground mr-2 flex items-center">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="flex items-center">{formatNumber(room.area)} m²</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Área de la habitación</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  {room.hasDoors && room.doorList && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="ml-2 flex items-center">
-                            <DoorOpen className="h-3 w-3 mr-1" />
-                            {room.doorList.length}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Puertas</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-
-                  {room.customHeight && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="ml-2 flex items-center">
-                          <RulerVertical className="h-3 w-3 mr-1" />
-                          {formatNumber(room.customHeight)}m
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Altura personalizada</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                </TooltipProvider>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center text-sm font-medium text-slate-500 mr-2">
+                <span className="mr-3">{formatNumber(room.area)} m²</span>
+                {room.hasDoors && room.doorList && (
+                  <span className="flex items-center gap-1">
+                    <DoorOpen className="h-3.5 w-3.5" />
+                    {room.doorList.length}
+                  </span>
+                )}
               </div>
 
               {onDuplicate && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onDuplicate(room.id)}
-                        className="h-7 w-7 p-0"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Duplicar habitación</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onDuplicate(room.id)}
+                  className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all duration-300"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
               )}
-              {/* </CHANGE> */}
 
-              <Button type="button" variant="destructive" size="sm" onClick={handleDelete} className="h-7 w-7 p-0">
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={handleDelete}
+                className="h-7 w-7 p-0 rounded-full shadow-sm hover:scale-105 transition-all duration-300"
+              >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -1438,345 +1416,299 @@ export function RoomCard({
                 </div>
               )}
 
-              {/* Materiales (juntos) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor={`floorMaterial-${room.id}`} className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                    Suelo
+              {/* ESTADO ACTUAL - Grid 3 columnas */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="bg-slate-100 p-1 rounded">
+                    <Footprints className="h-4 w-4 text-slate-600" />
+                  </div>
+                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+                    Estado Actual
                   </Label>
-                  <Select
-                    value={room.floorMaterial}
-                    onValueChange={(value) => updateRoom(room.id, { floorMaterial: value as FloorMaterialType })}
-                  >
-                    <SelectTrigger id={`floorMaterial-${room.id}`} className="h-8 text-xs bg-white dark:bg-slate-950">
-                      <SelectValue placeholder="Material" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isReform ? (
-                        // Opciones para Reforma
-                        <>
-                          <SelectItem value="No se modifica">No se modifica</SelectItem>
-                          <SelectItem value="Cerámico">Cerámico</SelectItem>
-                          <SelectItem value="Parquet flotante">Parquet flotante</SelectItem>
-                          <SelectItem value="Suelo laminado">Suelo laminado</SelectItem>
-                          <SelectItem value="Suelo vinílico">Suelo vinílico</SelectItem>
-                          <SelectItem value="Otro">Otro</SelectItem>
-                        </>
-                      ) : (
-                        // Opciones para Demolición
-                        <>
-                          <SelectItem value="No se modifica">No se modifica</SelectItem>
-                          <SelectItem value="Madera">Madera</SelectItem>
-                          <SelectItem value="Cerámica">Cerámica</SelectItem>
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor={`wallMaterial-${room.id}`} className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                    Material paredes
-                  </Label>
-                  <Select
-                    value={wallMaterialValue}
-                    onValueChange={handleWallMaterialChange}
-                    disabled={isWallMaterialDisabled}
-                    required
-                  >
-                    <SelectTrigger id={`wallMaterial-${room.id}`} className="h-8 text-xs bg-white dark:bg-slate-950">
-                      <SelectValue placeholder="Seleccionar..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isReform ? (
-                        <>
-                          <SelectItem value="No se modifica">No se modifica</SelectItem>
-                          <SelectItem value="Cerámica">Cerámica</SelectItem>
-                          <SelectItem value="Lucir y pintar">Lucir y pintar</SelectItem>
-                          <SelectItem value="Solo lucir">Solo lucir</SelectItem>
-                          <SelectItem value="Solo pintar">Solo pintar</SelectItem>
-                        </>
-                      ) : (
-                        // Opciones para demoliciones
-                        <>
-                          <SelectItem value="No se modifica">No se modifica</SelectItem>
-                          <SelectItem value="Cerámica">Cerámica</SelectItem>
-                          <SelectItem value="Gotelé">Gotelé</SelectItem>
-                          <SelectItem value="Papel">Papel</SelectItem>
-                          <SelectItem value="Pintura">Pintura</SelectItem>
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* SUELO */}
+                  <div className="space-y-2">
+                    <Label htmlFor={`floorMaterial-${room.id}`} className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+                      Suelo
+                    </Label>
+                    <Select
+                      value={room.floorMaterial}
+                      onValueChange={(value) => updateRoom(room.id, { floorMaterial: value as FloorMaterialType })}
+                    >
+                      <SelectTrigger id={`floorMaterial-${room.id}`} className="h-9 text-xs rounded-lg border-slate-200">
+                        <SelectValue placeholder="Material" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {isReform ? (
+                          <>
+                            <SelectItem value="No se modifica">No se modifica</SelectItem>
+                            <SelectItem value="Cerámico">Cerámico</SelectItem>
+                            <SelectItem value="Parquet flotante">Parquet flotante</SelectItem>
+                            <SelectItem value="Suelo laminado">Suelo laminado</SelectItem>
+                            <SelectItem value="Suelo vinílico">Suelo vinílico</SelectItem>
+                            <SelectItem value="Otro">Otro</SelectItem>
+                          </>
+                        ) : (
+                          <>
+                            <SelectItem value="No se modifica">No se modifica</SelectItem>
+                            <SelectItem value="Madera">Madera</SelectItem>
+                            <SelectItem value="Cerámica">Cerámica</SelectItem>
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              {/* Medidas - Sección destacada */}
-              <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg border border-blue-200 dark:border-blue-800 mt-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium text-blue-700 dark:text-blue-300 flex items-center">
-                    <Ruler className="h-4 w-4 mr-1" />
-                    Medidas de la habitación
-                  </h3>
-                  <div className="text-xs text-blue-600 dark:text-blue-400">* Campos obligatorios</div>
-                </div>
+                  {/* PAREDES */}
+                  <div className="space-y-2">
+                    <Label htmlFor={`wallMaterial-${room.id}`} className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+                      Paredes
+                    </Label>
+                    <Select
+                      value={wallMaterialValue}
+                      onValueChange={handleWallMaterialChange}
+                      disabled={isWallMaterialDisabled}
+                    >
+                      <SelectTrigger id={`wallMaterial-${room.id}`} className="h-9 text-xs rounded-lg border-slate-200">
+                        <SelectValue placeholder="Seleccionar..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {isReform ? (
+                          <>
+                            <SelectItem value="No se modifica">No se modifica</SelectItem>
+                            <SelectItem value="Cerámica">Cerámica</SelectItem>
+                            <SelectItem value="Lucir y pintar">Lucir y pintar</SelectItem>
+                            <SelectItem value="Solo lucir">Solo lucir</SelectItem>
+                            <SelectItem value="Solo pintar">Solo pintar</SelectItem>
+                          </>
+                        ) : (
+                          <>
+                            <SelectItem value="No se modifica">No se modifica</SelectItem>
+                            <SelectItem value="Cerámica">Cerámica</SelectItem>
+                            <SelectItem value="Gotelé">Gotelé</SelectItem>
+                            <SelectItem value="Papel">Papel</SelectItem>
+                            <SelectItem value="Pintura">Pintura</SelectItem>
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  {room.measurementMode === "rectangular" ? (
-                    <>
-                      <div className="space-y-1 relative">
-                        <div className="flex items-center justify-between">
-                          <Label
-                            htmlFor={`width-${room.id}`}
-                            className="text-xs font-medium text-blue-700 dark:text-blue-300 block h-5"
-                          >
-                            Ancho (m) *
-                          </Label>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleMeasurementMode()}
-                            className="h-5 w-5 p-0 flex items-center justify-center text-blue-600"
-                            title={
-                              room.measurementMode === "rectangular"
-                                ? "Cambiar a área y perímetro"
-                                : "Cambiar a ancho y largo"
-                            }
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <Input
-                          id={`width-${room.id}`}
-                          type="text"
-                          value={widthInput}
-                          onChange={handleWidthChange}
-                          onBlur={saveWidth}
-                          className="h-9 text-sm border-blue-300 dark:border-blue-700 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Introduce el ancho"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label
-                          htmlFor={`length-${room.id}`}
-                          className="text-xs font-medium text-blue-700 dark:text-blue-300 block h-5"
+                  {/* TECHO ACTUAL */}
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+                      Techo actual
+                    </Label>
+                    <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-200 h-9">
+                      {[
+                        { id: "no_false_ceiling", label: "Ninguno" },
+                        { id: "lowered_remove", label: "Retirar" },
+                        { id: "lowered_keep", label: "Mantener" },
+                      ].map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          className={`flex-1 text-[10px] font-medium rounded-md transition-all ${(room.currentCeilingStatus || "no_false_ceiling") === item.id
+                            ? "bg-white text-orange-600 shadow-sm"
+                            : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          onClick={() => {
+                            const value = item.id as any
+                            const updates: Partial<Room> = { currentCeilingStatus: value }
+                            if (value !== "lowered_keep") updates.currentCeilingHeight = undefined
+                            updateRoom(room.id, updates)
+                          }}
                         >
-                          Largo (m) *
-                        </Label>
-                        <Input
-                          id={`length-${room.id}`}
-                          type="text"
-                          value={lengthInput}
-                          onChange={handleLengthChange}
-                          onBlur={saveLength}
-                          className="h-9 text-sm border-blue-300 dark:border-blue-700 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Introduce el largo"
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="space-y-1 relative">
-                        <div className="flex items-center justify-between">
-                          <Label
-                            htmlFor={`area-${room.id}`}
-                            className="text-xs font-medium text-blue-700 dark:text-blue-300 block h-5"
-                          >
-                            Área (m²) *
-                          </Label>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleMeasurementMode()}
-                            className="h-5 w-5 p-0 flex items-center justify-center text-blue-600"
-                            title={
-                              room.measurementMode === "rectangular"
-                                ? "Cambiar a área y perímetro"
-                                : "Cambiar a ancho y largo"
-                            }
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                          </Button>
-                          {room.measurementMode === "area-perimeter" && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setIsShapeEditorOpen(true)}
-                              className="h-5 w-5 p-0 flex items-center justify-center text-green-600"
-                              title="Abrir editor de formas"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                        <Input
-                          id={`area-${room.id}`}
-                          type="text"
-                          value={areaInput}
-                          onChange={handleAreaChange}
-                          onBlur={saveArea}
-                          className="h-9 text-sm border-blue-300 dark:border-blue-700 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Introduce el área"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label
-                          htmlFor={`perimeter-${room.id}`}
-                          className="text-xs font-medium text-blue-700 dark:text-blue-300 block h-5"
-                        >
-                          Perímetro (m) *
-                        </Label>
-                        <Input
-                          id={`perimeter-${room.id}`}
-                          type="text"
-                          value={perimeterInput}
-                          onChange={handlePerimeterChange}
-                          onBlur={savePerimeter}
-                          className="h-9 text-sm border-blue-300 dark:border-blue-700 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Introduce el perímetr"
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Resultados calculados */}
-              <div className="grid grid-cols-3 gap-2 mt-2">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Área</Label>
-                  <div className="h-7 flex items-center text-sm font-medium">{formatNumber(room.area)} m²</div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Perímetro</Label>
-                  <div className="h-7 flex items-center text-sm font-medium">{formatNumber(room.perimeter)} m</div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Sup. Pared</Label>
-                  <div className="h-7 flex items-center text-sm font-medium">
-                    {formatNumber(
-                      room.perimeter *
-                      (() => {
-                        // Si está en reforma y se baja el techo, usar la nueva altura
-                        if (isReform && room.lowerCeiling && room.newCeilingHeight) {
-                          return room.newCeilingHeight
-                        }
-                        // Si tiene techos bajados que se quedan (lowered_keep), usar altura actual
-                        if (room.currentCeilingStatus === "lowered_keep" && room.currentCeilingHeight) {
-                          return room.currentCeilingHeight
-                        }
-                        // Si usa altura personalizada o altura estándar
-                        return room.customHeight || standardHeight
-                      })(),
-                    )}{" "}
-                    m²
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Opciones (juntos) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                {!isReform ? (
-                  // Opciones para la sección de demolición
-                  <>
-                    <div className="space-y-3 p-3 border border-border rounded-md bg-muted/30 col-span-2">
-                      <div className="space-y-2">
-                        <Label htmlFor={`currentCeilingStatus-${room.id}`} className="text-xs font-medium">
-                          Techo actual
-                        </Label>
-                        <Select
-                          value={room.currentCeilingStatus || "no_false_ceiling"}
-                          onValueChange={(value: "lowered_remove" | "lowered_keep" | "no_false_ceiling") => {
-                            const updates: Partial<Room> = {
-                              currentCeilingStatus: value,
-                            }
-                            // Si cambia a otra opción, limpiar altura actual
-                            if (value !== "lowered_keep") {
-                              updates.currentCeilingHeight = undefined
-                            }
-                            updateRoom(room.id, updates)
-                          }}
-                        >
-                          <SelectTrigger id={`currentCeilingStatus-${room.id}`} className="h-9 text-sm">
-                            <SelectValue placeholder="Seleccionar estado del techo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="lowered_remove">Están bajados y se retiran</SelectItem>
-                            <SelectItem value="lowered_keep">Están bajados y se dejan así</SelectItem>
-                            <SelectItem value="no_false_ceiling">No hay falsos techos</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Campo de altura solo visible cuando los techos están bajados y se quedan */}
-                      {room.currentCeilingStatus === "lowered_keep" && (
-                        <div className="space-y-1">
-                          <Label htmlFor={`currentCeilingHeight-${room.id}`} className="text-xs">
-                            Altura actual (m)
-                          </Label>
-                          <Input
-                            id={`currentCeilingHeight-${room.id}`}
-                            type="number"
-                            step="0.01"
-                            min="2.0"
-                            max={safeStandardHeight}
-                            value={room.currentCeilingHeight || ""}
-                            onChange={(e) => {
-                              const value = Number.parseFloat(e.target.value)
-                              if (!isNaN(value) && value <= safeStandardHeight) {
-                                updateRoom(room.id, { currentCeilingHeight: value })
-                              } else if (!isNaN(value) && value > safeStandardHeight) {
-                                updateRoom(room.id, { currentCeilingHeight: safeStandardHeight })
-                              }
-                            }}
-                            className="h-7 text-sm"
-                            placeholder="2.50"
-                          />
-                          <p className="text-[10px] text-muted-foreground">
-                            Máximo: {formatDecimal(safeStandardHeight)}m (altura del proyecto)
-                          </p>
-                        </div>
-                      )}
+              {/* DIMENSIONES DEL ESPACIO */}
+              <div className="border border-slate-200 rounded-xl p-4 bg-white shadow-sm mt-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-slate-100 p-1 rounded">
+                      <Ruler className="h-4 w-4 text-slate-600" />
                     </div>
+                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+                      Dimensiones del espacio
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px] font-medium text-slate-500 border-slate-200">
+                      MÁX. 20m
+                    </Badge>
+                    {room.measurementMode !== "rectangular" && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsShapeEditorOpen(true)}
+                        className="h-7 w-7 p-0 text-orange-500 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-all duration-300"
+                        title="Editor de formas"
+                      >
+                        <Pencil className="h-4 w-4 hover:scale-110 hover:rotate-12 transition-all duration-300" />
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleMeasurementMode()}
+                      className="h-7 w-7 p-0 text-slate-500 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all duration-300"
+                      title="Cambiar modo de medición"
+                    >
+                      <RefreshCw className="h-4 w-4 hover:rotate-180 transition-all duration-300" />
+                    </Button>
+                  </div>
+                </div>
 
+                <div className="flex flex-col lg:flex-row gap-4">
+                  {/* Inputs */}
+                  <div className="flex gap-3 flex-1">
+                    {room.measurementMode === "rectangular" ? (
+                      <>
+                        <div className="flex-1 space-y-1.5">
+                          <Label htmlFor={`width-${room.id}`} className="text-[10px] font-bold text-slate-500 uppercase">
+                            Ancho (m)
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              id={`width-${room.id}`}
+                              type="text"
+                              value={widthInput}
+                              onChange={handleWidthChange}
+                              onBlur={saveWidth}
+                              className="h-10 pr-8 text-sm font-bold rounded-lg border-slate-200"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">m</span>
+                          </div>
+                        </div>
+                        <div className="flex-1 space-y-1.5">
+                          <Label htmlFor={`length-${room.id}`} className="text-[10px] font-bold text-slate-500 uppercase">
+                            Largo (m)
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              id={`length-${room.id}`}
+                              type="text"
+                              value={lengthInput}
+                              onChange={handleLengthChange}
+                              onBlur={saveLength}
+                              className="h-10 pr-8 text-sm font-bold rounded-lg border-slate-200"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">m</span>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex-1 space-y-1.5">
+                          <Label htmlFor={`area-${room.id}`} className="text-[10px] font-bold text-slate-500 uppercase">
+                            Área (m²)
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              id={`area-${room.id}`}
+                              type="text"
+                              value={areaInput}
+                              onChange={handleAreaChange}
+                              onBlur={saveArea}
+                              className="h-10 pr-8 text-sm font-bold rounded-lg border-slate-200"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">m²</span>
+                          </div>
+                        </div>
+                        <div className="flex-1 space-y-1.5">
+                          <Label htmlFor={`perimeter-${room.id}`} className="text-[10px] font-bold text-slate-500 uppercase">
+                            Perímetro (m)
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              id={`perimeter-${room.id}`}
+                              type="text"
+                              value={perimeterInput}
+                              onChange={handlePerimeterChange}
+                              onBlur={savePerimeter}
+                              className="h-10 pr-8 text-sm font-bold rounded-lg border-slate-200"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">m</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Stats Container */}
+                  <div className="bg-slate-50 rounded-xl border border-slate-100 p-2 flex items-center divide-x divide-slate-200">
+                    <div className="px-4 text-center min-w-[80px]">
+                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Área</div>
+                      <div className="text-sm font-black text-slate-700">{formatNumber(room.area)} <span className="text-[10px] font-semibold text-slate-400">m²</span></div>
+                    </div>
+                    <div className="px-4 text-center min-w-[80px]">
+                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Perím.</div>
+                      <div className="text-sm font-black text-slate-700">{formatNumber(room.perimeter)} <span className="text-[10px] font-semibold text-slate-400">m</span></div>
+                    </div>
+                    <div className="px-4 text-center min-w-[80px]">
+                      <div className="text-[9px] font-bold text-orange-400 uppercase tracking-tighter">Pared</div>
+                      <div className="text-sm font-black text-orange-600">
+                        {formatNumber(
+                          room.perimeter *
+                          (() => {
+                            if (isReform && room.lowerCeiling && room.newCeilingHeight) return room.newCeilingHeight
+                            if (room.currentCeilingStatus === "lowered_keep" && room.currentCeilingHeight) return room.currentCeilingHeight
+                            return room.customHeight || standardHeight
+                          })(),
+                        )} <span className="text-[10px] font-semibold text-orange-400">m²</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* OPCIONES DE DERRIBO */}
+              <div className="space-y-3 mt-4">
+                {!isReform ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-6">
+                    {/* Retirar Puertas */}
                     {room.type !== "Terraza" && (
                       <div className="flex flex-col space-y-2">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center gap-2">
                           <Checkbox
                             id={`hasDoors-${room.id}`}
                             checked={room.hasDoors}
                             onCheckedChange={(checked) => handleDoorChange(checked === true)}
+                            className="h-5 w-5 rounded-md border-slate-300 text-orange-600 focus:ring-orange-600"
                           />
-                          <Label htmlFor={`hasDoors-${room.id}`} className="text-xs cursor-pointer">
+                          <Label htmlFor={`hasDoors-${room.id}`} className="text-sm font-medium cursor-pointer">
                             {room.type === "Baño" ? "Retirar puerta" : "Retirar puertas"}
                           </Label>
-                          {room.hasDoors && room.type !== "Baño" && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={addDoorOld}
-                              className="h-5 w-5 p-0 ml-1"
-                              title="Añadir otra puerta"
-                            >
-                              <PlusCircle className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={addDoorOld}
+                            className="h-6 w-6 p-0 text-slate-400 hover:text-slate-600"
+                          >
+                            <PlusCircle className="h-4 w-4" />
+                          </Button>
                         </div>
 
-                        {/* Lista de puertas (solo visible si hasDoors es true) */}
                         {room.hasDoors && room.doorList && room.doorList.length > 0 && (
-                          <div className="ml-6 space-y-2">
-                            {room.doorList.map((door, index) => (
-                              <div key={door.id} className="flex items-center space-x-2">
+                          <div className="pl-7 space-y-2">
+                            {room.doorList.map((door) => (
+                              <div key={door.id} className="flex items-center gap-2">
                                 <Select
                                   value={door.type}
                                   onValueChange={(value) => updateDoorTypeOld(door.id, value as DoorType)}
                                 >
-                                  <SelectTrigger className="h-7 text-xs flex-1">
+                                  <SelectTrigger className="h-9 text-xs flex-1 rounded-lg border-slate-200">
                                     <SelectValue placeholder="Tipo de puerta" />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -1793,9 +1725,9 @@ export function RoomCard({
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => removeDoorOld(door.id)}
-                                    className="h-5 w-5 p-0"
+                                    className="h-8 w-8 p-0 text-slate-300 hover:text-red-500"
                                   >
-                                    <Trash2 className="h-3.5 w-3.5" />
+                                    <Trash2 className="h-4 w-4" />
                                   </Button>
                                 )}
                               </div>
@@ -1805,133 +1737,92 @@ export function RoomCard({
                       </div>
                     )}
 
-                    {/* Opción para retirar suelo de madera - LÓGICA MEJORADA */}
+                    {/* Retirada Suelo Madera/Cerámica */}
                     {isFloorWooden && !globalConfig?.removeWoodenFloor && (
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center gap-2">
                         <Checkbox
                           id={`removeWoodenFloor-${room.id}`}
                           checked={room.removeFloor === true}
                           onCheckedChange={handleRemoveWoodenFloorChange}
+                          className="h-5 w-5 rounded-md border-slate-300 text-orange-600 focus:ring-orange-600"
                         />
-                        <Label htmlFor={`removeWoodenFloor-${room.id}`} className="text-xs cursor-pointer">
+                        <Label htmlFor={`removeWoodenFloor-${room.id}`} className="text-sm font-medium cursor-pointer">
                           Retirada del suelo de madera
                         </Label>
                       </div>
                     )}
 
                     {!globalConfig?.removeAllCeramic && room.wallMaterial === "Cerámica" && (
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center gap-2">
                         <Checkbox
                           id={`removeWallTiles-${room.id}`}
                           checked={room.removeWallTiles === true}
                           onCheckedChange={(checked) => updateRoom(room.id, { removeWallTiles: checked === true })}
+                          className="h-5 w-5 rounded-md border-slate-300 text-orange-600 focus:ring-orange-600"
                         />
-                        <Label htmlFor={`removeWallTiles-${room.id}`} className="text-xs cursor-pointer">
+                        <Label htmlFor={`removeWallTiles-${room.id}`} className="text-sm font-medium cursor-pointer">
                           Picado de cerámica paredes
                         </Label>
                       </div>
                     )}
 
-                    {/* Añadir opción para picar cerámica del suelo si el material es cerámico */}
                     {!globalConfig?.removeAllCeramic && isFloorCeramic && (
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center gap-2">
                         <Checkbox
                           id={`removeFloorTiles-${room.id}`}
                           checked={room.removeFloor !== false}
-                          defaultChecked={true}
                           onCheckedChange={(checked) => updateRoom(room.id, { removeFloor: checked === true })}
+                          className="h-5 w-5 rounded-md border-slate-300 text-orange-600 focus:ring-orange-600"
                         />
-                        <Label htmlFor={`removeFloorTiles-${room.id}`} className="text-xs cursor-pointer">
+                        <Label htmlFor={`removeFloorTiles-${room.id}`} className="text-sm font-medium cursor-pointer">
                           Picado de cerámica suelo
                         </Label>
                       </div>
                     )}
 
-                    {/* Añadir opción para retirar gotelé - solo visible si el material de pared es gotelé y NO es "No se modifica" */}
-                    {room.wallMaterial === "Gotelé" && room.wallMaterial !== "No se modifica" && (
-                      <div className="flex items-center space-x-2">
+                    {/* Mobiliario y Otros */}
+                    {(room.type === "Salón" || room.type === "Cocina Abierta" || room.type === "Cocina Americana") && (
+                      <div className="flex items-center gap-2">
                         <Checkbox
-                          id={`removeGotele-${room.id}`}
-                          checked={room.removeGotele === true}
-                          onCheckedChange={handleRemoveGoteleChange}
+                          id={`removeLivingRoomFurniture-${room.id}`}
+                          checked={room.removeLivingRoomFurniture}
+                          onCheckedChange={(checked) => updateRoom(room.id, { removeLivingRoomFurniture: checked === true })}
+                          className="h-5 w-5 rounded-md border-slate-300 text-orange-600 focus:ring-orange-600"
                         />
-                        <Label htmlFor={`removeGotele-${room.id}`} className="text-xs cursor-pointer">
-                          Retirar gotelé
+                        <Label htmlFor={`removeLivingRoomFurniture-${room.id}`} className="text-sm font-medium cursor-pointer">
+                          Retirar muebles de salón
                         </Label>
                       </div>
                     )}
 
-                    {/* Mostrar radiadores solo si la calefacción es con caldera o central */}
                     {shouldShowRadiator && (
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center gap-2">
                         <Checkbox
                           id={`hasRadiator-${room.id}`}
                           checked={room.hasRadiator}
                           onCheckedChange={(checked) => updateRoom(room.id, { hasRadiator: checked === true })}
+                          className="h-5 w-5 rounded-md border-slate-300 text-orange-600 focus:ring-orange-600"
                         />
-                        <Label htmlFor={`hasRadiator-${room.id}`} className="text-xs cursor-pointer">
-                          Retirar radiador
-                        </Label>
-                      </div>
-                    )}
-
-                    {/* Mostrar retirada de bajantes fecales solo en baños */}
-                    {room.type === "Baño" && (
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`removeSewagePipes-${room.id}`}
-                          checked={room.removeSewagePipes}
-                          onCheckedChange={(checked) => updateRoom(room.id, { removeSewagePipes: checked === true })}
-                        />
-                        <Label htmlFor={`removeSewagePipes-${room.id}`} className="text-xs cursor-pointer">
-                          Retirada de bajantes fecales
-                        </Label>
-                      </div>
-                    )}
-
-                    {/* Opciones específicas según tipo de habitación (sin título) */}
-                    {room.type === "Baño" && (
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`removeBathroomElements-${room.id}`}
-                          checked={room.removeBathroomElements !== false} // Siempre true a menos que explícitamente sea false
-                          defaultChecked={true}
-                          onCheckedChange={(checked) => updateRoom(room.id, { removeBathroomElements: checked === true })}
-                        />
-                        <Label htmlFor={`removeBathroomElements-${room.id}`} className="text-xs cursor-pointer">
-                          Retirar elementos de baño
+                        <Label htmlFor={`hasRadiator-${room.id}`} className="text-sm font-medium cursor-pointer">
+                          Radiador
                         </Label>
                       </div>
                     )}
 
                     {(room.type === "Cocina" || room.type === "Cocina Abierta" || room.type === "Cocina Americana") && (
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center gap-2">
                         <Checkbox
                           id={`removeKitchenFurniture-${room.id}`}
                           checked={room.removeKitchenFurniture}
                           onCheckedChange={(checked) => updateRoom(room.id, { removeKitchenFurniture: checked === true })}
+                          className="h-5 w-5 rounded-md border-slate-300 text-orange-600 focus:ring-orange-600"
                         />
-                        <Label htmlFor={`removeKitchenFurniture-${room.id}`} className="text-xs cursor-pointer">
+                        <Label htmlFor={`removeKitchenFurniture-${room.id}`} className="text-sm font-medium cursor-pointer">
                           Retirar muebles de cocina
                         </Label>
                       </div>
                     )}
-
-                    {(room.type === "Salón" || room.type === "Cocina Abierta" || room.type === "Cocina Americana") && (
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`removeLivingRoomFurniture-${room.id}`}
-                          checked={room.removeLivingRoomFurniture}
-                          onCheckedChange={(checked) =>
-                            updateRoom(room.id, { removeLivingRoomFurniture: checked === true })
-                          }
-                        />
-                        <Label htmlFor={`removeLivingRoomFurniture-${room.id}`} className="text-xs cursor-pointer">
-                          Retirar muebles de salón
-                        </Label>
-                      </div>
-                    )}
-                  </>
+                  </div>
                 ) : (
                   // Opciones para la sección de reforma
                   <>

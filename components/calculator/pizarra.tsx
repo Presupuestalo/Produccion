@@ -114,6 +114,36 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
     return groups
   }
 
+  // Función para calcular el centroide de los puntos (para posicionar etiquetas adentro)
+  const getCentroid = (pts: Point[]): Point => {
+    if (pts.length === 0) return { x: 0, y: 0 }
+    let sumX = 0
+    let sumY = 0
+    pts.forEach((p) => {
+      sumX += p.x
+      sumY += p.y
+    })
+    return { x: sumX / pts.length, y: sumY / pts.length }
+  }
+
+  // Función para calcular el offset de la etiqueta hacia el centroide
+  const getLabelOffset = (p1: Point, p2: Point, allPoints: Point[], baseOffset = 20): { x: number; y: number } => {
+    const midPoint = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+    const centroid = getCentroid(allPoints)
+
+    let dx = centroid.x - midPoint.x
+    let dy = centroid.y - midPoint.y
+    const distance = Math.sqrt(dx * dx + dy * dy)
+
+    if (distance < 1) return { x: 0, y: -baseOffset / zoom }
+
+    // Normalizar y escalar por el offset base (ajustado por zoom para que el texto no baile)
+    return {
+      x: (dx / distance) * (baseOffset / zoom),
+      y: (dy / distance) * (baseOffset / zoom),
+    }
+  }
+
   // Función para hacer scroll automático más robusta
   const scrollToResults = () => {
     // Intentar múltiples métodos de scroll para máxima compatibilidad
@@ -470,21 +500,25 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
           const midX = (prevPoint.x + point.x) / 2
           const midY = (prevPoint.y + point.y) / 2
 
-          // Detectar si la línea va hacia arriba y ajustar posición
-          const goingUp = isLineGoingUp(prevPoint, point)
-          const textOffsetY = goingUp ? 15 / zoom : -15 / zoom
+          // Calcular offset dinámico hacia el interior de la figura
+          const offset = getLabelOffset(prevPoint, point, points)
 
           // Ajustar el tamaño del texto según el zoom
           const fontSize = Math.max(12 / zoom, 8)
           ctx.font = `bold ${fontSize}px Arial`
           const textWidth = ctx.measureText(`${length.toFixed(0)} cm`).width
           ctx.fillStyle = "rgba(255, 255, 255, 0.9)"
-          ctx.fillRect(midX - textWidth / 2 - 4 / zoom, midY + textOffsetY - 10 / zoom, textWidth + 8 / zoom, 20 / zoom)
+          ctx.fillRect(
+            midX + offset.x - textWidth / 2 - 4 / zoom,
+            midY + offset.y - 10 / zoom,
+            textWidth + 8 / zoom,
+            20 / zoom,
+          )
 
           // Mostrar la medida
           ctx.fillStyle = "#0f172a"
           ctx.textAlign = "center"
-          ctx.fillText(`${length.toFixed(0)} cm`, midX, midY + textOffsetY + 5 / zoom)
+          ctx.fillText(`${length.toFixed(0)} cm`, midX + offset.x, midY + offset.y + 5 / zoom)
         }
 
         // Dibujar ángulo si hay puntos suficientes y no es parte de un grupo
@@ -530,9 +564,8 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
       const startPoint = points[group.start]
       const endPoint = points[group.end]
 
-      // Determinar la dirección de la línea para posicionar el texto
-      const goingUp = isLineGoingUp(startPoint, endPoint)
-      const textOffsetY = goingUp ? 15 / zoom : -15 / zoom
+      // Calcular offset dinámico hacia el interior
+      const offset = getLabelOffset(startPoint, endPoint, points)
 
       // Ajustar el tamaño del texto según el zoom
       const fontSize = Math.max(12 / zoom, 8)
@@ -542,8 +575,8 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
       // Fondo con color diferente para medidas agrupadas
       ctx.fillStyle = "rgba(34, 197, 94, 0.9)" // Verde para medidas agrupadas
       ctx.fillRect(
-        group.midPoint.x - textWidth / 2 - 4 / zoom,
-        group.midPoint.y + textOffsetY - 10 / zoom,
+        group.midPoint.x + offset.x - textWidth / 2 - 4 / zoom,
+        group.midPoint.y + offset.y - 10 / zoom,
         textWidth + 8 / zoom,
         20 / zoom,
       )
@@ -551,7 +584,11 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
       // Mostrar la medida total
       ctx.fillStyle = "#ffffff"
       ctx.textAlign = "center"
-      ctx.fillText(`${group.totalLength.toFixed(0)} cm`, group.midPoint.x, group.midPoint.y + textOffsetY + 5 / zoom)
+      ctx.fillText(
+        `${group.totalLength.toFixed(0)} cm`,
+        group.midPoint.x + offset.x,
+        group.midPoint.y + offset.y + 5 / zoom,
+      )
     })
 
     // Dibujar línea temporal mientras se arrastra
@@ -668,19 +705,23 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
       const midX = (lastPoint.x + firstPoint.x) / 2
       const midY = (lastPoint.y + firstPoint.y) / 2
 
-      // Detectar dirección para línea de cierre
-      const goingUp = isLineGoingUp(lastPoint, firstPoint)
-      const textOffsetY = goingUp ? 15 / zoom : -15 / zoom // Arriba si va hacia abajo, abajo si va hacia arriba
+      // Calcular offset dinámico hacia el interior
+      const offset = getLabelOffset(lastPoint, firstPoint, points)
 
       const fontSize = Math.max(12 / zoom, 8)
       ctx.font = `bold ${fontSize}px Arial`
       const textWidth = ctx.measureText(`${length.toFixed(0)} cm`).width
       ctx.fillStyle = "rgba(255, 255, 255, 0.9)"
-      ctx.fillRect(midX - textWidth / 2 - 4 / zoom, midY + textOffsetY - 10 / zoom, textWidth + 8 / zoom, 20 / zoom)
+      ctx.fillRect(
+        midX + offset.x - textWidth / 2 - 4 / zoom,
+        midY + offset.y - 10 / zoom,
+        textWidth + 8 / zoom,
+        20 / zoom,
+      )
 
       ctx.fillStyle = "#0f172a"
       ctx.textAlign = "center"
-      ctx.fillText(`${length.toFixed(0)} cm`, midX, midY + textOffsetY + 5 / zoom)
+      ctx.fillText(`${length.toFixed(0)} cm`, midX + offset.x, midY + offset.y + 5 / zoom)
     }
 
     // Resaltar punto inicial si hay puntos
@@ -1204,7 +1245,7 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
           {points.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
               <div className="text-center">
-                <div className="text-lg font-semibold mb-2">Pizarra para habitaciones grandes (hasta 5m x 5m)</div>
+                <div className="text-lg font-semibold mb-2">Pizarra para habitaciones (hasta 10m x 10m)</div>
                 <div className="text-sm">
                   {isTouchDevice
                     ? "Un dedo: dibujar | Dos dedos: zoom y mover"
@@ -1263,7 +1304,7 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
 
         {!isClosed && (
           <div className="text-sm text-gray-500 mt-2">
-            <p>Instrucciones para habitaciones grandes (hasta 5m x 5m):</p>
+            <p>Instrucciones para habitaciones (hasta 10m x 10m):</p>
             <ul className="list-disc pl-5">
               {isTouchDevice ? (
                 <>
