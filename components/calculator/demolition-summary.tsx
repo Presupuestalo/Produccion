@@ -43,6 +43,7 @@ export function DemolitionSummary({
 }: DemolitionSummaryProps) {
   const router = useRouter()
   const [verifiedContainerSize, setVerifiedContainerSize] = useState<number>(5) // Valor por defecto
+  const [verifiedSettings, setVerifiedSettings] = useState<DemolitionSettingsType | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [wallDemolitions, setWallDemolitions] = useState<WallDemolition[]>([])
   const [groupedWallDemolitions, setGroupedWallDemolitions] = useState<GroupedWallDemolition[]>([])
@@ -73,33 +74,32 @@ export function DemolitionSummary({
       setIsLoading(true)
       getProjectDemolitionSettings(projectId)
         .then((settings) => {
-          console.log("[v0] Loaded demolition settings:", settings)
+          if (settings) {
+            setVerifiedSettings(settings)
 
-          if (settings && settings.containerSize) {
-            const size =
-              typeof settings.containerSize === "string" ? Number(settings.containerSize) : settings.containerSize
+            if (settings.containerSize) {
+              const size =
+                typeof settings.containerSize === "string" ? Number(settings.containerSize) : settings.containerSize
+              setVerifiedContainerSize(size)
+            } else {
+              setVerifiedContainerSize(5)
+            }
 
-            console.log("[v0] Setting container size to:", size)
-            setVerifiedContainerSize(size)
-          } else {
-            console.log("[v0] No container size found in settings, using default 5")
-            setVerifiedContainerSize(5)
-          }
+            if (settings.ceilingThickness) {
+              const thickness =
+                typeof settings.ceilingThickness === "string"
+                  ? Number.parseFloat((settings.ceilingThickness as string).replace(",", "."))
+                  : (settings.ceilingThickness as unknown as number)
+              setCeilingThickness(thickness)
+            }
 
-          if (settings && settings.ceilingThickness) {
-            const thickness =
-              typeof settings.ceilingThickness === "string"
-                ? Number.parseFloat(settings.ceilingThickness.replace(",", "."))
-                : settings.ceilingThickness
-            setCeilingThickness(thickness)
-          }
-
-          if (settings && settings.ceilingExpansionCoef) {
-            const coef =
-              typeof settings.ceilingExpansionCoef === "string"
-                ? Number.parseFloat(settings.ceilingExpansionCoef.replace(",", "."))
-                : settings.ceilingExpansionCoef
-            setCeilingExpansionCoef(coef)
+            if (settings.ceilingExpansionCoef) {
+              const coef =
+                typeof settings.ceilingExpansionCoef === "string"
+                  ? Number.parseFloat((settings.ceilingExpansionCoef as string).replace(",", "."))
+                  : (settings.ceilingExpansionCoef as unknown as number)
+              setCeilingExpansionCoef(coef)
+            }
           }
         })
         .catch((error) => {
@@ -188,14 +188,15 @@ export function DemolitionSummary({
   useEffect(() => {
     const newWallDebrisVolume = wallDemolitions.reduce((total, demolition) => {
       const thicknessInMeters = demolition.thickness / 100
-      const expansionCoef = demolitionSettings.wallExpansionCoef || 1.3
+      const expansionCoef = verifiedSettings?.wallExpansionCoef || demolitionSettings.wallExpansionCoef || 1.3
       return total + demolition.area * thicknessInMeters * expansionCoef
     }, 0)
 
     setWallDebrisVolume(newWallDebrisVolume)
 
-    const ceilingThicknessValue = demolitionSettings.ceilingThickness || 0.015
-    const ceilingExpansionCoefValue = demolitionSettings.ceilingExpansionCoef || 1.4
+    const ceilingThicknessValue = verifiedSettings?.ceilingThickness || demolitionSettings.ceilingThickness || 0.015
+    const ceilingExpansionCoefValue =
+      verifiedSettings?.ceilingExpansionCoef || demolitionSettings.ceilingExpansionCoef || 1.4
     const newCeilingDebrisVolume = falseCeilingArea * ceilingThicknessValue * ceilingExpansionCoefValue
 
     setCeilingDebrisVolume(newCeilingDebrisVolume)
@@ -240,19 +241,8 @@ export function DemolitionSummary({
 
     setTotalDebris(newTotalDebris)
 
-    const containerSizeValue = demolitionSettings.containerSize || verifiedContainerSize || 5
+    const containerSizeValue = verifiedContainerSize || demolitionSettings.containerSize || 5
     const newContainersNeeded = Math.ceil(newTotalDebris / containerSizeValue)
-
-    console.log(
-      "[v0] Container calculation - Total debris:",
-      newTotalDebris,
-      "Container size:",
-      containerSizeValue,
-      "Containers needed:",
-      newContainersNeeded,
-      "Using setting from props:", demolitionSettings.containerSize !== undefined
-    )
-
     setContainersNeeded(newContainersNeeded)
 
     const bagVolume = 0.05
@@ -276,6 +266,8 @@ export function DemolitionSummary({
     summary?.bathroomElementsRemoval,
     livingRoomFurnitureCount,
     radiatorsToRemove,
+    verifiedSettings,
+    verifiedContainerSize,
   ])
 
   if (!summary) {
@@ -744,7 +736,7 @@ export function DemolitionSummary({
 
             <div className="font-bold text-lg">Contenedores necesarios:</div>
             <div className="text-right font-bold text-lg">
-              {containersNeeded} ({demolitionSettings.containerSize || verifiedContainerSize || 5} m³)
+              {containersNeeded} ({verifiedContainerSize || demolitionSettings.containerSize || 5} m³)
               <Button
                 variant="ghost"
                 size="sm"

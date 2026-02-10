@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { evaluate } from "mathjs"
 
 interface SimpleCalculatorProps {
   onResult?: (result: number) => void
@@ -20,11 +21,12 @@ export function SimpleCalculator({ onResult }: SimpleCalculatorProps) {
 
   const handleEqualsClick = () => {
     try {
-      // eslint-disable-next-line no-eval
-      const calculatedResult = eval(expression)
+      // Use mathjs evaluate for safe mathematical expression evaluation
+      const calculatedResult = evaluate(expression)
       setResult(calculatedResult)
       onResult?.(calculatedResult)
     } catch (error) {
+      console.error("Error evaluating expression:", error)
       setResult(null)
     }
   }

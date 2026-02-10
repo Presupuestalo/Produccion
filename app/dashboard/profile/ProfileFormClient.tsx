@@ -359,17 +359,16 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
         updates.is_coordinator = workMode === "coordinator"
       }
 
-      if (isProfessional) {
-        updates.address_province = province;
-      }
+      updates.address_province = province || ""
+      updates.address_street = addressStreet || ""
+      updates.address_city = addressCity || ""
+      updates.dni_nif = dniNif || ""
 
-      if (!isProfessional) {
+      if (isProfessional) {
+        // Additional professional fields if needed
+      } else {
         updates.phone = "+" + country + phoneNumber
         updates.country = country
-        updates.address_province = province || "";
-        updates.address_street = addressStreet;
-        updates.address_city = addressCity;
-        updates.dni_nif = dniNif;
       }
 
       const { error: updateError } = await supabase.auth.updateUser({
@@ -600,6 +599,112 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
           </CardContent>
         </Card>
 
+        {/* Basic Info Section - Added for professionals */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Información del Profesional</CardTitle>
+            <CardDescription>Estos datos se usarán en tus facturas y contratos</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="prof-fullName">Nombre completo / Razón Social *</Label>
+                <Input
+                  id="prof-fullName"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Tu nombre o empresa"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="prof-dniNif">DNI/NIF (Para facturación)</Label>
+                <Input
+                  id="prof-dniNif"
+                  value={dniNif}
+                  onChange={(e) => setDniNif(e.target.value)}
+                  placeholder="12345678A"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="prof-country">País</Label>
+                <Select value={country} onValueChange={setCountry}>
+                  <SelectTrigger id="prof-country">
+                    <SelectValue placeholder="Selecciona tu país" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {PAISES.map((pais) => (
+                      <SelectItem key={pais.code} value={pais.code}>
+                        {pais.flag} {pais.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="prof-province">{fieldLabels.province}</Label>
+                {hasProvinces ? (
+                  <Select value={province} onValueChange={setProvince}>
+                    <SelectTrigger id="prof-province">
+                      <SelectValue placeholder="Selecciona tu provincia" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {countryProvinces.map((p) => (
+                        <SelectItem key={p} value={p}>
+                          {p}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    id="prof-province"
+                    value={province}
+                    onChange={(e) => setProvince(e.target.value)}
+                    placeholder="Escribe tu provincia"
+                  />
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="prof-addressStreet">Dirección Fiscal (Calle y número)</Label>
+                <Input
+                  id="prof-addressStreet"
+                  value={addressStreet}
+                  onChange={(e) => setAddressStreet(e.target.value)}
+                  placeholder="Calle Mayor, 1"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="prof-addressCity">Ciudad</Label>
+                <Input
+                  id="prof-addressCity"
+                  value={addressCity}
+                  onChange={(e) => setAddressCity(e.target.value)}
+                  placeholder="Madrid"
+                />
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-end">
+            <Button onClick={handleSubmit} disabled={isLoading} className="bg-orange-600 hover:bg-orange-700">
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                "Guardar información básica"
+              )}
+            </Button>
+          </CardFooter>
+        </Card>
+
         {/* Work Mode Section - Only for professionals */}
         {isMaster && (
           <Card>
@@ -649,37 +754,6 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
                     donde podrás gestionar proyectos con múltiples gremios, aplicar márgenes y generar presupuestos
                     consolidados.
                   </p>
-                </div>
-              )}
-
-              {isProfessional && (
-                <div className="space-y-4 pt-4 border-t">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="prof-province">{fieldLabels.province}</Label>
-                      {hasProvinces ? (
-                        <Select value={province} onValueChange={setProvince}>
-                          <SelectTrigger id="prof-province">
-                            <SelectValue placeholder="Selecciona tu provincia" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-[300px]">
-                            {countryProvinces.map((p) => (
-                              <SelectItem key={p} value={p}>
-                                {p}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Input
-                          id="prof-province"
-                          value={province}
-                          onChange={(e) => setProvince(e.target.value)}
-                          placeholder="Escribe tu provincia"
-                        />
-                      )}
-                    </div>
-                  </div>
                 </div>
               )}
 

@@ -420,30 +420,34 @@ export function DualFloorPlanAnalyzer({
           throw new Error(`${errorMessage}${errorDetails ? `: ${errorDetails}` : ''}`)
         }
         const { analysis: afterData } = await afterAnalysisResponse.json()
-        console.log("[v0] 'After' analysis complete, rooms:", afterData.rooms?.length)
+        console.log('[v0] After analysis complete, rooms:', afterData.rooms?.length)
         setAfterAnalysis(afterData)
 
-        const cleanBeforeUrl = beforeImageUrl.replace(/\.+$/, "")
-        const cleanAfterUrl = afterImageUrl.replace(/\.+$/, "")
+        // Wait 2 seconds before comparing to avoid Groq rate limits
+        console.log('[v0] Waiting 2 seconds before comparison to avoid rate limits...')
+        await new Promise(resolve => setTimeout(resolve, 2000))
 
-        console.log("[v0] URLs para comparación:")
-        console.log("[v0] - Before (original):", beforeImageUrl)
-        console.log("[v0] - Before (limpia):", cleanBeforeUrl)
-        console.log("[v0] - After (original):", afterImageUrl)
-        console.log("[v0] - After (limpia):", cleanAfterUrl)
+        const cleanBeforeUrl = beforeImageUrl.replace(/\.+$/, '')
+        const cleanAfterUrl = afterImageUrl.replace(/\.+$/, '')
 
-        console.log("[v0] Comparing floor plans...")
-        const comparisonResponse = await fetch("/api/compare-floor-plans", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        console.log('[v0] URLs para comparación:')
+        console.log('[v0] - Before (original):', beforeImageUrl)
+        console.log('[v0] - Before (limpia):', cleanBeforeUrl)
+        console.log('[v0] - After (original):', afterImageUrl)
+        console.log('[v0] - After (limpia):', cleanAfterUrl)
+
+        console.log('[v0] Comparing floor plans...')
+        const comparisonResponse = await fetch('/api/compare-floor-plans', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             beforeImageUrl: cleanBeforeUrl,
             afterImageUrl: cleanAfterUrl,
           }),
         })
-        if (!comparisonResponse.ok) throw new Error("Error al comparar planos")
+        if (!comparisonResponse.ok) throw new Error('Error al comparar planos')
         const { comparison: comparisonData } = await comparisonResponse.json()
-        console.log("[v0] Comparison complete")
+        console.log('[v0] Comparison complete')
         setComparison(comparisonData)
       }
 

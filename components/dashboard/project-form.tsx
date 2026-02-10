@@ -25,6 +25,7 @@ import { ContractTab } from "@/components/project/contract-tab"
 import { formatDecimalInput, parseDecimalInput, sanitizeDecimalInput } from "@/lib/utils/format"
 import { getCountryFieldLabels, getProvincesForCountry } from "@/lib/utils/country-fields"
 import { SUPPORTED_COUNTRIES } from "@/types/user"
+import { saveAllProjectData } from "@/lib/services/calculator-service"
 
 // Añadir initialTab a las props
 interface ProjectFormProps {
@@ -916,10 +917,10 @@ export function ProjectForm({
       const demolitionSettingsChanged = hasDemolitionSettingsChanged(demolitionSettings, initialDemolitionSettings)
       if (demolitionSettingsChanged) {
         try {
-          console.log("[v0] SUBMIT - Guardando ajustes de demolición")
           await saveProjectDemolitionSettings(projectId, numericDemolitionSettings)
+          await saveAllProjectData(projectId, { demolitionSettings: numericDemolitionSettings })
         } catch (settingsError) {
-          console.error("[v0] SUBMIT - Error al guardar ajustes de demolición:", settingsError)
+          console.error("Error al guardar ajustes de demolición:", settingsError)
         }
       }
 

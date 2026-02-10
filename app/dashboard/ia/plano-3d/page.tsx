@@ -8,14 +8,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Loader2, Download, LayoutGrid, Upload, X } from "lucide-react"
+import { ArrowLeft, Loader2, Download, LayoutGrid, X } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
 export default function DistribucionesOptimizadasPage() {
-  const [mode, setMode] = useState<"generate" | "optimize">("generate")
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
-  const [uploadedPreview, setUploadedPreview] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
@@ -34,69 +31,35 @@ export default function DistribucionesOptimizadasPage() {
     })
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setUploadedFile(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setUploadedPreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
   const handleGenerate = async () => {
-    if (mode === "generate") {
-      if (!formData.area || !formData.habitaciones || !formData.banos) {
-        alert("Por favor, completa todos los campos obligatorios")
-        return
-      }
-    } else {
-      if (!uploadedFile) {
-        alert("Por favor, sube un plano para optimizar")
-        return
-      }
+    if (!formData.area || !formData.habitaciones || !formData.banos) {
+      alert("Por favor, completa todos los campos obligatorios")
+      return
     }
 
     setIsGenerating(true)
 
     try {
-      if (mode === "generate") {
-        const response = await fetch("/api/ia/generate-distributions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(formData),
-        })
+      const response = await fetch("/api/ia/generate-distributions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
 
-        if (!response.ok) {
-          throw new Error("Error al generar distribuciones")
-        }
-
-        const { distributions: generatedDistributions } = await response.json()
-        setDistributions(generatedDistributions)
-      } else {
-        const formDataToSend = new FormData()
-        formDataToSend.append("file", uploadedFile!)
-        formDataToSend.append("preferencias", formData.preferencias)
-
-        const response = await fetch("/api/ia/optimize-distribution", {
-          method: "POST",
-          body: formDataToSend,
-        })
-
-        if (!response.ok) {
-          throw new Error("Error al optimizar distribución")
-        }
-
-        const { distributions: generatedDistributions } = await response.json()
-        setDistributions(generatedDistributions)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Error desconocido" }))
+        console.error("[Frontend] Server error:", errorData)
+        throw new Error(errorData.error || "Error al generar distribuciones")
       }
+
+      const { distributions: generatedDistributions } = await response.json()
+      setDistributions(generatedDistributions)
     } catch (error) {
-      console.error("Error:", error)
-      alert("Error al generar distribuciones. Por favor, inténtalo de nuevo.")
+      console.error("[Frontend] Error:", error)
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido"
+      alert(`Error al generar distribuciones:\n\n${errorMessage}\n\nRevisa la consola para más detalles.`)
     } finally {
       setIsGenerating(false)
     }
@@ -168,165 +131,74 @@ export default function DistribucionesOptimizadasPage() {
 
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-white mb-4">Distribuciones Optimizadas</h1>
-            <p className="text-gray-400 text-lg">Genera o optimiza distribuciones de planos con IA</p>
+            <h1 className="text-4xl font-bold text-white mb-4">Distribuciones Generadas por IA</h1>
+            <p className="text-gray-400 text-lg">Crea propuestas de planos optimizadas basadas en tus requisitos</p>
           </div>
 
           <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1">
               <Card className="bg-gray-800/50 border-gray-700 p-6 sticky top-6">
-                <div className="flex gap-2 mb-6">
-                  <Button
-                    variant={mode === "generate" ? "default" : "outline"}
-                    onClick={() => {
-                      setMode("generate")
-                      setDistributions([])
-                    }}
-                    className={`flex-1 ${
-                      mode === "generate"
-                        ? "bg-gradient-to-r from-blue-600 to-cyan-600"
-                        : "border-gray-600 text-gray-400"
-                    }`}
-                  >
-                    <LayoutGrid className="h-4 w-4 mr-2" />
-                    Generar
-                  </Button>
-                  <Button
-                    variant={mode === "optimize" ? "default" : "outline"}
-                    onClick={() => {
-                      setMode("optimize")
-                      setDistributions([])
-                    }}
-                    className={`flex-1 ${
-                      mode === "optimize"
-                        ? "bg-gradient-to-r from-blue-600 to-cyan-600"
-                        : "border-gray-600 text-gray-400"
-                    }`}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Optimizar
-                  </Button>
+                <h3 className="text-white font-semibold mb-6">Requisitos del espacio</h3>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="area" className="text-gray-300">
+                      Área total (m²) *
+                    </Label>
+                    <Input
+                      id="area"
+                      name="area"
+                      type="number"
+                      placeholder="ej: 80"
+                      value={formData.area}
+                      onChange={handleInputChange}
+                      className="bg-gray-700/50 border-gray-600 text-white mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="habitaciones" className="text-gray-300">
+                      Número de habitaciones *
+                    </Label>
+                    <Input
+                      id="habitaciones"
+                      name="habitaciones"
+                      type="number"
+                      placeholder="ej: 3"
+                      value={formData.habitaciones}
+                      onChange={handleInputChange}
+                      className="bg-gray-700/50 border-gray-600 text-white mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="banos" className="text-gray-300">
+                      Número de baños *
+                    </Label>
+                    <Input
+                      id="banos"
+                      name="banos"
+                      type="number"
+                      placeholder="ej: 2"
+                      value={formData.banos}
+                      onChange={handleInputChange}
+                      className="bg-gray-700/50 border-gray-600 text-white mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="preferencias" className="text-gray-300">
+                      Preferencias adicionales
+                    </Label>
+                    <Textarea
+                      id="preferencias"
+                      name="preferencias"
+                      placeholder="ej: Cocina abierta al salón, mucha luz natural, zona de trabajo..."
+                      value={formData.preferencias}
+                      onChange={handleInputChange}
+                      className="bg-gray-700/50 border-gray-600 text-white mt-1 min-h-[100px]"
+                    />
+                  </div>
                 </div>
-
-                {mode === "generate" ? (
-                  <>
-                    <h3 className="text-white font-semibold mb-6">Requisitos del espacio</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="area" className="text-gray-300">
-                          Área total (m²) *
-                        </Label>
-                        <Input
-                          id="area"
-                          name="area"
-                          type="number"
-                          placeholder="ej: 80"
-                          value={formData.area}
-                          onChange={handleInputChange}
-                          className="bg-gray-700/50 border-gray-600 text-white mt-1"
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="habitaciones" className="text-gray-300">
-                          Número de habitaciones *
-                        </Label>
-                        <Input
-                          id="habitaciones"
-                          name="habitaciones"
-                          type="number"
-                          placeholder="ej: 3"
-                          value={formData.habitaciones}
-                          onChange={handleInputChange}
-                          className="bg-gray-700/50 border-gray-600 text-white mt-1"
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="banos" className="text-gray-300">
-                          Número de baños *
-                        </Label>
-                        <Input
-                          id="banos"
-                          name="banos"
-                          type="number"
-                          placeholder="ej: 2"
-                          value={formData.banos}
-                          onChange={handleInputChange}
-                          className="bg-gray-700/50 border-gray-600 text-white mt-1"
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="preferencias" className="text-gray-300">
-                          Preferencias adicionales
-                        </Label>
-                        <Textarea
-                          id="preferencias"
-                          name="preferencias"
-                          placeholder="ej: Cocina abierta al salón, mucha luz natural, zona de trabajo..."
-                          value={formData.preferencias}
-                          onChange={handleInputChange}
-                          className="bg-gray-700/50 border-gray-600 text-white mt-1 min-h-[100px]"
-                        />
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <h3 className="text-white font-semibold mb-6">Sube tu plano</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <Label className="text-gray-300 mb-2 block">Plano actual *</Label>
-                        <div
-                          onClick={() => document.getElementById("file-upload")?.click()}
-                          className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center hover:border-gray-500 transition-colors cursor-pointer bg-gray-700/30"
-                        >
-                          <input
-                            id="file-upload"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleFileChange}
-                            className="hidden"
-                          />
-                          {uploadedPreview ? (
-                            <div className="space-y-2">
-                              <div className="relative w-full h-40 rounded-lg overflow-hidden">
-                                <Image
-                                  src={uploadedPreview || "/placeholder.svg"}
-                                  alt="Plano subido"
-                                  fill
-                                  className="object-contain"
-                                />
-                              </div>
-                              <p className="text-gray-400 text-sm">{uploadedFile?.name}</p>
-                            </div>
-                          ) : (
-                            <>
-                              <Upload className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-                              <p className="text-gray-400 mb-1">Haz clic para subir tu plano</p>
-                              <p className="text-gray-500 text-sm">PNG, JPG o PDF</p>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="preferencias-optimize" className="text-gray-300">
-                          ¿Qué quieres mejorar?
-                        </Label>
-                        <Textarea
-                          id="preferencias-optimize"
-                          name="preferencias"
-                          placeholder="ej: Mejor aprovechamiento del espacio, más luz natural, cocina más grande..."
-                          value={formData.preferencias}
-                          onChange={handleInputChange}
-                          className="bg-gray-700/50 border-gray-600 text-white mt-1 min-h-[100px]"
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
 
                 <Button
                   onClick={handleGenerate}
@@ -336,21 +208,12 @@ export default function DistribucionesOptimizadasPage() {
                   {isGenerating ? (
                     <>
                       <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                      {mode === "generate" ? "Generando..." : "Optimizando..."}
+                      Generando...
                     </>
                   ) : (
                     <>
-                      {mode === "generate" ? (
-                        <>
-                          <LayoutGrid className="h-5 w-5 mr-2" />
-                          Generar distribuciones
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="h-5 w-5 mr-2" />
-                          Optimizar plano
-                        </>
-                      )}
+                      <LayoutGrid className="h-5 w-5 mr-2" />
+                      Generar distribuciones
                     </>
                   )}
                 </Button>

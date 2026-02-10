@@ -11,6 +11,7 @@ import { InfoIcon, Edit, Save, Check, Loader2 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { DemolitionSettings } from "@/types/calculator"
 import { saveProjectDemolitionSettings } from "@/lib/services/demolition-service"
+import { saveAllProjectData } from "@/lib/services/calculator-service"
 import { useToast } from "@/hooks/use-toast"
 
 interface DemolitionSettingsProps {
@@ -55,9 +56,7 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
 
   const handleSave = async () => {
-    console.log("[v0] Save button clicked, projectId:", projectId)
     if (!projectId) {
-      console.log("[v0] No projectId, aborting save")
       toast({
         title: "Error",
         description: "No se puede guardar: falta el ID del proyecto",
@@ -67,12 +66,9 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
     }
 
     try {
-      console.log("[v0] Starting save process...")
       setIsSaving(true)
-      console.log("[v0] Saving demolition settings:", settings)
-
       await saveProjectDemolitionSettings(projectId, settings)
-      console.log("[v0] Save completed successfully")
+      await saveAllProjectData(projectId, { demolitionSettings: settings })
 
       setLastSaved(new Date())
       setSaveSuccess(true)
@@ -85,10 +81,8 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
 
       // Reset success state after 2 seconds
       setTimeout(() => setSaveSuccess(false), 2000)
-
-      console.log("[v0] Demolition settings saved successfully")
     } catch (error: any) {
-      console.error("[v0] Error saving demolition settings:", error)
+      console.error("Error saving demolition settings:", error)
       const errorMessage = error?.message || "Error desconocido al guardar los ajustes"
       toast({
         title: "Error al guardar",

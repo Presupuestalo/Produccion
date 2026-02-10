@@ -1,5 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { CalculatorData } from "@/lib/types/calculator"
+import type {
+  DemolitionData,
+  ReformData,
+  PriceItem,
+  CategoryInfo,
+  Room,
+  WallDemolition
+} from "@/lib/types/budget-generator"
 
 interface GeneratedLineItem {
   category: string
@@ -30,8 +38,8 @@ export interface ProjectData {
   id: string
   name: string
   structure_type?: string
-  demolition: any
-  reform: any
+  demolition: DemolitionData
+  reform: ReformData
   approved_budget_id?: string | null
 }
 
@@ -39,14 +47,13 @@ export class BudgetGenerator {
   private lineItems: LineItem[] = []
   private sortOrder = 0
   private electricHeaterOutlets = 0
-  private priceCache: Map<string, any> = new Map()
+  private priceCache: Map<string, PriceItem> = new Map()
 
-  // Placeholder for project data, assuming it will be populated elsewhere
-  // and is accessible via `this.project`
-  private project: any = {}
+  // Project data populated from calculator data
+  private project: Partial<ProjectData> = {}
 
   constructor(
-    private calculatorData: any,
+    private calculatorData: CalculatorData | any, // Keep fallback for now
     private supabase: SupabaseClient,
   ) {
     console.log("[v0] BudgetGenerator - Raw data received:", JSON.stringify(calculatorData, null, 2))
@@ -271,7 +278,7 @@ export class BudgetGenerator {
       return
     }
 
-    const categoryMap: any = {
+    const categoryMap: Record<string, CategoryInfo> = {
       "01": { category: "DERRIBOS", section: "demolition" },
       "02": { category: "ALBAÑILERÍA", section: "masonry" },
       "03": { category: "TABIQUES Y TRASDOSADOS", section: "partitions" },
@@ -353,7 +360,7 @@ export class BudgetGenerator {
    */
   private generateDemolitionItems() {
     // DERRIBOS
-    const demolition: any = this.calculatorData.demolition
+    const demolition: DemolitionData = this.calculatorData.demolition
 
     // This ensures that caldera/termo removal is always processed
     if (demolition?.config) {
@@ -664,7 +671,7 @@ export class BudgetGenerator {
     // 01-D-17: RETIRAR TERMO ELÉCTRICO
   }
 
-  private processHeatingRemoval(demolition: any) {
+  private processHeatingRemoval(demolition: DemolitionData) {
     console.log("[v0] processHeatingRemoval called with demolition.config:", demolition.config)
 
     if (!demolition.config) {

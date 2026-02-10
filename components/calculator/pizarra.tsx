@@ -31,7 +31,7 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
   const [isClosed, setIsClosed] = useState(false)
   const [showGrid, setShowGrid] = useState(true)
   const [snapToGrid, setSnapToGrid] = useState(true)
-  const [zoom, setZoom] = useState(1)
+  const [zoom, setZoom] = useState(0.3)
   const [panOffset, setPanOffset] = useState<Point>({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
   const [lastTouchDistance, setLastTouchDistance] = useState<number | null>(null)
@@ -481,10 +481,14 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
           ctx.fillStyle = "rgba(255, 255, 255, 0.9)"
           ctx.fillRect(midX - textWidth / 2 - 4 / zoom, midY + textOffsetY - 10 / zoom, textWidth + 8 / zoom, 20 / zoom)
 
+          // Comprobar si la medida se saldría por arriba del canvas
+          const screenMidY = midY * zoom + panOffset.y + textOffsetY * zoom
+          const finalOffsetY = screenMidY < 30 ? (goingUp ? 15 / zoom : 35 / zoom) : textOffsetY
+
           // Mostrar la medida
           ctx.fillStyle = "#0f172a"
           ctx.textAlign = "center"
-          ctx.fillText(`${length.toFixed(0)} cm`, midX, midY + textOffsetY + 5 / zoom)
+          ctx.fillText(`${length.toFixed(0)} cm`, midX, midY + finalOffsetY + 5 / zoom)
         }
 
         // Dibujar ángulo si hay puntos suficientes y no es parte de un grupo
@@ -582,18 +586,21 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
       const length = calculateDistance(lastPoint, snappedCurrentPoint)
 
       // Para línea temporal, mostrar cerca del punto final pero siempre arriba
+      // Para línea temporal, detectar si estamos cerca del borde superior
+      const screenY = snappedCurrentPoint.y * zoom + panOffset.y
+      const isNearTop = screenY < 100
       const textX = snappedCurrentPoint.x
-      const textY = snappedCurrentPoint.y - 35 / zoom // Siempre arriba del dedo
+      const textY = isNearTop ? snappedCurrentPoint.y + 50 / zoom : snappedCurrentPoint.y - 35 / zoom
 
       const fontSize = Math.max(12 / zoom, 8)
       ctx.font = `bold ${fontSize}px Arial`
       const textWidth = ctx.measureText(`${length.toFixed(0)} cm`).width
       ctx.fillStyle = "rgba(59, 130, 246, 0.9)" // Fondo azul para medida temporal
-      ctx.fillRect(textX - textWidth / 2 - 4 / zoom, textY - 16 / zoom, textWidth + 8 / zoom, 20 / zoom)
+      ctx.fillRect(textX - textWidth / 2 - 4 / zoom, textY - (isNearTop ? 5 / zoom : 16 / zoom), textWidth + 8 / zoom, 20 / zoom)
 
       ctx.fillStyle = "#ffffff"
       ctx.textAlign = "center"
-      ctx.fillText(`${length.toFixed(0)} cm`, textX, textY - 5 / zoom)
+      ctx.fillText(`${length.toFixed(0)} cm`, textX, textY + (isNearTop ? 10 / zoom : -5 / zoom))
 
       // Punto temporal
       ctx.fillStyle = "#3b82f6"
@@ -935,7 +942,7 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
     setPerimeter(null)
     setIsClosed(false)
     setPanOffset({ x: 0, y: 0 })
-    setZoom(1)
+    setZoom(0.3)
   }
 
   // Función para manejar el zoom in
@@ -950,7 +957,7 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
 
   // Función para resetear la vista
   const resetView = () => {
-    setZoom(1)
+    setZoom(0.3)
     setPanOffset({ x: 0, y: 0 })
   }
 
@@ -1204,7 +1211,7 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
           {points.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
               <div className="text-center">
-                <div className="text-lg font-semibold mb-2">Pizarra para habitaciones grandes (hasta 5m x 5m)</div>
+                <div className="text-lg font-semibold mb-2">Pizarra para habitaciones grandes (hasta 10m x 10m)</div>
                 <div className="text-sm">
                   {isTouchDevice
                     ? "Un dedo: dibujar | Dos dedos: zoom y mover"
@@ -1216,8 +1223,9 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
           )}
 
           {isDrawing && (
-            <div className="absolute top-4 left-4 bg-blue-500 text-white px-3 py-1 rounded-lg text-sm">
-              Dibujando... {points.length >= 3 && "Acércate al punto verde para cerrar"}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/80 text-white px-4 py-2 rounded-full text-[11px] font-bold tracking-wide uppercase shadow-2xl backdrop-blur-md z-10 pointer-events-none border border-white/10 flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+              {points.length >= 3 ? "Acércate al punto verde para cerrar" : "Dibujando..."}
             </div>
           )}
         </div>
@@ -1263,7 +1271,7 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
 
         {!isClosed && (
           <div className="text-sm text-gray-500 mt-2">
-            <p>Instrucciones para habitaciones grandes (hasta 5m x 5m):</p>
+            <p>Instrucciones para habitaciones grandes (hasta 10m x 10m):</p>
             <ul className="list-disc pl-5">
               {isTouchDevice ? (
                 <>

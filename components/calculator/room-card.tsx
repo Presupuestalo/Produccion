@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import {
   Trash2,
@@ -29,6 +30,7 @@ import {
   SquareIcon,
   Copy,
   Pencil,
+  Layers,
 
 } from "lucide-react"
 
@@ -706,8 +708,9 @@ export function RoomCard({
       return
     }
 
-    const value = validateAndParseNumber(widthInput)
+    let value = validateAndParseNumber(widthInput)
     if (value !== null) {
+      if (value > 20) value = 20
       // Update display with formatted value
       setWidthInput(formatDecimal(value))
       updateRoom(room.id, { width: value })
@@ -737,8 +740,9 @@ export function RoomCard({
       return
     }
 
-    const value = validateAndParseNumber(lengthInput)
+    let value = validateAndParseNumber(lengthInput)
     if (value !== null) {
+      if (value > 20) value = 20
       // Update display with formatted value
       setLengthInput(formatDecimal(value))
       updateRoom(room.id, { length: value })
@@ -1321,13 +1325,13 @@ export function RoomCard({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground opacity-50 hover:opacity-100"
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950 dark:hover:text-orange-400 opacity-60 hover:opacity-100 transition-all duration-200 hover:scale-110"
                       onClick={(e) => {
                         e.stopPropagation()
                         setIsEditingName(true)
                       }}
                     >
-                      <Pencil className="h-3 w-3" />
+                      <Pencil className="h-3 w-3 transition-transform duration-200" />
                     </Button>
                     <Badge variant={isReform ? "default" : "secondary"} className={`ml-2 text-[10px] h-5 ${isReform ? "bg-green-600 hover:bg-green-700" : "bg-orange-500 hover:bg-orange-600 text-white"}`}>
                       {isReform ? "REFORMA" : "DERRIBOS"}
@@ -1420,259 +1424,342 @@ export function RoomCard({
         {isOpen && (
           <CardContent className="p-3 pt-0">
             <div className="space-y-4">
-              {/* Campo de texto personalizado para tipo "Otro" */}
-              {room.type === "Otro" && (
-                <div className="space-y-1">
-                  <Label htmlFor={`customRoomType-${room.id}`} className="text-xs">
-                    Tipo de habitación personalizado
-                  </Label>
-                  <Input
-                    id={`customRoomType-${room.id}`}
-                    type="text"
-                    value={customRoomTypeInput}
-                    onChange={handleCustomRoomTypeChange}
-                    onBlur={saveCustomRoomType}
-                    placeholder="Especifique el tipo de habitación"
-                    className="h-7 text-sm"
-                  />
-                </div>
-              )}
-
-              {/* Materiales (juntos) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor={`floorMaterial-${room.id}`} className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                    Suelo
-                  </Label>
-                  <Select
-                    value={room.floorMaterial}
-                    onValueChange={(value) => updateRoom(room.id, { floorMaterial: value as FloorMaterialType })}
-                  >
-                    <SelectTrigger id={`floorMaterial-${room.id}`} className="h-8 text-xs bg-white dark:bg-slate-950">
-                      <SelectValue placeholder="Material" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isReform ? (
-                        // Opciones para Reforma
-                        <>
-                          <SelectItem value="No se modifica">No se modifica</SelectItem>
-                          <SelectItem value="Cerámico">Cerámico</SelectItem>
-                          <SelectItem value="Parquet flotante">Parquet flotante</SelectItem>
-                          <SelectItem value="Suelo laminado">Suelo laminado</SelectItem>
-                          <SelectItem value="Suelo vinílico">Suelo vinílico</SelectItem>
-                          <SelectItem value="Otro">Otro</SelectItem>
-                        </>
-                      ) : (
-                        // Opciones para Demolición
-                        <>
-                          <SelectItem value="No se modifica">No se modifica</SelectItem>
-                          <SelectItem value="Madera">Madera</SelectItem>
-                          <SelectItem value="Cerámica">Cerámica</SelectItem>
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
+              {/* Materials Section Redesign */}
+              <div className="bg-slate-50/50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden mt-2 shadow-sm">
+                <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-100/30 dark:bg-slate-900/40 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1 bg-primary/10 rounded-md">
+                      <Layers className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">{isReform ? "Acabados y Materiales" : "Estado Actual"}</span>
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor={`wallMaterial-${room.id}`} className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                    Material paredes
-                  </Label>
-                  <Select
-                    value={wallMaterialValue}
-                    onValueChange={handleWallMaterialChange}
-                    disabled={isWallMaterialDisabled}
-                    required
-                  >
-                    <SelectTrigger id={`wallMaterial-${room.id}`} className="h-8 text-xs bg-white dark:bg-slate-950">
-                      <SelectValue placeholder="Seleccionar..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isReform ? (
-                        <>
-                          <SelectItem value="No se modifica">No se modifica</SelectItem>
-                          <SelectItem value="Cerámica">Cerámica</SelectItem>
-                          <SelectItem value="Lucir y pintar">Lucir y pintar</SelectItem>
-                          <SelectItem value="Solo lucir">Solo lucir</SelectItem>
-                          <SelectItem value="Solo pintar">Solo pintar</SelectItem>
-                        </>
-                      ) : (
-                        // Opciones para demoliciones
-                        <>
-                          <SelectItem value="No se modifica">No se modifica</SelectItem>
-                          <SelectItem value="Cerámica">Cerámica</SelectItem>
-                          <SelectItem value="Gotelé">Gotelé</SelectItem>
-                          <SelectItem value="Papel">Papel</SelectItem>
-                          <SelectItem value="Pintura">Pintura</SelectItem>
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+                <div className="p-4 space-y-4">
+                  {/* Campo de texto personalizado para tipo "Otro" integrado aquí */}
+                  {room.type === "Otro" && (
+                    <div className="space-y-1.5 pb-2 border-b border-slate-100 dark:border-slate-800">
+                      <Label htmlFor={`customRoomType-${room.id}`} className="text-[10px] font-semibold text-slate-500 uppercase ml-1">
+                        Especifique el tipo de habitación
+                      </Label>
+                      <Input
+                        id={`customRoomType-${room.id}`}
+                        type="text"
+                        value={customRoomTypeInput}
+                        onChange={handleCustomRoomTypeChange}
+                        onBlur={saveCustomRoomType}
+                        placeholder="Ej. Despensa, Lavadero..."
+                        className="h-10 text-sm bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary transition-all"
+                      />
+                    </div>
+                  )}
 
-              {/* Medidas - Sección destacada */}
-              <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg border border-blue-200 dark:border-blue-800 mt-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium text-blue-700 dark:text-blue-300 flex items-center">
-                    <Ruler className="h-4 w-4 mr-1" />
-                    Medidas de la habitación
-                  </h3>
-                  <div className="text-xs text-blue-600 dark:text-blue-400">* Campos obligatorios</div>
-                </div>
+                  <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Suelo */}
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`floorMaterial-${room.id}`} className="text-[10px] font-semibold text-slate-500 uppercase ml-1">
+                        Suelo
+                      </Label>
+                      <Select
+                        value={room.floorMaterial}
+                        onValueChange={(value) => updateRoom(room.id, { floorMaterial: value as FloorMaterialType })}
+                      >
+                        <SelectTrigger id={`floorMaterial-${room.id}`} className="h-9 text-xs font-medium bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 transition-all">
+                          <SelectValue placeholder="Material" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {isReform ? (
+                            <>
+                              <SelectItem value="No se modifica">No se modifica</SelectItem>
+                              <SelectItem value="Cerámico">Cerámico</SelectItem>
+                              <SelectItem value="Parquet flotante">Parquet flotante</SelectItem>
+                              <SelectItem value="Suelo laminado">Suelo laminado</SelectItem>
+                              <SelectItem value="Suelo vinílico">Suelo vinílico</SelectItem>
+                              <SelectItem value="Otro">Otro</SelectItem>
+                            </>
+                          ) : (
+                            <>
+                              <SelectItem value="No se modifica">No se cambia</SelectItem>
+                              <SelectItem value="Madera">Madera</SelectItem>
+                              <SelectItem value="Cerámica">Cerámica</SelectItem>
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  {room.measurementMode === "rectangular" ? (
-                    <>
-                      <div className="space-y-1 relative">
-                        <div className="flex items-center justify-between">
-                          <Label
-                            htmlFor={`width-${room.id}`}
-                            className="text-xs font-medium text-blue-700 dark:text-blue-300 block h-5"
+                    {/* Paredes */}
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`wallMaterial-${room.id}`} className="text-[10px] font-semibold text-slate-500 uppercase ml-1">
+                        Paredes
+                      </Label>
+                      <Select
+                        value={wallMaterialValue}
+                        onValueChange={handleWallMaterialChange}
+                        disabled={isWallMaterialDisabled}
+                        required
+                      >
+                        <SelectTrigger id={`wallMaterial-${room.id}`} className="h-9 text-xs font-medium bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 transition-all">
+                          <SelectValue placeholder="Seleccionar..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {isReform ? (
+                            <>
+                              <SelectItem value="No se modifica">No se modifica</SelectItem>
+                              <SelectItem value="Cerámica">Cerámica</SelectItem>
+                              <SelectItem value="Lucir y pintar">Lucir y pintar</SelectItem>
+                              <SelectItem value="Solo lucir">Solo lucir</SelectItem>
+                              <SelectItem value="Solo pintar">Solo pintar</SelectItem>
+                            </>
+                          ) : (
+                            <>
+                              <SelectItem value="No se modifica">No se cambia</SelectItem>
+                              <SelectItem value="Cerámica">Cerámica</SelectItem>
+                              <SelectItem value="Gotelé">Gotelé</SelectItem>
+                              <SelectItem value="Papel">Papel</SelectItem>
+                              <SelectItem value="Pintura">Pintura</SelectItem>
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Techo - Integrado aquí para ahorrar espacio */}
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-semibold text-slate-500 uppercase ml-1">
+                        Techo actual
+                      </Label>
+                      {!isReform ? (
+                        <div className="flex flex-col gap-1.5">
+                          <Tabs
+                            value={room.currentCeilingStatus || "no_false_ceiling"}
+                            onValueChange={handleCurrentCeilingStatusChange}
+                            className="w-full"
                           >
-                            Ancho (m) *
-                          </Label>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleMeasurementMode()}
-                            className="h-5 w-5 p-0 flex items-center justify-center text-blue-600"
-                            title={
-                              room.measurementMode === "rectangular"
-                                ? "Cambiar a área y perímetro"
-                                : "Cambiar a ancho y largo"
-                            }
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <Input
-                          id={`width-${room.id}`}
-                          type="text"
-                          value={widthInput}
-                          onChange={handleWidthChange}
-                          onBlur={saveWidth}
-                          className="h-9 text-sm border-blue-300 dark:border-blue-700 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Introduce el ancho"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label
-                          htmlFor={`length-${room.id}`}
-                          className="text-xs font-medium text-blue-700 dark:text-blue-300 block h-5"
-                        >
-                          Largo (m) *
-                        </Label>
-                        <Input
-                          id={`length-${room.id}`}
-                          type="text"
-                          value={lengthInput}
-                          onChange={handleLengthChange}
-                          onBlur={saveLength}
-                          className="h-9 text-sm border-blue-300 dark:border-blue-700 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Introduce el largo"
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="space-y-1 relative">
-                        <div className="flex items-center justify-between">
-                          <Label
-                            htmlFor={`area-${room.id}`}
-                            className="text-xs font-medium text-blue-700 dark:text-blue-300 block h-5"
-                          >
-                            Área (m²) *
-                          </Label>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleMeasurementMode()}
-                            className="h-5 w-5 p-0 flex items-center justify-center text-blue-600"
-                            title={
-                              room.measurementMode === "rectangular"
-                                ? "Cambiar a área y perímetro"
-                                : "Cambiar a ancho y largo"
-                            }
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                          </Button>
-                          {room.measurementMode === "area-perimeter" && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setIsShapeEditorOpen(true)}
-                              className="h-5 w-5 p-0 flex items-center justify-center text-green-600"
-                              title="Abrir editor de formas"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
+                            <TabsList className="grid grid-cols-3 h-9 p-1 bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
+                              <TabsTrigger
+                                value="no_false_ceiling"
+                                className="text-[10px] h-7 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
+                              >
+                                Ninguno
+                              </TabsTrigger>
+                              <TabsTrigger
+                                value="lowered_remove"
+                                className="text-[10px] h-7 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
+                              >
+                                Retirar
+                              </TabsTrigger>
+                              <TabsTrigger
+                                value="lowered_keep"
+                                className="text-[10px] h-7 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
+                              >
+                                Mantener
+                              </TabsTrigger>
+                            </TabsList>
+                          </Tabs>
+
+                          {room.currentCeilingStatus === "lowered_keep" && (
+                            <div className="relative group animate-in fade-in slide-in-from-top-1 duration-200">
+                              <Input
+                                id={`currentCeilingHeight-${room.id}`}
+                                type="text"
+                                value={currentCeilingHeightInput}
+                                onChange={handleCurrentCeilingHeightChange}
+                                onBlur={saveCurrentCeilingHeight}
+                                className="h-8 text-[11px] font-bold pr-6 bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800"
+                                placeholder="Altura..."
+                              />
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-medium group-focus-within:text-primary transition-colors">m</span>
+                            </div>
                           )}
                         </div>
-                        <Input
-                          id={`area-${room.id}`}
-                          type="text"
-                          value={areaInput}
-                          onChange={handleAreaChange}
-                          onBlur={saveArea}
-                          className="h-9 text-sm border-blue-300 dark:border-blue-700 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Introduce el área"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label
-                          htmlFor={`perimeter-${room.id}`}
-                          className="text-xs font-medium text-blue-700 dark:text-blue-300 block h-5"
-                        >
-                          Perímetro (m) *
-                        </Label>
-                        <Input
-                          id={`perimeter-${room.id}`}
-                          type="text"
-                          value={perimeterInput}
-                          onChange={handlePerimeterChange}
-                          onBlur={savePerimeter}
-                          className="h-9 text-sm border-blue-300 dark:border-blue-700 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Introduce el perímetr"
-                        />
-                      </div>
-                    </>
-                  )}
+                      ) : (
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-2 h-9 px-3 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-950">
+                            <Checkbox
+                              id={`lowerCeiling-integrated-${room.id}`}
+                              checked={room.lowerCeiling === true}
+                              onCheckedChange={(checked) => {
+                                updateRoom(room.id, { lowerCeiling: checked === true })
+                                if (checked) {
+                                  const defaultNewHeight = safeStandardHeight - 0.1
+                                  updateRoom(room.id, { newCeilingHeight: defaultNewHeight })
+                                  setCeilingHeightInput(formatDecimal(defaultNewHeight))
+                                }
+                              }}
+                            />
+                            <Label htmlFor={`lowerCeiling-integrated-${room.id}`} className="text-[11px] cursor-pointer font-medium">Bajar techo</Label>
+                          </div>
+                          {room.lowerCeiling && (
+                            <div className="relative group">
+                              <Input
+                                id={`newCeilingHeight-integrated-${room.id}`}
+                                type="text"
+                                value={ceilingHeightInput}
+                                onChange={(e) => {
+                                  setCeilingHeightInput(e.target.value)
+                                  const numValue = Number.parseFloat(e.target.value.replace(",", "."))
+                                  if (!isNaN(numValue) && numValue > safeStandardHeight) {
+                                    setCeilingHeightInput(formatDecimal(safeStandardHeight))
+                                    updateRoom(room.id, { newCeilingHeight: safeStandardHeight })
+                                  }
+                                }}
+                                onBlur={() => {
+                                  const numValue = Number.parseFloat(ceilingHeightInput.replace(",", "."))
+                                  if (!isNaN(numValue)) {
+                                    const finalValue = Math.min(numValue, safeStandardHeight)
+                                    updateRoom(room.id, { newCeilingHeight: finalValue })
+                                    setCeilingHeightInput(formatDecimal(finalValue))
+                                  }
+                                }}
+                                className="h-8 text-[11px] font-bold pr-6"
+                              />
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">m</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Resultados calculados */}
-              <div className="grid grid-cols-3 gap-2 mt-2">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Área</Label>
-                  <div className="h-7 flex items-center text-sm font-medium">{formatNumber(room.area)} m²</div>
+              {/* Measures Section Redesign */}
+              <div className="bg-slate-50/50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden mt-4 shadow-sm">
+                <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-100/30 dark:bg-slate-900/40 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1 bg-primary/10 rounded-md">
+                      <Ruler className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Dimensiones del espacio</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-[9px] font-medium h-5 px-1.5 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500">
+                      MÁX. 20m
+                    </Badge>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleMeasurementMode()}
+                      className="h-6 w-6 p-0 hover:bg-white dark:hover:bg-slate-800 text-slate-400 hover:text-primary transition-colors"
+                      title="Cambiar modo de medición"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Perímetro</Label>
-                  <div className="h-7 flex items-center text-sm font-medium">{formatNumber(room.perimeter)} m</div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Sup. Pared</Label>
-                  <div className="h-7 flex items-center text-sm font-medium">
-                    {formatNumber(
-                      room.perimeter *
-                      (() => {
-                        // Si está en reforma y se baja el techo, usar la nueva altura
-                        if (isReform && room.lowerCeiling && room.newCeilingHeight) {
-                          return room.newCeilingHeight
-                        }
-                        // Si tiene techos bajados que se quedan (lowered_keep), usar altura actual
-                        if (room.currentCeilingStatus === "lowered_keep" && room.currentCeilingHeight) {
-                          return room.currentCeilingHeight
-                        }
-                        // Si usa altura personalizada o altura estándar
-                        return room.customHeight || standardHeight
-                      })(),
-                    )}{" "}
-                    m²
+
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                  {/* Inputs Section */}
+                  <div className="space-y-4">
+                    {room.measurementMode === "rectangular" ? (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`width-${room.id}`} className="text-[10px] font-semibold text-slate-500 uppercase ml-1">Ancho (m)</Label>
+                          <div className="relative group">
+                            <Input
+                              id={`width-${room.id}`}
+                              type="text"
+                              value={widthInput}
+                              onChange={handleWidthChange}
+                              onBlur={saveWidth}
+                              className="h-10 text-sm font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary focus:border-primary transition-all pr-8"
+                              placeholder="0,00"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium group-focus-within:text-primary transition-colors">m</span>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`length-${room.id}`} className="text-[10px] font-semibold text-slate-500 uppercase ml-1">Largo (m)</Label>
+                          <div className="relative group">
+                            <Input
+                              id={`length-${room.id}`}
+                              type="text"
+                              value={lengthInput}
+                              onChange={handleLengthChange}
+                              onBlur={saveLength}
+                              className="h-10 text-sm font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary focus:border-primary transition-all pr-8"
+                              placeholder="0,00"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium group-focus-within:text-primary transition-colors">m</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between pr-1">
+                            <Label htmlFor={`area-${room.id}`} className="text-[10px] font-semibold text-slate-500 uppercase ml-1">Superficie (m²)</Label>
+                            {room.measurementMode === "area-perimeter" && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setIsShapeEditorOpen(true)}
+                                className="h-5 w-5 p-0 text-primary hover:bg-primary/10 rounded-full transition-transform hover:scale-110"
+                                title="Editor de formas"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                          <div className="relative group flex items-center">
+                            <Input
+                              id={`area-${room.id}`}
+                              type="text"
+                              value={areaInput}
+                              onChange={handleAreaChange}
+                              onBlur={saveArea}
+                              className="h-10 text-sm font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary focus:border-primary transition-all pr-9"
+                              placeholder="0,00"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium group-focus-within:text-primary transition-colors">m²</span>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`perimeter-${room.id}`} className="text-[10px] font-semibold text-slate-500 uppercase ml-1">Perímetro (m)</Label>
+                          <div className="relative group">
+                            <Input
+                              id={`perimeter-${room.id}`}
+                              type="text"
+                              value={perimeterInput}
+                              onChange={handlePerimeterChange}
+                              onBlur={savePerimeter}
+                              className="h-10 text-sm font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary focus:border-primary transition-all pr-8"
+                              placeholder="0,00"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium group-focus-within:text-primary transition-colors">m</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Results Section */}
+                  <div className="grid grid-cols-3 gap-2 bg-white dark:bg-slate-900 rounded-xl p-3 shadow-inner border border-slate-100 dark:border-slate-800">
+                    <div className="text-center space-y-1">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Área</p>
+                      <p className="text-sm font-black text-slate-700 dark:text-slate-200">{formatNumber(room.area)}<span className="text-[10px] font-normal ml-0.5 opacity-60">m²</span></p>
+                    </div>
+                    <div className="text-center space-y-1 border-x border-slate-100 dark:border-slate-800">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Perím.</p>
+                      <p className="text-sm font-black text-slate-700 dark:text-slate-200">{formatNumber(room.perimeter)}<span className="text-[10px] font-normal ml-0.5 opacity-60">m</span></p>
+                    </div>
+                    <div className="text-center space-y-1">
+                      <p className="text-[9px] font-bold text-primary/70 uppercase tracking-tighter">Pared</p>
+                      <p className="text-sm font-black text-primary">
+                        {formatNumber(
+                          room.perimeter *
+                          (() => {
+                            if (isReform && room.lowerCeiling && room.newCeilingHeight) return room.newCeilingHeight
+                            if (room.currentCeilingStatus === "lowered_keep" && room.currentCeilingHeight) return room.currentCeilingHeight
+                            return room.customHeight || standardHeight
+                          })(),
+                        )}
+                        <span className="text-[10px] font-normal ml-0.5 opacity-70">m²</span>
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1682,65 +1769,8 @@ export function RoomCard({
                 {!isReform ? (
                   // Opciones para la sección de demolición
                   <>
-                    <div className="space-y-3 p-3 border border-border rounded-md bg-muted/30 col-span-2">
-                      <div className="space-y-2">
-                        <Label htmlFor={`currentCeilingStatus-${room.id}`} className="text-xs font-medium">
-                          Techo actual
-                        </Label>
-                        <Select
-                          value={room.currentCeilingStatus || "no_false_ceiling"}
-                          onValueChange={(value: "lowered_remove" | "lowered_keep" | "no_false_ceiling") => {
-                            const updates: Partial<Room> = {
-                              currentCeilingStatus: value,
-                            }
-                            // Si cambia a otra opción, limpiar altura actual
-                            if (value !== "lowered_keep") {
-                              updates.currentCeilingHeight = undefined
-                            }
-                            updateRoom(room.id, updates)
-                          }}
-                        >
-                          <SelectTrigger id={`currentCeilingStatus-${room.id}`} className="h-9 text-sm">
-                            <SelectValue placeholder="Seleccionar estado del techo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="lowered_remove">Están bajados y se retiran</SelectItem>
-                            <SelectItem value="lowered_keep">Están bajados y se dejan así</SelectItem>
-                            <SelectItem value="no_false_ceiling">No hay falsos techos</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                    {/* El techo ha sido movido a la sección de especificaciones superior */}
 
-                      {/* Campo de altura solo visible cuando los techos están bajados y se quedan */}
-                      {room.currentCeilingStatus === "lowered_keep" && (
-                        <div className="space-y-1">
-                          <Label htmlFor={`currentCeilingHeight-${room.id}`} className="text-xs">
-                            Altura actual (m)
-                          </Label>
-                          <Input
-                            id={`currentCeilingHeight-${room.id}`}
-                            type="number"
-                            step="0.01"
-                            min="2.0"
-                            max={safeStandardHeight}
-                            value={room.currentCeilingHeight || ""}
-                            onChange={(e) => {
-                              const value = Number.parseFloat(e.target.value)
-                              if (!isNaN(value) && value <= safeStandardHeight) {
-                                updateRoom(room.id, { currentCeilingHeight: value })
-                              } else if (!isNaN(value) && value > safeStandardHeight) {
-                                updateRoom(room.id, { currentCeilingHeight: safeStandardHeight })
-                              }
-                            }}
-                            className="h-7 text-sm"
-                            placeholder="2.50"
-                          />
-                          <p className="text-[10px] text-muted-foreground">
-                            Máximo: {formatDecimal(safeStandardHeight)}m (altura del proyecto)
-                          </p>
-                        </div>
-                      )}
-                    </div>
 
                     {room.type !== "Terraza" && (
                       <div className="flex flex-col space-y-2">
@@ -1953,393 +1983,332 @@ export function RoomCard({
                       return null
                     })()}
 
-                    {(demolitionRoom?.currentCeilingStatus || room.currentCeilingStatus) !== "lowered_keep" && (
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`lowerCeiling-${room.id}`}
-                            checked={room.lowerCeiling === true}
-                            onCheckedChange={(checked) => {
-                              updateRoom(room.id, { lowerCeiling: checked === true })
-
-                              if (checked) {
-                                const defaultNewHeight = safeStandardHeight - 0.1
-                                updateRoom(room.id, { newCeilingHeight: defaultNewHeight })
-                                setCeilingHeightInput(formatDecimal(defaultNewHeight))
-                              }
-                            }}
-                          />
-                          <Label htmlFor={`lowerCeiling-${room.id}`} className="text-xs cursor-pointer">
-                            Bajar techo
-                          </Label>
-                        </div>
-
-                        {room.lowerCeiling && (
-                          <div className="ml-6 space-y-1">
-                            <Label htmlFor={`newCeilingHeight-${room.id}`} className="text-xs">
-                              Nueva altura (m)
-                            </Label>
-                            <Input
-                              id={`newCeilingHeight-${room.id}`}
-                              type="text"
-                              value={ceilingHeightInput}
-                              onChange={(e) => {
-                                const inputValue = e.target.value
-                                setCeilingHeightInput(inputValue)
-                                const numValue = Number.parseFloat(inputValue.replace(",", "."))
-                                if (!isNaN(numValue) && numValue > safeStandardHeight) {
-                                  setCeilingHeightInput(formatDecimal(safeStandardHeight))
-                                  updateRoom(room.id, { newCeilingHeight: safeStandardHeight })
-                                }
-                              }}
-                              onBlur={() => {
-                                const numValue = Number.parseFloat(ceilingHeightInput.replace(",", "."))
-                                if (!isNaN(numValue)) {
-                                  const finalValue = Math.min(numValue, safeStandardHeight)
-                                  updateRoom(room.id, { newCeilingHeight: finalValue })
-                                  setCeilingHeightInput(formatDecimal(finalValue))
-                                }
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  const numValue = Number.parseFloat(ceilingHeightInput.replace(",", "."))
-                                  if (!isNaN(numValue)) {
-                                    const finalValue = Math.min(numValue, safeStandardHeight)
-                                    updateRoom(room.id, { newCeilingHeight: finalValue })
-                                    setCeilingHeightInput(formatDecimal(finalValue))
-                                  }
-                                }
-                              }}
-                              className="h-8 text-xs"
-                            />
-                            <p className="text-[10px] text-muted-foreground">
-                              Máximo: {formatDecimal(safeStandardHeight)}m (altura del proyecto)
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Radiadores */}
-                    {room.type !== "Terraza" && (
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`hasRadiator-${room.id}`}
-                            checked={room.hasRadiator}
-                            onCheckedChange={(checked) => updateRoom(room.id, { hasRadiator: checked === true })}
-                          />
-                          <Label htmlFor={`hasRadiator-${room.id}`} className="text-xs cursor-pointer">
-                            Radiador
-                          </Label>
-                          {room.hasRadiator && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                // Añadir un nuevo radiador a la lista
-                                const currentRadiators = room.radiators || []
-                                const newRadiator = {
-                                  id: uuidv4(),
-                                  type: getDefaultRadiatorType(),
-                                  modules: 6,
-                                }
-                                updateRoom(room.id, { radiators: [...currentRadiators, newRadiator] })
-                              }}
-                              className="h-5 w-5 p-0 ml-1"
-                              title="Añadir otro radiador"
-                            >
-                              <PlusCircle className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                        </div>
-
-                        {room.hasRadiator && (
-                          <div className="ml-6 space-y-3">
-                            {/* Si no hay radiadores definidos, mostrar la interfaz simple */}
-                            {!room.radiators || room.radiators.length === 0 ? (
-                              <div className="space-y-2">
-                                <Select
-                                  value={room.radiatorType || getDefaultRadiatorType()}
-                                  onValueChange={(value) => handleRadiatorTypeChange(value as RadiatorType)}
-                                >
-                                  <SelectTrigger id={`radiatorType-${room.id}`} className="h-7 text-xs">
-                                    <SelectValue placeholder="Tipo de radiador" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="Radiador de Aluminio">Radiador de Aluminio</SelectItem>
-                                    {heatingType !== "Caldera + Radiadores" && (
-                                      <>
-                                        <SelectItem value="Radiador eléctrico">Radiador eléctrico</SelectItem>
-                                        <SelectItem value="Toallero eléctrico">Toallero eléctrico</SelectItem>
-                                      </>
-                                    )}
-                                    <SelectItem value="Toallero de aluminio">Toallero de aluminio</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            ) : (
-                              // Mostrar la lista de radiadores
-                              <div className="space-y-3">
-                                {room.radiators.map((radiator, index) => (
-                                  <div
-                                    key={radiator.id}
-                                    className="space-y-2 border-b pb-2 border-gray-100 dark:border-gray-800"
-                                  >
-                                    <Select
-                                      value={radiator.type}
-                                      onValueChange={(value) => {
-                                        const handleTypeChange = (newType: RadiatorType) => {
-                                          const updatedRadiators = room.radiators?.map((r) =>
-                                            r.id === radiator.id ? { ...r, type: newType } : r,
-                                          );
-                                          updateRoom(room.id, { radiators: updatedRadiators });
-                                        };
-
-                                        handleTypeChange(value as RadiatorType);
-                                      }}
-                                    >
-                                      <SelectTrigger id={`radiatorType-${radiator.id}`} className="h-7 text-xs flex-1">
-                                        <SelectValue placeholder="Tipo de radiador" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="Radiador de Aluminio">Radiador de Aluminio</SelectItem>
-                                        {heatingType !== "Caldera + Radiadores" && (
-                                          <>
-                                            <SelectItem value="Radiador eléctrico">Radiador eléctrico</SelectItem>
-                                            <SelectItem value="Toallero eléctrico">Toallero eléctrico</SelectItem>
-                                          </>
-                                        )}
-                                        <SelectItem value="Toallero de aluminio">Toallero de aluminio</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-
-                                    {room.radiators && room.radiators.length > 1 && (
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          // Eliminar este radiador específico
-                                          const updatedRadiators = room.radiators?.filter((r) => r.id !== radiator.id)
-                                          updateRoom(room.id, { radiators: updatedRadiators })
-                                        }}
-                                        className="h-7 w-7 p-0"
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </Button>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {isReform && (
-                  <>
-                    {/* Instalar puertas - SOLO EN REFORMA */}
-                    {room.type !== "Terraza" && (
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`newDoors-${room.id}`}
-                            checked={room.newDoors === true}
-                            onCheckedChange={(checked) => {
-                              updateRoom(room.id, { newDoors: checked === true })
-                              if (checked && (!room.newDoorList || room.newDoorList.length === 0)) {
-                                updateRoom(room.id, {
-                                  newDoorList: [{ id: uuidv4(), type: "Abatible" as DoorType }],
-                                })
-                              }
-                            }}
-                          />
-                          <Label htmlFor={`newDoors-${room.id}`} className="text-xs cursor-pointer">
-                            {room.type === "Baño" ? "Instalar puerta" : "Instalar puertas"}
-                          </Label>
-                          {room.newDoors && room.type !== "Baño" && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                const currentDoors = room.newDoorList || []
-                                updateRoom(room.id, {
-                                  newDoorList: [...currentDoors, { id: uuidv4(), type: "Abatible" as DoorType }],
-                                })
-                              }}
-                              className="h-5 w-5 p-0 ml-1"
-                              title="Añadir otra puerta"
-                            >
-                              <PlusCircle className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                        </div>
-
-                        {room.newDoors && room.newDoorList && room.newDoorList.length > 0 && (
-                          <div className="ml-6 space-y-2">
-                            {room.newDoorList.map((door, index) => (
-                              <div key={door.id} className="flex items-center space-x-2">
-                                <Select
-                                  value={door.type}
-                                  onValueChange={(value) => {
-                                    const updatedDoors = room.newDoorList?.map((d) =>
-                                      d.id === door.id ? { ...d, type: value as DoorType } : d,
-                                    )
-                                    updateRoom(room.id, { newDoorList: updatedDoors })
-                                  }}
-                                >
-                                  <SelectTrigger className="h-7 text-xs flex-1">
-                                    <SelectValue placeholder="Tipo de puerta" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="Abatible">Abatible</SelectItem>
-                                    <SelectItem value="Corredera empotrada">Corredera empotrada</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                {(room.newDoorList.length > 1 || room.type !== "Baño") && (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      const updatedDoors = room.newDoorList?.filter((d) => d.id !== door.id)
-                                      updateRoom(room.id, { newDoorList: updatedDoors })
-                                      if (!updatedDoors || updatedDoors.length === 0) {
-                                        updateRoom(room.id, { newDoors: false })
-                                      }
-                                    }}
-                                    className="h-5 w-5 p-0"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Elementos de baño - SOLO EN REFORMA */}
-                    {room.type === "Baño" && (
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`newBathroomElements-${room.id}`}
-                            checked={room.newBathroomElements}
-                            onCheckedChange={(checked) => updateRoom(room.id, { newBathroomElements: checked === true })}
-                          />
-                          <Label htmlFor={`newBathroomElements-${room.id}`} className="text-xs cursor-pointer">
-                            Elementos de baño
-                          </Label>
-                        </div>
-
-                        {room.newBathroomElements && (
-                          <div className="ml-4 space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`bathroomElement-inodoro-${room.id}`}
-                                checked={isBathroomElementSelected("Inodoro")}
-                                onCheckedChange={(checked) => handleBathroomElementChange("Inodoro", checked === true)}
-                              />
-                              <Label htmlFor={`bathroomElement-inodoro-${room.id}`} className="text-xs cursor-pointer">
-                                Inodoro
-                              </Label>
-                            </div>
-
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`bathroomElement-bide-${room.id}`}
-                                checked={isBathroomElementSelected("Bidé")}
-                                onCheckedChange={(checked) => handleBathroomElementChange("Bidé", checked === true)}
-                              />
-                              <Label htmlFor={`bathroomElement-bide-${room.id}`} className="text-xs cursor-pointer">
-                                Bidé
-                              </Label>
-                            </div>
-
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`bathroomElement-duchetaInodoro-${room.id}`}
-                                checked={isBathroomElementSelected("Ducheta Inodoro")}
-                                onCheckedChange={(checked) =>
-                                  handleBathroomElementChange("Ducheta Inodoro", checked === true)
-                                }
-                              />
-                              <Label
-                                htmlFor={`bathroomElement-duchetaInodoro-${room.id}`}
-                                className="text-xs cursor-pointer"
-                              >
-                                Ducheta Inodoro
-                              </Label>
-                            </div>
-
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`bathroomElement-platoDucha-${room.id}`}
-                                checked={isBathroomElementSelected("Plato de ducha")}
-                                onCheckedChange={(checked) =>
-                                  handleBathroomElementChange("Plato de ducha", checked === true)
-                                }
-                              />
-                              <Label htmlFor={`bathroomElement-platoDucha-${room.id}`} className="text-xs cursor-pointer">
-                                Plato de ducha
-                              </Label>
-                            </div>
-
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`bathroomElement-banera-${room.id}`}
-                                checked={isBathroomElementSelected("Bañera")}
-                                onCheckedChange={(checked) => handleBathroomElementChange("Bañera", checked === true)}
-                              />
-                              <Label htmlFor={`bathroomElement-banera-${room.id}`} className="text-xs cursor-pointer">
-                                Bañera
-                              </Label>
-                            </div>
-
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`bathroomElement-mampara-${room.id}`}
-                                checked={isBathroomElementSelected("Mampara")}
-                                onCheckedChange={(checked) => handleBathroomElementChange("Mampara", checked === true)}
-                              />
-                              <Label htmlFor={`bathroomElement-mampara-${room.id}`} className="text-xs cursor-pointer">
-                                Mampara
-                              </Label>
-                            </div>
-
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`bathroomElement-muebleLavabo-${room.id}`}
-                                checked={isBathroomElementSelected("Mueble lavabo")}
-                                onCheckedChange={(checked) =>
-                                  handleBathroomElementChange("Mueble lavabo", checked === true)
-                                }
-                              />
-                              <Label
-                                htmlFor={`bathroomElement-muebleLavabo-${room.id}`}
-                                className="text-xs cursor-pointer"
-                              >
-                                Mueble lavabo
-                              </Label>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    {/* Opción de bajar techo movida a la sección superior */}
                   </>
                 )}
               </div>
+
+              {/* Radiadores */}
+              {room.type !== "Terraza" && (
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`hasRadiator-${room.id}`}
+                      checked={room.hasRadiator}
+                      onCheckedChange={(checked) => updateRoom(room.id, { hasRadiator: checked === true })}
+                    />
+                    <Label htmlFor={`hasRadiator-${room.id}`} className="text-xs cursor-pointer">
+                      Radiador
+                    </Label>
+                    {room.hasRadiator && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          // Añadir un nuevo radiador a la lista
+                          const currentRadiators = room.radiators || []
+                          const newRadiator = {
+                            id: uuidv4(),
+                            type: getDefaultRadiatorType(),
+                            modules: 6,
+                          }
+                          updateRoom(room.id, { radiators: [...currentRadiators, newRadiator] })
+                        }}
+                        className="h-5 w-5 p-0 ml-1"
+                        title="Añadir otro radiador"
+                      >
+                        <PlusCircle className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+
+                  {room.hasRadiator && (
+                    <div className="ml-6 space-y-3">
+                      {/* Si no hay radiadores definidos, mostrar la interfaz simple */}
+                      {!room.radiators || room.radiators.length === 0 ? (
+                        <div className="space-y-2">
+                          <Select
+                            value={room.radiatorType || getDefaultRadiatorType()}
+                            onValueChange={(value) => handleRadiatorTypeChange(value as RadiatorType)}
+                          >
+                            <SelectTrigger id={`radiatorType-${room.id}`} className="h-7 text-xs">
+                              <SelectValue placeholder="Tipo de radiador" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Radiador de Aluminio">Radiador de Aluminio</SelectItem>
+                              {heatingType !== "Caldera + Radiadores" && (
+                                <>
+                                  <SelectItem value="Radiador eléctrico">Radiador eléctrico</SelectItem>
+                                  <SelectItem value="Toallero eléctrico">Toallero eléctrico</SelectItem>
+                                </>
+                              )}
+                              <SelectItem value="Toallero de aluminio">Toallero de aluminio</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ) : (
+                        // Mostrar la lista de radiadores
+                        <div className="space-y-3">
+                          {room.radiators.map((radiator, index) => (
+                            <div
+                              key={radiator.id}
+                              className="space-y-2 border-b pb-2 border-gray-100 dark:border-gray-800"
+                            >
+                              <Select
+                                value={radiator.type}
+                                onValueChange={(value) => {
+                                  const handleTypeChange = (newType: RadiatorType) => {
+                                    const updatedRadiators = room.radiators?.map((r) =>
+                                      r.id === radiator.id ? { ...r, type: newType } : r,
+                                    );
+                                    updateRoom(room.id, { radiators: updatedRadiators });
+                                  };
+
+                                  handleTypeChange(value as RadiatorType);
+                                }}
+                              >
+                                <SelectTrigger id={`radiatorType-${radiator.id}`} className="h-7 text-xs flex-1">
+                                  <SelectValue placeholder="Tipo de radiador" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Radiador de Aluminio">Radiador de Aluminio</SelectItem>
+                                  {heatingType !== "Caldera + Radiadores" && (
+                                    <>
+                                      <SelectItem value="Radiador eléctrico">Radiador eléctrico</SelectItem>
+                                      <SelectItem value="Toallero eléctrico">Toallero eléctrico</SelectItem>
+                                    </>
+                                  )}
+                                  <SelectItem value="Toallero de aluminio">Toallero de aluminio</SelectItem>
+                                </SelectContent>
+                              </Select>
+
+                              {room.radiators && room.radiators.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    // Eliminar este radiador específico
+                                    const updatedRadiators = room.radiators?.filter((r) => r.id !== radiator.id)
+                                    updateRoom(room.id, { radiators: updatedRadiators })
+                                  }}
+                                  className="h-7 w-7 p-0"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+
+              {isReform && (
+                <>
+                  {/* Instalar puertas - SOLO EN REFORMA */}
+                  {room.type !== "Terraza" && (
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`newDoors-${room.id}`}
+                          checked={room.newDoors === true}
+                          onCheckedChange={(checked) => {
+                            updateRoom(room.id, { newDoors: checked === true })
+                            if (checked && (!room.newDoorList || room.newDoorList.length === 0)) {
+                              updateRoom(room.id, {
+                                newDoorList: [{ id: uuidv4(), type: "Abatible" as DoorType }],
+                              })
+                            }
+                          }}
+                        />
+                        <Label htmlFor={`newDoors-${room.id}`} className="text-xs cursor-pointer">
+                          {room.type === "Baño" ? "Instalar puerta" : "Instalar puertas"}
+                        </Label>
+                        {room.newDoors && room.type !== "Baño" && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const currentDoors = room.newDoorList || []
+                              updateRoom(room.id, {
+                                newDoorList: [...currentDoors, { id: uuidv4(), type: "Abatible" as DoorType }],
+                              })
+                            }}
+                            className="h-5 w-5 p-0 ml-1"
+                            title="Añadir otra puerta"
+                          >
+                            <PlusCircle className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+
+                      {room.newDoors && room.newDoorList && room.newDoorList.length > 0 && (
+                        <div className="ml-6 space-y-2">
+                          {room.newDoorList.map((door, index) => (
+                            <div key={door.id} className="flex items-center space-x-2">
+                              <Select
+                                value={door.type}
+                                onValueChange={(value) => {
+                                  const updatedDoors = room.newDoorList?.map((d) =>
+                                    d.id === door.id ? { ...d, type: value as DoorType } : d,
+                                  )
+                                  updateRoom(room.id, { newDoorList: updatedDoors })
+                                }}
+                              >
+                                <SelectTrigger className="h-7 text-xs flex-1">
+                                  <SelectValue placeholder="Tipo de puerta" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Abatible">Abatible</SelectItem>
+                                  <SelectItem value="Corredera empotrada">Corredera empotrada</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              {(room.newDoorList.length > 1 || room.type !== "Baño") && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const updatedDoors = room.newDoorList?.filter((d) => d.id !== door.id)
+                                    updateRoom(room.id, { newDoorList: updatedDoors })
+                                    if (!updatedDoors || updatedDoors.length === 0) {
+                                      updateRoom(room.id, { newDoors: false })
+                                    }
+                                  }}
+                                  className="h-5 w-5 p-0"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Elementos de baño - SOLO EN REFORMA */}
+                  {room.type === "Baño" && (
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`newBathroomElements-${room.id}`}
+                          checked={room.newBathroomElements}
+                          onCheckedChange={(checked) => updateRoom(room.id, { newBathroomElements: checked === true })}
+                        />
+                        <Label htmlFor={`newBathroomElements-${room.id}`} className="text-xs cursor-pointer">
+                          Elementos de baño
+                        </Label>
+                      </div>
+
+                      {room.newBathroomElements && (
+                        <div className="ml-4 space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`bathroomElement-inodoro-${room.id}`}
+                              checked={isBathroomElementSelected("Inodoro")}
+                              onCheckedChange={(checked) => handleBathroomElementChange("Inodoro", checked === true)}
+                            />
+                            <Label htmlFor={`bathroomElement-inodoro-${room.id}`} className="text-xs cursor-pointer">
+                              Inodoro
+                            </Label>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`bathroomElement-bide-${room.id}`}
+                              checked={isBathroomElementSelected("Bidé")}
+                              onCheckedChange={(checked) => handleBathroomElementChange("Bidé", checked === true)}
+                            />
+                            <Label htmlFor={`bathroomElement-bide-${room.id}`} className="text-xs cursor-pointer">
+                              Bidé
+                            </Label>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`bathroomElement-duchetaInodoro-${room.id}`}
+                              checked={isBathroomElementSelected("Ducheta Inodoro")}
+                              onCheckedChange={(checked) =>
+                                handleBathroomElementChange("Ducheta Inodoro", checked === true)
+                              }
+                            />
+                            <Label
+                              htmlFor={`bathroomElement-duchetaInodoro-${room.id}`}
+                              className="text-xs cursor-pointer"
+                            >
+                              Ducheta Inodoro
+                            </Label>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`bathroomElement-platoDucha-${room.id}`}
+                              checked={isBathroomElementSelected("Plato de ducha")}
+                              onCheckedChange={(checked) =>
+                                handleBathroomElementChange("Plato de ducha", checked === true)
+                              }
+                            />
+                            <Label htmlFor={`bathroomElement-platoDucha-${room.id}`} className="text-xs cursor-pointer">
+                              Plato de ducha
+                            </Label>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`bathroomElement-banera-${room.id}`}
+                              checked={isBathroomElementSelected("Bañera")}
+                              onCheckedChange={(checked) => handleBathroomElementChange("Bañera", checked === true)}
+                            />
+                            <Label htmlFor={`bathroomElement-banera-${room.id}`} className="text-xs cursor-pointer">
+                              Bañera
+                            </Label>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`bathroomElement-mampara-${room.id}`}
+                              checked={isBathroomElementSelected("Mampara")}
+                              onCheckedChange={(checked) => handleBathroomElementChange("Mampara", checked === true)}
+                            />
+                            <Label htmlFor={`bathroomElement-mampara-${room.id}`} className="text-xs cursor-pointer">
+                              Mampara
+                            </Label>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`bathroomElement-muebleLavabo-${room.id}`}
+                              checked={isBathroomElementSelected("Mueble lavabo")}
+                              onCheckedChange={(checked) =>
+                                handleBathroomElementChange("Mueble lavabo", checked === true)
+                              }
+                            />
+                            <Label
+                              htmlFor={`bathroomElement-muebleLavabo-${room.id}`}
+                              className="text-xs cursor-pointer"
+                            >
+                              Mueble lavabo
+                            </Label>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-          </CardContent>
-        )}
+
+          </CardContent >
+        )
+        }
+
         {/* Modal del editor de formas */}
         <RoomShapeEditorModal
           isOpen={isShapeEditorOpen}
@@ -2347,7 +2316,7 @@ export function RoomCard({
           onApplyMeasurements={handleApplyShapeMeasurements}
           roomName={formatRoomTitle()}
         />
-      </Card>
+      </Card >
     </>
   )
 }

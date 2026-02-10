@@ -93,39 +93,50 @@ CREATE POLICY "Users can update their own contracts"
     SELECT user_id FROM projects WHERE id = contracts.project_id
   ));
 
+DROP POLICY IF EXISTS "Users can delete their own contracts" ON contracts;
+CREATE POLICY "Users can delete their own contracts"
+  ON contracts FOR DELETE
+  USING (auth.uid() IN (
+    SELECT user_id FROM projects WHERE id = contracts.project_id
+  ));
+
 -- Contract clauses policies
 DROP POLICY IF EXISTS "Users can view their own contract clauses" ON contract_clauses;
 CREATE POLICY "Users can view their own contract clauses"
   ON contract_clauses FOR SELECT
-  USING (auth.uid() IN (
-    SELECT user_id FROM projects p
+  USING (EXISTS (
+    SELECT 1 FROM projects p
     JOIN contracts c ON c.project_id = p.id
     WHERE c.id = contract_clauses.contract_id
+    AND p.user_id = auth.uid()
   ));
 
 DROP POLICY IF EXISTS "Users can insert their own contract clauses" ON contract_clauses;
 CREATE POLICY "Users can insert their own contract clauses"
   ON contract_clauses FOR INSERT
-  WITH CHECK (auth.uid() IN (
-    SELECT user_id FROM projects p
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM projects p
     JOIN contracts c ON c.project_id = p.id
     WHERE c.id = contract_clauses.contract_id
+    AND p.user_id = auth.uid()
   ));
 
 DROP POLICY IF EXISTS "Users can update their own contract clauses" ON contract_clauses;
 CREATE POLICY "Users can update their own contract clauses"
   ON contract_clauses FOR UPDATE
-  USING (auth.uid() IN (
-    SELECT user_id FROM projects p
+  USING (EXISTS (
+    SELECT 1 FROM projects p
     JOIN contracts c ON c.project_id = p.id
     WHERE c.id = contract_clauses.contract_id
+    AND p.user_id = auth.uid()
   ));
 
 DROP POLICY IF EXISTS "Users can delete their own contract clauses" ON contract_clauses;
 CREATE POLICY "Users can delete their own contract clauses"
   ON contract_clauses FOR DELETE
-  USING (auth.uid() IN (
-    SELECT user_id FROM projects p
+  USING (EXISTS (
+    SELECT 1 FROM projects p
     JOIN contracts c ON c.project_id = p.id
     WHERE c.id = contract_clauses.contract_id
+    AND p.user_id = auth.uid()
   ));

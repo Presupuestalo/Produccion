@@ -215,13 +215,28 @@ TODO EN ESPAÑOL.`,
 
     return NextResponse.json({ success: true, comparison: result.object })
   } catch (error: any) {
-    console.error("[v0] Error al comparar planos:", error)
+    console.error('[v0] Error al comparar planos:', error)
+    console.error('[v0] Error type:', error?.constructor?.name)
+    console.error('[v0] Error message:', error?.message)
+    console.error('[v0] Error cause:', error?.cause)
+    console.error('[v0] Error stack:', error?.stack)
 
-    if (error.message?.includes("rate") || error.message?.includes("429")) {
-      return NextResponse.json({ error: "Demasiadas solicitudes. Por favor, espera un momento." }, { status: 429 })
+    // Log full error object
+    if (error && typeof error === 'object') {
+      try {
+        console.error('[v0] Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
+      } catch (e) {
+        console.error('[v0] Could not stringify error')
+      }
     }
 
-    return NextResponse.json({ error: error.message || "Error inesperado al comparar los planos" }, { status: 500 })
+    if (error.message?.includes('rate') || error.message?.includes('429')) {
+      return NextResponse.json({ error: 'Demasiadas solicitudes. Por favor, espera un momento.' }, { status: 429 })
+    }
+
+    return NextResponse.json({
+      error: error.message || 'Error inesperado al comparar los planos',
+      details: error?.cause?.message || error?.cause || 'Sin detalles adicionales'
+    }, { status: 500 })
   }
 }
-

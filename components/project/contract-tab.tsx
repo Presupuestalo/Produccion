@@ -6,13 +6,14 @@ import { Card } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
-import { Plus, Trash2, Download, Loader2, Sparkles, ChevronUp, ChevronDown } from "lucide-react"
+import { Plus, Trash2, Download, Loader2, Sparkles, ChevronUp, ChevronDown, PenTool, Building2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { supabase } from "@/lib/supabase/client"
 import { getSubscriptionLimits } from "@/lib/services/subscription-limits-service"
 import { AIPriceImportDialog } from "@/components/precios/ai-price-import-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Lock } from "lucide-react"
+import { SignaturePad } from "@/components/ui/signature-pad"
 
 interface ContractClause {
   id?: string
@@ -29,6 +30,8 @@ interface ContractData {
   clauses: ContractClause[]
   signed_date?: string
   status: string
+  client_signature_url?: string | null
+  company_signature_url?: string | null
 }
 
 interface ContractTabProps {
@@ -49,7 +52,7 @@ const DEFAULT_CLAUSES = [
   "La EMPRESA se hace responsable de los daños en concepto de responsabilidad civil, a ella imputable, reservándose el derecho a ejercer las acciones más adecuadas cuando haya sido perjudicada por el mismo concepto.",
   "La EMPRESA no se hace cargo ni responsable de los imprevistos que puedan surgir en el transcurso de las obras e instalaciones que no hayan estado visibles (vicios ocultos) y comprobadas antes de la firma de este contrato, tales como humedad de paredes, filtraciones de agua, conductos subterráneos, desguaces, conducciones eléctricas subterráneas, aislamientos, cambios de lugar de contadores eléctricos y de gas sin el debido permiso de las respectivas compañías contratadas por el cliente, y paredes en el ajuste de muebles.",
   "La EMPRESA declara que mantiene con sus trabajadores o en su caso con sus colaboradores o empresas subcontratadas la relación laboral o mercantil que en su caso proceda, siempre de acuerdo a la legislación española.",
-  "Serán causa de resolución del contrato el incumplimiento de las obligaciones reflejadas en el presente contrato, pudiendo la parte no incumplidora exigir su cumplimiento, u optar por su resolución, con indemnización de los daños y perjuicios ocasionados. En todo lo no expresamente pactado en el presente contrato, se estará a los dispuesto en el Código Civil y demás normas que sean de aplicación.",
+  "Serán causa de resolución del contrato el incumplimiento de las obligaciones reflejadas en el presente contrato, pudiendo la parte no incumplidora exigir su cumplimiento, u optar por su resolución, con indemnización de los daños y perjuicios ocasionados. En todo lo no expresamente pactado en el presente contrato, se estará a lo dispuesto en el Código Civil y demás normas que sean de aplicación.",
   "En caso de discrepancias y de no existir acuerdo en la aplicación o interpretación del presente contrato, la EMPRESA y el CLIENTE se someten voluntariamente al arbitraje de la Junta Arbitral de Consumo que corresponda, sin renunciar, en cualquier caso, a sus propios fueros.",
   "La EMPRESA solicitará al CLIENTE permiso para poder hacer fotografías y video documental de la obra para hacer un seguimiento y publicarlas en su página web y en redes sociales, jamás indicando nombres de clientes ni dirección según ley de protección de datos.",
   "El CLIENTE se compromete a solicitar todos los permisos y licencias necesarios para llevar a cabo la reforma acordada en este contrato. Todos los costos asociados con la obtención de dichos permisos y licencias serán responsabilidad exclusiva del Cliente",
@@ -65,6 +68,9 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
   const [isExportingPDF, setIsExportingPDF] = useState(false)
   const [newClausePrompt, setNewClausePrompt] = useState("")
   const [bankAccount, setBankAccount] = useState("")
+  const [clientSignature, setClientSignature] = useState<string | null>(null)
+  const [companySignature, setCompanySignature] = useState<string | null>(null)
+  const [signedDate, setSignedDate] = useState<string>(new Date().toISOString().split("T")[0])
   const [companyData, setCompanyData] = useState<any>(null)
   const [hasContractAccess, setHasContractAccess] = useState<boolean>(true)
   const [canUseAI, setCanUseAI] = useState<boolean>(true)
@@ -107,7 +113,7 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
         .from("contracts")
         .select("*")
         .eq("project_id", projectId)
-        .single()
+        .maybeSingle()
 
       if (contractError && contractError.code !== "PGRST116") {
         console.error("[v0] Error loading contract:", contractError)
@@ -116,48 +122,12 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
 
       if (contractData) {
         console.log("[v0] Contract found:", contractData)
-        // Load clauses
-        const { data: clausesData, error: clausesError } = await supabase
-          .from("contract_clauses")
-          .select("*")
-          .eq("contract_id", contractData.id)
-          .order("clause_number")
-
-        if (clausesError) {
-          console.error("[v0] Error loading clauses:", clausesError)
-          throw clausesError
-        }
-
-        console.log("[v0] Clauses loaded from DB:", clausesData?.length || 0)
-
-        if (!clausesData || clausesData.length === 0) {
-          console.log("[v0] Contract exists but has no clauses, initializing with defaults")
-          const defaultClauses = DEFAULT_CLAUSES.map((text, index) => ({
-            clause_number: index + 1,
-            clause_text: text,
-            is_custom: false,
-          }))
-          setClauses(defaultClauses)
-
-          // Save default clauses to database
-          const clausesToInsert = defaultClauses.map((clause) => ({
-            contract_id: contractData.id,
-            clause_number: clause.clause_number,
-            clause_text: clause.clause_text,
-            is_custom: clause.is_custom,
-          }))
-
-          const { error: insertError } = await supabase.from("contract_clauses").insert(clausesToInsert)
-          if (insertError) {
-            console.error("[v0] Error inserting default clauses:", insertError)
-          } else {
-            console.log("[v0] Default clauses saved to database:", defaultClauses.length)
-          }
-        } else {
-          setClauses(clausesData)
-        }
-
         setContract(contractData)
+        setClauses(contractData.contract_data?.clauses || [])
+        setBankAccount(contractData.contract_data?.bank_account || "")
+        setClientSignature(contractData.client_signature_url || null)
+        setCompanySignature(contractData.company_signature_url || null)
+        if (contractData.signed_date) setSignedDate(contractData.signed_date)
       } else {
         // Initialize with default clauses
         console.log("[v0] No contract found, initializing with default clauses:", DEFAULT_CLAUSES.length)
@@ -201,11 +171,41 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
     }
   }
 
+  const uploadSignature = async (dataUrl: string, type: "client" | "company") => {
+    if (!dataUrl || dataUrl.startsWith("http")) return dataUrl
+
+    const response = await fetch(dataUrl)
+    const blob = await response.blob()
+    const { data: sessionData } = await supabase.auth.getSession()
+    if (!sessionData.session) throw new Error("No session")
+
+    const fileName = `${sessionData.session.user.id}/${projectId}/signatures/${type}_${Date.now()}.png`
+
+    const { error: uploadError } = await supabase.storage
+      .from("pdfs") // Using pdfs bucket for now as it's already configured
+      .upload(fileName, blob, { contentType: "image/png" })
+
+    if (uploadError) throw uploadError
+
+    const { data: { publicUrl } } = supabase.storage.from("pdfs").getPublicUrl(fileName)
+    return publicUrl
+  }
+
   const handleSaveContract = async () => {
     try {
       setIsSaving(true)
 
-      const contractData = {
+      let clientSigUrl = clientSignature
+      let companySigUrl = companySignature
+
+      if (clientSignature && clientSignature.startsWith("data:")) {
+        clientSigUrl = await uploadSignature(clientSignature, "client")
+      }
+      if (companySignature && companySignature.startsWith("data:")) {
+        companySigUrl = await uploadSignature(companySignature, "company")
+      }
+
+      const contractDataToSave = {
         project_id: projectId,
         budget_id: acceptedBudget?.id,
         contract_data: {
@@ -220,51 +220,35 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
             acceptedBudget?.total_without_vat ||
             0,
           bank_account: bankAccount,
+          clauses: clauses, // Store clauses directly in contract_data
         },
-        status: "draft",
+        client_signature_url: clientSigUrl,
+        company_signature_url: companySigUrl,
+        signed_date: signedDate,
+        status: (clientSigUrl && companySigUrl) ? "signed" : "draft",
       }
 
-      let contractId: string
+      const { data, error } = await supabase
+        .from("contracts")
+        .upsert(contractDataToSave, { onConflict: "project_id" })
+        .select()
+        .single()
 
-      if (contract?.id) {
-        // Update existing contract
-        const { error } = await supabase.from("contracts").update(contractData).eq("id", contract.id)
+      if (error) throw error
 
-        if (error) throw error
-        contractId = contract.id
-      } else {
-        // Create new contract
-        const { data, error } = await supabase.from("contracts").insert(contractData).select().single()
-
-        if (error) throw error
-        contractId = data.id
-        setContract(data)
-      }
-
-      // Delete existing clauses
-      await supabase.from("contract_clauses").delete().eq("contract_id", contractId)
-
-      // Insert new clauses
-      const clausesToInsert = clauses.map((clause) => ({
-        contract_id: contractId,
-        clause_number: clause.clause_number,
-        clause_text: clause.clause_text,
-        is_custom: clause.is_custom,
-      }))
-
-      const { error: clausesError } = await supabase.from("contract_clauses").insert(clausesToInsert)
-
-      if (clausesError) throw clausesError
+      setContract(data) // Update local contract state with the new data
+      setClientSignature(clientSigUrl)
+      setCompanySignature(companySigUrl)
 
       toast({
         title: "Contrato guardado",
-        description: "El contrato se ha guardado correctamente",
+        description: (clientSigUrl && companySigUrl) ? "El contrato ha sido firmado y guardado" : "El borrador ha sido guardado",
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving contract:", error)
       toast({
-        title: "Error",
-        description: "No se pudo guardar el contrato",
+        title: "Error al guardar",
+        description: error.message || "No se pudo guardar el contrato",
         variant: "destructive",
       })
     } finally {
@@ -755,7 +739,15 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
             >
               <div>
                 <p style={{ fontWeight: "bold", marginBottom: "3mm", fontSize: "10pt" }}>FIRMA DEL CLIENTE:</p>
-                <div style={{ borderBottom: "1px solid black", height: "18mm", marginBottom: "2mm" }}></div>
+                <div style={{ borderBottom: "1px solid black", height: "18mm", marginBottom: "2mm" }}>
+                  {clientSignature && (
+                    <img
+                      src={clientSignature}
+                      alt="Firma del Cliente"
+                      style={{ height: "100%", width: "auto", objectFit: "contain" }}
+                    />
+                  )}
+                </div>
                 <p style={{ fontSize: "9pt", marginBottom: "1mm" }}>
                   Nombre: {projectData.client || "_________________"}
                 </p>
@@ -763,14 +755,22 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
               </div>
               <div>
                 <p style={{ fontWeight: "bold", marginBottom: "3mm", fontSize: "10pt" }}>FIRMA DE LA EMPRESA:</p>
-                <div style={{ borderBottom: "1px solid black", height: "18mm", marginBottom: "2mm" }}></div>
+                <div style={{ borderBottom: "1px solid black", height: "18mm", marginBottom: "2mm" }}>
+                  {companySignature && (
+                    <img
+                      src={companySignature}
+                      alt="Firma de la Empresa"
+                      style={{ height: "100%", width: "auto", objectFit: "contain" }}
+                    />
+                  )}
+                </div>
                 <p style={{ fontSize: "9pt", marginBottom: "1mm" }}>Nombre: _________________</p>
                 <p style={{ fontSize: "9pt" }}>Cargo: _________________</p>
               </div>
             </div>
             <div style={{ textAlign: "center", marginTop: "5mm" }}>
               <p style={{ fontWeight: "bold", marginBottom: "2mm", fontSize: "10pt" }}>FECHA DE FIRMA:</p>
-              <p style={{ fontSize: "10pt" }}>_____ / _____ / 2025</p>
+              <p style={{ fontSize: "10pt" }}>{signedDate ? new Date(signedDate).toLocaleDateString('es-ES') : "_____ / _____ / _____"}</p>
             </div>
           </div>
         </div>
@@ -923,23 +923,65 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
 
         <Card className="p-6">
           <h4 className="font-medium mb-4">Firmas</h4>
-          <div className="grid grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-4">
-              <Label>Firma del Cliente</Label>
-              <div className="border-2 border-dashed rounded-lg h-32 flex items-center justify-center text-muted-foreground">
-                Firma del cliente
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <PenTool className="h-4 w-4 text-primary" />
+                  Firma del Cliente
+                </Label>
+                {clientSignature && clientSignature.startsWith("http") && (
+                  <Badge variant="outline" className="text-xs bg-green-500/10 text-green-600 border-green-200">
+                    Firmado
+                  </Badge>
+                )}
               </div>
+              <div className="h-48">
+                <SignaturePad
+                  onSave={setClientSignature}
+                  defaultValue={clientSignature || undefined}
+                  placeholder="El cliente debe firmar aquí"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground text-center uppercase tracking-wider">
+                {projectData.client || "Nombre del Cliente"}
+              </p>
             </div>
             <div className="space-y-4">
-              <Label>Firma de la Empresa</Label>
-              <div className="border-2 border-dashed rounded-lg h-32 flex items-center justify-center text-muted-foreground">
-                Firma de la empresa
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  Firma de la Empresa
+                </Label>
+                {companySignature && companySignature.startsWith("http") && (
+                  <Badge variant="outline" className="text-xs bg-green-500/10 text-green-600 border-green-200">
+                    Firmado
+                  </Badge>
+                )}
               </div>
+              <div className="h-48">
+                <SignaturePad
+                  onSave={setCompanySignature}
+                  defaultValue={companySignature || undefined}
+                  placeholder="La empresa debe firmar aquí"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground text-center uppercase tracking-wider">
+                Representante Legal
+              </p>
             </div>
           </div>
-          <div className="mt-6">
-            <Label>Fecha de Firma</Label>
-            <Input type="date" className="mt-2" />
+          <div className="mt-8 border-t pt-6">
+            <div className="max-w-xs">
+              <Label htmlFor="sign-date">Fecha de Firma</Label>
+              <Input
+                id="sign-date"
+                type="date"
+                className="mt-2"
+                value={signedDate}
+                onChange={(e) => setSignedDate(e.target.value)}
+              />
+            </div>
           </div>
         </Card>
       </div>

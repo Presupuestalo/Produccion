@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { evaluate } from "mathjs"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
@@ -23,11 +24,12 @@ export function HouseCalculator({ onResult, initialValue = 0 }: HouseCalculatorP
 
   const handleEqualsClick = () => {
     try {
-      // eslint-disable-next-line no-eval
-      const calculatedResult = eval(expression)
+      // Use mathjs evaluate for safe mathematical expression evaluation
+      const calculatedResult = evaluate(expression)
       setResult(calculatedResult)
       onResult?.(calculatedResult)
     } catch (error) {
+      console.error("Error evaluating expression:", error)
       setResult(null)
     }
   }
