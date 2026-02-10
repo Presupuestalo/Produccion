@@ -4,7 +4,7 @@ import Stripe from "stripe"
 import { CREDIT_PACKAGES, SUBSCRIPTION_PLANS } from "@/lib/credit-packages"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY_PRUEBAS || process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-12-18.acacia",
+  apiVersion: "2025-11-17.clover",
 })
 
 export async function POST() {

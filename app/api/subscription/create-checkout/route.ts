@@ -4,7 +4,7 @@ import Stripe from "stripe"
 import { createClient } from "@/lib/supabase/server"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-01-27.acacia" as any,
+  apiVersion: "2025-11-17.clover",
 })
 
 import { supabaseAdmin } from "@/lib/supabase-admin"

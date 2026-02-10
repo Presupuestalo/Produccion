@@ -5,7 +5,7 @@ import Stripe from "stripe"
 import { supabaseAdmin } from "@/lib/supabase-admin"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-11-20.acacia",
+  apiVersion: "2025-11-17.clover",
 })
 
 
@@ -39,7 +39,7 @@ export async function GET() {
           id: s.id,
           status: s.status,
           plan: s.items.data[0]?.price.id,
-          current_period_end: new Date(s.current_period_end * 1000).toISOString(),
+          current_period_end: new Date((s as any).current_period_end * 1000).toISOString(),
         }))
       }
     } catch (e: any) {

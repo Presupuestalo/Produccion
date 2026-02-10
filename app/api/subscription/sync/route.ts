@@ -5,7 +5,7 @@ import Stripe from "stripe"
 import { supabaseAdmin } from "@/lib/supabase-admin"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-11-20.acacia",
+  apiVersion: "2025-11-17.clover",
 })
 
 
@@ -111,8 +111,8 @@ export async function POST() {
         plan_id: plan,
         billing_type: billing,
         status: subscription.status,
-        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+        current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
         cancel_at_period_end: subscription.cancel_at_period_end,
         updated_at: new Date().toISOString(),
       },
