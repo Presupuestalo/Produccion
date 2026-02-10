@@ -699,7 +699,7 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
             </div>
           </CardContent>
           <CardFooter className="flex justify-end">
-            <Button onClick={handleSubmit} disabled={isLoading} className="bg-orange-600 hover:bg-orange-700">
+            <Button onClick={(e) => handleSubmit(e as any)} disabled={isLoading} className="bg-orange-600 hover:bg-orange-700">
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -764,7 +764,7 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
                 </div>
               )}
 
-              <Button onClick={handleSubmit} disabled={isLoading} className="w-full bg-orange-600 hover:bg-orange-700">
+              <Button onClick={(e) => handleSubmit(e as any)} disabled={isLoading} className="w-full bg-orange-600 hover:bg-orange-700">
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
