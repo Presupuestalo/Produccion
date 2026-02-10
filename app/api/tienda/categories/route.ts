@@ -4,7 +4,11 @@ import { createClient } from "@/lib/supabase/server"
 
 export async function GET() {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
+
+    if (!supabase) {
+      return NextResponse.json({ error: "Client initialization failed" }, { status: 500 })
+    }
 
     // Obtener categorías únicas con conteo de productos
     const { data: categories, error } = await supabase.from("amazon_products").select("category").eq("in_stock", true)
