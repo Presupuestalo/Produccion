@@ -7,6 +7,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     const { id: claimId } = await params
     const supabase = await createClient()
+
+    if (!supabase) {
+      return NextResponse.json({ error: "Failed to initialize Supabase client" }, { status: 500 })
+    }
     const {
       data: { user },
       error: authError,

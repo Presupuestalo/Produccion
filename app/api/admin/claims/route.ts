@@ -8,6 +8,10 @@ export const fetchCache = "force-no-store"
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
 
+  if (!supabase) {
+    return NextResponse.json({ error: "Failed to initialize Supabase client" }, { status: 500 })
+  }
+
   // Verificar que el usuario es admin
   const {
     data: { user },
@@ -91,14 +95,14 @@ export async function GET(request: NextRequest) {
           professional,
           quote_offer: quoteOffer
             ? {
-                ...quoteOffer,
-                lead_request: leadRequest
-                  ? {
-                      ...leadRequest,
-                      owner,
-                    }
-                  : null,
-              }
+              ...quoteOffer,
+              lead_request: leadRequest
+                ? {
+                  ...leadRequest,
+                  owner,
+                }
+                : null,
+            }
             : null,
           other_professionals_contacted: otherContactedCount,
         }

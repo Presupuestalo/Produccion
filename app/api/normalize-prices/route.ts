@@ -6,6 +6,10 @@ export async function POST() {
   try {
     const supabase = await createClient()
 
+    if (!supabase) {
+      return NextResponse.json({ error: "Failed to initialize Supabase client" }, { status: 500 })
+    }
+
     // Verificar que el usuario es admin
     const {
       data: { user },
@@ -98,6 +102,10 @@ export async function POST() {
 export async function GET() {
   try {
     const supabase = await createClient()
+
+    if (!supabase) {
+      return NextResponse.json({ error: "Failed to initialize Supabase client" }, { status: 500 })
+    }
 
     const {
       data: { user },

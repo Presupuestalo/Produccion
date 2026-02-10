@@ -14,6 +14,10 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
 
+    if (!supabase) {
+      return NextResponse.json({ error: "Failed to initialize Supabase client" }, { status: 500 })
+    }
+
     // Get current user
     const {
       data: { user },

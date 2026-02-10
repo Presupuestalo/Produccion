@@ -9,6 +9,10 @@ export const dynamic = "force-dynamic"
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
+
+    if (!supabase) {
+      return NextResponse.json({ error: "Failed to initialize Supabase client" }, { status: 500 })
+    }
     const {
       data: { user },
       error: authError,
@@ -185,6 +189,10 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
+
+    if (!supabase) {
+      return NextResponse.json({ error: "Failed to initialize Supabase client" }, { status: 500 })
+    }
     const {
       data: { user },
       error: authError,

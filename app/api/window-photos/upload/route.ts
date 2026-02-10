@@ -16,6 +16,10 @@ export async function POST(request: Request) {
 
     const supabase = await createClient()
 
+    if (!supabase) {
+      return NextResponse.json({ error: "Failed to initialize Supabase client" }, { status: 500 })
+    }
+
     // Verificar autenticación
     const {
       data: { session },

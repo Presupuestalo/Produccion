@@ -15,6 +15,10 @@ export async function GET(request: Request) {
 
     const supabase = await createClient()
 
+    if (!supabase) {
+      return NextResponse.json({ error: "Failed to initialize Supabase client" }, { status: 500 })
+    }
+
     const {
       data: { user },
     } = await supabase.auth.getUser()
