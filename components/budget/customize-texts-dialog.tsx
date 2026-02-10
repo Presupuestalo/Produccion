@@ -33,6 +33,7 @@ export function CustomizeTextsDialog({
 }: CustomizeTextsDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [supabase, setSupabase] = useState<any>(null)
   const [defaultTexts, setDefaultTexts] = useState<{
     introduction: string
     notes: string
@@ -42,7 +43,14 @@ export function CustomizeTextsDialog({
     notes: currentNotes || "",
   })
   const { toast } = useToast()
-  const supabase = createClient()
+
+  useEffect(() => {
+    async function initSupabase() {
+      const client = await createClient()
+      setSupabase(client)
+    }
+    initSupabase()
+  }, [])
 
   useEffect(() => {
     if (open) {
@@ -51,6 +59,7 @@ export function CustomizeTextsDialog({
   }, [open])
 
   const loadDefaultTexts = async () => {
+    if (!supabase) return
     try {
       const { data, error } = await supabase
         .from("budget_settings")
@@ -82,6 +91,7 @@ export function CustomizeTextsDialog({
   }
 
   const handleSave = async () => {
+    if (!supabase) return
     try {
       setLoading(true)
 

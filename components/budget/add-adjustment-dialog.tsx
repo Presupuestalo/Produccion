@@ -221,7 +221,7 @@ export function AddAdjustmentDialog({
       console.log("[v0] Adjustment type:", adjustmentType)
       console.log("[v0] Form data:", formData)
 
-      const supabase = createClient()
+      const supabase = await createClient()
 
       const totalPrice = formData.quantity * formData.unit_price
 

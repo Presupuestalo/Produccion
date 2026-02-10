@@ -53,7 +53,7 @@ export function BudgetAdjustmentsSection({
   const deleteAdjustment = async (id: string) => {
     try {
       console.log("[v0] Deleting adjustment:", id)
-      const supabase = createClient()
+      const supabase = await createClient()
       await BudgetService.deleteBudgetAdjustment(id, supabase)
 
       toast({
