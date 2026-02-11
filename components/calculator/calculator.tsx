@@ -496,17 +496,17 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
         const isBathOrKitchen = room.type === "Baño" || room.type === "Cocina"
         const hasWallTiles = room.removeWallTiles && room.tiledWallSurfaceArea && room.tiledWallSurfaceArea > 0
-        const hasCeramicWalls = room.removeWallTiles && room.wallMaterial === "Cerámica" && room.wallSurface > 0
+        const hasCeramicWalls = room.removeWallTiles && room.wallMaterial === "Cerámica" && (room.wallSurface || 0) > 0
 
         if (hasWallTiles) {
           // Usar tiledWallSurfaceArea si está disponible (cálculo específico de área con cerámica)
-          newSummary.wallTileRemoval += room.tiledWallSurfaceArea
+          newSummary.wallTileRemoval += room.tiledWallSurfaceArea || 0
           console.log(
             `[v0] ${room.type} ${room.number} - Picado paredes cerámicas (tiledWallSurfaceArea): ${room.tiledWallSurfaceArea} m²`,
           )
         } else if (hasCeramicWalls) {
           // Fallback a wallSurface si wallMaterial es Cerámica
-          newSummary.wallTileRemoval += room.wallSurface
+          newSummary.wallTileRemoval += room.wallSurface || 0
           console.log(
             `[v0] ${room.type} ${room.number} - Picado paredes cerámicas (wallSurface): ${room.wallSurface} m²`,
           )
