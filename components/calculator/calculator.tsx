@@ -1857,12 +1857,11 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
         return {
           ...room,
-          id: uuidv4(), // Asegurar un ID único
-          floorMaterial: isBathroomOrKitchen || isTerrace ? "Cerámica" : "Madera",
-          floorType: isBathroomOrKitchen || isTerrace ? "Cerámica" : "Madera",
-          wallMaterial: isTerrace ? "No se modifica" : isBathroomOrKitchen ? "Cerámica" : "Pintura",
-          removeWallTiles: isBathroomOrKitchen ? true : undefined,
-          removeFloor: isBathroomOrKitchen ? true : undefined,
+          id: uuidv4(),
+          floorMaterial: (isBathroomOrKitchen || isTerrace ? "Cerámica" : "Madera") as FloorMaterialType,
+          wallMaterial: (isTerrace ? "No se modifica" : isBathroomOrKitchen ? "Cerámica" : "Pintura") as WallMaterialType,
+          removeWallTiles: isBathroomOrKitchen ? true : false,
+          removeFloor: isBathroomOrKitchen ? true : false,
           hasDoors: true,
           doorList: room.doorList || [{ id: uuidv4(), type: "Abatible", width: 0.72, height: 2.03 }],
           windows: room.windows || [],
@@ -1876,7 +1875,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
           ceilingMaterial: room.ceilingMaterial || "Pintura",
           removeWallMaterial: room.removeWallMaterial || false,
           removeCeilingMaterial: room.removeCeilingMaterial || false,
-        }
+        } as Room
       })
 
       const processedReformRooms = reformRooms.map((room) => {
@@ -1893,8 +1892,8 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         return {
           ...room,
           id: uuidv4(),
-          floorMaterial: isBathroomOrKitchen || isTerrace ? "Cerámico" : "Parquet flotante",
-          wallMaterial: isTerrace ? "No se modifica" : isBathroomOrKitchen ? "Cerámica" : "Lucir y pintar",
+          floorMaterial: (isBathroomOrKitchen || isTerrace ? "Cerámico" : "Parquet flotante") as FloorMaterialType,
+          wallMaterial: (isTerrace ? "No se modifica" : isBathroomOrKitchen ? "Cerámica" : "Lucir y pintar") as WallMaterialType,
           windows: room.windows || [],
           name: room.name || `${room.type} ${room.number}`,
           doors: room.doors || (room.doorList?.length || 0),
@@ -1907,7 +1906,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
           removeFloor: room.removeFloor || false,
           removeWallMaterial: room.removeWallMaterial || false,
           removeCeilingMaterial: room.removeCeilingMaterial || false,
-        }
+        } as Room
       })
       setRooms(processedDemolitionRooms)
       setReformRooms(processedReformRooms)
