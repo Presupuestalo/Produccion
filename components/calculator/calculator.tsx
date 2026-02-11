@@ -2204,7 +2204,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
           {/* Mostrar mensaje de error de base de datos si es necesario */}
           {databaseError.show && (
             <DatabaseErrorMessage
-              instructions={databaseError.instructions}
+              instructions={databaseError.instructions || ""}
               onClose={() => setDatabaseError({ show: false, instructions: "" })}
             />
           )}
