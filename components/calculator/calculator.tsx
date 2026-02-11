@@ -408,6 +408,10 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     mortarBaseExpansionCoef: 1.4,
     woodenFloorThickness: 0.02,
     woodenFloorExpansionCoef: 1.4,
+    floorTileExpansionCoef: 1.4,
+    wallExpansionCoef: 1.3,
+    ceilingThickness: 0.015,
+    ceilingExpansionCoef: 1.4,
   })
 
   // Estado para la configuración eléctrica
