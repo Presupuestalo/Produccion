@@ -1496,7 +1496,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
       const newRoom: Room = {
         id: uuidv4(),
-        type: selectedRoomType,
+        type: selectedRoomType as RoomType,
         customRoomType: selectedRoomType === "Otro" ? "" : selectedRoomType,
         width: 3,
         length: 4,
