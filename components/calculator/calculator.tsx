@@ -911,6 +911,11 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         return
       }
 
+      if (!projectId) {
+        console.warn("[v0] AUTO-SAVE: No projectId available, skipping save")
+        return
+      }
+
       isSavingRef.current = true
       lastSaveAttemptRef.current = Date.now()
       setSaveStatus("saving")
