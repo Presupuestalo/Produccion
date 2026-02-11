@@ -1407,7 +1407,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     }
   }, [projectId])
 
-  const handleUpdateGlobalConfig = useCallback((newConfig: Partial<GlobalConfig>, isReform: boolean) => {
+  const handleUpdateGlobalConfig = useCallback((newConfig: Partial<GlobalConfig>, isReform?: boolean) => {
     if (isReform) {
       setReformConfig((prev) => {
         const updatedConfig = { ...prev, ...newConfig }
