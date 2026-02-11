@@ -2,8 +2,7 @@
 
 import { useState } from "react"
 import { RoomCard } from "./room-card"
-import type { Room, CalefaccionType, ElectricalConfig } from "@/types/calculator"
-import type { GlobalConfig } from "@/types"
+import type { Room, CalefaccionType, ElectricalConfig, GlobalConfig } from "@/types/calculator"
 import { cn } from "@/lib/utils"
 import { List, Columns2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
