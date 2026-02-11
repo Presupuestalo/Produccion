@@ -1072,7 +1072,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                     if (!roomSettings) return room
 
                     const updatedElements = (room.electricalElements || []).map((element) => {
-                      const quantity = roomSettings[element.id] || 0
+                      const quantity = element.id ? (roomSettings[element.id] || 0) : 0
                       return { ...element, quantity }
                     })
 
