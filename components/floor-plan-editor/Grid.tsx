@@ -44,9 +44,9 @@ export const Grid: React.FC<GridProps> = ({ width, height, cellSize, zoom, offse
                 <Line
                     key={`v-minor-${i}`}
                     points={[x, 0, x, height]}
-                    stroke="#e2e8f0"
-                    strokeWidth={0.5}
-                    opacity={0.4}
+                    stroke="#f8fafc"
+                    strokeWidth={0.2}
+                    opacity={0.04}
                     listening={false}
                 />
             )
@@ -59,9 +59,9 @@ export const Grid: React.FC<GridProps> = ({ width, height, cellSize, zoom, offse
                 <Line
                     key={`h-minor-${i}`}
                     points={[0, y, width, y]}
-                    stroke="#e2e8f0"
-                    strokeWidth={0.5}
-                    opacity={0.4}
+                    stroke="#f8fafc"
+                    strokeWidth={0.2}
+                    opacity={0.04}
                     listening={false}
                 />
             )
@@ -75,9 +75,9 @@ export const Grid: React.FC<GridProps> = ({ width, height, cellSize, zoom, offse
             <Line
                 key={`v-major-${i}`}
                 points={[x, 0, x, height]}
-                stroke="#cbd5e1"
-                strokeWidth={1}
-                opacity={0.6}
+                stroke="#f1f5f9"
+                strokeWidth={0.2}
+                opacity={0.07}
                 listening={false}
             />
         )
@@ -89,9 +89,9 @@ export const Grid: React.FC<GridProps> = ({ width, height, cellSize, zoom, offse
             <Line
                 key={`h-major-${i}`}
                 points={[0, y, width, y]}
-                stroke="#cbd5e1"
-                strokeWidth={1}
-                opacity={0.6}
+                stroke="#f1f5f9"
+                strokeWidth={0.2}
+                opacity={0.07}
                 listening={false}
             />
         )

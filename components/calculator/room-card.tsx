@@ -1427,7 +1427,7 @@ export function RoomCard({
                   </Label>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className={`grid grid-cols-1 ${isReform ? "md:grid-cols-2" : "md:grid-cols-3"} gap-4`}>
                   {/* SUELO */}
                   <div className="space-y-2">
                     <Label htmlFor={`floorMaterial-${room.id}`} className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
@@ -1496,76 +1496,64 @@ export function RoomCard({
                     </Select>
                   </div>
 
-                  {/* TECHO ACTUAL */}
-                  <div className="space-y-2">
-                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
-                      Techo actual
-                    </Label>
-                    <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-200 h-9">
-                      {[
-                        { id: "no_false_ceiling", label: "Ninguno" },
-                        { id: "lowered_remove", label: "Retirar" },
-                        { id: "lowered_keep", label: "Mantener" },
-                      ].map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          className={`flex-1 text-[10px] font-medium rounded-md transition-all ${(room.currentCeilingStatus || "no_false_ceiling") === item.id
-                            ? "bg-white text-orange-600 shadow-sm"
-                            : "text-slate-500 hover:text-slate-700"
-                            }`}
-                          onClick={() => {
-                            const value = item.id as any
-                            const updates: Partial<Room> = { currentCeilingStatus: value }
-                            if (value !== "lowered_keep") updates.currentCeilingHeight = undefined
-                            updateRoom(room.id, updates)
-                          }}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
+                  {!isReform && (
+                    <div className="space-y-2">
+                      <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+                        Techo actual
+                      </Label>
+                      <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-200 h-9">
+                        {[
+                          { id: "no_false_ceiling", label: "Ninguno" },
+                          { id: "lowered_remove", label: "Retirar" },
+                          { id: "lowered_keep", label: "Mantener" },
+                        ].map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            className={`flex-1 text-[10px] font-medium rounded-md transition-all ${(room.currentCeilingStatus || "no_false_ceiling") === item.id
+                              ? "bg-white text-orange-600 shadow-sm"
+                              : "text-slate-500 hover:text-slate-700"
+                              }`}
+                            onClick={() => handleCurrentCeilingStatusChange(item.id)}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {room.currentCeilingStatus === "lowered_keep" && (
+                        <div className="mt-2 space-y-1">
+                          <Label className="text-[10px] font-bold text-slate-500 uppercase">
+                            Altura actual (m)
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              type="text"
+                              value={currentCeilingHeightInput}
+                              onChange={handleCurrentCeilingHeightChange}
+                              onBlur={saveCurrentCeilingHeight}
+                              className="h-8 text-xs font-bold rounded-lg border-slate-200 pr-7"
+                              placeholder="Ej: 2.50"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">m</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
               {/* DIMENSIONES DEL ESPACIO */}
               <div className="border border-slate-200 rounded-xl p-4 bg-white shadow-sm mt-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-1">
                     <div className="bg-slate-100 p-1 rounded">
                       <Ruler className="h-4 w-4 text-slate-600" />
                     </div>
                     <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
                       Dimensiones del espacio
                     </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-[10px] font-medium text-slate-500 border-slate-200">
-                      MÁX. 20m
-                    </Badge>
-                    {room.measurementMode !== "rectangular" && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setIsShapeEditorOpen(true)}
-                        className="h-7 w-7 p-0 text-orange-500 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-all duration-300"
-                        title="Editor de formas"
-                      >
-                        <Pencil className="h-4 w-4 hover:scale-110 hover:rotate-12 transition-all duration-300" />
-                      </Button>
-                    )}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleMeasurementMode()}
-                      className="h-7 w-7 p-0 text-slate-500 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all duration-300"
-                      title="Cambiar modo de medición"
-                    >
-                      <RefreshCw className="h-4 w-4 hover:rotate-180 transition-all duration-300" />
-                    </Button>
                   </div>
                 </div>
 
@@ -1575,9 +1563,38 @@ export function RoomCard({
                     {room.measurementMode === "rectangular" ? (
                       <>
                         <div className="flex-1 space-y-1.5">
-                          <Label htmlFor={`width-${room.id}`} className="text-[10px] font-bold text-slate-500 uppercase">
-                            Ancho (m)
-                          </Label>
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor={`width-${room.id}`} className="text-[10px] font-bold text-slate-500 uppercase">
+                              Ancho (m)
+                            </Label>
+                            <div className="flex items-center gap-1 -mt-0.5 origin-right">
+                              <Badge variant="outline" className="text-[9px] h-4 px-1.5 font-medium text-slate-500 border-slate-300 bg-slate-50/80 shadow-sm">
+                                MÁX. 20m
+                              </Badge>
+                              {room.measurementMode !== "rectangular" && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setIsShapeEditorOpen(true)}
+                                  className="h-6 w-6 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-full transition-all duration-300"
+                                  title="Editor de formas"
+                                >
+                                  <Pencil className="h-3 w-3 hover:scale-110 hover:rotate-12 transition-all duration-300" />
+                                </Button>
+                              )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleMeasurementMode()}
+                                className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all duration-300"
+                                title="Cambiar modo de medición"
+                              >
+                                <RefreshCw className="h-3 w-3 hover:rotate-180 transition-all duration-300" />
+                              </Button>
+                            </div>
+                          </div>
                           <div className="relative">
                             <Input
                               id={`width-${room.id}`}
@@ -1610,9 +1627,38 @@ export function RoomCard({
                     ) : (
                       <>
                         <div className="flex-1 space-y-1.5">
-                          <Label htmlFor={`area-${room.id}`} className="text-[10px] font-bold text-slate-500 uppercase">
-                            Área (m²)
-                          </Label>
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor={`area-${room.id}`} className="text-[10px] font-bold text-slate-500 uppercase">
+                              Área (m²)
+                            </Label>
+                            <div className="flex items-center gap-1 -mt-0.5 origin-right">
+                              <Badge variant="outline" className="text-[9px] h-4 px-1.5 font-medium text-slate-500 border-slate-300 bg-slate-50/80 shadow-sm">
+                                MÁX. 20m
+                              </Badge>
+                              {room.measurementMode !== "rectangular" && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setIsShapeEditorOpen(true)}
+                                  className="h-6 w-6 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-full transition-all duration-300"
+                                  title="Editor de formas"
+                                >
+                                  <Pencil className="h-3 w-3 hover:scale-110 hover:rotate-12 transition-all duration-300" />
+                                </Button>
+                              )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleMeasurementMode()}
+                                className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all duration-300"
+                                title="Cambiar modo de medición"
+                              >
+                                <RefreshCw className="h-3 w-3 hover:rotate-180 transition-all duration-300" />
+                              </Button>
+                            </div>
+                          </div>
                           <div className="relative">
                             <Input
                               id={`area-${room.id}`}
@@ -2231,7 +2277,7 @@ export function RoomCard({
             </div>
           </CardContent>
         )}
-        {/* Modal del editor de formas */}
+
         <RoomShapeEditorModal
           isOpen={isShapeEditorOpen}
           onClose={() => setIsShapeEditorOpen(false)}

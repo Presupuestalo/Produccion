@@ -38,9 +38,11 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
   const [lastTouchCenter, setLastTouchCenter] = useState<Point | null>(null)
 
   // Nueva configuración para rejilla de 10cm x 10cm con snap de 1cm
-  const gridSize = 20 // 20 píxeles = 10cm (rejilla visual)
-  const snapSize = 2 // 2 píxeles = 1cm (precisión de movimiento)
-  const pixelsPerCm = 2 // 2 píxeles = 1cm (escala general)
+  // Nueva configuración para rejilla de 10cm x 10cm con snap de 1cm
+  // Nueva configuración para rejilla de 10cm x 10cm con snap de 1cm
+  const gridSize = 10 // 10 píxeles = 10cm (rejilla visual de 10cm)
+  const snapSize = 1 // 1 píxel = 1cm (precisión de movimiento)
+  const pixelsPerCm = 1 // 1 píxel = 1cm (escala general 1:1)
   const [isTouchDevice, setIsTouchDevice] = useState(false)
 
   // Agregar estado para el pan con mouse
@@ -342,67 +344,40 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
     }
   }
 
-  // Función para dibujar la rejilla de 10cm x 10cm
+  // Función para dibujar la rejilla con jerarquía (10cm y 1m)
   const drawGrid = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
     if (!showGrid) return
 
     ctx.save()
-    ctx.strokeStyle = "#e2e8f0"
+
+    // 1. Dibujar rejilla de 10cm (Muy tenue)
+    ctx.strokeStyle = "#f8fafc"
     ctx.lineWidth = 1
-
-    // Rejilla principal de 10cm x 10cm
     const actualGridSize = gridSize * zoom
-
-    // Calcular el desplazamiento de la rejilla basado en el panOffset
     const offsetX = panOffset.x % actualGridSize
     const offsetY = panOffset.y % actualGridSize
 
-    // Dibujar líneas verticales principales (cada 10cm)
-    for (let x = offsetX; x < width; x += actualGridSize) {
-      ctx.beginPath()
-      ctx.moveTo(x, 0)
-      ctx.lineTo(x, height)
-      ctx.stroke()
+    if (zoom > 0.4) { // Solo dibujar si hay suficiente zoom
+      for (let x = offsetX; x < width; x += actualGridSize) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke()
+      }
+      for (let y = offsetY; y < height; y += actualGridSize) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke()
+      }
     }
 
-    // Dibujar líneas horizontales principales (cada 10cm)
-    for (let y = offsetY; y < height; y += actualGridSize) {
-      ctx.beginPath()
-      ctx.moveTo(0, y)
-      ctx.lineTo(width, y)
-      ctx.stroke()
+    // 2. Dibujar rejilla de 1m (Muy marcada para referencia 10x10m)
+    ctx.strokeStyle = "#94a3b8"
+    ctx.lineWidth = 2
+    const meterSize = gridSize * 10 * zoom // 100cm
+    const meterOffsetX = panOffset.x % meterSize
+    const meterOffsetY = panOffset.y % meterSize
+
+    for (let x = meterOffsetX; x < width; x += meterSize) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke()
     }
-
-    // Dibujar líneas secundarias más tenues (cada 1cm) solo si el zoom es suficiente
-    if (zoom > 0.5) {
-      ctx.strokeStyle = "#f1f5f9"
-      ctx.lineWidth = 0.5
-
-      const actualSnapSize = snapSize * zoom
-      const snapOffsetX = panOffset.x % actualSnapSize
-      const snapOffsetY = panOffset.y % actualSnapSize
-
-      // Líneas verticales cada 1cm
-      for (let x = snapOffsetX; x < width; x += actualSnapSize) {
-        // Solo dibujar si no coincide con una línea principal
-        if (Math.abs(x % actualGridSize) > 1) {
-          ctx.beginPath()
-          ctx.moveTo(x, 0)
-          ctx.lineTo(x, height)
-          ctx.stroke()
-        }
-      }
-
-      // Líneas horizontales cada 1cm
-      for (let y = snapOffsetY; y < height; y += actualSnapSize) {
-        // Solo dibujar si no coincide con una línea principal
-        if (Math.abs(y % actualGridSize) > 1) {
-          ctx.beginPath()
-          ctx.moveTo(0, y)
-          ctx.lineTo(width, y)
-          ctx.stroke()
-        }
-      }
+    for (let y = meterOffsetY; y < height; y += meterSize) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke()
     }
 
     ctx.restore()
@@ -618,9 +593,29 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
       // Mostrar la longitud temporal - siempre por encima del dedo
       const length = calculateDistance(lastPoint, snappedCurrentPoint)
 
-      // Para línea temporal, mostrar cerca del punto final pero siempre arriba
+      // Para línea temporal, mostrar cerca del punto final pero de forma dinámica y segura
       const textX = snappedCurrentPoint.x
-      const textY = snappedCurrentPoint.y - 35 / zoom // Siempre arriba del dedo
+
+      // 1. Preferencia inicial basada en la dirección (evitar el dedo)
+      const isDrawingUp = snappedCurrentPoint.y < lastPoint.y
+      let offset = isDrawingUp ? 35 / zoom : -35 / zoom
+
+      // 2. Detección de bordes: Convertir posición proyectada a coordenadas de pantalla (canvas pixel coords)
+      // Necesitamos asegurar que el texto sea visible en el canvas
+      const screenY = snappedCurrentPoint.y * zoom + panOffset.y + (offset * zoom)
+      const topMargin = 40 // Margen de seguridad superior en píxeles
+      const bottomMargin = 40 // Margen de seguridad inferior en píxeles
+
+      // Si se sale por arriba, forzar abajo
+      if (screenY < topMargin) {
+        offset = 35 / zoom
+      }
+      // Si se sale por abajo, forzar arriba
+      else if (screenY > ctx.canvas.height - bottomMargin) {
+        offset = -35 / zoom
+      }
+
+      const textY = snappedCurrentPoint.y + offset
 
       const fontSize = Math.max(12 / zoom, 8)
       ctx.font = `bold ${fontSize}px Arial`
@@ -1125,10 +1120,25 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
     const canvas = canvasRef.current
     if (!canvas) return
 
-    // Ajustar el tamaño del canvas al tamaño del contenedor
+    // Ajustar el tamaño del canvas al tamaño del contenedor y configurar zoom inicial
     const resizeObserver = new ResizeObserver(() => {
-      canvas.width = canvas.offsetWidth
-      canvas.height = canvas.offsetHeight
+      const w = canvas.offsetWidth
+      const h = canvas.offsetHeight
+      canvas.width = w
+      canvas.height = h
+
+      // Si es la primera vez, ajustar para ver área de 10m x 10m (1000x1000 píxeles) centrado
+      if (zoom === 1 && panOffset.x === 0 && panOffset.y === 0) {
+        const initialAreaSize = 1000 // 1000cm = 10m
+        // Usar un factor de zoom que cubra gran parte del canvas pero sin pasarse de los 10m si es posible
+        const newZoom = Math.min(w / initialAreaSize, h / initialAreaSize) * 0.98
+        setZoom(newZoom)
+        setPanOffset({
+          x: (w - initialAreaSize * newZoom) / 2,
+          y: (h - initialAreaSize * newZoom) / 2
+        })
+      }
+
       drawCanvas()
     })
 
@@ -1257,7 +1267,7 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
           )}
 
           {isDrawing && (
-            <div className="absolute top-4 left-4 bg-blue-500 text-white px-3 py-1 rounded-lg text-sm">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-blue-600/90 text-white px-3 py-1.5 rounded-full text-xs shadow-lg backdrop-blur-sm pointer-events-none transition-all duration-300 animate-in fade-in slide-in-from-bottom-2">
               Dibujando... {points.length >= 3 && "Acércate al punto verde para cerrar"}
             </div>
           )}

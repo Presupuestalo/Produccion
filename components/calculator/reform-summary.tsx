@@ -260,7 +260,7 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
     }
 
     rooms.forEach((room) => {
-      const area = room.width * room.length
+      const area = room.area || (room.width * room.length)
       const perimeter = room.perimeter || 2 * (room.width + room.length)
 
       const effectiveHeight = (() => {

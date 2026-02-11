@@ -4,48 +4,26 @@ import { Calculator, Layout, Users, FileText, CheckCircle2, Image as ImageIcon, 
 
 const features = [
     {
-        title: "Imagen Corporativa",
-        description: "Personaliza cada presupuesto con tu propio logo para proyectar una imagen 100% profesional y generar confianza instantánea.",
-        icon: ImageIcon,
+        title: "Precisión Quirúrgica",
+        description: "Algoritmos entrenados con datos reales del sector para que tus presupuestos no dejen margen al error.",
+        icon: Calculator,
         gradient: "from-orange-500 to-orange-700",
-        features: ["Logo Personalizado", "Colores de Marca"]
+        features: ["Margen de error < 5%", "Precios de mercado"]
     },
     {
-        title: "Contratos Pro",
-        description: "Genera y formaliza contratos legalmente vinculantes con un solo clic. Asegura tus cobros y evita malentendidos con tus clientes.",
-        icon: Briefcase,
+        title: "Marca Profesional",
+        description: "Transforma tus cálculos en PDFs de alta gama con tu logo y colores. Olvida el aspecto de 'hecho en casa'.",
+        icon: ImageIcon,
         gradient: "from-blue-500 to-indigo-600",
-        features: ["Firma Digital", "Plantillas Legales"]
+        features: ["PDFs Premium", "Logo Personalizado"]
     },
     {
-        title: "Contabilidad Inteligente",
-        description: "Control total de tus ingresos, gastos y márgenes de beneficio en tiempo real. Olvídate de las hojas de cálculo manuales.",
-        icon: BarChart3,
-        gradient: "from-purple-500 to-pink-600",
-        features: ["Control de Gastos", "Cálculo de Margen"]
-    },
-    {
-        title: "Cierres Imparables",
-        description: "Aumenta la tasa de aceptación de tus presupuestos hasta en un 40% gracias a una presentación visual impactante y profesional.",
+        title: "Velocidad Extrema",
+        description: "Pasa de la primera visita al presupuesto enviado en minutos. Gana la obra antes que tu competencia.",
         icon: TrendingUp,
         gradient: "from-emerald-500 to-teal-600",
-        features: ["Más Ventas", "Estadísticas de Cierre"]
-    },
-    {
-        title: "Presupuestador IA",
-        description: "Genera mediciones y partidas presupuestarias automáticas a partir de fotos o planos. Ahorra horas de trabajo técnico.",
-        icon: Calculator,
-        gradient: "from-amber-400 to-orange-500",
-        features: ["Reconocimiento de Planos", "Partidas Automáticas"],
-        comingSoon: true
-    },
-    {
-        title: "Dashboard de Obra",
-        description: "Gestiona calendarios, materiales y proveedores desde una interfaz centralizada para que nada se te escape.",
-        icon: Layout,
-        gradient: "from-cyan-500 to-blue-600",
-        features: ["Gestión Centralizada", "Control de Plazos"]
-    },
+        features: ["Ahorro de 5h/semana", "Sin instalaciones"]
+    }
 ]
 
 export function FeaturesV2() {
@@ -70,11 +48,6 @@ export function FeaturesV2() {
                                 <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
                                     <feature.icon className="h-7 w-7 text-white" />
                                 </div>
-                                {feature.comingSoon && (
-                                    <span className="px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-[10px] font-bold text-orange-500 uppercase tracking-wider">
-                                        Próximamente
-                                    </span>
-                                )}
                             </div>
                             <h4 className="text-xl font-bold text-white mb-4">{feature.title}</h4>
                             <p className="text-gray-400 leading-relaxed mb-6">{feature.description}</p>
