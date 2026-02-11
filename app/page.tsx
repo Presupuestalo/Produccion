@@ -3,7 +3,6 @@
 import React, { useEffect, useState, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { HeroV2 } from "@/components/landing/hero-v2"
-import { FeaturesV2 } from "@/components/landing/features-v2"
 import { HowItWorksV2 } from "@/components/landing/how-it-works-v2"
 import { ComparisonV2 } from "@/components/landing/comparison-v2"
 import { CustomPricesV2 } from "@/components/landing/custom-prices-v2"
@@ -14,6 +13,9 @@ import { Testimonials } from "@/components/landing/testimonials"
 import { CTA } from "@/components/landing/cta"
 import { Footer } from "@/components/landing/footer"
 import { Navbar } from "@/components/landing/navbar"
+import { TechnicalMeasurements } from "@/components/landing/technical-measurements"
+import { IrregularRoomEditor } from "@/components/landing/irregular-room-editor"
+import { DebrisOptimization } from "@/components/landing/debris-optimization"
 import { useAuth } from "@/components/auth/auth-provider"
 import { createClient } from "@/lib/supabase/client"
 import { Loader2 } from "lucide-react"
@@ -84,8 +86,10 @@ export default function Home() {
       <Navbar />
       <main>
         <HeroV2 />
-        <FeaturesV2 />
         <HowItWorksV2 />
+        <TechnicalMeasurements />
+        <IrregularRoomEditor />
+        <DebrisOptimization />
         <ComparisonV2 />
         <CustomPricesV2 />
         <UserTypes />
