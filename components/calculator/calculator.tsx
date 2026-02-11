@@ -1331,7 +1331,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               lowerAllCeilings: true,
             })
             const initialSettings = {
-              wallThickness: configData.wallThickness || 10,
+              wallThickness: 10,
               floorTileThickness: 0.015,
               wallTileThickness: 0.015,
               woodExpansionCoef: 1.2,
