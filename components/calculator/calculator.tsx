@@ -1326,6 +1326,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               structureType: "Hormigón",
               heatingType: "No Tiene",
               reformHeatingType: "No",
+              removeWoodenFloor: false,
               projectId: projectId,
               lowerAllCeilings: true,
             })
