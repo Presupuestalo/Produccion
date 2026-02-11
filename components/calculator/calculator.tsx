@@ -1489,8 +1489,8 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         defaultFloorType = isCeramicRoom || isTerrace ? "Cerámico" : "Madera"
       }
 
-      const defaultRemoveWallTiles = currentTab === "demolition" && isCeramicRoom ? true : undefined
-      const defaultRemoveFloor = currentTab === "demolition" && isCeramicRoom ? true : undefined
+      const defaultRemoveWallTiles = currentTab === "demolition" && isCeramicRoom ? true : false
+      const defaultRemoveFloor = currentTab === "demolition" && isCeramicRoom ? true : false
       const defaultHasDoors = currentTab === "demolition" ? true : false
       const defaultDoorList: Door[] = defaultHasDoors ? [{ id: uuidv4(), type: "Abatible", width: 72, height: 203 }] : []
 
@@ -1538,6 +1538,8 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         doors: defaultHasDoors ? 1 : 0,
         falseCeiling: false,
         moldings: false,
+        removeWallMaterial: false,
+        removeCeilingMaterial: false,
         newDoors: false,
         name: `${selectedRoomType} ${nextNumber}`,
         wallArea: 0,
