@@ -1423,6 +1423,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   }, [])
 
   const addRoom = useCallback(async () => {
+    if (!projectId) return
     console.log("[v0] Verificando límites de habitaciones para proyecto:", projectId, "sección:", activeTab)
     const limitCheck = await canAddRoom(projectId, activeTab as "demolition" | "reform")
     if (!limitCheck.allowed) {
@@ -1554,6 +1555,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
   const duplicateRoom = useCallback(
     async (roomId: string) => {
+      if (!projectId) return
       console.log(
         "[v0] Verificando límites de habitaciones para duplicar en proyecto:",
         projectId,
