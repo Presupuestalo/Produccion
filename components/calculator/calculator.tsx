@@ -2314,7 +2314,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                   openCalculator={openCalculator}
                   activeTab={activeTab}
                   standardHeight={demolitionConfig.standardHeight || 2.6}
-                  heatingType={demolitionConfig.heatingType || "ninguna"}
+                  heatingType={demolitionConfig.heatingType || "No Tiene"}
                   globalConfig={demolitionConfig}
                 />
               </div>
