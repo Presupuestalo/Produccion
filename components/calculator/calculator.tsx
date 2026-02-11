@@ -2215,7 +2215,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               {/* COLUMNA IZQUIERDA: Resumen de habitaciones y citas (solo desktop) */}
               <div className="hidden lg:block space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
                 <RoomsSummary rooms={visibleRooms} />
-                {!isOwner && <AppointmentsHistory projectId={projectId} />}
+                {!isOwner && projectId && <AppointmentsHistory projectId={projectId} />}
               </div>
 
               {/* COLUMNA CENTRAL: Contenido principal de la calculadora */}
@@ -2548,32 +2548,36 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
           {hasApprovedBudget && (
             <TabsContent value="cobros" className="space-y-3">
               {/* Pass the entire approvedBudget object to PaymentsSection */}
-              <PaymentsSection projectId={projectId} budgetAmount={approvedBudget?.total} budget={approvedBudget} />
+              {projectId && (
+                <PaymentsSection projectId={projectId} budgetAmount={approvedBudget?.total} budget={approvedBudget} />
+              )}
             </TabsContent>
           )}
 
           <TabsContent value="presupuesto" className="space-y-6">
-            <BudgetSection
-              projectId={projectId}
-              calculatorData={{
-                demolition: {
-                  rooms: rooms,
-                  config: demolitionConfig,
-                  summary: demolitionSummary,
-                },
-                reform: {
-                  rooms: reformRooms,
-                  config: reformConfig,
-                  partitions: partitions,
-                  wallLinings: wallLinings,
-                },
-                electrical: {
-                  config: electricalConfig,
-                },
-                globalConfig: globalConfig,
-              }}
-              calculatorLastSaved={lastSaved}
-            />
+            {projectId && (
+              <BudgetSection
+                projectId={projectId}
+                calculatorData={{
+                  demolition: {
+                    rooms: rooms,
+                    config: demolitionConfig,
+                    summary: demolitionSummary,
+                  },
+                  reform: {
+                    rooms: reformRooms,
+                    config: reformConfig,
+                    partitions: partitions,
+                    wallLinings: wallLinings,
+                  },
+                  electrical: {
+                    config: electricalConfig,
+                  },
+                  globalConfig: globalConfig,
+                }}
+                calculatorLastSaved={lastSaved}
+              />
+            )}
           </TabsContent>
 
           {/* Botones de guardar y estado de guardado */}
