@@ -161,13 +161,12 @@ export function Pricing() {
             {plans.map((plan) => (
               <Card
                 key={plan.name}
-                className={`relative flex flex-col ${
-                  plan.popular
-                    ? "border-orange-500 shadow-lg dark:border-orange-400 lg:scale-105 z-10"
-                    : plan.highlight
-                      ? "border-blue-500 shadow-lg dark:border-blue-400"
-                      : "border-border"
-                }`}
+                className={`relative flex flex-col ${plan.popular
+                  ? "border-orange-500 shadow-lg dark:border-orange-400 lg:scale-105 z-10"
+                  : plan.highlight
+                    ? "border-blue-500 shadow-lg dark:border-blue-400"
+                    : "border-border"
+                  }`}
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-0 right-0 flex justify-center">
@@ -219,44 +218,40 @@ export function Pricing() {
 
                   {plan.credits > 0 && (
                     <div
-                      className={`rounded-lg p-3 ${
-                        plan.popular
-                          ? "bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/40 dark:to-amber-950/40 border border-orange-200 dark:border-orange-800"
-                          : plan.highlight
-                            ? "bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-200 dark:border-blue-800"
-                            : "bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
-                      }`}
+                      className={`rounded-lg p-3 ${plan.popular
+                        ? "bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/40 dark:to-amber-950/40 border border-orange-200 dark:border-orange-800"
+                        : plan.highlight
+                          ? "bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-200 dark:border-blue-800"
+                          : "bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                        }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div
-                            className={`p-1.5 rounded-full ${
-                              plan.popular
-                                ? "bg-orange-100 dark:bg-orange-900/50"
-                                : plan.highlight
-                                  ? "bg-blue-100 dark:bg-blue-900/50"
-                                  : "bg-gray-100 dark:bg-gray-700"
-                            }`}
+                            className={`p-1.5 rounded-full ${plan.popular
+                              ? "bg-orange-100 dark:bg-orange-900/50"
+                              : plan.highlight
+                                ? "bg-blue-100 dark:bg-blue-900/50"
+                                : "bg-gray-100 dark:bg-gray-700"
+                              }`}
                           >
                             <Coins
-                              className={`h-4 w-4 ${
-                                plan.popular
-                                  ? "text-orange-600 dark:text-orange-400"
-                                  : plan.highlight
-                                    ? "text-blue-600 dark:text-blue-400"
-                                    : "text-gray-600 dark:text-gray-400"
-                              }`}
+                              className={`h-4 w-4 ${plan.popular
+                                ? "text-orange-600 dark:text-orange-400"
+                                : plan.highlight
+                                  ? "text-blue-600 dark:text-blue-400"
+                                  : "text-gray-600 dark:text-gray-400"
+                                }`}
                             />
                           </div>
                           <div>
                             <p
-                              className={`text-sm font-semibold ${
-                                plan.popular
-                                  ? "text-orange-700 dark:text-orange-300"
-                                  : plan.highlight
-                                    ? "text-blue-700 dark:text-blue-300"
-                                    : "text-gray-700 dark:text-gray-300"
-                              }`}
+                              className={`text-sm font-semibold ${plan.popular
+                                ? "text-orange-700 dark:text-orange-300"
+                                : plan.highlight
+                                  ? "text-blue-700 dark:text-blue-300"
+                                  : "text-gray-700 dark:text-gray-300"
+                                }`}
                             >
                               {plan.credits} créditos/mes
                             </p>
@@ -265,11 +260,13 @@ export function Pricing() {
                         </div>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button className="p-1 hover:bg-white/50 dark:hover:bg-black/20 rounded-full transition-colors">
+                            <button
+                              aria-label="Más información sobre los créditos"
+                              className="p-1 hover:bg-white/50 dark:hover:bg-black/20 rounded-full transition-colors"
+                            >
                               <Info
-                                className={`h-4 w-4 ${
-                                  plan.popular ? "text-orange-500" : plan.highlight ? "text-blue-500" : "text-gray-500"
-                                }`}
+                                className={`h-4 w-4 ${plan.popular ? "text-orange-500" : plan.highlight ? "text-blue-500" : "text-gray-500"
+                                  }`}
                               />
                             </button>
                           </TooltipTrigger>
@@ -299,8 +296,8 @@ export function Pricing() {
                           )}
                           <span className={feature.included ? "" : "text-muted-foreground"}>
                             {feature.text}
-                            {feature.note && (
-                              <span className="text-xs text-muted-foreground ml-1">({feature.note})</span>
+                            {(feature as any).note && (
+                              <span className="text-xs text-muted-foreground ml-1">({(feature as any).note})</span>
                             )}
                           </span>
                         </li>
