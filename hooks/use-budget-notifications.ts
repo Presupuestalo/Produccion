@@ -5,7 +5,7 @@ export function useBudgetNotifications() {
   const subscribeToBudgetChanges = (budgetId: string, callback: () => void) => {
     if (!supabase) {
       console.log("[v0] Supabase client not available, skipping budget subscription")
-      return () => {}
+      return () => { }
     }
 
     console.log("[v0] Subscribing to budget changes:", budgetId)
@@ -20,7 +20,7 @@ export function useBudgetNotifications() {
           table: "budgets",
           filter: `id=eq.${budgetId}`,
         },
-        (payload) => {
+        (payload: any) => {
           console.log("[v0] Budget changed:", payload)
           callback()
         },
@@ -33,7 +33,7 @@ export function useBudgetNotifications() {
           table: "budget_line_items",
           filter: `budget_id=eq.${budgetId}`,
         },
-        (payload) => {
+        (payload: any) => {
           console.log("[v0] Budget line item changed:", payload)
           callback()
         },
@@ -46,7 +46,7 @@ export function useBudgetNotifications() {
           table: "budget_adjustments",
           filter: `budget_id=eq.${budgetId}`,
         },
-        (payload) => {
+        (payload: any) => {
           console.log("[v0] Budget adjustment changed:", payload)
           callback()
         },
