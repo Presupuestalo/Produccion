@@ -97,7 +97,7 @@ export function DemolitionSection({
               placeholder="0"
             />
             {showWarning && (
-              <Alert variant="warning" className="py-2 text-sm">
+              <Alert variant="destructive" className="py-2 text-sm">
                 <ExclamationTriangleIcon className="h-4 w-4" />
                 <AlertDescription>Seleccione un valor que no sea mayor de 200.</AlertDescription>
               </Alert>
