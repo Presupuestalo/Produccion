@@ -259,7 +259,7 @@ export function ElectricalSettingsButton() {
       toast({
         title: "Configuración guardada",
         description: "Los ajustes eléctricos se han guardado correctamente",
-        variant: "success",
+        variant: "default",
       })
 
       // Actualizar estado de éxito
