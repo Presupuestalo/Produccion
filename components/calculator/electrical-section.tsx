@@ -172,7 +172,7 @@ export function ElectricalSection({
       if (room.electricalElements && room.electricalElements.length > 0) {
         room.electricalElements.forEach((element) => {
           const displayName = element.type === "Interruptor" ? "Interruptor sencillo" : element.type
-          summary[displayName] = (summary[displayName] || 0) + element.quantity
+          summary[displayName] = (summary[displayName] || 0) + (element.quantity || 0)
         })
       }
     })
