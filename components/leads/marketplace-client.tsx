@@ -196,7 +196,7 @@ export function MarketplaceClient({ initialLeads, isAdmin }: MarketplaceClientPr
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <MapPin className="h-4 w-4" />
-                          {lead.address_city}, {lead.address_province} ({lead.postal_code})
+                          {lead.city}, {lead.province} ({lead.postal_code})
                         </span>
                         <span className="flex items-center gap-1">
                           <Euro className="h-4 w-4" />
@@ -208,16 +208,16 @@ export function MarketplaceClient({ initialLeads, isAdmin }: MarketplaceClientPr
                         </span>
                       </div>
 
-                      {lead.homeowner_description && (
-                        <p className="text-sm mt-2 line-clamp-2">{lead.homeowner_description}</p>
+                      {lead.project_description && (
+                        <p className="text-sm mt-2 line-clamp-2">{lead.project_description}</p>
                       )}
 
                       {isAdmin && (
                         <div className="mt-2 p-2 bg-yellow-50 rounded text-sm">
                           <p className="font-semibold">Admin Info:</p>
-                          <p>Cliente: {lead.homeowner_name}</p>
-                          <p>Teléfono: {lead.homeowner_phone}</p>
-                          <p>Email: {lead.homeowner_email}</p>
+                          <p>Cliente: {lead.client_name}</p>
+                          <p>Teléfono: {lead.client_phone}</p>
+                          <p>Email: {lead.client_email}</p>
                         </div>
                       )}
                     </div>
