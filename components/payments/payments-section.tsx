@@ -11,6 +11,7 @@ import { toast } from "sonner"
 interface PaymentsSectionProps {
   projectId: string
   budgetAmount: number
+  budget?: any
 }
 
 export function PaymentsSection({ projectId, budgetAmount }: PaymentsSectionProps) {
