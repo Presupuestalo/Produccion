@@ -619,7 +619,7 @@ export default function MarketplacePage() {
                     )}
 
                     {!lead.has_accessed && !isAdmin && (
-                      <AccessLeadDialog lead={lead} onAccessed={handleLeadAccessed}>
+                      <AccessLeadDialog lead={lead} onSuccess={handleLeadAccessed}>
                         <Button className="w-full" disabled={lead.companies_accessed_count >= 3}>
                           {lead.companies_accessed_count >= 3 ? (
                             <>
