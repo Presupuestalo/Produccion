@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { supabase } from "@/lib/supabase/client"
-import { Maximize2, Loader2, RefreshCw, Trash2, Info, AlertTriangle } from "lucide-react"
+import { Maximize2, Loader2, RefreshCw, Trash2, Info, AlertTriangle, Image } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -127,7 +127,7 @@ export function FloorPlanViewer({ projectId }: FloorPlanViewerProps) {
         }
 
         // Procesar los planos encontrados
-        data.forEach((plan) => {
+        data.forEach((plan: FloorPlan) => {
           if (plan.plan_type === "before" || plan.plan_type === "after") {
             // Añadir un timestamp para evitar el caché del navegador
             const timestamp = new Date().getTime()

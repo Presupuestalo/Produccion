@@ -463,7 +463,7 @@ export function GlobalConfigSection({
         tilesSides: "one",
         tileThickness: DEFAULT_TILE_THICKNESS,
         wallHeight,
-      },
+      } as WallDemolition,
     ]
 
     setWallDemolitions(newDemolitions)
@@ -761,8 +761,7 @@ export function GlobalConfigSection({
 
         {isReform &&
           (config.reformHeatingType === "Eléctrica" ||
-            config.reformHeatingType === "ninguna" ||
-            config.reformHeatingType === "No Tiene") &&
+            config.reformHeatingType === "No") &&
           (demolitionConfig?.heatingType === "No Tiene" || demolitionConfig?.heatingType === "Eléctrica") && (
             <div className="flex items-center gap-2 mt-4">
               <Switch
@@ -975,9 +974,9 @@ export function GlobalConfigSection({
                     </div>
                     <Switch
                       id="entranceDoorType"
-                      checked={config.entranceDoorType || false}
+                      checked={config.entranceDoorType !== undefined && config.entranceDoorType !== false && config.entranceDoorType !== "No"}
                       onCheckedChange={(checked) => {
-                        handleConfigUpdate({ entranceDoorType: checked as boolean })
+                        handleConfigUpdate({ entranceDoorType: checked ? true : "No" })
                       }}
                     />
                   </div>
