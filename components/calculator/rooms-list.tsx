@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { RoomCard } from "./room-card"
 import type { Room, CalefaccionType, ElectricalConfig, GlobalConfig } from "@/types/calculator"
 import { cn } from "@/lib/utils"
 import { List, Columns2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 
 interface RoomsListProps {
   rooms: Room[]
@@ -40,6 +41,20 @@ export function RoomsList({
   highlightedRoomId,
 }: RoomsListProps) {
   const [viewMode, setViewMode] = useState<"list" | "slide">("list")
+  const [activeIndex, setActiveIndex] = useState(0)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // Manejar el scroll para actualizar los puntitos
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (viewMode !== "slide") return
+    const container = e.currentTarget
+    const scrollLeft = container.scrollLeft
+    const itemWidth = container.offsetWidth * 0.85 // Aproximado según min-w-[85vw]
+    const index = Math.round(scrollLeft / itemWidth)
+    if (index !== activeIndex && index >= 0 && index < rooms.length) {
+      setActiveIndex(index)
+    }
+  }
 
   // Calcular conteo de habitaciones por tipo
   const roomCounts = rooms.reduce(
@@ -53,37 +68,59 @@ export function RoomsList({
   return (
     <div className="space-y-4">
       {/* Selector de vista en móvil */}
-      <div className="flex justify-between items-center lg:hidden bg-slate-50 p-2 rounded-lg border border-slate-200">
-        <span className="text-sm font-medium text-slate-600 ml-2">Vista de habitaciones</span>
-        <div className="flex gap-1 bg-white p-1 rounded-md border border-slate-200 shadow-sm">
-          <Button
-            variant={viewMode === "list" ? "default" : "ghost"}
-            size="sm"
-            className={cn(
-              "h-8 px-3 gap-2",
-              viewMode === "list" ? "bg-orange-500 hover:bg-orange-600 text-white" : "text-slate-500",
-            )}
-            onClick={() => setViewMode("list")}
-          >
-            <List className="h-4 w-4" />
-            <span className="text-xs">Lista</span>
-          </Button>
-          <Button
-            variant={viewMode === "slide" ? "default" : "ghost"}
-            size="sm"
-            className={cn(
-              "h-8 px-3 gap-2",
-              viewMode === "slide" ? "bg-orange-500 hover:bg-orange-600 text-white" : "text-slate-500",
-            )}
-            onClick={() => setViewMode("slide")}
-          >
-            <Columns2 className="h-4 w-4" />
-            <span className="text-xs">Slide</span>
-          </Button>
+      <div className="flex flex-col gap-2 lg:hidden">
+        <div className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-200">
+          <div className="flex items-center gap-2 ml-2">
+            <Badge variant={isReform ? "default" : "secondary"} className={cn("text-[10px] h-5 px-2", isReform ? "bg-green-600" : "bg-orange-500 text-white")}>
+              {isReform ? "REFORMA" : "DERRIBOS"}
+            </Badge>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-tight">Habitaciones</span>
+          </div>
+          <div className="flex gap-1 bg-white p-1 rounded-md border border-slate-200 shadow-sm">
+            <Button
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm"
+              className={cn(
+                "h-7 px-2",
+                viewMode === "list" ? "bg-orange-500 hover:bg-orange-600 text-white" : "text-slate-500",
+              )}
+              onClick={() => setViewMode("list")}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "slide" ? "default" : "ghost"}
+              size="sm"
+              className={cn(
+                "h-7 px-2",
+                viewMode === "slide" ? "bg-orange-500 hover:bg-orange-600 text-white" : "text-slate-500",
+              )}
+              onClick={() => setViewMode("slide")}
+            >
+              <Columns2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
+
+        {/* Puntitos de paginación (solo en modo slide) */}
+        {viewMode === "slide" && rooms.length > 1 && (
+          <div className="flex justify-center gap-1.5 py-1">
+            {rooms.map((_, i) => (
+              <div
+                key={`dot-${i}`}
+                className={cn(
+                  "h-1.5 rounded-full transition-all duration-300",
+                  i === activeIndex ? "w-4 bg-orange-500" : "w-1.5 bg-slate-300"
+                )}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
         className={cn(
           "grid gap-4",
           viewMode === "list"
@@ -91,7 +128,7 @@ export function RoomsList({
             : "flex lg:grid lg:grid-cols-1 overflow-x-auto lg:overflow-visible snap-x snap-mandatory lg:snap-none pb-4 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0 scrollbar-hide",
         )}
       >
-        {rooms.map((room) => {
+        {rooms.map((room, idx) => {
           const matchingDemolitionRoom = isReform
             ? demolitionRooms.find((dr) => dr.type === room.type && dr.number === room.number)
             : undefined

@@ -223,6 +223,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   const heightInputRef = useRef<HTMLInputElement>(null)
   const { userProfile } = useUserProfile()
   const isOwner = userProfile?.user_type === "homeowner"
+  const isFreePlan = userProfile?.subscription_plan?.toLowerCase() === "free"
 
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSavedHashRef = useRef<string>("")
@@ -582,6 +583,12 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
           )
         }
 
+        // Retirada de radiadores
+        if (room.hasRadiator) {
+          newSummary.radiatorsRemoval += 1
+          console.log(`[v0] ${room.type} ${room.number} - Retirada radiador: 1 ud`)
+        }
+
         // Calcular área total
         newSummary.totalArea += room.area || 0
       })
@@ -858,14 +865,36 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   const calculateStateHash = useCallback(() => {
     // Escoger campos clave para el hash, evitando circularidad pero detectando cambios reales
     const stateToHash = {
-      rooms: rooms.map(r => ({ id: r.id, area: r.area, perimeter: r.perimeter, type: r.type, floor: r.floorMaterial, wall: r.wallMaterial, windows: r.windows?.length })),
-      reformRooms: reformRooms.map(r => ({ id: r.id, area: r.area, perimeter: r.perimeter, type: r.type, floor: r.floorMaterial, wall: r.wallMaterial })),
+      rooms: rooms.map(r => ({
+        id: r.id,
+        area: r.area,
+        p: r.perimeter,
+        type: r.type,
+        f: r.floorMaterial,
+        w: r.wallMaterial,
+        win: r.windows?.map(w => ({ id: w.id, t: w.type, q: w.quantity || 1 })),
+        elec: r.electricalElements?.map(e => ({ id: e.id, q: e.quantity }))
+      })),
+      reformRooms: reformRooms.map(r => ({
+        id: r.id,
+        area: r.area,
+        p: r.perimeter,
+        type: r.type,
+        f: r.floorMaterial,
+        w: r.wallMaterial,
+        win: r.windows?.map(w => ({ id: w.id, t: w.type, q: w.quantity || 1 })),
+        elec: r.electricalElements?.map(e => ({ id: e.id, q: e.quantity }))
+      })),
       partitions: partitions.map(p => ({ id: p.id, linearMeters: p.linearMeters })),
       wallLiningsLength: wallLinings.length,
       demolitionConfig: { h: demolitionConfig.standardHeight, s: demolitionConfig.structureType },
       reformConfig: { h: reformConfig.standardHeight, t: reformConfig.reformHeatingType },
       demolitionSettings: { t: demolitionSettings.wallThickness, c: demolitionSettings.containerSize },
-      electrical: { n: electricalConfig.needsNewInstallation, t: electricalConfig.installationType }
+      electrical: {
+        n: electricalConfig.needsNewInstallation,
+        t: electricalConfig.installationType,
+        items: electricalConfig.generalItems?.map(i => ({ id: i.id, q: i.quantity }))
+      }
     }
     return JSON.stringify(stateToHash)
   }, [rooms, reformRooms, partitions, wallLinings, demolitionConfig, reformConfig, demolitionSettings, electricalConfig])
@@ -1649,10 +1678,24 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
   const updateRoom = useCallback(
     (roomId: string, updatedRoomData: Partial<Room>) => {
-      const handler = activeTab === "demolition" ? setRooms : setReformRooms
-      handler((prevRooms) => prevRooms.map((room) => (room.id === roomId ? { ...room, ...updatedRoomData } : room)))
+      // Actualizamos en ambas listas. 
+      // Si la habitación existe en una de ellas, se actualizará.
+      // Si no, la lista permanecerá igual sin provocar re-renders innecesarios.
+      setRooms((prev) => {
+        if (prev.some(r => r.id === roomId)) {
+          return prev.map((room) => (room.id === roomId ? { ...room, ...updatedRoomData } : room))
+        }
+        return prev
+      })
+
+      setReformRooms((prev) => {
+        if (prev.some(r => r.id === roomId)) {
+          return prev.map((room) => (room.id === roomId ? { ...room, ...updatedRoomData } : room))
+        }
+        return prev
+      })
     },
-    [activeTab, setRooms, setReformRooms],
+    [setRooms, setReformRooms],
   )
 
   const copyRoomsToReform = useCallback(() => {
@@ -2215,7 +2258,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               {/* COLUMNA IZQUIERDA: Resumen de habitaciones y citas (solo desktop) */}
               <div className="hidden lg:block space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
                 <RoomsSummary rooms={visibleRooms} />
-                {!isOwner && projectId && <AppointmentsHistory projectId={projectId} />}
+                {!isOwner && projectId && !isFreePlan && <AppointmentsHistory projectId={projectId} />}
               </div>
 
               {/* COLUMNA CENTRAL: Contenido principal de la calculadora */}
@@ -2275,13 +2318,13 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                       {/* Botón para copiar habitaciones a reforma en móvil - Integrado aquí */}
                       <Button
                         variant="outline"
-                        size="icon"
+                        size="sm"
                         onClick={copyRoomsToReform}
-                        className="lg:hidden h-10 w-10 border-blue-200 text-blue-600"
-                        title="Copiar a Reforma"
+                        className="lg:hidden h-10 px-4 border-blue-200 text-blue-600 font-medium whitespace-nowrap"
                         disabled={!allRoomsHaveMeasurements(visibleRooms)}
                       >
-                        <Copy className="h-4 w-4" />
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copiar a Reforma
                       </Button>
                     </div>
                   </div>
@@ -2350,7 +2393,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               {/* COLUMNA IZQUIERDA: Resumen de habitaciones y citas (solo desktop) */}
               <div className="hidden lg:block space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
                 <RoomsSummary rooms={visibleReformRooms} />
-                {!isOwner && projectId && <AppointmentsHistory projectId={projectId} />}
+                {!isOwner && projectId && !isFreePlan && <AppointmentsHistory projectId={projectId} />}
               </div>
 
               {/* COLUMNA CENTRAL: Contenido principal de la calculadora */}

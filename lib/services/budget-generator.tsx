@@ -382,7 +382,7 @@ export class BudgetGenerator {
     let totalWallpaperRemoval = 0
     let totalFalseCeilingRemoval = 0 // Initialize totalFalseCeilingRemoval
     let totalMoldingsRemoval = 0
-    let totalSkirtingRemoval = 0
+    let totalWoodenSkirtingRemoval = 0
     let totalDoorsRemoval = 0
     let totalRadiatorsRemoval = 0
     let totalBathroomElementsRemoval = 0
@@ -464,7 +464,11 @@ export class BudgetGenerator {
         totalMoldingsRemoval += room.perimeter || 0
       }
 
-      totalSkirtingRemoval += room.perimeter || 0
+      if (room.removeFloor || demolition.config?.removeWoodenFloor || demolition.config?.removeAllCeramic) {
+        if (room.floorMaterial === "Madera") {
+          totalWoodenSkirtingRemoval += room.perimeter || 0
+        }
+      }
 
       // Retirada de puertas
       if (room.hasDoors && room.doorList && room.doorList.length > 0) {
@@ -512,14 +516,10 @@ export class BudgetGenerator {
       wallpaper: totalWallpaperRemoval,
       falseCeiling: totalFalseCeilingRemoval,
       moldings: totalMoldingsRemoval,
-      skirting: totalSkirtingRemoval,
-      doors: totalDoorsRemoval,
-      radiators: totalRadiatorsRemoval,
-      bathroomElements: totalBathroomElementsRemoval,
-      kitchenFurniture: totalKitchenFurnitureRemoval,
       bedroomFurniture: totalBedroomFurnitureRemoval,
       livingRoomFurniture: totalLivingRoomFurnitureRemoval,
       sewagePipes: totalSewagePipesRemoval,
+      skirtingWooden: totalWoodenSkirtingRemoval,
     })
 
     // Picado de pavimento cerámico
@@ -575,12 +575,10 @@ export class BudgetGenerator {
       console.log("[v0] BudgetGenerator - NO se genera partida de retirada de molduras (total = 0)")
     }
 
-    // Retirada de rodapié
-    if (totalSkirtingRemoval > 0) {
-      console.log(`[v0] BudgetGenerator - Generando partida: Retirada de rodapié de madera ${totalSkirtingRemoval} m`)
-      this.addLineItem("01-D-07", totalSkirtingRemoval, "Retirada de rodapié de madera")
-    } else {
-      console.log("[v0] BudgetGenerator - NO se genera partida de retirada de rodapié de madera (total = 0)")
+    // Retirada de rodapié de madera
+    if (totalWoodenSkirtingRemoval > 0) {
+      console.log(`[v0] BudgetGenerator - Generando partida: Retirada de rodapié de madera ${totalWoodenSkirtingRemoval} m`)
+      this.addLineItem("01-D-07", totalWoodenSkirtingRemoval, "Retirada de rodapié de madera")
     }
 
     // Desmontaje de puertas
@@ -622,6 +620,14 @@ export class BudgetGenerator {
       console.log("[v0] BudgetGenerator - NO se genera partida de retirada de armarios y resto mobiliario (total = 0)")
     }
 
+    // Retirada de radiadores
+    if (totalRadiatorsRemoval > 0) {
+      console.log(`[v0] BudgetGenerator - Generando partida: Retirada de radiadores ${totalRadiatorsRemoval} ud`)
+      this.addLineItem("01-D-20", totalRadiatorsRemoval, "Retirada de radiadores")
+    } else {
+      console.log("[v0] BudgetGenerator - NO se genera partida de retirada de radiadores (total = 0)")
+    }
+
     // Demolición de tabiques (desde globalConfig)
     if (demolition.config?.wallDemolitions && demolition.config.wallDemolitions.length > 0) {
       demolition.config.wallDemolitions.forEach((wallDemolition: any) => {
@@ -656,14 +662,6 @@ export class BudgetGenerator {
       this.addLineItem("01-D-10", demolitionHours, "Bajada manual de escombros")
     } else {
       console.log("[v0] BudgetGenerator - NO se genera partida de bajada manual de escombros (total hours = 0)")
-    }
-
-    // Retirada de radiadores
-    if (totalRadiatorsRemoval > 0) {
-      console.log(`[v0] BudgetGenerator - Generando partida: Retirada de radiadores ${totalRadiatorsRemoval} ud`)
-      this.addLineItem("01-D-08", totalRadiatorsRemoval, "Retirada de radiadores")
-    } else {
-      console.log("[v0] BudgetGenerator - NO se genera partida de retirada de radiadores (total = 0)")
     }
 
     // Retirada de caldera o termo eléctrico
@@ -956,12 +954,13 @@ export class BudgetGenerator {
       console.log("[v0] BudgetGenerator - NO se genera partida de capa autonivelante (total = 0)")
     }
 
-    // Tapado de rozas (solo si hay habitaciones reales en reforma)
-    if (this.hasRealRooms()) {
+    // Tapado de rozas (solo si hay más de una habitación real en reforma)
+    const realRoomCount = this.getRealRoomCount()
+    if (realRoomCount > 1) {
       console.log("[v0] BudgetGenerator - Generando partida: Tapado de rozas 1 ud")
       this.addLineItem("02-A-12", 1, "Tapado de rozas")
     } else {
-      console.log("[v0] BudgetGenerator - NO se genera partida de tapado de rozas (no real rooms)")
+      console.log(`[v0] BudgetGenerator - NO se genera partida de tapado de rozas (realRoomCount: ${realRoomCount})`)
     }
 
     // Colocación de molduras
@@ -1381,11 +1380,12 @@ export class BudgetGenerator {
       }
     }
 
-    if (heatingType === "Caldera + Radiadores") {
-      console.log("[v0] BudgetGenerator - Procesando: Caldera + Radiadores")
+    const radiatorsTypes = ["Caldera + Radiadores", "Central", "Aerotermia", "Otra"]
+    if (radiatorsTypes.includes(heatingType)) {
+      console.log(`[v0] BudgetGenerator - Procesando radiadores para tipo: ${heatingType}`)
 
-      // Instalación o sustitución de caldera
-      const installGasBoiler = reform?.config?.installGasBoiler || false
+      // Instalación o sustitución de caldera (solo si es Caldera + Radiadores)
+      const installGasBoiler = (heatingType === "Caldera + Radiadores") && (reform?.config?.installGasBoiler || false)
       console.log("[v0] BudgetGenerator - Install gas boiler:", installGasBoiler)
 
       if (installGasBoiler) {
@@ -1403,10 +1403,10 @@ export class BudgetGenerator {
 
       if (reform?.rooms && reform.rooms.length > 0) {
         reform.rooms.forEach((room: any) => {
-          if (room.radiatorAction === "Instalar") {
-            installRadiators += room.radiatorCount || 0
-          } else if (room.radiatorAction === "Cambiar") {
-            changeRadiators += room.radiatorCount || 0
+          if (room.hasRadiator || (room.radiators && Array.isArray(room.radiators) && room.radiators.length > 0)) {
+            const heaterCount = room.radiators?.length || 1
+            installRadiators += heaterCount
+            console.log(`[v0] BudgetGenerator - ${room.type} ${room.number}: ${heaterCount} radiadores`)
           }
         })
       }
@@ -1612,9 +1612,14 @@ export class BudgetGenerator {
     console.log("[v0] BudgetGenerator - Generando partida: Canalización TV y telecomunicaciones 1 ud")
     this.addLineItem("06-E-02", 1, "Canalización TV y telecomunicaciones")
 
-    // 06-E-03: Intercom (always 1)
-    console.log("[v0] BudgetGenerator - Generando partida: Portero convencional 1 ud")
-    this.addLineItem("06-E-03", 1, "Suministro y instalación portero convencional")
+    // 06-E-03: Intercom (solo si hay más de una habitación real)
+    const realRoomCount = this.getRealRoomCount()
+    if (realRoomCount > 1) {
+      console.log("[v0] BudgetGenerator - Generando partida: Portero convencional 1 ud")
+      this.addLineItem("06-E-03", 1, "Suministro y instalación portero convencional")
+    } else {
+      console.log(`[v0] BudgetGenerator - NO se genera partida de portero convencional (realRoomCount: ${realRoomCount})`)
+    }
 
     // 06-E-04: Construction panel (always 1)
     console.log("[v0] BudgetGenerator - Generando partida: Cuadro de obra 1 ud")
@@ -2104,12 +2109,32 @@ export class BudgetGenerator {
   }
 
   private hasRealRooms(): boolean {
-    const { reform } = this.calculatorData
-    if (!reform || !reform.rooms || !Array.isArray(reform.rooms)) return false
+    return this.getRealRoomCount() > 0
+  }
 
-    return reform.rooms.some(
-      (r: any) => r.customRoomType !== "Otras ventanas" && r.name !== "Otras ventanas"
-    )
+  private getRealRoomCount(): number {
+    const { reform } = this.calculatorData
+    if (!reform || !reform.rooms || !Array.isArray(reform.rooms)) return 0
+
+    const realRooms = reform.rooms.filter((r: any) => {
+      const roomName = (r.name || "").toLowerCase()
+      const roomType = (r.type || "").toLowerCase()
+      const customType = (r.customRoomType || "").toLowerCase()
+
+      const isOtherWindows =
+        roomName.includes("otras ventanas") ||
+        roomType.includes("otras ventanas") ||
+        customType.includes("otras ventanas")
+
+      return !isOtherWindows
+    })
+
+    console.log(`[v0] BudgetGenerator - getRealRoomCount: ${realRooms.length} rooms (filtered from ${reform.rooms.length})`)
+    if (realRooms.length > 0) {
+      console.log("[v0] BudgetGenerator - Real rooms list:", realRooms.map((r: any) => r.name || r.type).join(", "))
+    }
+
+    return realRooms.length
   }
 
   private hasElectricalWork(): boolean {
@@ -2226,8 +2251,26 @@ export class BudgetGenerator {
     const { reform } = this.calculatorData
     if (!reform || !reform.rooms) return 0
 
-    // Sumar perimetro de todas las habitaciones
-    return reform.rooms.reduce((total: number, room: any) => total + (room.perimeter || 0), 0)
+    // Sumar perimetro de habitaciones que NO sean Baño o Cocina (petición usuario: no rodapié cerámico por defecto)
+    return reform.rooms.reduce((total: number, room: any) => {
+      const type = (room.type || "").toLowerCase()
+      const name = (room.name || "").toLowerCase()
+
+      // Robust check for bathroom/kitchen
+      if (
+        type.includes("baño") ||
+        type.includes("bano") ||
+        type.includes("aseo") ||
+        type.includes("cocina") ||
+        name.includes("baño") ||
+        name.includes("bano") ||
+        name.includes("aseo") ||
+        name.includes("cocina")
+      ) {
+        return total
+      }
+      return total + (room.perimeter || 0)
+    }, 0)
   }
 
   private countTotalDoors(): number {

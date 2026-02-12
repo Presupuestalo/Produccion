@@ -56,6 +56,7 @@ export function DemolitionSummary({
   const [falseCeilingArea, setFalseCeilingArea] = useState<number>(0)
   const [woodenFloorArea, setWoodenFloorArea] = useState<number>(0)
   const [skirtingWoodenFloor, setSkirtingWoodenFloor] = useState<number>(0)
+  const [skirtingCeramicFloor, setSkirtingCeramicFloor] = useState<number>(0)
   const [totalSlidingBoxes, setTotalSlidingBoxes] = useState<number>(0)
   const [approximateBags, setApproximateBags] = useState<number>(0)
   const [radiatorsDebrisVolume, setRadiatorsDebrisVolume] = useState<number>(0) // Added radiator debris volume calculation
@@ -155,16 +156,23 @@ export function DemolitionSummary({
     setWoodenFloorArea(summary?.woodenFloorRemoval || 0)
   }, [summary?.woodenFloorRemoval])
 
-  // Calcular rodapié de suelo de madera (perímetro de habitaciones con suelo de madera que se levanta)
+  // Calcular rodapié de suelo de madera y cerámico
   useEffect(() => {
-    const totalSkirtingWoodenFloor = rooms.reduce((total, room) => {
-      if (room.floorMaterial === "Madera" && room.removeFloor === true) {
-        return total + (room.perimeter || 0)
-      }
-      return total
-    }, 0)
+    let totalWooden = 0
+    let totalCeramic = 0
 
-    setSkirtingWoodenFloor(totalSkirtingWoodenFloor)
+    rooms.forEach((room) => {
+      if (room.removeFloor === true) {
+        if (room.floorMaterial === "Madera") {
+          totalWooden += room.perimeter || 0
+        } else if (room.floorMaterial === "Cerámico" || room.floorMaterial === "Cerámica") {
+          totalCeramic += room.perimeter || 0
+        }
+      }
+    })
+
+    setSkirtingWoodenFloor(totalWooden)
+    setSkirtingCeramicFloor(totalCeramic)
   }, [rooms])
 
   // Agrupar los derribos de tabiques por grosor
@@ -240,6 +248,10 @@ export function DemolitionSummary({
 
     const woodDebrisVolume =
       (debrisCalculation.woodenFloorDebris || 0) +
+      skirtingWoodenFloor *
+      (demolitionSettings.woodenFloorThickness || 0.02) *
+      0.1 *
+      (demolitionSettings.woodenFloorExpansionCoef || 1.4) +
       doorsVolume +
       kitchenFurnitureVolume +
       bedroomFurnitureVolume +
@@ -276,6 +288,9 @@ export function DemolitionSummary({
     radiatorsToRemove,
     verifiedSettings,
     verifiedContainerSize,
+    skirtingWoodenFloor,
+    demolitionSettings.woodenFloorThickness,
+    demolitionSettings.woodenFloorExpansionCoef
   ])
 
   if (!summary) {
@@ -314,6 +329,25 @@ export function DemolitionSummary({
 
   const totalDoorsFromRooms = doorCalculation.totalDoors
   const totalSlidingBoxesFromRooms = doorCalculation.slidingBoxes
+
+  // Calcular desgloses para la interfaz
+  const totalWoodDebris = (debrisCalculation.woodenFloorDebris || 0) +
+    skirtingWoodenFloor *
+    (demolitionSettings.woodenFloorThickness || 0.02) *
+    0.1 *
+    (demolitionSettings.woodenFloorExpansionCoef || 1.4) +
+    totalDoorsFromRooms * 0.06 +
+    (summary?.kitchenFurnitureRemoval || 0) * 3.5 +
+    (summary?.bedroomFurnitureRemoval || 0) * 2.0 +
+    livingRoomFurnitureCount * 2.0
+
+  const totalMixedDebris = wallDebrisVolume +
+    (debrisCalculation.floorTileDebris || 0) +
+    (debrisCalculation.wallTileDebris || 0) +
+    (debrisCalculation.mortarBaseDebris || 0) +
+    ceilingDebrisVolume +
+    (summary?.bathroomElementsRemoval || 0) * 1.5 +
+    radiatorsDebrisVolume
 
   const getHeatingRemovalItem = () => {
     // This allows the item to show when the checkbox is checked regardless of heating type
@@ -381,170 +415,178 @@ export function DemolitionSummary({
                 .map((group, index) => (
                   <div
                     key={`group-${group.thickness}-${index}`}
-                    className="grid grid-cols-[1fr_auto_auto] gap-2 items-start py-1 border-b border-orange-100 last:border-0"
+                    className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0"
                   >
                     <div className="min-w-0 break-words leading-tight">Demolición tabiquería ({group.thickness} cm)</div>
                     <div className="text-muted-foreground text-right shrink-0">m²</div>
-                    <div className="font-medium text-right w-16 shrink-0">{formatNumber(group.totalArea)}</div>
+                    <div className="font-medium text-right shrink-0">{formatNumber(group.totalArea)}</div>
                   </div>
                 ))
               : (summary?.wallDemolition || 0) > 0 && (
-                <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                  <div>Demolición tabiquería:</div>
+                <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                  <div>Demolición tabiquería</div>
                   <div className="text-muted-foreground text-right">m²</div>
-                  <div className="font-medium text-right w-20">{formatNumber(summary?.wallDemolition || 0)}</div>
+                  <div className="font-medium text-right">{formatNumber(summary?.wallDemolition || 0)}</div>
                 </div>
               )}
 
             {(summary?.floorTileRemoval || 0) > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-start py-1 border-b border-orange-100 last:border-0">
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
                 <div className="min-w-0 break-words leading-tight">Picado de pavimento cerámico</div>
                 <div className="text-muted-foreground text-right shrink-0">m²</div>
-                <div className="font-medium text-right w-16 shrink-0">{formatNumber(summary?.floorTileRemoval || 0)}</div>
+                <div className="font-medium text-right shrink-0">{formatNumber(summary?.floorTileRemoval || 0)}</div>
               </div>
             )}
 
             {(summary?.mortarBaseRemoval || 0) > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                <div>Picado de solera base mortero:</div>
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div>Picado de solera base mortero</div>
                 <div className="text-muted-foreground text-right">m²</div>
-                <div className="font-medium text-right w-20">{formatNumber(summary?.mortarBaseRemoval || 0)}</div>
+                <div className="font-medium text-right">{formatNumber(summary?.mortarBaseRemoval || 0)}</div>
               </div>
             )}
 
             {adjustedWallTileRemoval > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                <div>Picado de cerámica vertical (paredes):</div>
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div>Picado de cerámica vertical (paredes)</div>
                 <div className="text-muted-foreground text-right">m²</div>
-                <div className="font-medium text-right w-20">{formatNumber(adjustedWallTileRemoval)}</div>
+                <div className="font-medium text-right">{formatNumber(adjustedWallTileRemoval)}</div>
               </div>
             )}
 
             {falseCeilingArea > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                <div>Retirada de falso techo:</div>
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div>Retirada de falso techo</div>
                 <div className="text-muted-foreground text-right">m²</div>
-                <div className="font-medium text-right w-20">{formatNumber(falseCeilingArea)}</div>
+                <div className="font-medium text-right">{formatNumber(falseCeilingArea)}</div>
               </div>
             )}
 
             {totalDoorsFromRooms > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                <div>Retirada de puertas y marcos:</div>
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div>Retirada de puertas y marcos</div>
                 <div className="text-muted-foreground text-right">ud</div>
-                <div className="font-medium text-right w-20">{totalDoorsFromRooms}</div>
+                <div className="font-medium text-right">{totalDoorsFromRooms}</div>
               </div>
             )}
 
             {totalSlidingBoxesFromRooms > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                <div>Armazón/Casoneto puerta corredera:</div>
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div>Armazón/Casoneto puerta corredera</div>
                 <div className="text-muted-foreground text-right">ud</div>
-                <div className="font-medium text-right w-20">{totalSlidingBoxesFromRooms}</div>
+                <div className="font-medium text-right">{totalSlidingBoxesFromRooms}</div>
               </div>
             )}
 
             {(summary?.woodenFloorRemoval || 0) > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                <div>Levantado de suelo de madera:</div>
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div>Levantado de suelo de madera</div>
                 <div className="text-muted-foreground text-right">m²</div>
-                <div className="font-medium text-right w-20">{formatNumber(summary?.woodenFloorRemoval || 0)}</div>
+                <div className="font-medium text-right">{formatNumber(summary?.woodenFloorRemoval || 0)}</div>
               </div>
             )}
 
             {skirtingWoodenFloor > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-start py-1 border-b border-orange-100 last:border-0">
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
                 <div className="min-w-0 break-words leading-tight">Retirada de rodapié suelo madera</div>
                 <div className="text-muted-foreground text-right shrink-0">ml</div>
-                <div className="font-medium text-right w-16 shrink-0">{formatNumber(skirtingWoodenFloor)}</div>
+                <div className="font-medium text-right shrink-0">{formatNumber(skirtingWoodenFloor)}</div>
+              </div>
+            )}
+
+            {skirtingCeramicFloor > 0 && (
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div className="min-w-0 break-words leading-tight">Retirada de rodapié cerámico</div>
+                <div className="text-muted-foreground text-right shrink-0">ml</div>
+                <div className="font-medium text-right shrink-0">{formatNumber(skirtingCeramicFloor)}</div>
               </div>
             )}
 
             {(summary?.bathroomElementsRemoval || 0) > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                <div>Retirada de sanitarios:</div>
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div>Retirada de sanitarios</div>
                 <div className="text-muted-foreground text-right">ud</div>
-                <div className="font-medium text-right w-20">{summary?.bathroomElementsRemoval || 0}</div>
+                <div className="font-medium text-right">{summary?.bathroomElementsRemoval || 0}</div>
               </div>
             )}
 
             {(summary?.goteleRemoval || 0) > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                <div>Retirada de gotelé:</div>
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div>Retirada de gotelé</div>
                 <div className="text-muted-foreground text-right">m²</div>
-                <div className="font-medium text-right w-20">{formatNumber(summary?.goteleRemoval || 0)}</div>
+                <div className="font-medium text-right">{formatNumber(summary?.goteleRemoval || 0)}</div>
               </div>
             )}
 
             {(summary?.wallpaperRemoval || 0) > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                <div>Retirada de papel:</div>
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div>Retirada de papel</div>
                 <div className="text-muted-foreground text-right">m²</div>
-                <div className="font-medium text-right w-20">{formatNumber(summary?.wallpaperRemoval || 0)}</div>
+                <div className="font-medium text-right">{formatNumber(summary?.wallpaperRemoval || 0)}</div>
               </div>
             )}
 
             {radiatorsToRemove > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                <div>Retirada de radiadores:</div>
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div>Retirada de radiadores</div>
                 <div className="text-muted-foreground text-right">ud</div>
-                <div className="font-medium text-right w-20">{radiatorsToRemove}</div>
+                <div className="font-medium text-right">{radiatorsToRemove}</div>
               </div>
             )}
 
             {heatingRemovalItem && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                <div>{heatingRemovalItem.label}:</div>
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div>{heatingRemovalItem.label}</div>
                 <div className="text-muted-foreground text-right">{heatingRemovalItem.unit}</div>
-                <div className="font-medium text-right w-20">{heatingRemovalItem.quantity}</div>
+                <div className="font-medium text-right">{heatingRemovalItem.quantity}</div>
               </div>
             )}
 
             {totalMoldings > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                <div>Retirada de molduras:</div>
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div>Retirada de molduras</div>
                 <div className="text-muted-foreground text-right">ml</div>
-                <div className="font-medium text-right w-20">{formatNumber(totalMoldings)}</div>
+                <div className="font-medium text-right">{formatNumber(totalMoldings)}</div>
               </div>
             )}
 
             {totalSewagePipes > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                <div>Retirada de bajantes fecales:</div>
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div>Retirada de bajantes fecales</div>
                 <div className="text-muted-foreground text-right">ud</div>
-                <div className="font-medium text-right w-20">{totalSewagePipes}</div>
+                <div className="font-medium text-right">{totalSewagePipes}</div>
               </div>
             )}
 
             {manualDebrisHours > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                <div>Bajada manual de escombros:</div>
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div>Bajada manual de escombros</div>
                 <div className="text-muted-foreground text-right">h</div>
-                <div className="font-medium text-right w-20">{formatNumber(manualDebrisHours)}</div>
+                <div className="font-medium text-right">{formatNumber(manualDebrisHours)}</div>
               </div>
             )}
 
             {(summary?.kitchenFurnitureRemoval || 0) > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                <div>Retirada mobiliario cocina:</div>
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div>Retirada mobiliario cocina</div>
                 <div className="text-muted-foreground text-right">ud</div>
-                <div className="font-medium text-right w-20">{summary?.kitchenFurnitureRemoval || 0}</div>
+                <div className="font-medium text-right">{summary?.kitchenFurnitureRemoval || 0}</div>
               </div>
             )}
 
             {(summary?.bedroomFurnitureRemoval || 0) > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                <div>Retirada mobiliario dormitorio:</div>
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div>Retirada mobiliario dormitorio</div>
                 <div className="text-muted-foreground text-right">ud</div>
-                <div className="font-medium text-right w-20">{summary?.bedroomFurnitureRemoval || 0}</div>
+                <div className="font-medium text-right">{summary?.bedroomFurnitureRemoval || 0}</div>
               </div>
             )}
 
             {livingRoomFurnitureCount > 0 && (
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                <div>Retirada mobiliario salón:</div>
+              <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-orange-100 last:border-0">
+                <div>Retirada mobiliario salón</div>
                 <div className="text-muted-foreground text-right">ud</div>
-                <div className="font-medium text-right w-20">{livingRoomFurnitureCount}</div>
+                <div className="font-medium text-right">{livingRoomFurnitureCount}</div>
               </div>
             )}
           </div>
@@ -561,8 +603,8 @@ export function DemolitionSummary({
               const volume = group.totalArea * (group.thickness / 100) * (demolitionSettings.wallExpansionCoef || 1.3)
               return (
                 volume > 0 && (
-                  <div key={`vol-${group.thickness}-${index}`} className="flex items-center justify-between gap-2">
-                    <div className="flex-1">Escombros tabiques ({group.thickness} cm):</div>
+                  <div key={`vol-${group.thickness}-${index}`} className="grid grid-cols-[1fr_auto] gap-2 items-center py-1 border-b border-orange-50 last:border-0">
+                    <div className="flex-1">Escombros tabiques ({group.thickness} cm)</div>
                     <div className="text-right font-medium">{formatNumber(volume)} m³</div>
                   </div>
                 )
@@ -570,8 +612,8 @@ export function DemolitionSummary({
             })}
 
             {(debrisCalculation.floorTileDebris || 0) + (debrisCalculation.wallTileDebris || 0) > 0 && (
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex-1">Escombros cerámica:</div>
+              <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-1 border-b border-orange-50 last:border-0">
+                <div className="flex-1">Escombros cerámica</div>
                 <div className="text-right font-medium">
                   {formatNumber((debrisCalculation.floorTileDebris || 0) + (debrisCalculation.wallTileDebris || 0))} m³
                 </div>
@@ -579,15 +621,15 @@ export function DemolitionSummary({
             )}
 
             {(debrisCalculation.mortarBaseDebris || 0) > 0 && (
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex-1">Escombros solera mortero:</div>
+              <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-1 border-b border-orange-50 last:border-0">
+                <div className="flex-1">Escombros solera mortero</div>
                 <div className="text-right font-medium">{formatNumber(debrisCalculation.mortarBaseDebris || 0)} m³</div>
               </div>
             )}
 
             {(summary?.bathroomElementsRemoval || 0) > 0 && (
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex-1">Escombros elementos baño:</div>
+              <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-1 border-b border-orange-50 last:border-0">
+                <div className="flex-1">Escombros elementos baño</div>
                 <div className="text-right font-medium">
                   {formatNumber((summary?.bathroomElementsRemoval || 0) * 1.5)} m³
                 </div>
@@ -595,23 +637,28 @@ export function DemolitionSummary({
             )}
 
             {ceilingDebrisVolume > 0 && (
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex-1">Escombros falso techo:</div>
+              <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-1 border-b border-orange-50 last:border-0">
+                <div className="flex-1">Escombros falso techo</div>
                 <div className="text-right font-medium">{formatNumber(ceilingDebrisVolume)} m³</div>
               </div>
             )}
 
             {radiatorsToRemove > 0 && (
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex-1">Escombros radiadores:</div>
+              <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-1 border-b border-orange-50 last:border-0">
+                <div className="flex-1">Escombros radiadores</div>
                 <div className="text-right font-medium">{formatNumber(radiatorsDebrisVolume)} m³</div>
               </div>
             )}
 
-            <div className="font-semibold pt-2">Total escombros:</div>
-            <div className="text-right font-semibold pt-2">{formatNumber(totalDebris)} m³</div>
-            <div className="text-sm text-muted-foreground">Sacos aproximados (25kg):</div>
-            <div className="text-right text-sm text-muted-foreground">{Math.ceil(totalDebris / 0.05)} sacos</div>
+            <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-2 border-t-2 border-orange-100 mt-2">
+              <div className="font-semibold text-orange-950">Total escombros</div>
+              <div className="text-right font-black text-orange-950">{formatNumber(totalDebris)} m³</div>
+            </div>
+
+            <div className="grid grid-cols-[1fr_auto] gap-2 items-center pt-1 italic opacity-80">
+              <div className="text-[11px] text-muted-foreground">Sacos aproximados (25kg)</div>
+              <div className="text-right text-[11px] text-muted-foreground">{Math.ceil(totalDebris / 0.05)} sacos</div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -629,8 +676,8 @@ export function DemolitionSummary({
             <CardContent>
               <div className="space-y-1 text-sm">
                 {(debrisCalculation.woodenFloorDebris || 0) > 0 && (
-                  <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                    <div>Residuos suelo madera:</div>
+                  <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-1 border-b border-orange-50 last:border-0">
+                    <div>Residuos suelo madera</div>
                     <div className="text-right font-medium">
                       {formatNumber(debrisCalculation.woodenFloorDebris || 0)} m³
                     </div>
@@ -638,8 +685,8 @@ export function DemolitionSummary({
                 )}
 
                 {skirtingWoodenFloor > 0 && (
-                  <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                    <div>Residuos rodapié madera:</div>
+                  <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-1 border-b border-orange-50 last:border-0">
+                    <div>Residuos rodapié madera</div>
                     <div className="text-right font-medium">
                       {(
                         skirtingWoodenFloor *
@@ -653,15 +700,15 @@ export function DemolitionSummary({
                 )}
 
                 {totalDoorsFromRooms > 0 && (
-                  <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                    <div>Residuos puertas:</div>
+                  <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-1 border-b border-orange-50 last:border-0">
+                    <div>Residuos puertas</div>
                     <div className="text-right font-medium">{formatNumber(totalDoorsFromRooms * 0.06)} m³</div>
                   </div>
                 )}
 
                 {(summary?.kitchenFurnitureRemoval || 0) > 0 && (
-                  <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                    <div>Residuos muebles cocina:</div>
+                  <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-1 border-b border-orange-50 last:border-0">
+                    <div>Residuos muebles cocina</div>
                     <div className="text-right font-medium">
                       {formatNumber((summary?.kitchenFurnitureRemoval || 0) * 3.5)} m³
                     </div>
@@ -669,8 +716,8 @@ export function DemolitionSummary({
                 )}
 
                 {(summary?.bedroomFurnitureRemoval || 0) > 0 && (
-                  <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                    <div>Residuos muebles dormitorio:</div>
+                  <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-1 border-b border-orange-50 last:border-0">
+                    <div>Residuos muebles dormitorio</div>
                     <div className="text-right font-medium">
                       {formatNumber((summary?.bedroomFurnitureRemoval || 0) * 2.0)} m³
                     </div>
@@ -678,26 +725,17 @@ export function DemolitionSummary({
                 )}
 
                 {livingRoomFurnitureCount > 0 && (
-                  <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                    <div>Residuos muebles salón:</div>
+                  <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-1 border-b border-orange-50 last:border-0">
+                    <div>Residuos muebles salón</div>
                     <div className="text-right font-medium">{formatNumber(livingRoomFurnitureCount * 2.0)} m³</div>
                   </div>
                 )}
 
-                <div className="font-semibold pt-2">Total deshechos madera:</div>
-                <div className="text-right font-semibold pt-2">
-                  {formatNumber(
-                    (debrisCalculation.woodenFloorDebris || 0) +
-                    skirtingWoodenFloor *
-                    (demolitionSettings.woodenFloorThickness || 0.02) *
-                    0.1 *
-                    (demolitionSettings.woodenFloorExpansionCoef || 1.4) +
-                    totalDoorsFromRooms * 0.06 +
-                    (summary?.kitchenFurnitureRemoval || 0) * 3.5 +
-                    (summary?.bedroomFurnitureRemoval || 0) * 2.0 +
-                    livingRoomFurnitureCount * 2.0
-                  )}{" "}
-                  m³
+                <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-2 border-t-2 border-orange-100 mt-2">
+                  <div className="font-semibold text-orange-950">Total deshechos madera</div>
+                  <div className="text-right font-black text-orange-950">
+                    {formatNumber(totalWoodDebris)} m³
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -710,67 +748,60 @@ export function DemolitionSummary({
         </CardHeader>
         <CardContent>
           <div className="space-y-1 text-sm">
-            <div className="font-semibold">Total escombros:</div>
-            <div className="text-right font-semibold">
-              {formatNumber(
-                wallDebrisVolume +
-                (debrisCalculation.floorTileDebris || 0) +
-                (debrisCalculation.wallTileDebris || 0) +
-                (debrisCalculation.mortarBaseDebris || 0) +
-                ceilingDebrisVolume +
-                (summary?.bathroomElementsRemoval || 0) * 1.5
-              )}{" "}
-              m³
+            <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-1.5 border-b border-orange-50">
+              <div className="font-semibold">Total escombros</div>
+              <div className="text-right font-black">
+                {formatNumber(totalMixedDebris)} m³
+              </div>
             </div>
 
-            <div className="font-semibold">Total deshechos madera:</div>
-            <div className="text-right font-semibold">
-              {formatNumber(
-                (debrisCalculation.woodenFloorDebris || 0) +
-                skirtingWoodenFloor *
-                (demolitionSettings.woodenFloorThickness || 0.02) *
-                0.1 *
-                (demolitionSettings.woodenFloorExpansionCoef || 1.4) +
-                totalDoorsFromRooms * 0.06 +
-                (summary?.kitchenFurnitureRemoval || 0) * 3.5 +
-                (summary?.bedroomFurnitureRemoval || 0) * 2.0 +
-                livingRoomFurnitureCount * 2.0
-              )}{" "}
-              m³
+            <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-1.5 border-b border-orange-50">
+              <div className="font-semibold">Total deshechos madera</div>
+              <div className="text-right font-black">
+                {formatNumber(totalWoodDebris)} m³
+              </div>
             </div>
 
-            <div className="font-bold text-lg pt-2">Total mixto:</div>
-            <div className="text-right font-bold text-lg pt-2">{formatNumber(totalDebris)} m³</div>
-
-            <div className="font-bold text-lg">Contenedores necesarios:</div>
-            <div className="text-right font-bold text-lg">
-              {containersNeeded} ({verifiedContainerSize || demolitionSettings.containerSize || 5} m³)
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-2 h-6 w-6 p-0 hover:bg-orange-50 transition-colors"
-                onClick={goToProjectDemolitionSettings}
-                title="Modificar tamaño de contenedor"
-              >
-                <Settings2 className="h-3 w-3 text-orange-500 hover:text-orange-600 hover:scale-110 hover:rotate-90 transition-all duration-300" />
-              </Button>
+            <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-2 bg-orange-50 px-2 -mx-2 rounded-b-lg">
+              <div className="font-black text-orange-900 uppercase tracking-tighter">Total General</div>
+              <div className="text-right font-black text-lg text-orange-950">
+                {formatNumber(totalDebris)} m³
+              </div>
             </div>
 
-            <div className="font-semibold pt-2 text-blue-600">Tiempo estimado bajada:</div>
-            <div className="text-right font-semibold pt-2 text-blue-600">
-              {(() => {
-                // Base: 1 m³ = 1 hour per worker (using total mixed debris)
-                let baseHours = totalDebris * 1.0
+            <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-2 border-t-2 border-orange-100 mt-2">
+              <div className="font-bold text-lg">Contenedores necesarios</div>
+              <div className="text-right font-bold text-lg flex items-center">
+                {containersNeeded} ({verifiedContainerSize || demolitionSettings.containerSize || 5} m³)
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-2 h-6 w-6 p-0 hover:bg-orange-50 transition-colors"
+                  onClick={goToProjectDemolitionSettings}
+                  title="Modificar tamaño de contenedor"
+                >
+                  <Settings2 className="h-3 w-3 text-orange-500 hover:text-orange-600 hover:scale-110 hover:rotate-90 transition-all duration-300" />
+                </Button>
+              </div>
+            </div>
 
-                // Add 0.20h per floor if no elevator (using project data, not global config)
-                if (summary?.hasElevator === false && summary?.buildingHeight) {
-                  const floors = Math.max(0, summary.buildingHeight - 1) // Ground floor = 0 additional
-                  const additionalHours = totalDebris * floors * 0.2
-                  baseHours += additionalHours
-                }
+            <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-2 border-t border-blue-100 mt-2 text-blue-600">
+              <div className="font-semibold">Tiempo estimado bajada</div>
+              <div className="text-right font-bold">
+                {(() => {
+                  // Base: 1 m³ = 1 hour per worker (using total mixed debris)
+                  let baseHours = totalDebris * 1.0
 
-                return formatNumber(baseHours, 1)
-              })()} h
+                  // Add 0.20h per floor if no elevator (using project data, not global config)
+                  if (summary?.hasElevator === false && summary?.buildingHeight) {
+                    const floors = Math.max(0, summary.buildingHeight - 1) // Ground floor = 0 additional
+                    const additionalHours = totalDebris * floors * 0.2
+                    baseHours += additionalHours
+                  }
+
+                  return formatNumber(baseHours, 1)
+                })()} h
+              </div>
             </div>
 
             {summary?.hasElevator === false && summary?.buildingHeight && summary.buildingHeight > 1 && (
@@ -791,44 +822,44 @@ export function DemolitionSummary({
           <CardContent>
             <div className="space-y-1 text-sm">
               {heatingRemovalItem?.type === "termo" && (
-                <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                  <div>Termo eléctrico:</div>
+                <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-1 border-b border-orange-50 last:border-0">
+                  <div>Termo eléctrico</div>
                   <div className="text-right font-medium">0.10 m³</div>
                 </div>
               )}
 
               {heatingRemovalItem?.type === "caldera" && (
-                <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                  <div>Caldera:</div>
+                <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-1 border-b border-orange-50 last:border-0">
+                  <div>Caldera</div>
                   <div className="text-right font-medium">0.10 m³</div>
                 </div>
               )}
 
               {radiatorsToRemove > 0 && (
-                <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                  <div>Radiadores ({radiatorsToRemove} ud):</div>
+                <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-1 border-b border-orange-50 last:border-0">
+                  <div>Radiadores ({radiatorsToRemove} ud)</div>
                   <div className="text-right font-medium">{(radiatorsToRemove * 0.05).toFixed(2)} m³</div>
                 </div>
               )}
 
               {livingRoomFurnitureCount > 0 && (
-                <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-                  <div>Mobiliario salón ({livingRoomFurnitureCount} ud):</div>
+                <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-1 border-b border-orange-50 last:border-0">
+                  <div>Mobiliario salón ({livingRoomFurnitureCount} ud)</div>
                   <div className="text-right font-medium">{(livingRoomFurnitureCount * 2.0).toFixed(2)} m³</div>
                 </div>
               )}
 
-              <div className="font-semibold pt-2">Total elementos especiales:</div>
-              <div className="text-right font-semibold pt-2">
-                {(
-                  (heatingRemovalItem?.type === "termo" ? 0.1 : 0) +
-                  (heatingRemovalItem?.type === "caldera" ? 0.1 : 0) +
-                  radiatorsToRemove * 0.05 +
-                  livingRoomFurnitureCount * 2.0 +
-                  (heatingRemovalItem ? 0.15 : 0)
-                ) // Added heating removal to total
-                  .toFixed(2)}{" "}
-                m³
+              <div className="grid grid-cols-[1fr_auto] gap-2 items-center py-2 border-t-2 border-orange-100 mt-2">
+                <div className="font-semibold text-orange-950">Total elementos especiales</div>
+                <div className="text-right font-black text-orange-950">
+                  {(
+                    (heatingRemovalItem?.type === "termo" ? 0.1 : 0) +
+                    (heatingRemovalItem?.type === "caldera" ? 0.1 : 0) +
+                    radiatorsToRemove * 0.05 +
+                    livingRoomFurnitureCount * 2.0
+                  ).toFixed(2)}{" "}
+                  m³
+                </div>
               </div>
             </div>
           </CardContent>

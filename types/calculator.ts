@@ -232,6 +232,7 @@ export interface Room {
   removeBedroomFurniture?: boolean
   removeRadiators?: boolean
   removeSewagePipes?: boolean
+  removeSkirting?: boolean
   hasDoors?: boolean
   wallThickness?: number
   floorThickness?: number
@@ -308,7 +309,8 @@ export interface GlobalConfig {
 
 // Modificar la interfaz DemolitionSummary para añadir la nueva propiedad
 export interface DemolitionSummary {
-  skirting: number // metros lineales
+  skirtingWooden: number // metros lineales madera
+  skirtingCeramic: number // metros lineales cerámico
   wallpaperRemoval: number // metros cuadrados (papel)
   goteleRemoval: number // metros cuadrados (gotelé)
   wallDemolition: number // metros cuadrados

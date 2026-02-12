@@ -258,29 +258,29 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
             <Button
               variant="outline"
               size="sm"
-              className="w-full text-xs h-9 bg-slate-50/50 hover:bg-slate-100 hover:text-orange-600 transition-all border-slate-200"
+              className="w-full text-xs h-9 bg-slate-50/50 hover:bg-slate-100 hover:text-orange-600 transition-all border-slate-200 gap-1.5"
               onClick={() => router.push(`/dashboard/projects/${project.id}`)}
             >
-              <LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />
-              Proyecto
+              <LayoutDashboard className="h-4 w-4 shrink-0" />
+              <span>Proyecto</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className="w-full text-xs h-9 bg-slate-50/50 hover:bg-slate-100 hover:text-orange-600 transition-all border-slate-200"
+              className="w-full text-xs h-9 bg-slate-50/50 hover:bg-slate-100 hover:text-orange-600 transition-all border-slate-200 gap-1.5"
               onClick={handleBudgetClick}
             >
-              <FileText className="h-3.5 w-3.5 mr-1.5" />
-              Presupuestos
+              <FileText className="h-4 w-4 shrink-0" />
+              <span>Presupuestos</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className="w-full text-xs h-9 bg-slate-50/50 hover:bg-slate-100 hover:text-orange-600 transition-all border-slate-200"
+              className="w-full text-xs h-9 bg-slate-50/50 hover:bg-slate-100 hover:text-orange-600 transition-all border-slate-200 gap-1.5"
               onClick={() => router.push(`/dashboard/projects/${project.id}/edit?tab=contract`)}
             >
-              <FileCheck className="h-3.5 w-3.5 mr-1.5" />
-              Contrato
+              <FileCheck className="h-4 w-4 shrink-0" />
+              <span>Contrato</span>
             </Button>
           </div>
         </CardContent>

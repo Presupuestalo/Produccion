@@ -1143,8 +1143,10 @@ export function RoomCard({
   const shouldShowRadiator = isReform
     ? globalConfig?.reformHeatingType === "Caldera + Radiadores" ||
     globalConfig?.reformHeatingType === "Central" ||
-    globalConfig?.reformHeatingType === "Eléctrica"
-    : heatingType === "Caldera + Radiadores" || heatingType === "Central"
+    globalConfig?.reformHeatingType === "Eléctrica" ||
+    globalConfig?.reformHeatingType === "Aerotermia" ||
+    globalConfig?.reformHeatingType === "Otra"
+    : heatingType === "Caldera + Radiadores" || heatingType === "Central" || heatingType === "Eléctrica"
 
   const getDefaultRadiatorType = (): RadiatorType => {
     const isBathroom = room.type === "Baño"
@@ -1336,9 +1338,6 @@ export function RoomCard({
                     >
                       <Pencil className="h-2.5 w-2.5 transition-transform duration-200" />
                     </Button>
-                    <Badge variant={isReform ? "default" : "secondary"} className={`ml-1 text-[9px] h-4 px-1 ${isReform ? "bg-green-600 hover:bg-green-700" : "bg-orange-500 hover:bg-orange-600 text-white"}`}>
-                      {isReform ? "REFORMA" : "DERRIBOS"}
-                    </Badge>
                   </div>
                 )}
                 {isReform && needsNewElectricalInstallation && (
@@ -1885,6 +1884,20 @@ export function RoomCard({
                       </div>
                     )}
 
+                    {isFloorCeramic && (
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`removeSkirting-${room.id}`}
+                          checked={room.removeSkirting === true}
+                          onCheckedChange={(checked) => updateRoom(room.id, { removeSkirting: checked === true })}
+                          className="h-3.5 w-3.5"
+                        />
+                        <Label htmlFor={`removeSkirting-${room.id}`} className="text-[11px] cursor-pointer">
+                          Retirar rodapié cerámico
+                        </Label>
+                      </div>
+                    )}
+
                     {/* Añadir opción para retirar gotelé - solo visible si el material de pared es gotelé */}
                     {room.wallMaterial === "Gotelé" && (
                       <div className="flex items-center space-x-2">
@@ -1952,8 +1965,9 @@ export function RoomCard({
                           id={`removeKitchenFurniture-${room.id}`}
                           checked={room.removeKitchenFurniture}
                           onCheckedChange={(checked) => updateRoom(room.id, { removeKitchenFurniture: checked === true })}
+                          className="h-3.5 w-3.5"
                         />
-                        <Label htmlFor={`removeKitchenFurniture-${room.id}`} className="text-xs cursor-pointer">
+                        <Label htmlFor={`removeKitchenFurniture-${room.id}`} className="text-[11px] cursor-pointer">
                           Retirar muebles de cocina
                         </Label>
                       </div>
@@ -1967,8 +1981,9 @@ export function RoomCard({
                           onCheckedChange={(checked) =>
                             updateRoom(room.id, { removeLivingRoomFurniture: checked === true })
                           }
+                          className="h-3.5 w-3.5"
                         />
-                        <Label htmlFor={`removeLivingRoomFurniture-${room.id}`} className="text-xs cursor-pointer">
+                        <Label htmlFor={`removeLivingRoomFurniture-${room.id}`} className="text-[11px] cursor-pointer">
                           Retirar muebles de salón
                         </Label>
                       </div>
@@ -2000,8 +2015,8 @@ export function RoomCard({
                 )}
               </div>
 
-              {/* Radiadores */}
-              {room.type !== "Terraza" && (
+              {/* Radiadores para REFORMA */}
+              {isReform && shouldShowRadiator && room.type !== "Terraza" && (
                 <div className="space-y-1.5">
                   <div className="flex items-center space-x-2">
                     <Checkbox

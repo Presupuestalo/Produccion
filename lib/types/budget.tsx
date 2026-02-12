@@ -214,6 +214,14 @@ export const PRICE_CATALOG: PriceCatalogItem[] = [
     unit: "Ud",
     base_price: 51.75,
   },
+  {
+    id: "01-D-20",
+    category: "01. DERRIBOS",
+    concept: "RETIRADA DE RADIADORES",
+    description: "Desmontaje y retirada de radiadores de agua existentes.",
+    unit: "Ud",
+    base_price: 15.15,
+  },
 
   // 02. ALBAÑILERÍA
   {
