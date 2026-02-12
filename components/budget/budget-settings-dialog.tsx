@@ -118,20 +118,23 @@ export function BudgetSettingsDialog({ projectId, budgetId, onSettingsSaved }: B
         }
       }
 
+      const defaultPresentation = "Nos permitimos hacerle entrega del presupuesto solicitado."
+      const defaultNotes = "**Consideraciones Adicionales:**\n\n- Este presupuesto tiene una validez de 30 días.\n- Los precios no incluyen IVA a menos que se indique lo contrario."
+
       if (budgetSettings) {
         console.log("[v0] Loading existing budget settings")
         setSettings(budgetSettings)
         setFormData({
-          introduction_text: budgetSettings.introduction_text || companyDefaults.presentation,
-          additional_notes: budgetSettings.additional_notes || companyDefaults.notes,
+          introduction_text: budgetSettings.introduction_text || companyDefaults.presentation || defaultPresentation,
+          additional_notes: budgetSettings.additional_notes || companyDefaults.notes || defaultNotes,
           show_vat: budgetSettings.show_vat ?? companyDefaults.showVat,
           vat_percentage: budgetSettings.vat_percentage ?? companyDefaults.vatPercentage,
         })
       } else {
-        console.log("[v0] No budget settings found, using company defaults")
+        console.log("[v0] No budget settings found, using company defaults or hardcoded fallbacks")
         setFormData({
-          introduction_text: companyDefaults.presentation,
-          additional_notes: companyDefaults.notes,
+          introduction_text: companyDefaults.presentation || defaultPresentation,
+          additional_notes: companyDefaults.notes || defaultNotes,
           show_vat: companyDefaults.showVat,
           vat_percentage: companyDefaults.vatPercentage,
         })

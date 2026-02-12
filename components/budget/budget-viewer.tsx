@@ -211,16 +211,18 @@ export function BudgetViewer({ projectId, budgetId, onBudgetUpdated }: BudgetVie
         }
       }
 
-      // Load company defaults for texts
+      // Load company defaults for texts and VAT
       let companyDefaults = {
         presentation: "",
         notes: "",
+        showVat: false,
+        vatPercentage: 21,
       }
 
       if (user) {
         const { data: userSettings } = await supabase
           .from("user_company_settings")
-          .select("default_presentation_text, default_clarification_notes")
+          .select("default_presentation_text, default_clarification_notes, show_vat, vat_percentage")
           .eq("user_id", user.id)
           .maybeSingle()
 
@@ -228,38 +230,42 @@ export function BudgetViewer({ projectId, budgetId, onBudgetUpdated }: BudgetVie
           companyDefaults = {
             presentation: userSettings.default_presentation_text || "",
             notes: userSettings.default_clarification_notes || "",
+            showVat: userSettings.show_vat ?? false,
+            vatPercentage: userSettings.vat_percentage ?? 21,
           }
           console.log("[DEBUG] Company defaults loaded:", companyDefaults)
         }
       }
 
-      const finalSettings = budgetSettings
-        ? {
-          ...budgetSettings,
-          introduction_text:
-            budget.custom_introduction_text ||
-            budgetSettings.introduction_text ||
-            companyDefaults.presentation ||
-            "",
-          additional_notes:
-            budget.custom_additional_notes ||
-            budgetSettings.additional_notes ||
-            companyDefaults.notes ||
-            "",
-        }
-        : null
+      const defaultPresentation = "Nos permitimos hacerle entrega del presupuesto solicitado."
+      const defaultNotes = "**Consideraciones Adicionales:**\n\n- Este presupuesto tiene una validez de 30 días.\n- Los precios no incluyen IVA a menos que se indique lo contrario."
 
-      console.log("[DEBUG] Budget custom texts:", {
-        custom_introduction_text: budget.custom_introduction_text,
-        custom_additional_notes: budget.custom_additional_notes,
-      })
-      console.log("[DEBUG] Budget settings texts:", {
-        introduction_text: budgetSettings?.introduction_text,
-        additional_notes: budgetSettings?.additional_notes,
-      })
+      const finalSettings: BudgetSettings = {
+        id: budgetSettings?.id || "",
+        project_id: projectId,
+        status: budgetSettings?.status || "draft",
+        created_at: budgetSettings?.created_at || new Date().toISOString(),
+        updated_at: budgetSettings?.updated_at || new Date().toISOString(),
+        adjustments: adjustments || [],
+        introduction_text:
+          budget.custom_introduction_text ||
+          budgetSettings?.introduction_text ||
+          companyDefaults.presentation ||
+          defaultPresentation,
+        additional_notes:
+          budget.custom_additional_notes ||
+          budgetSettings?.additional_notes ||
+          companyDefaults.notes ||
+          defaultNotes,
+        show_vat: budgetSettings?.show_vat ?? companyDefaults.showVat,
+        vat_percentage: budgetSettings?.vat_percentage ?? companyDefaults.vatPercentage,
+      }
+
       console.log("[DEBUG] Final settings for PDF:", {
-        introduction_text: finalSettings?.introduction_text,
-        additional_notes: finalSettings?.additional_notes,
+        introduction_text: finalSettings.introduction_text,
+        additional_notes: finalSettings.additional_notes,
+        show_vat: finalSettings.show_vat,
+        vat_percentage: finalSettings.vat_percentage,
       })
 
       const { data: project, error: projectError } = await supabase
