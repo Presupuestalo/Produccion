@@ -2187,7 +2187,7 @@ export function RoomCard({
                                   <SelectItem value="Corredera empotrada">Corredera empotrada</SelectItem>
                                 </SelectContent>
                               </Select>
-                              {(room.newDoorList.length > 1 || room.type !== "Baño") && (
+                              {((room.newDoorList?.length ?? 0) > 1 || room.type !== "Baño") && (
                                 <Button
                                   type="button"
                                   variant="ghost"
