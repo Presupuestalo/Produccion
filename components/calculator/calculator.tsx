@@ -2498,6 +2498,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                   height: 1.2,
                   type: "Ventana simple",
                   material: "PVC",
+                  color: "Blanco",
                   opening: "Oscilo-Batiente",
                   hasBlind: true,
                   glassType: "Doble",
