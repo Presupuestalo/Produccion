@@ -1962,11 +1962,11 @@ export class BudgetGenerator {
     }
 
     // Termostato
-    if (heatingType && heatingType !== "No") {
+    if (heatingType && heatingType !== "No" && heatingType !== "Eléctrica") {
       console.log("[v0] BudgetGenerator - Generando partida: Termostato 1 ud")
       this.addLineItem("10-M-22", 1)
     } else {
-      console.log("[v0] BudgetGenerator - NO se genera partida de termostato (no heating type)")
+      console.log("[v0] BudgetGenerator - NO se genera partida de termostato (no heating type or electric)")
     }
 
     // Termo eléctrico
