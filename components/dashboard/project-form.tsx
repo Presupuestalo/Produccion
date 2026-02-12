@@ -572,8 +572,8 @@ export function ProjectForm({
     // Validar cada campo solo si tiene un valor
     if ((settings as any).floorTileThickness !== "") {
       const value =
-        typeof settings.floorTileThickness === "string"
-          ? Number.parseFloat(settings.floorTileThickness.replace(",", "."))
+        typeof (settings as any).floorTileThickness === "string"
+          ? Number.parseFloat((settings as any).floorTileThickness.replace(",", "."))
           : settings.floorTileThickness
 
       if (!isNaN(value)) {
@@ -585,8 +585,8 @@ export function ProjectForm({
 
     if ((settings as any).wallTileThickness !== "") {
       const value =
-        typeof settings.wallTileThickness === "string"
-          ? Number.parseFloat(settings.wallTileThickness.replace(",", "."))
+        typeof (settings as any).wallTileThickness === "string"
+          ? Number.parseFloat((settings as any).wallTileThickness.replace(",", "."))
           : settings.wallTileThickness
 
       if (!isNaN(value)) {
@@ -598,8 +598,8 @@ export function ProjectForm({
 
     if ((settings as any).woodExpansionCoef !== "") {
       const value =
-        typeof settings.woodExpansionCoef === "string"
-          ? Number.parseFloat(settings.woodExpansionCoef.replace(",", "."))
+        typeof (settings as any).woodExpansionCoef === "string"
+          ? Number.parseFloat((settings as any).woodExpansionCoef.replace(",", "."))
           : settings.woodExpansionCoef
 
       if (!isNaN(value)) {
@@ -611,8 +611,8 @@ export function ProjectForm({
 
     if ((settings as any).ceramicExpansionCoef !== "") {
       const value =
-        typeof settings.ceramicExpansionCoef === "string"
-          ? Number.parseFloat(settings.ceramicExpansionCoef.replace(",", "."))
+        typeof (settings as any).ceramicExpansionCoef === "string"
+          ? Number.parseFloat((settings as any).ceramicExpansionCoef.replace(",", "."))
           : settings.ceramicExpansionCoef
 
       if (!isNaN(value)) {
@@ -632,8 +632,8 @@ export function ProjectForm({
 
     if ((settings as any).mortarBaseThickness !== "") {
       const value =
-        typeof settings.mortarBaseThickness === "string"
-          ? Number.parseFloat(settings.mortarBaseThickness.replace(",", "."))
+        typeof (settings as any).mortarBaseThickness === "string"
+          ? Number.parseFloat((settings as any).mortarBaseThickness.replace(",", "."))
           : settings.mortarBaseThickness
 
       if (!isNaN(value)) {
@@ -645,8 +645,8 @@ export function ProjectForm({
 
     if ((settings as any).mortarBaseExpansionCoef !== "") {
       const value =
-        typeof settings.mortarBaseExpansionCoef === "string"
-          ? Number.parseFloat(settings.mortarBaseExpansionCoef.replace(",", "."))
+        typeof (settings as any).mortarBaseExpansionCoef === "string"
+          ? Number.parseFloat((settings as any).mortarBaseExpansionCoef.replace(",", "."))
           : settings.mortarBaseExpansionCoef
 
       if (!isNaN(value)) {
@@ -661,8 +661,8 @@ export function ProjectForm({
 
     if ((settings as any).wallExpansionCoef !== "") {
       const value =
-        typeof settings.wallExpansionCoef === "string"
-          ? Number.parseFloat(settings.wallExpansionCoef.replace(",", "."))
+        typeof (settings as any).wallExpansionCoef === "string"
+          ? Number.parseFloat((settings as any).wallExpansionCoef.replace(",", "."))
           : settings.wallExpansionCoef
 
       if (!isNaN(value)) {
@@ -674,8 +674,8 @@ export function ProjectForm({
 
     if ((settings as any).ceilingThickness !== "") {
       const value =
-        typeof settings.ceilingThickness === "string"
-          ? Number.parseFloat(settings.ceilingThickness.replace(",", "."))
+        typeof (settings as any).ceilingThickness === "string"
+          ? Number.parseFloat((settings as any).ceilingThickness.replace(",", "."))
           : settings.ceilingThickness
 
       if (!isNaN(value)) {
@@ -687,8 +687,8 @@ export function ProjectForm({
 
     if ((settings as any).ceilingExpansionCoef !== "") {
       const value =
-        typeof settings.ceilingExpansionCoef === "string"
-          ? Number.parseFloat(settings.ceilingExpansionCoef.replace(",", "."))
+        typeof (settings as any).ceilingExpansionCoef === "string"
+          ? Number.parseFloat((settings as any).ceilingExpansionCoef.replace(",", "."))
           : settings.ceilingExpansionCoef
 
       if (!isNaN(value)) {
@@ -700,8 +700,8 @@ export function ProjectForm({
 
     if ((settings as any).woodenFloorThickness !== "") {
       const value =
-        typeof settings.woodenFloorThickness === "string"
-          ? Number.parseFloat(settings.woodenFloorThickness.replace(",", "."))
+        typeof (settings as any).woodenFloorThickness === "string"
+          ? Number.parseFloat((settings as any).woodenFloorThickness.replace(",", "."))
           : settings.woodenFloorThickness
 
       if (!isNaN(value)) {
@@ -1006,65 +1006,65 @@ export function ProjectForm({
     const normalized = { ...settings }
 
     // Convertir y normalizar cada valor
-    if (typeof normalized.floorTileThickness === "string") {
-      const value = Number.parseFloat(normalized.floorTileThickness.replace(",", "."))
+    if (typeof (normalized as any).floorTileThickness === "string") {
+      const value = Number.parseFloat((normalized as any).floorTileThickness.replace(",", "."))
       normalized.floorTileThickness = isNaN(value)
         ? 0.02
         : Math.max(0.005, Math.min(0.1, Math.round(value * 1000) / 1000))
     }
 
-    if (typeof normalized.wallTileThickness === "string") {
-      const value = Number.parseFloat(normalized.wallTileThickness.replace(",", "."))
+    if (typeof (normalized as any).wallTileThickness === "string") {
+      const value = Number.parseFloat((normalized as any).wallTileThickness.replace(",", "."))
       normalized.wallTileThickness = isNaN(value)
         ? 0.015
         : Math.max(0.005, Math.min(0.05, Math.round(value * 1000) / 1000))
     }
 
-    if (typeof normalized.woodExpansionCoef === "string") {
-      const value = Number.parseFloat(normalized.woodExpansionCoef.replace(",", "."))
+    if (typeof (normalized as any).woodExpansionCoef === "string") {
+      const value = Number.parseFloat((normalized as any).woodExpansionCoef.replace(",", "."))
       normalized.woodExpansionCoef = isNaN(value) ? 1.4 : Math.max(1.1, Math.min(2.0, Math.round(value * 10) / 10))
     }
 
-    if (typeof normalized.ceramicExpansionCoef === "string") {
-      const value = Number.parseFloat(normalized.ceramicExpansionCoef.replace(",", "."))
+    if (typeof (normalized as any).ceramicExpansionCoef === "string") {
+      const value = Number.parseFloat((normalized as any).ceramicExpansionCoef.replace(",", "."))
       normalized.ceramicExpansionCoef = isNaN(value) ? 1.4 : Math.max(1.2, Math.min(2.0, Math.round(value * 10) / 10))
     }
 
-    if (typeof normalized.containerSize === "string") {
-      const value = Number.parseFloat(normalized.containerSize.replace(",", "."))
+    if (typeof (normalized as any).containerSize === "string") {
+      const value = Number.parseFloat((normalized as any).containerSize.replace(",", "."))
       const validSizes = validationRanges.containerSize.validValues
       normalized.containerSize = isNaN(value) ? 5 : validSizes.includes(value) ? value : 5
     }
 
     // Normalizar los nuevos campos
-    if (typeof normalized.mortarBaseThickness === "string") {
-      const value = Number.parseFloat(normalized.mortarBaseThickness.replace(",", "."))
+    if (typeof (normalized as any).mortarBaseThickness === "string") {
+      const value = Number.parseFloat((normalized as any).mortarBaseThickness.replace(",", "."))
       normalized.mortarBaseThickness = isNaN(value)
         ? 0.04
         : Math.max(0.01, Math.min(0.15, Math.round(value * 1000) / 1000))
     }
 
-    if (typeof normalized.mortarBaseExpansionCoef === "string") {
-      const value = Number.parseFloat(normalized.mortarBaseExpansionCoef.replace(",", "."))
+    if (typeof (normalized as any).mortarBaseExpansionCoef === "string") {
+      const value = Number.parseFloat((normalized as any).mortarBaseExpansionCoef.replace(",", "."))
       normalized.mortarBaseExpansionCoef = isNaN(value)
         ? 1.2
         : Math.max(1.1, Math.min(2.0, Math.round(value * 10) / 10))
     }
 
-    if (typeof normalized.wallExpansionCoef === "string") {
-      const value = Number.parseFloat(normalized.wallExpansionCoef.replace(",", "."))
+    if (typeof (normalized as any).wallExpansionCoef === "string") {
+      const value = Number.parseFloat((normalized as any).wallExpansionCoef.replace(",", "."))
       normalized.wallExpansionCoef = isNaN(value) ? 1.3 : Math.max(1.1, Math.min(2.0, Math.round(value * 10) / 10))
     }
 
-    if (typeof normalized.ceilingThickness === "string") {
-      const value = Number.parseFloat(normalized.ceilingThickness.replace(",", "."))
+    if (typeof (normalized as any).ceilingThickness === "string") {
+      const value = Number.parseFloat((normalized as any).ceilingThickness.replace(",", "."))
       normalized.ceilingThickness = isNaN(value)
         ? 0.015
         : Math.max(0.005, Math.min(0.05, Math.round(value * 1000) / 1000))
     }
 
-    if (typeof normalized.ceilingExpansionCoef === "string") {
-      const value = Number.parseFloat(normalized.ceilingExpansionCoef.replace(",", "."))
+    if (typeof (normalized as any).ceilingExpansionCoef === "string") {
+      const value = Number.parseFloat((normalized as any).ceilingExpansionCoef.replace(",", "."))
       normalized.ceilingExpansionCoef = isNaN(value) ? 1.4 : Math.max(1.1, Math.min(2.0, Math.round(value * 10) / 10))
     }
 
