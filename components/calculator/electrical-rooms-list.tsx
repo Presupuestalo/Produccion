@@ -332,7 +332,7 @@ export function ElectricalRoomsList({ rooms, onUpdateRoom, useSavedDefaults = tr
                             <Button
                               variant="outline"
                               size="icon"
-                              onClick={() => removeElectricalElement(room.id, element.id)}
+                              onClick={() => element.id && removeElectricalElement(room.id, element.id)}
                               className="h-8 w-8"
                             >
                               <Minus className="h-4 w-4" />
