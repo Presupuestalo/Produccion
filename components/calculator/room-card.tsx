@@ -1268,7 +1268,7 @@ export function RoomCard({
         ref={cardRef}
         className={`relative transition-all duration-500 ${isHighlighted ? "ring-2 ring-primary shadow-lg scale-[1.01]" : ""
           } border-l-4 transition-all duration-200 ${getBorderColor()} bg-card shadow-sm hover:shadow-md overflow-hidden`}>
-        <CardHeader className="p-3 md:p-4 flex flex-row justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
+        <CardHeader className="p-2 md:p-3 flex flex-row justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-2">
               <Button
@@ -1328,15 +1328,15 @@ export function RoomCard({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 w-6 p-0 text-muted-foreground hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950 dark:hover:text-orange-400 opacity-60 hover:opacity-100 transition-all duration-200 hover:scale-110"
+                      className="h-5 w-5 p-0 text-muted-foreground hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950 dark:hover:text-orange-400 opacity-60 hover:opacity-100 transition-all duration-200 hover:scale-110"
                       onClick={(e) => {
                         e.stopPropagation()
                         setIsEditingName(true)
                       }}
                     >
-                      <Pencil className="h-3 w-3 transition-transform duration-200" />
+                      <Pencil className="h-2.5 w-2.5 transition-transform duration-200" />
                     </Button>
-                    <Badge variant={isReform ? "default" : "secondary"} className={`ml-2 text-[10px] h-5 ${isReform ? "bg-green-600 hover:bg-green-700" : "bg-orange-500 hover:bg-orange-600 text-white"}`}>
+                    <Badge variant={isReform ? "default" : "secondary"} className={`ml-1 text-[9px] h-4 px-1 ${isReform ? "bg-green-600 hover:bg-green-700" : "bg-orange-500 hover:bg-orange-600 text-white"}`}>
                       {isReform ? "REFORMA" : "DERRIBOS"}
                     </Badge>
                   </div>
@@ -1404,9 +1404,9 @@ export function RoomCard({
                         variant="outline"
                         size="sm"
                         onClick={() => onDuplicate(room.id)}
-                        className="h-7 w-7 p-0"
+                        className="h-6 w-6 p-0"
                       >
-                        <Copy className="h-3.5 w-3.5" />
+                        <Copy className="h-3 w-3" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -1417,33 +1417,33 @@ export function RoomCard({
               )}
               {/* </CHANGE> */}
 
-              <Button type="button" variant="destructive" size="sm" onClick={handleDelete} className="h-7 w-7 p-0">
-                <Trash2 className="h-3.5 w-3.5" />
+              <Button type="button" variant="destructive" size="sm" onClick={handleDelete} className="h-6 w-6 p-0">
+                <Trash2 className="h-3 w-3" />
               </Button>
             </div>
           </div>
         </CardHeader>
 
         {isOpen && (
-          <CardContent className="p-3 pt-0">
-            <div className="space-y-4">
+          <CardContent className="p-2 md:p-3 pt-0">
+            <div className="space-y-3">
               {/* Materials Section Redesign */}
-              <div className="bg-slate-50/50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden mt-2 shadow-sm">
-                <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-100/30 dark:bg-slate-900/40 flex items-center justify-between">
+              <div className="bg-slate-50/50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden mt-1 shadow-sm">
+                <div className="px-3 py-1.5 border-b border-slate-200 dark:border-slate-800 bg-slate-100/30 dark:bg-slate-900/40 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="p-1 bg-primary/10 rounded-md">
-                      <Layers className="h-3.5 w-3.5 text-primary" />
+                      <Layers className="h-3 w-3 text-primary" />
                     </div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">{isReform ? "Acabados y Materiales" : "Estado Actual"}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">{isReform ? "Acabados y Materiales" : "Estado Actual"}</span>
                   </div>
                 </div>
 
-                <div className="p-4 space-y-4">
+                <div className="p-3 space-y-3">
                   {/* Campo de texto personalizado para tipo "Otro" integrado aquí */}
                   {room.type === "Otro" && (
-                    <div className="space-y-1.5 pb-2 border-b border-slate-100 dark:border-slate-800">
-                      <Label htmlFor={`customRoomType-${room.id}`} className="text-[10px] font-semibold text-slate-500 uppercase ml-1">
-                        Especifique el tipo de habitación
+                    <div className="space-y-1 pb-1 border-b border-slate-100 dark:border-slate-800">
+                      <Label htmlFor={`customRoomType-${room.id}`} className="text-[9px] font-semibold text-slate-500 uppercase ml-1">
+                        Especifique el tipo
                       </Label>
                       <Input
                         id={`customRoomType-${room.id}`}
@@ -1451,23 +1451,23 @@ export function RoomCard({
                         value={customRoomTypeInput}
                         onChange={handleCustomRoomTypeChange}
                         onBlur={saveCustomRoomType}
-                        placeholder="Ej. Despensa, Lavadero..."
-                        className="h-10 text-sm bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary transition-all"
+                        placeholder="Ej. Despensa..."
+                        className="h-8 text-xs bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary transition-all"
                       />
                     </div>
                   )}
 
-                  <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                     {/* Suelo */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor={`floorMaterial-${room.id}`} className="text-[10px] font-semibold text-slate-500 uppercase ml-1">
+                    <div className="space-y-1">
+                      <Label htmlFor={`floorMaterial-${room.id}`} className="text-[9px] font-semibold text-slate-500 uppercase ml-1">
                         Suelo
                       </Label>
                       <Select
                         value={room.floorMaterial}
                         onValueChange={(value) => updateRoom(room.id, { floorMaterial: value as FloorMaterialType })}
                       >
-                        <SelectTrigger id={`floorMaterial-${room.id}`} className="h-9 text-xs font-medium bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 transition-all">
+                        <SelectTrigger id={`floorMaterial-${room.id}`} className="h-8 text-[11px] font-medium bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 transition-all">
                           <SelectValue placeholder="Material" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1492,8 +1492,8 @@ export function RoomCard({
                     </div>
 
                     {/* Paredes */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor={`wallMaterial-${room.id}`} className="text-[10px] font-semibold text-slate-500 uppercase ml-1">
+                    <div className="space-y-1">
+                      <Label htmlFor={`wallMaterial-${room.id}`} className="text-[9px] font-semibold text-slate-500 uppercase ml-1">
                         Paredes
                       </Label>
                       <Select
@@ -1502,7 +1502,7 @@ export function RoomCard({
                         disabled={isWallMaterialDisabled}
                         required
                       >
-                        <SelectTrigger id={`wallMaterial-${room.id}`} className="h-9 text-xs font-medium bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 transition-all">
+                        <SelectTrigger id={`wallMaterial-${room.id}`} className="h-8 text-[11px] font-medium bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 transition-all">
                           <SelectValue placeholder="Seleccionar..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -1528,33 +1528,33 @@ export function RoomCard({
                     </div>
 
                     {/* Techo - Integrado aquí para ahorrar espacio */}
-                    <div className="space-y-1.5">
-                      <Label className="text-[10px] font-semibold text-slate-500 uppercase ml-1">
-                        Techo actual
+                    <div className="space-y-1 col-span-2 md:col-span-1">
+                      <Label className="text-[9px] font-semibold text-slate-500 uppercase ml-1">
+                        Techo
                       </Label>
                       {!isReform ? (
-                        <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-1.5">
                           <Tabs
                             value={room.currentCeilingStatus || "no_false_ceiling"}
                             onValueChange={handleCurrentCeilingStatusChange}
-                            className="w-full"
+                            className="flex-1"
                           >
-                            <TabsList className="grid grid-cols-3 h-9 p-1 bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
+                            <TabsList className="grid grid-cols-3 h-8 p-1 bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
                               <TabsTrigger
                                 value="no_false_ceiling"
-                                className="text-[10px] h-7 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
+                                className="text-[9px] h-6 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
                               >
                                 Ninguno
                               </TabsTrigger>
                               <TabsTrigger
                                 value="lowered_remove"
-                                className="text-[10px] h-7 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
+                                className="text-[9px] h-6 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
                               >
                                 Retirar
                               </TabsTrigger>
                               <TabsTrigger
                                 value="lowered_keep"
-                                className="text-[10px] h-7 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
+                                className="text-[9px] h-6 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
                               >
                                 Mantener
                               </TabsTrigger>
@@ -1562,23 +1562,23 @@ export function RoomCard({
                           </Tabs>
 
                           {room.currentCeilingStatus === "lowered_keep" && (
-                            <div className="relative group animate-in fade-in slide-in-from-top-1 duration-200">
+                            <div className="relative group animate-in fade-in slide-in-from-top-1 duration-200 w-20">
                               <Input
                                 id={`currentCeilingHeight-${room.id}`}
                                 type="text"
                                 value={currentCeilingHeightInput}
                                 onChange={handleCurrentCeilingHeightChange}
                                 onBlur={saveCurrentCeilingHeight}
-                                className="h-8 text-[11px] font-bold pr-6 bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800"
-                                placeholder="Altura..."
+                                className="h-8 text-[11px] font-bold pr-5 bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800"
+                                placeholder="..."
                               />
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-medium group-focus-within:text-primary transition-colors">m</span>
+                              <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-slate-400 font-medium">m</span>
                             </div>
                           )}
                         </div>
                       ) : (
-                        <div className="flex flex-col gap-1.5">
-                          <div className="flex items-center gap-2 h-9 px-3 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-950">
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-2 h-8 px-2 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-950 flex-1">
                             <Checkbox
                               id={`lowerCeiling-integrated-${room.id}`}
                               checked={room.lowerCeiling === true}
@@ -1590,11 +1590,12 @@ export function RoomCard({
                                   setCeilingHeightInput(formatDecimal(defaultNewHeight))
                                 }
                               }}
+                              className="h-3.5 w-3.5"
                             />
-                            <Label htmlFor={`lowerCeiling-integrated-${room.id}`} className="text-[11px] cursor-pointer font-medium">Bajar techo</Label>
+                            <Label htmlFor={`lowerCeiling-integrated-${room.id}`} className="text-[10px] cursor-pointer font-medium">Bajar techo</Label>
                           </div>
                           {room.lowerCeiling && (
-                            <div className="relative group">
+                            <div className="relative group w-20">
                               <Input
                                 id={`newCeilingHeight-integrated-${room.id}`}
                                 type="text"
@@ -1615,9 +1616,9 @@ export function RoomCard({
                                     setCeilingHeightInput(formatDecimal(finalValue))
                                   }
                                 }}
-                                className="h-8 text-[11px] font-bold pr-6"
+                                className="h-8 text-[11px] font-bold pr-5"
                               />
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">m</span>
+                              <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-slate-400">m</span>
                             </div>
                           )}
                         </div>
@@ -1628,16 +1629,16 @@ export function RoomCard({
               </div>
 
               {/* Measures Section Redesign */}
-              <div className="bg-slate-50/50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden mt-4 shadow-sm">
-                <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-100/30 dark:bg-slate-900/40 flex items-center justify-between">
+              <div className="bg-slate-50/50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden mt-2 shadow-sm">
+                <div className="px-3 py-1.5 border-b border-slate-200 dark:border-slate-800 bg-slate-100/30 dark:bg-slate-900/40 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="p-1 bg-primary/10 rounded-md">
-                      <Ruler className="h-3.5 w-3.5 text-primary" />
+                      <Ruler className="h-3 w-3 text-primary" />
                     </div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Dimensiones del espacio</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Dimensiones</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-[9px] font-medium h-5 px-1.5 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500">
+                    <Badge variant="secondary" className="text-[8px] font-medium h-4 px-1 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500">
                       MÁX. 20m
                     </Badge>
                     <Button
@@ -1653,13 +1654,13 @@ export function RoomCard({
                   </div>
                 </div>
 
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 items-center">
                   {/* Inputs Section */}
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {room.measurementMode === "rectangular" ? (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label htmlFor={`width-${room.id}`} className="text-[10px] font-semibold text-slate-500 uppercase ml-1">Ancho (m)</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label htmlFor={`width-${room.id}`} className="text-[9px] font-semibold text-slate-500 uppercase ml-1">Ancho (m)</Label>
                           <div className="relative group">
                             <Input
                               id={`width-${room.id}`}
@@ -1667,14 +1668,14 @@ export function RoomCard({
                               value={widthInput}
                               onChange={handleWidthChange}
                               onBlur={saveWidth}
-                              className="h-10 text-sm font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary focus:border-primary transition-all pr-8"
+                              className="h-8 text-xs font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary focus:border-primary transition-all pr-6"
                               placeholder="0,00"
                             />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium group-focus-within:text-primary transition-colors">m</span>
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-slate-400 font-medium group-focus-within:text-primary transition-colors">m</span>
                           </div>
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor={`length-${room.id}`} className="text-[10px] font-semibold text-slate-500 uppercase ml-1">Largo (m)</Label>
+                        <div className="space-y-1">
+                          <Label htmlFor={`length-${room.id}`} className="text-[9px] font-semibold text-slate-500 uppercase ml-1">Largo (m)</Label>
                           <div className="relative group">
                             <Input
                               id={`length-${room.id}`}
@@ -1682,28 +1683,28 @@ export function RoomCard({
                               value={lengthInput}
                               onChange={handleLengthChange}
                               onBlur={saveLength}
-                              className="h-10 text-sm font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary focus:border-primary transition-all pr-8"
+                              className="h-8 text-xs font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary focus:border-primary transition-all pr-6"
                               placeholder="0,00"
                             />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium group-focus-within:text-primary transition-colors">m</span>
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-slate-400 font-medium group-focus-within:text-primary transition-colors">m</span>
                           </div>
                         </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
                           <div className="flex items-center justify-between pr-1">
-                            <Label htmlFor={`area-${room.id}`} className="text-[10px] font-semibold text-slate-500 uppercase ml-1">Superficie (m²)</Label>
+                            <Label htmlFor={`area-${room.id}`} className="text-[9px] font-semibold text-slate-500 uppercase ml-1">Superficie (m²)</Label>
                             {room.measurementMode === "area-perimeter" && (
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setIsShapeEditorOpen(true)}
-                                className="h-5 w-5 p-0 text-primary hover:bg-primary/10 rounded-full transition-transform hover:scale-110"
+                                className="h-4 w-4 p-0 text-primary hover:bg-primary/10 rounded-full transition-transform hover:scale-110"
                                 title="Editor de formas"
                               >
-                                <Edit className="h-3.5 w-3.5" />
+                                <Edit className="h-2.5 w-2.5" />
                               </Button>
                             )}
                           </div>
@@ -1714,14 +1715,14 @@ export function RoomCard({
                               value={areaInput}
                               onChange={handleAreaChange}
                               onBlur={saveArea}
-                              className="h-10 text-sm font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary focus:border-primary transition-all pr-9"
+                              className="h-8 text-xs font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary focus:border-primary transition-all pr-7"
                               placeholder="0,00"
                             />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium group-focus-within:text-primary transition-colors">m²</span>
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-slate-400 font-medium group-focus-within:text-primary transition-colors">m²</span>
                           </div>
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor={`perimeter-${room.id}`} className="text-[10px] font-semibold text-slate-500 uppercase ml-1">Perímetro (m)</Label>
+                        <div className="space-y-1">
+                          <Label htmlFor={`perimeter-${room.id}`} className="text-[9px] font-semibold text-slate-500 uppercase ml-1">Perímetro (m)</Label>
                           <div className="relative group">
                             <Input
                               id={`perimeter-${room.id}`}
@@ -1729,10 +1730,10 @@ export function RoomCard({
                               value={perimeterInput}
                               onChange={handlePerimeterChange}
                               onBlur={savePerimeter}
-                              className="h-10 text-sm font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary focus:border-primary transition-all pr-8"
+                              className="h-8 text-xs font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary focus:border-primary transition-all pr-6"
                               placeholder="0,00"
                             />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium group-focus-within:text-primary transition-colors">m</span>
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-slate-400 font-medium group-focus-within:text-primary transition-colors">m</span>
                           </div>
                         </div>
                       </div>
@@ -1740,18 +1741,18 @@ export function RoomCard({
                   </div>
 
                   {/* Results Section */}
-                  <div className="grid grid-cols-3 gap-2 bg-white dark:bg-slate-900 rounded-xl p-3 shadow-inner border border-slate-100 dark:border-slate-800">
-                    <div className="text-center space-y-1">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Área</p>
-                      <p className="text-sm font-black text-slate-700 dark:text-slate-200">{formatNumber(room.area)}<span className="text-[10px] font-normal ml-0.5 opacity-60">m²</span></p>
+                  <div className="grid grid-cols-3 gap-1 bg-white dark:bg-slate-900 rounded-lg p-2 shadow-inner border border-slate-100 dark:border-slate-800">
+                    <div className="text-center space-y-0.5">
+                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Área</p>
+                      <p className="text-xs font-black text-slate-700 dark:text-slate-200">{formatNumber(room.area)}<span className="text-[9px] font-normal ml-0.5 opacity-60">m²</span></p>
                     </div>
-                    <div className="text-center space-y-1 border-x border-slate-100 dark:border-slate-800">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Perím.</p>
-                      <p className="text-sm font-black text-slate-700 dark:text-slate-200">{formatNumber(room.perimeter)}<span className="text-[10px] font-normal ml-0.5 opacity-60">m</span></p>
+                    <div className="text-center space-y-0.5 border-x border-slate-100 dark:border-slate-800">
+                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Perím.</p>
+                      <p className="text-xs font-black text-slate-700 dark:text-slate-200">{formatNumber(room.perimeter)}<span className="text-[9px] font-normal ml-0.5 opacity-60">m</span></p>
                     </div>
-                    <div className="text-center space-y-1">
-                      <p className="text-[9px] font-bold text-primary/70 uppercase tracking-tighter">Pared</p>
-                      <p className="text-sm font-black text-primary">
+                    <div className="text-center space-y-0.5">
+                      <p className="text-[8px] font-bold text-primary/70 uppercase tracking-tighter">Pared</p>
+                      <p className="text-xs font-black text-primary">
                         {formatNumber(
                           room.perimeter *
                           (() => {
@@ -1760,7 +1761,7 @@ export function RoomCard({
                             return room.customHeight || standardHeight
                           })(),
                         )}
-                        <span className="text-[10px] font-normal ml-0.5 opacity-70">m²</span>
+                        <span className="text-[9px] font-normal ml-0.5 opacity-70">m²</span>
                       </p>
                     </div>
                   </div>
@@ -1776,14 +1777,15 @@ export function RoomCard({
 
 
                     {room.type !== "Terraza" && (
-                      <div className="flex flex-col space-y-2">
+                      <div className="flex flex-col space-y-1">
                         <div className="flex items-center space-x-2">
                           <Checkbox
                             id={`hasDoors-${room.id}`}
                             checked={room.hasDoors}
                             onCheckedChange={(checked) => handleDoorChange(checked === true)}
+                            className="h-3.5 w-3.5"
                           />
-                          <Label htmlFor={`hasDoors-${room.id}`} className="text-xs cursor-pointer">
+                          <Label htmlFor={`hasDoors-${room.id}`} className="text-[11px] cursor-pointer">
                             {room.type === "Baño" ? "Retirar puerta" : "Retirar puertas"}
                           </Label>
                           {room.hasDoors && room.type !== "Baño" && (
@@ -1802,21 +1804,21 @@ export function RoomCard({
 
                         {/* Lista de puertas (solo visible si hasDoors es true) */}
                         {room.hasDoors && room.doorList && room.doorList.length > 0 && (
-                          <div className="ml-6 space-y-2">
+                          <div className="ml-5 space-y-1.5">
                             {room.doorList.map((door, index) => (
-                              <div key={door.id} className="flex items-center space-x-2">
+                              <div key={door.id} className="flex items-center space-x-1.5">
                                 <Select
                                   value={door.type}
                                   onValueChange={(value) => updateDoorTypeOld(door.id, value as DoorType)}
                                 >
-                                  <SelectTrigger className="h-7 text-xs flex-1">
+                                  <SelectTrigger className="h-7 text-[10px] flex-1">
                                     <SelectValue placeholder="Tipo de puerta" />
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="Abatible">Abatible</SelectItem>
                                     <SelectItem value="Corredera empotrada">Corredera empotrada</SelectItem>
                                     <SelectItem value="Corredera exterior con carril">
-                                      Corredera exterior con carril
+                                      Corredera exterior
                                     </SelectItem>
                                   </SelectContent>
                                 </Select>
@@ -1826,9 +1828,9 @@ export function RoomCard({
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => removeDoorOld(door.id)}
-                                    className="h-5 w-5 p-0"
+                                    className="h-6 w-6 p-0"
                                   >
-                                    <Trash2 className="h-3.5 w-3.5" />
+                                    <Trash2 className="h-3 w-3" />
                                   </Button>
                                 )}
                               </div>
@@ -1845,8 +1847,9 @@ export function RoomCard({
                           id={`removeWoodenFloor-${room.id}`}
                           checked={room.removeFloor === true}
                           onCheckedChange={handleRemoveWoodenFloorChange}
+                          className="h-3.5 w-3.5"
                         />
-                        <Label htmlFor={`removeWoodenFloor-${room.id}`} className="text-xs cursor-pointer">
+                        <Label htmlFor={`removeWoodenFloor-${room.id}`} className="text-[11px] cursor-pointer">
                           Retirada del suelo de madera
                         </Label>
                       </div>
@@ -1858,8 +1861,9 @@ export function RoomCard({
                           id={`removeWallTiles-${room.id}`}
                           checked={room.removeWallTiles === true}
                           onCheckedChange={(checked) => updateRoom(room.id, { removeWallTiles: checked === true })}
+                          className="h-3.5 w-3.5"
                         />
-                        <Label htmlFor={`removeWallTiles-${room.id}`} className="text-xs cursor-pointer">
+                        <Label htmlFor={`removeWallTiles-${room.id}`} className="text-[11px] cursor-pointer">
                           Picado de cerámica paredes
                         </Label>
                       </div>
@@ -1873,8 +1877,9 @@ export function RoomCard({
                           checked={room.removeFloor !== false}
                           defaultChecked={true}
                           onCheckedChange={(checked) => updateRoom(room.id, { removeFloor: checked === true })}
+                          className="h-3.5 w-3.5"
                         />
-                        <Label htmlFor={`removeFloorTiles-${room.id}`} className="text-xs cursor-pointer">
+                        <Label htmlFor={`removeFloorTiles-${room.id}`} className="text-[11px] cursor-pointer">
                           Picado de cerámica suelo
                         </Label>
                       </div>
@@ -1887,8 +1892,9 @@ export function RoomCard({
                           id={`removeGotele-${room.id}`}
                           checked={room.removeGotele === true}
                           onCheckedChange={handleRemoveGoteleChange}
+                          className="h-3.5 w-3.5"
                         />
-                        <Label htmlFor={`removeGotele-${room.id}`} className="text-xs cursor-pointer">
+                        <Label htmlFor={`removeGotele-${room.id}`} className="text-[11px] cursor-pointer">
                           Retirar gotelé
                         </Label>
                       </div>
@@ -1901,8 +1907,9 @@ export function RoomCard({
                           id={`hasRadiator-${room.id}`}
                           checked={room.hasRadiator}
                           onCheckedChange={(checked) => updateRoom(room.id, { hasRadiator: checked === true })}
+                          className="h-3.5 w-3.5"
                         />
-                        <Label htmlFor={`hasRadiator-${room.id}`} className="text-xs cursor-pointer">
+                        <Label htmlFor={`hasRadiator-${room.id}`} className="text-[11px] cursor-pointer">
                           Retirar radiador
                         </Label>
                       </div>
@@ -1915,8 +1922,9 @@ export function RoomCard({
                           id={`removeSewagePipes-${room.id}`}
                           checked={room.removeSewagePipes}
                           onCheckedChange={(checked) => updateRoom(room.id, { removeSewagePipes: checked === true })}
+                          className="h-3.5 w-3.5"
                         />
-                        <Label htmlFor={`removeSewagePipes-${room.id}`} className="text-xs cursor-pointer">
+                        <Label htmlFor={`removeSewagePipes-${room.id}`} className="text-[11px] cursor-pointer">
                           Retirada de bajantes fecales
                         </Label>
                       </div>
@@ -1930,8 +1938,9 @@ export function RoomCard({
                           checked={room.removeBathroomElements !== false} // Siempre true a menos que explícitamente sea false
                           defaultChecked={true}
                           onCheckedChange={(checked) => updateRoom(room.id, { removeBathroomElements: checked === true })}
+                          className="h-3.5 w-3.5"
                         />
-                        <Label htmlFor={`removeBathroomElements-${room.id}`} className="text-xs cursor-pointer">
+                        <Label htmlFor={`removeBathroomElements-${room.id}`} className="text-[11px] cursor-pointer">
                           Retirar elementos de baño
                         </Label>
                       </div>
@@ -1993,14 +2002,15 @@ export function RoomCard({
 
               {/* Radiadores */}
               {room.type !== "Terraza" && (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <div className="flex items-center space-x-2">
                     <Checkbox
-                      id={`hasRadiator-${room.id}`}
+                      id={`hasRadiator-reform-${room.id}`}
                       checked={room.hasRadiator}
                       onCheckedChange={(checked) => updateRoom(room.id, { hasRadiator: checked === true })}
+                      className="h-3.5 w-3.5"
                     />
-                    <Label htmlFor={`hasRadiator-${room.id}`} className="text-xs cursor-pointer">
+                    <Label htmlFor={`hasRadiator-reform-${room.id}`} className="text-[11px] cursor-pointer">
                       Radiador
                     </Label>
                     {room.hasRadiator && (
@@ -2115,7 +2125,7 @@ export function RoomCard({
                 <>
                   {/* Instalar puertas - SOLO EN REFORMA */}
                   {room.type !== "Terraza" && (
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           id={`newDoors-${room.id}`}
@@ -2135,8 +2145,9 @@ export function RoomCard({
                               })
                             }
                           }}
+                          className="h-3.5 w-3.5"
                         />
-                        <Label htmlFor={`newDoors-${room.id}`} className="text-xs cursor-pointer">
+                        <Label htmlFor={`newDoors-${room.id}`} className="text-[11px] cursor-pointer">
                           {room.type === "Baño" ? "Instalar puerta" : "Instalar puertas"}
                         </Label>
                         {room.newDoors && room.type !== "Baño" && (
@@ -2161,7 +2172,7 @@ export function RoomCard({
                             className="h-5 w-5 p-0 ml-1"
                             title="Añadir otra puerta"
                           >
-                            <PlusCircle className="h-3.5 w-3.5" />
+                            <PlusCircle className="h-3 w-3" />
                           </Button>
                         )}
                       </div>
@@ -2213,27 +2224,29 @@ export function RoomCard({
 
                   {/* Elementos de baño - SOLO EN REFORMA */}
                   {room.type === "Baño" && (
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           id={`newBathroomElements-${room.id}`}
                           checked={room.newBathroomElements}
                           onCheckedChange={(checked) => updateRoom(room.id, { newBathroomElements: checked === true })}
+                          className="h-3.5 w-3.5"
                         />
-                        <Label htmlFor={`newBathroomElements-${room.id}`} className="text-xs cursor-pointer">
+                        <Label htmlFor={`newBathroomElements-${room.id}`} className="text-[11px] cursor-pointer">
                           Elementos de baño
                         </Label>
                       </div>
 
                       {room.newBathroomElements && (
-                        <div className="ml-4 space-y-2">
+                        <div className="ml-4 space-y-1.5 grid grid-cols-2 gap-x-2">
                           <div className="flex items-center space-x-2">
                             <Checkbox
                               id={`bathroomElement-inodoro-${room.id}`}
                               checked={isBathroomElementSelected("Inodoro")}
                               onCheckedChange={(checked) => handleBathroomElementChange("Inodoro", checked === true)}
+                              className="h-3.5 w-3.5"
                             />
-                            <Label htmlFor={`bathroomElement-inodoro-${room.id}`} className="text-xs cursor-pointer">
+                            <Label htmlFor={`bathroomElement-inodoro-${room.id}`} className="text-[10px] cursor-pointer">
                               Inodoro
                             </Label>
                           </div>
@@ -2243,8 +2256,9 @@ export function RoomCard({
                               id={`bathroomElement-bide-${room.id}`}
                               checked={isBathroomElementSelected("Bidé")}
                               onCheckedChange={(checked) => handleBathroomElementChange("Bidé", checked === true)}
+                              className="h-3.5 w-3.5"
                             />
-                            <Label htmlFor={`bathroomElement-bide-${room.id}`} className="text-xs cursor-pointer">
+                            <Label htmlFor={`bathroomElement-bide-${room.id}`} className="text-[10px] cursor-pointer">
                               Bidé
                             </Label>
                           </div>
@@ -2256,12 +2270,13 @@ export function RoomCard({
                               onCheckedChange={(checked) =>
                                 handleBathroomElementChange("Ducheta Inodoro", checked === true)
                               }
+                              className="h-3.5 w-3.5"
                             />
                             <Label
                               htmlFor={`bathroomElement-duchetaInodoro-${room.id}`}
-                              className="text-xs cursor-pointer"
+                              className="text-[10px] cursor-pointer"
                             >
-                              Ducheta Inodoro
+                              Ducheta Inod.
                             </Label>
                           </div>
 
@@ -2272,9 +2287,10 @@ export function RoomCard({
                               onCheckedChange={(checked) =>
                                 handleBathroomElementChange("Plato de ducha", checked === true)
                               }
+                              className="h-3.5 w-3.5"
                             />
-                            <Label htmlFor={`bathroomElement-platoDucha-${room.id}`} className="text-xs cursor-pointer">
-                              Plato de ducha
+                            <Label htmlFor={`bathroomElement-platoDucha-${room.id}`} className="text-[10px] cursor-pointer">
+                              Plato ducha
                             </Label>
                           </div>
 
@@ -2283,8 +2299,9 @@ export function RoomCard({
                               id={`bathroomElement-banera-${room.id}`}
                               checked={isBathroomElementSelected("Bañera")}
                               onCheckedChange={(checked) => handleBathroomElementChange("Bañera", checked === true)}
+                              className="h-3.5 w-3.5"
                             />
-                            <Label htmlFor={`bathroomElement-banera-${room.id}`} className="text-xs cursor-pointer">
+                            <Label htmlFor={`bathroomElement-banera-${room.id}`} className="text-[10px] cursor-pointer">
                               Bañera
                             </Label>
                           </div>
@@ -2294,8 +2311,9 @@ export function RoomCard({
                               id={`bathroomElement-mampara-${room.id}`}
                               checked={isBathroomElementSelected("Mampara")}
                               onCheckedChange={(checked) => handleBathroomElementChange("Mampara", checked === true)}
+                              className="h-3.5 w-3.5"
                             />
-                            <Label htmlFor={`bathroomElement-mampara-${room.id}`} className="text-xs cursor-pointer">
+                            <Label htmlFor={`bathroomElement-mampara-${room.id}`} className="text-[10px] cursor-pointer">
                               Mampara
                             </Label>
                           </div>
@@ -2307,10 +2325,11 @@ export function RoomCard({
                               onCheckedChange={(checked) =>
                                 handleBathroomElementChange("Mueble lavabo", checked === true)
                               }
+                              className="h-3.5 w-3.5"
                             />
                             <Label
                               htmlFor={`bathroomElement-muebleLavabo-${room.id}`}
-                              className="text-xs cursor-pointer"
+                              className="text-[10px] cursor-pointer"
                             >
                               Mueble lavabo
                             </Label>
