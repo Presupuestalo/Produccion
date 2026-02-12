@@ -426,7 +426,8 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
   // Estado para el resumen de demolición
   const [demolitionSummary, setDemolitionSummary] = useState<DemolitionSummaryType>({
-    skirting: 0,
+    skirtingWooden: 0,
+    skirtingCeramic: 0,
     wallpaperRemoval: 0,
     goteleRemoval: 0,
     wallDemolition: 0,
@@ -459,7 +460,8 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   // Calculate Demolition Summary and Debris
   useEffect(() => {
     const newSummary: DemolitionSummaryType = {
-      skirting: 0,
+      skirtingWooden: 0,
+      skirtingCeramic: 0,
       wallpaperRemoval: 0,
       goteleRemoval: 0,
       wallDemolition: 0,
@@ -585,8 +587,22 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
         // Retirada de radiadores
         if (room.hasRadiator) {
-          newSummary.radiatorsRemoval += 1
+          newSummary.radiatorsRemoval = (newSummary.radiatorsRemoval || 0) + 1
           console.log(`[v0] ${room.type} ${room.number} - Retirada radiador: 1 ud`)
+        }
+
+        // Calcular retirada de rodapié (excluir cerámico en baños/cocinas)
+        if (room.removeSkirting) {
+          const isCeramicFloor = room.floorMaterial === "Cerámica" || room.floorType === "Cerámico"
+          const isWoodenFloor = room.floorMaterial === "Madera" || room.floorType === "Madera"
+
+          if (isWoodenFloor) {
+            newSummary.skirtingWooden += room.perimeter || 0
+            console.log(`[v0] ${room.type} ${room.number} - Retirada rodapié madera: ${room.perimeter} ml`)
+          } else if (isCeramicFloor && !isBathOrKitchen) {
+            newSummary.skirtingCeramic += room.perimeter || 0
+            console.log(`[v0] ${room.type} ${room.number} - Retirada rodapié cerámico: ${room.perimeter} ml`)
+          }
         }
 
         // Calcular área total
@@ -872,7 +888,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         type: r.type,
         f: r.floorMaterial,
         w: r.wallMaterial,
-        win: r.windows?.map(w => ({ id: w.id, t: w.type, q: w.quantity || 1 })),
+        win: r.windows?.map(w => ({ id: w.id, t: w.type })),
         elec: r.electricalElements?.map(e => ({ id: e.id, q: e.quantity }))
       })),
       reformRooms: reformRooms.map(r => ({
@@ -882,7 +898,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         type: r.type,
         f: r.floorMaterial,
         w: r.wallMaterial,
-        win: r.windows?.map(w => ({ id: w.id, t: w.type, q: w.quantity || 1 })),
+        win: r.windows?.map(w => ({ id: w.id, t: w.type })),
         elec: r.electricalElements?.map(e => ({ id: e.id, q: e.quantity }))
       })),
       partitions: partitions.map(p => ({ id: p.id, linearMeters: p.linearMeters })),
