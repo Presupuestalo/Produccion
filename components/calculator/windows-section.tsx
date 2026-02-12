@@ -21,7 +21,7 @@ import { createBrowserClient } from "@/lib/supabase/client"
 type WindowsSectionProps = {
   rooms: Room[]
   updateRoom: (roomId: string, updates: Partial<Room>) => void
-  projectId: string
+  projectId?: string
   onAddStandaloneWindow?: () => void
 }
 
