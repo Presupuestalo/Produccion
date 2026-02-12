@@ -362,8 +362,8 @@ export class BudgetService {
     const { added_by_owner, ...lineItemWithoutOwnerFlag } = lineItem
 
     const finalCode = added_by_owner
-      ? `PROP-${lineItemWithoutOwnerFlag.code || "CUSTOM"}-${Date.now()}`
-      : lineItemWithoutOwnerFlag.code || `CUSTOM-${Date.now()}`
+      ? `PROP-${lineItemWithoutOwnerFlag.concept_code || "CUSTOM"}-${Date.now()}`
+      : lineItemWithoutOwnerFlag.concept_code || `CUSTOM-${Date.now()}`
 
     const finalCategory = lineItemWithoutOwnerFlag.category || "OTROS"
 
