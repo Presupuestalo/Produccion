@@ -1325,7 +1325,13 @@ export function ProjectForm({
                   <div className="grid gap-2 max-w-md">
                     <Label htmlFor="has_elevator">¿Tiene ascensor? *</Label>
                     <Select
-                      value={formData.has_elevator}
+                      value={
+                        formData.has_elevator === true || formData.has_elevator === 1 || formData.has_elevator === "true" || formData.has_elevator === "Sí"
+                          ? "Sí"
+                          : formData.has_elevator === false || formData.has_elevator === 0 || formData.has_elevator === "false" || formData.has_elevator === "No"
+                            ? "No"
+                            : ""
+                      }
                       onValueChange={(value) => setFormData({ ...formData, has_elevator: value })}
                     >
                       <SelectTrigger>
