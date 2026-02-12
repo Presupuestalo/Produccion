@@ -355,7 +355,7 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
       const opt = {
         margin: [15, 10, 15, 10] as [number, number, number, number], // top, left, bottom, right in mm
         filename: `contrato-${projectData.client || "cliente"}-${new Date().toISOString().split("T")[0]}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
+        image: { type: "jpeg" as const, quality: 0.98 },
         html2canvas: {
           scale: 2,
           useCORS: true,
@@ -364,8 +364,8 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
           width: 794, // A4 width in pixels at 96 DPI
           windowWidth: 794,
         },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+        jsPDF: { unit: "mm" as const, format: "a4" as const, orientation: "portrait" as const },
+        pagebreak: { mode: ["avoid-all", "css", "legacy"] as any },
       }
 
       await html2pdf().set(opt).from(element).save()
