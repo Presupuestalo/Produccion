@@ -72,7 +72,7 @@ export function CompactFloorPlans({ projectId }: CompactFloorPlansProps) {
         }
 
         // Procesar los planos encontrados
-        data.forEach((plan) => {
+        data.forEach((plan: any) => {
           if (plan.plan_type === "before" || plan.plan_type === "after") {
             // Añadir un timestamp para evitar el caché del navegador
             const timestamp = new Date().getTime()
