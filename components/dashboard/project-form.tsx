@@ -875,10 +875,10 @@ export function ProjectForm({
     const numericFormData = {
       ...formData,
       budget:
-        typeof formData.budget === "string"
-          ? Number.parseFloat(formData.budget.replace(",", ".")) || 0
+        typeof (formData as any).budget === "string"
+          ? Number.parseFloat((formData as any).budget.replace(",", ".")) || 0
           : formData.budget,
-      progress: typeof formData.progress === "string" ? Number.parseFloat(formData.progress) : formData.progress || 0,
+      progress: typeof (formData as any).progress === "string" ? Number.parseFloat((formData as any).progress) : formData.progress || 0,
     }
 
     // Convertir valores de cadena de ajustes de demolición a números y validar rangos
