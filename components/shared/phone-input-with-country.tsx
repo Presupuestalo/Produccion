@@ -207,6 +207,7 @@ interface PhoneInputWithCountryProps {
   onChange: (fullPhone: string) => void
   defaultCountry?: string
   disabled?: boolean
+  placeholder?: string
 }
 
 export function PhoneInputWithCountry({
@@ -214,6 +215,7 @@ export function PhoneInputWithCountry({
   onChange,
   defaultCountry = "ES",
   disabled = false,
+  placeholder = "600 00 00 00",
 }: PhoneInputWithCountryProps) {
   const [selectedCountry, setSelectedCountry] = useState(
     COUNTRY_PHONE_DATA.find((c) => c.code === defaultCountry) || COUNTRY_PHONE_DATA.find((c) => c.code === "ES")!,
@@ -285,7 +287,7 @@ export function PhoneInputWithCountry({
 
       <Input
         type="tel"
-        placeholder="600 00 00 00"
+        placeholder={placeholder}
         value={phoneNumber}
         onChange={handlePhoneChange}
         disabled={disabled}
