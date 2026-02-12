@@ -28,12 +28,25 @@ interface Lead {
 
 interface AccessLeadDialogProps {
   lead: Lead
-  onAccessed: () => void
-  children: React.ReactNode
+  onSuccess: () => void
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  children?: React.ReactNode
+  isAdmin?: boolean
 }
 
-export function AccessLeadDialog({ lead, onAccessed, children }: AccessLeadDialogProps) {
-  const [open, setOpen] = useState(false)
+export function AccessLeadDialog({
+  lead,
+  onSuccess,
+  children,
+  open: controlledOpen,
+  onOpenChange: setControlledOpen,
+  isAdmin = false
+}: AccessLeadDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen
+  const setOpen = setControlledOpen !== undefined ? setControlledOpen : setInternalOpen
+
   const [isAccessing, setIsAccessing] = useState(false)
   const [success, setSuccess] = useState(false)
   const { toast } = useToast()
@@ -57,13 +70,13 @@ export function AccessLeadDialog({ lead, onAccessed, children }: AccessLeadDialo
       setSuccess(true)
       toast({
         title: "Acceso concedido",
-        description: "Ya puedes ver los datos de contacto del cliente",
+        description: isAdmin ? "Accediendo como administrador (sin coste)" : "Ya puedes ver los datos de contacto del cliente",
       })
 
       setTimeout(() => {
         setOpen(false)
         setSuccess(false)
-        onAccessed()
+        onSuccess()
       }, 2000)
     } catch (error: any) {
       console.error("[v0] Error accessing lead:", error)
