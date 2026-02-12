@@ -321,6 +321,7 @@ export function ElectricalRoomsList({ rooms, onUpdateRoom, useSavedDefaults = tr
                                 min="0"
                                 value={element.quantity}
                                 onChange={(e) =>
+                                  element.id &&
                                   updateElectricalElement(room.id, element.id, {
                                     quantity: Number.parseInt(e.target.value) || 0,
                                   })
