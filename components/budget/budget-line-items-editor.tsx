@@ -26,6 +26,90 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
+const isOwnerCustomItem = (item: any) => {
+  return item.concept_code?.startsWith("PROP-") || (item.is_custom && item.price_type === "owner_custom")
+}
+
+const OwnerLineItem = ({ item, onDelete }: { item: any; onDelete: (id: string) => void }) => {
+  const isCustomByOwner = isOwnerCustomItem(item)
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return ""
+    const date = new Date(dateString)
+    return date.toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })
+  }
+
+  return (
+    <tr
+      className={
+        isCustomByOwner
+          ? "bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-l-4 border-l-amber-500"
+          : ""
+      }
+    >
+      <td className="px-4 py-3 align-top">
+        <div className="flex items-center gap-2 flex-wrap mb-1">
+          <h4 className="font-medium text-sm">{item.concept}</h4>
+          {item.concept_code && (
+            <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">{item.concept_code}</span>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">{item.description}</p>
+        {(item.color || item.brand || item.model) && (
+          <p className="text-xs text-muted-foreground mt-1">
+            {[
+              item.color && `Color: ${item.color}`,
+              item.brand && `Marca: ${item.brand}`,
+              item.model && `Modelo: ${item.model}`,
+            ]
+              .filter(Boolean)
+              .join(" • ")}
+          </p>
+        )}
+      </td>
+      <td className="px-4 py-3 text-center align-top whitespace-nowrap">
+        <span className="font-medium">
+          {item.quantity} {item.unit}
+        </span>
+      </td>
+      <td className="px-4 py-3 text-center align-top">
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar partida?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción eliminará la partida "{item.concept}" del presupuesto. Esta acción no se puede deshacer.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => onDelete(item.id)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </td>
+    </tr>
+  )
+}
+
 interface BudgetLineItemsEditorProps {
   budgetId: string
   categories: BudgetCategory[]
@@ -118,11 +202,6 @@ export function BudgetLineItemsEditor({
   }
 
   const totalOriginal = categories.reduce((sum, cat) => sum + cat.subtotal, 0)
-
-  const isOwnerCustomItem = (item: any) => {
-    return item.concept_code?.startsWith("PROP-") || (item.is_custom && item.price_type === "owner_custom")
-  }
-
   const ownerItems: any[] = []
   const regularCategories: BudgetCategory[] = []
 
@@ -140,76 +219,6 @@ export function BudgetLineItemsEditor({
       })
     }
   })
-
-  const OwnerLineItem = ({ item, onDelete }: { item: any; onDelete: (id: string) => void }) => {
-    const isCustomByOwner = isOwnerCustomItem(item)
-
-    return (
-      <tr
-        className={
-          isCustomByOwner
-            ? "bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-l-4 border-l-amber-500"
-            : ""
-        }
-      >
-        <td className="px-4 py-3 align-top">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <h4 className="font-medium text-sm">{item.concept}</h4>
-            {item.concept_code && (
-              <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">{item.concept_code}</span>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground">{item.description}</p>
-          {(item.color || item.brand || item.model) && (
-            <p className="text-xs text-muted-foreground mt-1">
-              {[
-                item.color && `Color: ${item.color}`,
-                item.brand && `Marca: ${item.brand}`,
-                item.model && `Modelo: ${item.model}`,
-              ]
-                .filter(Boolean)
-                .join(" • ")}
-            </p>
-          )}
-        </td>
-        <td className="px-4 py-3 text-center align-top whitespace-nowrap">
-          <span className="font-medium">
-            {item.quantity} {item.unit}
-          </span>
-        </td>
-        <td className="px-4 py-3 text-center align-top">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>¿Eliminar partida?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta acción eliminará la partida "{item.concept}" del presupuesto. Esta acción no se puede deshacer.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => onDelete(item.id)}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Eliminar
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </td>
-      </tr>
-    )
-  }
 
   if (isLocked) {
     return (

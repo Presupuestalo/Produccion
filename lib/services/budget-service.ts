@@ -246,12 +246,21 @@ export class BudgetService {
 
     const budgetName = name || `Presupuesto v${versionNumber}`
 
+    // Obtener el usuario actual para asignarle la propiedad de la copia
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      throw new Error("No hay usuario autenticado")
+    }
+
     // Crear la copia del presupuesto
     const { data: newBudget, error: budgetError } = await supabase
       .from("budgets")
       .insert({
         project_id: originalBudget.project_id,
-        user_id: originalBudget.user_id,
+        user_id: user.id, // Asignar al usuario actual, no al original
         version_number: versionNumber,
         name: budgetName,
         description: originalBudget.description,
@@ -263,6 +272,8 @@ export class BudgetService {
         tax_amount: originalBudget.tax_amount,
         total: originalBudget.total,
         notes: originalBudget.notes,
+        custom_introduction_text: originalBudget.custom_introduction_text,
+        custom_additional_notes: originalBudget.custom_additional_notes,
       })
       .select()
       .single()

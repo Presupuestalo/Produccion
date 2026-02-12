@@ -146,8 +146,8 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
     concept: "",
     description: "",
     unit: "Ud",
-    quantity: 1,
-    unit_price: 0,
+    quantity: "1" as any,
+    unit_price: "0" as any,
   })
 
   useEffect(() => {
@@ -159,8 +159,8 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
         concept: "",
         description: "",
         unit: "Ud",
-        quantity: 1,
-        unit_price: 0,
+        quantity: "1" as any,
+        unit_price: "0" as any,
       })
       setAiDescription("")
       setLoadedFromList(false)
@@ -358,8 +358,8 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
         concept: data.concept || data.description || "",
         description: data.description || "",
         unit: data.unit || "Ud",
-        quantity: data.quantity || 1,
-        unit_price: isOwner ? 0 : data.unit_price || 0,
+        quantity: (data.quantity || 1).toString(),
+        unit_price: isOwner ? "0" : (data.unit_price || 0).toString(),
       })
 
       console.log("[v0] AI generated item with category:", generatedCategory)
@@ -426,9 +426,12 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
         concept: formData.concept.toUpperCase(),
         description: formData.description,
         unit: formData.unit,
-        quantity: formData.quantity,
-        unit_price: isOwner ? 0 : formData.unit_price,
-        total_price: isOwner ? 0 : formData.quantity * formData.unit_price,
+        quantity: Number.parseFloat(formData.quantity.toString()) || 0,
+        unit_price: isOwner ? 0 : Number.parseFloat(formData.unit_price.toString()) || 0,
+        total_price: isOwner
+          ? 0
+          : (Number.parseFloat(formData.quantity.toString()) || 0) *
+          (Number.parseFloat(formData.unit_price.toString()) || 0),
         is_custom: true,
         added_by_owner: isOwner,
         sort_order: 999,
@@ -496,7 +499,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
             throw new Error("No se pudo encontrar una categoría válida")
           }
 
-          const totalCost = formData.unit_price
+          const totalCost = Number.parseFloat(formData.unit_price.toString()) || 0
           const laborCost = totalCost * 0.6
           const materialCost = totalCost * 0.4
 
@@ -566,8 +569,8 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
       concept: "",
       description: "",
       unit: "Ud",
-      quantity: 1,
-      unit_price: 0,
+      quantity: "1" as any,
+      unit_price: "0" as any,
     })
     setSaveToCustomPrices(false)
     setLoadedFromList(false)
@@ -794,7 +797,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                     min="0.01"
                     step="0.01"
                     value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: Number.parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
                   />
                 </div>
 
@@ -808,7 +811,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                     min="0.01"
                     step="0.01"
                     value={formData.unit_price}
-                    onChange={(e) => setFormData({ ...formData, unit_price: Number.parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
                   />
                 </div>
               </div>
@@ -938,7 +941,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                       min="0.01"
                       step="0.01"
                       value={formData.quantity}
-                      onChange={(e) => setFormData({ ...formData, quantity: Number.parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
                     />
                   </div>
 
@@ -950,9 +953,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                         min="0.01"
                         step="0.01"
                         value={formData.unit_price}
-                        onChange={(e) =>
-                          setFormData({ ...formData, unit_price: Number.parseFloat(e.target.value) || 0 })
-                        }
+                        onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
                       />
                     </div>
                   )}
@@ -1065,7 +1066,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                     min="0.01"
                     step="0.01"
                     value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: Number.parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
                   />
                 </div>
 
@@ -1080,7 +1081,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                       min="0.01"
                       step="0.01"
                       value={formData.unit_price}
-                      onChange={(e) => setFormData({ ...formData, unit_price: Number.parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
                     />
                   </div>
                 )}

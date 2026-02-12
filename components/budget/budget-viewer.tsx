@@ -54,9 +54,9 @@ export function BudgetViewer({ projectId, budgetId, onBudgetUpdated }: BudgetVie
   const { userProfile, loading: profileLoading } = useUserProfile()
   const isOwner = userProfile?.user_type === "homeowner"
 
-  const loadBudget = async () => {
+  const loadBudget = async (isSilent = false) => {
     try {
-      setLoading(true)
+      if (!isSilent) setLoading(true)
       const supabase = await getSupabase()
       if (!supabase) {
         setError("No se pudo conectar con la base de datos")
@@ -452,7 +452,7 @@ export function BudgetViewer({ projectId, budgetId, onBudgetUpdated }: BudgetVie
         categories={categories}
         isLocked={isAccepted}
         isOwner={isOwner}
-        onItemsUpdated={loadBudget}
+        onItemsUpdated={() => loadBudget(true)}
       />
 
       {isAccepted && (
@@ -460,7 +460,7 @@ export function BudgetViewer({ projectId, budgetId, onBudgetUpdated }: BudgetVie
           budgetId={budget.id}
           projectId={projectId}
           adjustments={adjustments}
-          onAdjustmentsUpdated={loadBudget}
+          onAdjustmentsUpdated={() => loadBudget(true)}
         />
       )}
 
