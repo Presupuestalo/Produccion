@@ -103,7 +103,7 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
           const mostAdvanced = getMostAdvancedStatus(statuses)
           setBudgetStatus(mostAdvanced)
 
-          const accepted = budgets.find((b) => b.status === "approved" || b.status === "accepted")
+          const accepted = budgets.find((b) => (b.status as any) === "approved" || (b.status as any) === "accepted")
           if (accepted) {
             const amount = accepted.accepted_amount_with_vat || accepted.accepted_amount_without_vat || accepted.total
             const includesVat = accepted.accepted_includes_vat !== false

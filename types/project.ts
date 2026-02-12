@@ -9,6 +9,7 @@ export interface Project {
   clientPhone?: string // Cambiado a camelCase para la interfaz
   client_address?: string // @deprecated: usar client_street, client_city, etc.
   client_country?: string
+  client_street?: string
   client_city?: string
   client_province?: string
   clientNotes?: string // Cambiado a camelCase para la interfaz

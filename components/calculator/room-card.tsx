@@ -73,7 +73,7 @@ const QuickSummaryIcon = ({
   icon: Icon,
   content,
   label,
-}: { icon: React.ElementType; content: React.ReactNode; label: string }) => (
+}: { icon: any; content: React.ReactNode; label: string }) => (
   <TooltipProvider>
     <Tooltip>
       <TooltipTrigger asChild>
@@ -242,7 +242,7 @@ export function RoomCard({
   useEffect(() => {
     if (room.hasDoors && !room.doorList) {
       updateRoom(room.id, {
-        doorList: [{ id: uuidv4(), type: "Abatible" }],
+        doorList: [{ id: uuidv4(), type: "Abatible", width: 0.725, height: 2.03 }],
       })
     }
   }, [room.hasDoors, room.doorList, room.doorType, room.id, updateRoom])
@@ -406,8 +406,8 @@ export function RoomCard({
   // Efecto para manejar allWallsHaveGotele - cambiar automáticamente el material de paredes
   useEffect(() => {
     if (!isReform && globalConfig?.allWallsHaveGotele) {
-      // Si el material actual es "Pintura" y no es una pared cerámica, cambiar a "Gotelé"
-      if (room.wallMaterial === "Pintura" && room.wallMaterial !== "Cerámica") {
+      // Si el material actual es "Pintura", cambiar a "Gotelé"
+      if (room.wallMaterial === "Pintura") {
         updateRoom(room.id, {
           wallMaterial: "Gotelé",
           removeGotele: true, // Activar automáticamente "Retirar gotelé"
@@ -901,9 +901,11 @@ export function RoomCard({
     }
 
     const currentDoors = room.doorList || []
-    const newDoor: DoorTypeAlias = {
+    const newDoor: Door = {
       id: uuidv4(),
       type: "Abatible",
+      width: 0.725,
+      height: 2.03,
     }
     updateRoom(room.id, { doorList: [...currentDoors, newDoor] })
   }
@@ -937,7 +939,7 @@ export function RoomCard({
       // Si se marca, crear una puerta por defecto
       updateRoom(room.id, {
         hasDoors: true,
-        doorList: [{ id: uuidv4(), type: "Abatible" }],
+        doorList: [{ id: uuidv4(), type: "Abatible", width: 0.725, height: 2.03 }],
       })
     } else {
       // Si se desmarca, eliminar todas las puertas
@@ -1057,7 +1059,7 @@ export function RoomCard({
     if (roomElectricalData && Array.isArray(roomElectricalData)) {
       // Los elementos eléctricos son un array de objetos con type y quantity
       roomElectricalData.forEach((element) => {
-        if (element.quantity > 0) {
+        if (element.quantity && element.quantity > 0) {
           items.push(`${element.quantity} ${element.type.toLowerCase()}`)
         }
       })
@@ -1818,7 +1820,7 @@ export function RoomCard({
                                     </SelectItem>
                                   </SelectContent>
                                 </Select>
-                                {room.doorList.length > 1 && (
+                                {room.doorList && room.doorList.length > 1 && (
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -1878,8 +1880,8 @@ export function RoomCard({
                       </div>
                     )}
 
-                    {/* Añadir opción para retirar gotelé - solo visible si el material de pared es gotelé y NO es "No se modifica" */}
-                    {room.wallMaterial === "Gotelé" && room.wallMaterial !== "No se modifica" && (
+                    {/* Añadir opción para retirar gotelé - solo visible si el material de pared es gotelé */}
+                    {room.wallMaterial === "Gotelé" && (
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           id={`removeGotele-${room.id}`}
@@ -2122,7 +2124,14 @@ export function RoomCard({
                             updateRoom(room.id, { newDoors: checked === true })
                             if (checked && (!room.newDoorList || room.newDoorList.length === 0)) {
                               updateRoom(room.id, {
-                                newDoorList: [{ id: uuidv4(), type: "Abatible" as DoorType }],
+                                newDoorList: [
+                                  {
+                                    id: uuidv4(),
+                                    type: "Abatible" as DoorType,
+                                    width: 0.725,
+                                    height: 2.03,
+                                  },
+                                ],
                               })
                             }
                           }}
@@ -2138,7 +2147,15 @@ export function RoomCard({
                             onClick={() => {
                               const currentDoors = room.newDoorList || []
                               updateRoom(room.id, {
-                                newDoorList: [...currentDoors, { id: uuidv4(), type: "Abatible" as DoorType }],
+                                newDoorList: [
+                                  ...currentDoors,
+                                  {
+                                    id: uuidv4(),
+                                    type: "Abatible" as DoorType,
+                                    width: 0.725,
+                                    height: 2.03,
+                                  },
+                                ],
                               })
                             }}
                             className="h-5 w-5 p-0 ml-1"

@@ -778,7 +778,7 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
   }
 
   // Calcular distancia entre dos toques
-  const getTouchDistance = (touches: TouchList): number => {
+  const getTouchDistance = (touches: TouchList | React.TouchList): number => {
     if (touches.length < 2) return 0
     const touch1 = touches[0]
     const touch2 = touches[1]
@@ -786,7 +786,7 @@ export function Pizarra({ onMeasurementsCalculated }: PizarraProps) {
   }
 
   // Calcular centro entre dos toques
-  const getTouchCenter = (touches: TouchList): Point => {
+  const getTouchCenter = (touches: TouchList | React.TouchList): Point => {
     if (touches.length < 2) return { x: 0, y: 0 }
     const touch1 = touches[0]
     const touch2 = touches[1]

@@ -948,7 +948,6 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
                               value={window.description || ""}
                               onChange={(e) => updateWindow(room.id, window.id, { description: e.target.value })}
                               className="text-xs"
-                              rows={2}
                             />
                           </div>
                           {!isOwner && (

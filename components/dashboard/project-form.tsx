@@ -167,6 +167,9 @@ export function ProjectForm({
     ceilingThickness: "",
     ceilingExpansionCoef: "",
     woodenFloorThickness: "",
+    wallThickness: "",
+    woodenFloorExpansionCoef: "",
+    floorTileExpansionCoef: "",
   })
   // Modificar la inicialización del estado activeTab para usar initialTab
   const [activeTab, setActiveTab] = useState<string>(initialTab)
@@ -231,7 +234,7 @@ export function ProjectForm({
       isLoading,
       saveSuccess,
       hasProjectData: !!projectData,
-      projectId: projectData?.id,
+      projectId: (projectData as any)?.id,
     })
   }, [isLoading, saveSuccess, isNew, projectData])
 
@@ -529,7 +532,7 @@ export function ProjectForm({
       const newSettings = [...prev]
       newSettings[index] = {
         ...newSettings[index],
-        [field]: newSettings[index][field] + 1,
+        [field]: (newSettings[index][field] as number) + 1,
       }
       return newSettings
     })

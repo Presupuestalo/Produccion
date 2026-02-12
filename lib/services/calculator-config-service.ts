@@ -4,7 +4,7 @@ import type { GlobalConfig } from "@/types/calculator"
 /**
  * Guarda la configuración global de la calculadora en Supabase
  */
-export async function saveCalculatorConfig(projectId: string, config: GlobalConfig): Promise<boolean> {
+export async function saveCalculatorConfig(projectId: string, config: Partial<GlobalConfig>): Promise<boolean> {
   try {
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

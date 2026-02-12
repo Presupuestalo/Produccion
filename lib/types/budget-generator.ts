@@ -27,18 +27,32 @@ export interface Room {
     name?: string
     windows?: Window[]
     electricalElements?: ElectricalElement[]
+    outlets?: number
+    switches?: number
+    lightPoints?: number
+    tvPoints?: number
+    recessedLights?: number
+    ledStrips?: number
 }
 
 export interface Door {
-    type?: string
-    width?: number
-    height?: number
+    id?: string
+    type: string
+    width: number
+    height: number
 }
 
 export interface Window {
-    type?: string
-    width?: number
-    height?: number
+    id?: string
+    type: string
+    width: number
+    height: number
+    material?: string
+    opening?: string
+    hasBlind?: boolean
+    color?: string
+    glassType?: string
+    hasMosquitera?: boolean
 }
 
 export interface ElectricalElement {

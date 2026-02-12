@@ -26,6 +26,8 @@ export function WindowManager({ windows, updateWindows }: WindowManagerProps) {
     height: 0,
     hasBlind: false,
     color: "Blanco",
+    glassType: "Doble",
+    hasMosquitera: false,
   })
 
   // Función para añadir una nueva ventana
@@ -47,6 +49,8 @@ export function WindowManager({ windows, updateWindows }: WindowManagerProps) {
       height: 0,
       hasBlind: false,
       color: "Blanco",
+      glassType: "Doble",
+      hasMosquitera: false,
     })
     setIsAdding(false)
   }

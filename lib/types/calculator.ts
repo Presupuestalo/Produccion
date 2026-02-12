@@ -1,5 +1,4 @@
-import type { Room } from "./room" // Assuming Room is defined in a separate file
-import type { GlobalConfig } from "./globalConfig" // Assuming GlobalConfig is defined in a separate file
+import type { Room, GlobalConfig } from "@/types/calculator"
 
 export interface CalculatorData {
   demolition?: {

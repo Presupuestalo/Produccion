@@ -10,6 +10,7 @@ interface UserProfile {
   full_name?: string
   company_name?: string
   phone?: string
+  country?: string
 }
 
 export function useUserProfile() {
@@ -36,7 +37,7 @@ export function useUserProfile() {
 
         const { data: profile, error } = await supabase
           .from("profiles")
-          .select("id, user_type, full_name, company_name, phone")
+          .select("id, user_type, full_name, company_name, phone, country")
           .eq("id", user.id)
           .maybeSingle()
 
@@ -51,6 +52,7 @@ export function useUserProfile() {
             full_name: profile.full_name,
             company_name: profile.company_name,
             phone: profile.phone,
+            country: profile.country,
           })
         }
       } catch (error) {

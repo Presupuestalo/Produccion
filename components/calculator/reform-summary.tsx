@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatNumber } from "@/lib/utils/format"
-import type { ElectricalConfig } from "@/types/calculator"
+import type { ElectricalConfig, BathroomElement } from "@/types/calculator"
 
 interface ReformSummaryProps {
   rooms: any[]
@@ -381,7 +381,7 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
       }
 
       if (isBathroom(room.type) && room.bathroomElements && room.bathroomElements.length > 0) {
-        room.bathroomElements.forEach((element) => {
+        room.bathroomElements.forEach((element: BathroomElement) => {
           switch (element) {
             case "Inodoro":
               newSummary.instalacionInodoro += 1

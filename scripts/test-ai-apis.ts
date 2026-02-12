@@ -26,12 +26,11 @@ async function testGroqConnection() {
     // Test API connection
     console.log("2. Testing API Connection:")
     try {
-        const groq = createGroq({ apiKey })
+        const groq = createGroq({ apiKey: apiKey as string })
 
         const { text } = await generateText({
             model: groq("llama-3.1-8b-instant"),
             prompt: "Responde solo con 'OK' si recibes este mensaje",
-            maxTokens: 10,
         })
 
         console.log("   ✅ Successfully connected to Groq API")
