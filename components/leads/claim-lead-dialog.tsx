@@ -86,7 +86,7 @@ export function ClaimLeadDialog({ leadId, creditsSpent, onClaimSubmitted, childr
         <DialogHeader>
           <DialogTitle>Reclamar Devolución de Créditos</DialogTitle>
           <DialogDescription>
-            Si el cliente no ha respondido después de 7 días, puedes solicitar una devolución parcial
+            Si el cliente no ha respondido después de {MARKETPLACE_CONFIG.MIN_DAYS_BEFORE_CLAIM} días, puedes solicitar una devolución parcial
           </DialogDescription>
         </DialogHeader>
 
@@ -111,7 +111,7 @@ export function ClaimLeadDialog({ leadId, creditsSpent, onClaimSubmitted, childr
                   <br />
                   Se devolverá el {MARKETPLACE_CONFIG.REFUND_PERCENTAGE * 100}% de los créditos gastados
                   ({refundAmount} de {creditsSpent} créditos) si el cliente no ha respondido después de{" "}
-                  {MARKETPLACE_CONFIG.CLAIM_WINDOW_DAYS} días.
+                  {MARKETPLACE_CONFIG.MIN_DAYS_BEFORE_CLAIM} días.
                 </AlertDescription>
               </Alert>
 
