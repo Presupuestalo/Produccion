@@ -48,7 +48,7 @@ export function AdminPriceEditor({ open, onOpenChange, price }: AdminPriceEditor
       if (error) throw error
 
       const pricesMap: Record<string, number> = {}
-      data?.forEach((item) => {
+      data?.forEach((item: any) => {
         pricesMap[item.country_code] = item.final_price
       })
       setExistingPrices(pricesMap)
