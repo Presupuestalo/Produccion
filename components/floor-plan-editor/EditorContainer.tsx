@@ -1895,11 +1895,11 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     wallSnapshot={wallSnapshot}
                     bgImage={bgImage}
                     bgConfig={bgConfig}
-                    onUpdateBgConfig={(updates: any) => setBgConfig(prev => ({ ...prev, ...updates }))}
+                    onUpdateBgConfig={(updates: any) => setBgConfig((prev: any) => ({ ...prev, ...updates }))}
                     isCalibrating={isCalibrating}
                     calibrationPoints={calibrationPoints}
                     calibrationTargetValue={calibrationTargetValue}
-                    onUpdateCalibrationPoint={(id: "p1" | "p2", p: Point) => setCalibrationPoints(prev => ({ ...prev, [id]: p }))}
+                    onUpdateCalibrationPoint={(id: "p1" | "p2", p: Point) => setCalibrationPoints((prev: any) => ({ ...prev, [id]: p }))}
                     onStartDragWall={() => {
                         saveStateToHistory()
                         const snapshot = JSON.parse(JSON.stringify(walls))
