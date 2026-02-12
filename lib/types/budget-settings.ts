@@ -1,14 +1,4 @@
-export interface BudgetAdjustment {
-  id: string
-  description: string
-  quantity: number
-  unit: string
-  unit_price: number
-  total: number
-  notes?: string
-  type: "addition" | "subtraction" // Explicitly mark if it's an addition or removal
-  created_at: string // Added created_at field to track when adjustment was added
-}
+import type { BudgetAdjustment } from "./budget-adjustment"
 
 export interface BudgetSettings {
   id: string

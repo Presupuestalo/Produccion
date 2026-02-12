@@ -473,7 +473,7 @@ export async function generateBudgetPDF(
         mod.unit,
         mod.quantity.toString(),
         formatCurrency(mod.unit_price),
-        formatCurrency(mod.total),
+        formatCurrency(mod.total_price),
         mod.notes || "",
       ])
 
