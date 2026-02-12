@@ -324,7 +324,7 @@ export function ElectricalSettingsButton() {
       toast({
         title: "Valores restaurados",
         description: "Se han restaurado los valores predeterminados",
-        variant: "success",
+        variant: "default",
       })
     } catch (error) {
       console.error("Error al restaurar valores predeterminados:", error)
