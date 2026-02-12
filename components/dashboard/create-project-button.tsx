@@ -757,7 +757,7 @@ export function CreateProjectButton({ className }: { className?: string }) {
                         ¿Tiene ascensor? *
                       </Label>
                       <Select
-                        value={formData.has_elevator}
+                        value={String(formData.has_elevator || "")}
                         onValueChange={(value) => {
                           handleSelectChange("has_elevator", value)
                           if (validationErrors.has_elevator) {

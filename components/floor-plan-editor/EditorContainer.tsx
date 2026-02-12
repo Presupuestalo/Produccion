@@ -1284,6 +1284,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                         wallId: closest.wallId,
                         t: closest.t,
                         width: 82,
+                        height: 205,
                         flipX: false,
                         flipY: false
                     }])

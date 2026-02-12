@@ -98,7 +98,7 @@ export async function getAllAppointments(): Promise<ProjectAppointment[]> {
     }
 
     // 2. Obtener los títulos de los proyectos para mapeo manual (más robusto)
-    const projectIds = [...new Set(appointments.map(a => a.project_id))].filter(Boolean)
+    const projectIds = [...new Set(appointments.map((a: any) => a.project_id))].filter(Boolean)
     const { data: projectsData, error: projectsError } = await supabase
       .from("projects")
       .select("id, title")
@@ -110,11 +110,11 @@ export async function getAllAppointments(): Promise<ProjectAppointment[]> {
 
     const projectTitlesMap = new Map<string, string>()
     if (projectsData) {
-      projectsData.forEach(p => projectTitlesMap.set(p.id, p.title))
+      projectsData.forEach((p: any) => projectTitlesMap.set(p.id, p.title))
     }
 
     // 3. Mapear los resultados para incluir projects: { title }
-    return appointments.map(appointment => ({
+    return appointments.map((appointment: any) => ({
       ...appointment,
       projects: {
         title: projectTitlesMap.get(appointment.project_id) || "Proyecto sin título"

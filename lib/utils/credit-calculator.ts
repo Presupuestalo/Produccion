@@ -32,7 +32,7 @@ export function calculateCreditCost(budget: number, plan: SubscriptionPlan | str
   const safeBudget = Number(budget) || 0
   let safePlan = (plan?.toLowerCase() || "free") as SubscriptionPlan
 
-  if (safePlan === "enterprise" || safePlan === "professional") {
+  if ((safePlan as string) === "enterprise" || (safePlan as string) === "professional") {
     safePlan = "pro"
   }
 
@@ -123,5 +123,5 @@ export function getPlanInfo(plan: SubscriptionPlan | string): {
     enterprise: { name: "Pro", multiplier: "x 0.50", description: "Mitad de créditos por lead" },
     professional: { name: "Pro", multiplier: "x 0.50", description: "Mitad de créditos por lead" },
   }
-  return info[plan] || info.free
+  return (info as Record<string, any>)[plan] || info.free
 }

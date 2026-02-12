@@ -60,6 +60,7 @@ export function RoomTemplates({ addRoom, standardHeight, projectId, activeTab = 
 
     const newRoom: Room = {
       id: crypto.randomUUID(), // Usando crypto.randomUUID()
+      name: `${selectedType} ${roomNumber}`,
       type: selectedType,
       number: roomNumber,
       doors: 0,
@@ -70,13 +71,18 @@ export function RoomTemplates({ addRoom, standardHeight, projectId, activeTab = 
       length: 0,
       area: 0,
       perimeter: 0,
+      wallArea: 0,
+      ceilingArea: 0,
       wallSurface: 0,
       floorMaterial: defaultMaterials.floor as any,
       wallMaterial: defaultMaterials.wall as any,
+      ceilingMaterial: "Pintura",
       windows: [],
       demolishWall: false,
       demolishCeiling: false,
       removeFloor: false,
+      removeWallMaterial: false,
+      removeCeilingMaterial: false,
       removeWallTiles: false,
       removeBathroomElements: false,
       removeKitchenFurniture: false,

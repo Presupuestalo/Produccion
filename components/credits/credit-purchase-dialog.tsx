@@ -36,6 +36,7 @@ export function CreditPurchaseDialog({ packageId, children, onPurchaseComplete }
       setError(null)
       setCheckoutStarted(true)
       const secret = await startCreditPurchaseSession(packageId)
+      if (!secret) throw new Error("No se pudo obtener el secreto de pago")
       return secret
     } catch (err) {
       console.error("[v0] Error fetching client secret:", err)

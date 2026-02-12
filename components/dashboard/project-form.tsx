@@ -527,24 +527,24 @@ export function ProjectForm({
   }
 
   // Función para incrementar un valor eléctrico
-  const incrementElectricalValue = (index: number, field: keyof ElectricalRoomSettings) => {
+  const incrementElectricalValue = (index: number, field: keyof Omit<ElectricalRoomSettings, "name">) => {
     setElectricalSettings((prev) => {
       const newSettings = [...prev]
       newSettings[index] = {
         ...newSettings[index],
-        [field]: (newSettings[index][field] as number) + 1,
+        [field]: ((newSettings[index][field] as number) || 0) + 1,
       }
       return newSettings
     })
   }
 
   // Función para decrementar un valor eléctrico
-  const decrementElectricalValue = (index: number, field: keyof ElectricalRoomSettings) => {
+  const decrementElectricalValue = (index: number, field: keyof Omit<ElectricalRoomSettings, "name">) => {
     setElectricalSettings((prev) => {
       const newSettings = [...prev]
       newSettings[index] = {
         ...newSettings[index],
-        [field]: Math.max(0, newSettings[index][field] - 1),
+        [field]: Math.max(0, ((newSettings[index][field] as number) || 0) - 1),
       }
       return newSettings
     })
@@ -570,7 +570,7 @@ export function ProjectForm({
     }
 
     // Validar cada campo solo si tiene un valor
-    if (settings.floorTileThickness !== "") {
+    if ((settings as any).floorTileThickness !== "") {
       const value =
         typeof settings.floorTileThickness === "string"
           ? Number.parseFloat(settings.floorTileThickness.replace(",", "."))
@@ -583,7 +583,7 @@ export function ProjectForm({
       }
     }
 
-    if (settings.wallTileThickness !== "") {
+    if ((settings as any).wallTileThickness !== "") {
       const value =
         typeof settings.wallTileThickness === "string"
           ? Number.parseFloat(settings.wallTileThickness.replace(",", "."))
@@ -596,7 +596,7 @@ export function ProjectForm({
       }
     }
 
-    if (settings.woodExpansionCoef !== "") {
+    if ((settings as any).woodExpansionCoef !== "") {
       const value =
         typeof settings.woodExpansionCoef === "string"
           ? Number.parseFloat(settings.woodExpansionCoef.replace(",", "."))
@@ -609,7 +609,7 @@ export function ProjectForm({
       }
     }
 
-    if (settings.ceramicExpansionCoef !== "") {
+    if ((settings as any).ceramicExpansionCoef !== "") {
       const value =
         typeof settings.ceramicExpansionCoef === "string"
           ? Number.parseFloat(settings.ceramicExpansionCoef.replace(",", "."))
@@ -622,15 +622,15 @@ export function ProjectForm({
       }
     }
 
-    if (settings.containerSize !== "" && typeof settings.containerSize === "string") {
-      const value = Number.parseFloat(settings.containerSize.replace(",", "."))
+    if ((settings as any).containerSize !== "" && typeof settings.containerSize === "string") {
+      const value = Number.parseFloat((settings.containerSize as string).replace(",", "."))
 
       if (!isNaN(value) && !validationRanges.containerSize.validValues.includes(value)) {
         errors.containerSize = `Debe ser uno de los siguientes valores: ${validationRanges.containerSize.validValues.join(", ")} m³`
       }
     }
 
-    if (settings.mortarBaseThickness !== "") {
+    if ((settings as any).mortarBaseThickness !== "") {
       const value =
         typeof settings.mortarBaseThickness === "string"
           ? Number.parseFloat(settings.mortarBaseThickness.replace(",", "."))
@@ -643,7 +643,7 @@ export function ProjectForm({
       }
     }
 
-    if (settings.mortarBaseExpansionCoef !== "") {
+    if ((settings as any).mortarBaseExpansionCoef !== "") {
       const value =
         typeof settings.mortarBaseExpansionCoef === "string"
           ? Number.parseFloat(settings.mortarBaseExpansionCoef.replace(",", "."))
@@ -659,7 +659,7 @@ export function ProjectForm({
       }
     }
 
-    if (settings.wallExpansionCoef !== "") {
+    if ((settings as any).wallExpansionCoef !== "") {
       const value =
         typeof settings.wallExpansionCoef === "string"
           ? Number.parseFloat(settings.wallExpansionCoef.replace(",", "."))
@@ -672,7 +672,7 @@ export function ProjectForm({
       }
     }
 
-    if (settings.ceilingThickness !== "") {
+    if ((settings as any).ceilingThickness !== "") {
       const value =
         typeof settings.ceilingThickness === "string"
           ? Number.parseFloat(settings.ceilingThickness.replace(",", "."))
@@ -685,7 +685,7 @@ export function ProjectForm({
       }
     }
 
-    if (settings.ceilingExpansionCoef !== "") {
+    if ((settings as any).ceilingExpansionCoef !== "") {
       const value =
         typeof settings.ceilingExpansionCoef === "string"
           ? Number.parseFloat(settings.ceilingExpansionCoef.replace(",", "."))
@@ -698,7 +698,7 @@ export function ProjectForm({
       }
     }
 
-    if (settings.woodenFloorThickness !== "") {
+    if ((settings as any).woodenFloorThickness !== "") {
       const value =
         typeof settings.woodenFloorThickness === "string"
           ? Number.parseFloat(settings.woodenFloorThickness.replace(",", "."))
@@ -729,6 +729,9 @@ export function ProjectForm({
       ceilingThickness: "",
       ceilingExpansionCoef: "",
       woodenFloorThickness: "",
+      wallThickness: "",
+      woodenFloorExpansionCoef: "",
+      floorTileExpansionCoef: "",
     })
   }
 
@@ -1065,9 +1068,9 @@ export function ProjectForm({
       normalized.ceilingExpansionCoef = isNaN(value) ? 1.4 : Math.max(1.1, Math.min(2.0, Math.round(value * 10) / 10))
     }
 
-    if (typeof normalized.woodThickness === "string") {
-      const value = Number.parseFloat(normalized.woodThickness.replace(",", "."))
-      normalized.woodThickness = isNaN(value) ? 0.02 : Math.max(0.005, Math.min(0.1, Math.round(value * 1000) / 1000))
+    if (typeof (normalized as any).woodenFloorThickness === "string") {
+      const value = Number.parseFloat((normalized as any).woodenFloorThickness.replace(",", "."))
+      normalized.woodenFloorThickness = isNaN(value) ? 0.02 : Math.max(0.005, Math.min(0.1, Math.round(value * 1000) / 1000))
     }
 
     return normalized

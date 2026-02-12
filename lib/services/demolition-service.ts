@@ -11,6 +11,12 @@ const defaultDemolitionSettings: DemolitionSettings = {
   woodenFloorExpansionCoef: 1.35, // coeficiente específico para suelo de madera
   ceramicExpansionCoef: 1.4,
   containerSize: 5, // 5 m³
+  floorTileExpansionCoef: 1.4,
+  mortarBaseThickness: 0.05,
+  mortarBaseExpansionCoef: 1.4,
+  wallExpansionCoef: 1.4,
+  ceilingThickness: 0.015,
+  ceilingExpansionCoef: 1.4,
 }
 
 /**

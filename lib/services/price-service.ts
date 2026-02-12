@@ -152,7 +152,7 @@ function mergeMasterAndUserPrices(masterPrices: PriceMaster[], userPrices: UserP
   const priceMap = new Map<string, PriceMaster>()
 
   // Primero agregar todos los precios maestros
-  masterPrices.forEach((price) => {
+  masterPrices.forEach((price: PriceMaster) => {
     priceMap.set(price.code, {
       ...price,
       is_custom: false,
@@ -161,7 +161,7 @@ function mergeMasterAndUserPrices(masterPrices: PriceMaster[], userPrices: UserP
   })
 
   // Luego sobrescribir con precios de usuario (tienen prioridad)
-  userPrices.forEach((userPrice) => {
+  userPrices.forEach((userPrice: UserPrice) => {
     // Si tiene base_price_id, es una modificación de un precio maestro
     // Usar el código base para reemplazarlo
     const key = userPrice.base_price_id || userPrice.code
@@ -556,7 +556,7 @@ export async function searchPrices(query: string): Promise<PriceWithCategory[]> 
   console.log(
     "[v0] Precios master encontrados:",
     masterPrices?.length,
-    masterPrices?.map((p) => ({ code: p.code, sub: p.subcategory, desc: p.description })),
+    masterPrices?.map((p: PriceMaster) => ({ code: p.code, sub: p.subcategory, desc: p.description })),
   )
 
   // Buscar en precios de usuario con filtro en BD
@@ -580,7 +580,7 @@ export async function searchPrices(query: string): Promise<PriceWithCategory[]> 
   console.log(
     "[v0] Precios de usuario encontrados:",
     userPrices?.length,
-    userPrices?.map((p) => ({ code: p.code, sub: p.subcategory, desc: p.description })),
+    userPrices?.map((p: UserPrice) => ({ code: p.code, sub: p.subcategory, desc: p.description })),
   )
 
   const allPrices = mergeMasterAndUserPrices(masterPrices || [], userPrices || [])
@@ -638,9 +638,9 @@ export async function increaseAllPrices(percentage: number): Promise<number> {
   console.log("[v0] AUMENTADOR GLOBAL: Precios de usuario existentes:", existingUserPrices?.length || 0)
 
   const multiplier = 1 + percentage / 100
-  const userPriceMap = new Map(existingUserPrices?.map((p) => [p.base_price_id || p.code, p]) || [])
+  const userPriceMap = new Map(existingUserPrices?.map((p: any) => [p.base_price_id || p.code, p]) || [])
 
-  const validMasterPrices = (masterPrices || []).filter((mp) => {
+  const validMasterPrices = (masterPrices || []).filter((mp: PriceMaster) => {
     if (!mp.category_id) {
       console.warn("[v0] AUMENTADOR GLOBAL: Saltando precio sin category_id:", mp.code)
       return false
@@ -649,7 +649,7 @@ export async function increaseAllPrices(percentage: number): Promise<number> {
   })
 
   // Prices to create (master prices that don't have user copies)
-  const pricesToCreate = validMasterPrices.map((mp) => ({
+  const pricesToCreate = validMasterPrices.map((mp: PriceMaster) => ({
     user_id: user.id,
     base_price_id: mp.code,
     code: mp.code,
@@ -674,7 +674,7 @@ export async function increaseAllPrices(percentage: number): Promise<number> {
   }))
 
   // Prices to update (existing user prices)
-  const pricesToUpdate = (existingUserPrices || []).map((p) => ({
+  const pricesToUpdate = (existingUserPrices || []).map((p: any) => ({
     id: p.id,
     final_price: p.final_price * multiplier,
   }))
@@ -719,7 +719,7 @@ export async function increaseAllPrices(percentage: number): Promise<number> {
     )
 
     const results = await Promise.all(
-      batch.map((price) => supabase.from(userTable).update({ final_price: price.final_price }).eq("id", price.id)),
+      batch.map((price: any) => supabase.from(userTable).update({ final_price: price.final_price }).eq("id", price.id)),
     )
 
     const errors = results.filter((r) => r.error)
@@ -782,12 +782,12 @@ export async function increasePricesByCategory(categoryId: string, percentage: n
   }
 
   const multiplier = 1 + percentage / 100
-  const userPriceMap = new Map(existingUserPrices?.map((p) => [p.base_price_id || p.code, p]) || [])
+  const userPriceMap = new Map(existingUserPrices?.map((p: any) => [p.base_price_id || p.code, p]) || [])
 
   // Prices to create (master prices that don't have user copies)
   const pricesToCreate = (masterPrices || [])
-    .filter((mp) => !userPriceMap.has(mp.code))
-    .map((mp) => ({
+    .filter((mp: PriceMaster) => !userPriceMap.has(mp.code))
+    .map((mp: PriceMaster) => ({
       user_id: user.id,
       base_price_id: mp.code,
       code: mp.code,
@@ -812,7 +812,7 @@ export async function increasePricesByCategory(categoryId: string, percentage: n
     }))
 
   // Prices to update (existing user prices)
-  const pricesToUpdate = (existingUserPrices || []).map((p) => ({
+  const pricesToUpdate = (existingUserPrices || []).map((p: any) => ({
     id: p.id,
     final_price: p.final_price * multiplier,
   }))
@@ -836,7 +836,7 @@ export async function increasePricesByCategory(categoryId: string, percentage: n
   for (let i = 0; i < pricesToUpdate.length; i += updateBatchSize) {
     const batch = pricesToUpdate.slice(i, i + updateBatchSize)
     await Promise.all(
-      batch.map((price) => supabase.from(userTable).update({ final_price: price.final_price }).eq("id", price.id)),
+      batch.map((price: any) => supabase.from(userTable).update({ final_price: price.final_price }).eq("id", price.id)),
     )
   }
 

@@ -25,11 +25,11 @@ export function CreditPurchaseHistory() {
   useEffect(() => {
     fetch("/api/credits/transactions")
       .then((res) => res.json())
-      .then((data) => {
+      .then((data: any) => {
         setTransactions(data.transactions || [])
         setLoading(false)
       })
-      .catch((err) => {
+      .catch((err: any) => {
         console.error("Error loading transactions:", err)
         setLoading(false)
       })
@@ -83,7 +83,7 @@ export function CreditPurchaseHistory() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {[1, 2, 3].map((i) => (
+          {[1, 2, 3].map((i: number) => (
             <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
               <Skeleton className="h-4 w-32" />
               <Skeleton className="h-4 w-20" />
@@ -95,13 +95,13 @@ export function CreditPurchaseHistory() {
   }
 
   // Calcular totales
-  const totalPurchased = transactions.filter((t) => t.type === "purchase").reduce((sum, t) => sum + t.amount, 0)
+  const totalPurchased = transactions.filter((t) => (t.type as string) === "purchase").reduce((sum, t) => sum + t.amount, 0)
 
   const totalSpent = transactions
-    .filter((t) => t.type === "spend" || t.type === "lead_access")
+    .filter((t) => (t.type as string) === "spend" || (t.type as string) === "lead_access")
     .reduce((sum, t) => sum + Math.abs(t.amount), 0)
 
-  const totalRefunded = transactions.filter((t) => t.type === "refund").reduce((sum, t) => sum + t.amount, 0)
+  const totalRefunded = transactions.filter((t) => (t.type as string) === "refund").reduce((sum, t) => sum + t.amount, 0)
 
   return (
     <Card>

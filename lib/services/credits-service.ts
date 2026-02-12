@@ -2,7 +2,8 @@ import { createClient } from "@/lib/supabase/server"
 
 export async function getUserCreditsBalance(): Promise<number> {
   const supabase = await createClient()
-  
+  if (!supabase) return 0
+
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -34,7 +35,8 @@ export async function canAccessLead(leadCost: number): Promise<{ allowed: boolea
 
 export async function initializeCompanyCredits(companyId: string): Promise<void> {
   const supabase = await createClient()
-  
+  if (!supabase) return
+
   // Crear registro de créditos si no existe
   const { error } = await supabase
     .from("company_credits")

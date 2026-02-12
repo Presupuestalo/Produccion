@@ -59,8 +59,8 @@ export function ClientsList({ projects, coordinationProjects, error }: ClientsLi
           if (project.clientPhone && !clientInfo.phone) {
             clientInfo.phone = project.clientPhone
           }
-          if (project.clientAddress && !clientInfo.address) {
-            clientInfo.address = project.clientAddress
+          if (project.client_address && !clientInfo.address) {
+            clientInfo.address = project.client_address
           }
           if (project.clientNotes && !clientInfo.notes) {
             clientInfo.notes = project.clientNotes
@@ -70,7 +70,7 @@ export function ClientsList({ projects, coordinationProjects, error }: ClientsLi
             name: clientName,
             email: project.clientEmail,
             phone: project.clientPhone,
-            address: project.clientAddress,
+            address: project.client_address,
             notes: project.clientNotes,
             projectCount: 1,
             projects: [

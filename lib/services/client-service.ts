@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from "uuid"
 export async function getClients() {
   try {
     const { data: session } = await supabase.auth.getSession()
-    if (!session.session) {
+    if (!session?.session) {
       throw new Error("No hay sesión activa")
     }
 
@@ -31,14 +31,14 @@ export async function getClients() {
 
         if (!projectsError && projects && projects.length > 0) {
           // Hay proyectos con clientes, intentar sincronizar automáticamente
-          const uniqueClients = [...new Set(projects.map((p) => p.client))].filter(Boolean)
+          const uniqueClients = [...new Set(projects.map((p: any) => p.client))].filter(Boolean)
 
           if (uniqueClients.length > 0) {
             // Hay clientes únicos en proyectos, crear registros en la tabla clients
             const newClients = uniqueClients.map((name) => ({
               id: uuidv4(),
               name,
-              user_id: session.session.user.id,
+              user_id: session?.session?.user.id,
               created_at: new Date().toISOString(),
             }))
 
@@ -89,7 +89,7 @@ export async function createClient(clientData: ClientFormData) {
       throw new Error("Error de autenticación: " + sessionError.message)
     }
 
-    if (!sessionData.session) {
+    if (!sessionData?.session) {
       throw new Error("No hay sesión activa")
     }
 

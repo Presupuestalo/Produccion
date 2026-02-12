@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 
 export interface SubscriptionPlan {
   id: string
@@ -22,7 +22,11 @@ export interface SubscriptionPlan {
 }
 
 export async function getUserSubscriptionPlan(): Promise<SubscriptionPlan | null> {
-  const supabase = await createServerClient()
+  const supabase = await createClient()
+
+  if (!supabase) {
+    return null
+  }
 
   const {
     data: { user },

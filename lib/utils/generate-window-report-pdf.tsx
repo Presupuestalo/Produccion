@@ -72,26 +72,25 @@ export function generateWindowReportPDF(params: GenerateReportParams): string {
         <p style="margin: 0 0 8px 0;"><strong>Extras:</strong> ${extras.length > 0 ? extras.join(", ") : "Ninguno"}</p>
         ${group.quantity > 1 ? `<p style="margin: 0 0 0 0;"><strong>Cantidad:</strong> ${group.quantity} unidades</p>` : ""}
       </div>
-      ${
-        window.photos && window.photos.length > 0
+      ${window.photos && window.photos.length > 0
           ? `
         <div style="margin-top: 10px;">
           <p style="margin: 0 0 8px 0; font-weight: bold; color: #333;">Fotos:</p>
           <div style="display: flex; flex-wrap: wrap; gap: 10px;">
             ${window.photos
-              .map(
-                (photo) => `
+            .map(
+              (photo: { photo_url: string }) => `
               <div style="width: 45%; min-width: 150px;">
                 <img src="${photo.photo_url}" style="width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px;" alt="Foto ventana" />
               </div>
             `,
-              )
-              .join("")}
+            )
+            .join("")}
           </div>
         </div>
       `
           : '<p style="color: #999; font-style: italic; margin-top: 10px;">Sin fotos</p>'
-      }
+        }
     </div>
   `
     })

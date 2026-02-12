@@ -248,7 +248,7 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
 
             <div className="space-y-2 text-right">
               <div className="flex items-center justify-end gap-2 text-slate-600">
-                <span className="text-xs">{formatDate(project.dueDate || project.duedate)}</span>
+                <span className="text-xs">{formatDate((project.dueDate || project.duedate) as string)}</span>
                 <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
               </div>
             </div>
