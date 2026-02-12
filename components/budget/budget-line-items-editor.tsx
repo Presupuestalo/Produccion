@@ -82,7 +82,7 @@ const OwnerLineItem = ({ item, onDelete }: { item: any; onDelete: (id: string) =
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive-foreground hover:bg-destructive transition-colors"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -439,9 +439,7 @@ export function BudgetLineItemsEditor({
                         </th>
                       </>
                     )}
-                    <th className="px-4 py-3 text-center text-sm font-semibold text-amber-900 dark:text-amber-100 w-[7%]">
-                      {!isOwner && "Sin cotizar"}
-                    </th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-amber-900 dark:text-amber-100 w-[7%]"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-amber-200 dark:divide-amber-800">
@@ -505,7 +503,7 @@ export function BudgetLineItemsEditor({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                className="h-8 w-8 text-amber-700 dark:text-amber-400 hover:text-destructive-foreground hover:bg-destructive transition-colors"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
