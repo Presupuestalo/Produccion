@@ -300,6 +300,7 @@ export function ElectricalRoomsList({ rooms, onUpdateRoom, useSavedDefaults = tr
                             <Select
                               value={element.type}
                               onValueChange={(value) =>
+                                element.id &&
                                 updateElectricalElement(room.id, element.id, { type: value as ElectricalElementType })
                               }
                             >
