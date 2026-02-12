@@ -353,7 +353,7 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
       await new Promise((resolve) => setTimeout(resolve, 500))
 
       const opt = {
-        margin: [15, 10, 15, 10], // top, left, bottom, right in mm
+        margin: [15, 10, 15, 10] as [number, number, number, number], // top, left, bottom, right in mm
         filename: `contrato-${projectData.client || "cliente"}-${new Date().toISOString().split("T")[0]}.pdf`,
         image: { type: "jpeg", quality: 0.98 },
         html2canvas: {
