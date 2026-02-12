@@ -2350,7 +2350,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               {/* COLUMNA IZQUIERDA: Resumen de habitaciones y citas (solo desktop) */}
               <div className="hidden lg:block space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
                 <RoomsSummary rooms={visibleReformRooms} />
-                {!isOwner && <AppointmentsHistory projectId={projectId} />}
+                {!isOwner && projectId && <AppointmentsHistory projectId={projectId} />}
               </div>
 
               {/* COLUMNA CENTRAL: Contenido principal de la calculadora */}
