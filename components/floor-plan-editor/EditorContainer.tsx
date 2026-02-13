@@ -1685,8 +1685,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
             <div ref={containerRef} className="flex-1 relative border-t border-slate-200 overflow-hidden bg-slate-50">
                 {/* Vertical Collapsible Toolbar */}
-                <div className={`absolute left-0 ${isFullscreen ? "top-0" : "top-[50px]"} z-40 transition-all duration-300 ease-in-out flex items-start ${!isToolbarVisible ? "-translate-x-full" : "translate-x-0"}`}>
-                    <Card className="p-2 flex flex-col items-center justify-between gap-1 bg-white/95 backdrop-blur-md border-slate-200 shadow-xl pointer-events-auto rounded-l-none rounded-tl-none border-l-0 border-t-0 h-[calc(100vh-80px)] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                <div className={`absolute left-0 bottom-0 ${isFullscreen ? "top-0" : "top-[50px]"} z-40 transition-all duration-300 ease-in-out flex flex-col items-start ${!isToolbarVisible ? "-translate-x-full" : "translate-x-0"}`}>
+                    <Card className="p-2 flex flex-col items-center justify-between gap-1 bg-white/95 backdrop-blur-md border-slate-200 shadow-xl pointer-events-auto rounded-none border-l-0 border-t-0 border-b-0 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
                         {!isFullscreen && (
                             <>
                                 <Button variant="ghost" size="icon" onClick={handleBack} title="Volver" className="w-12 h-12 hover:bg-slate-100 hover:text-slate-900 transition-colors">
