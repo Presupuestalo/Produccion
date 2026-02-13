@@ -4003,6 +4003,7 @@ export const CanvasEngine = ({
                                             <div className="flex items-center gap-2">
                                                 <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Ancho</span>
                                                 <NumericInput
+                                                    isMobile={isMobile}
                                                     label="Ancho"
                                                     value={editLength}
                                                     step={0.1}
@@ -4021,6 +4022,7 @@ export const CanvasEngine = ({
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Alto</span>
                                                     <NumericInput
+                                                        isMobile={isMobile}
                                                         label="Alto"
                                                         value={editHeight}
                                                         setter={setEditHeight}
