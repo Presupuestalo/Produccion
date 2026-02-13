@@ -1683,15 +1683,15 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     <Card className="p-2 flex flex-col items-center gap-2 bg-white/95 backdrop-blur-md border-slate-200 shadow-xl pointer-events-auto rounded-l-none rounded-tl-none border-l-0 border-t-0 max-h-[calc(100vh-80px)] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
                         {!isFullscreen && (
                             <>
-                                <Button variant="ghost" size="icon" onClick={handleBack} title="Volver" className="w-9 h-9 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+                                <Button variant="ghost" size="icon" onClick={handleBack} title="Volver" className="w-12 h-12 hover:bg-slate-100 hover:text-slate-900 transition-colors">
                                     <ArrowLeft className="h-5 w-5" />
                                 </Button>
-                                <div className="h-px w-6 bg-slate-200 my-1 flex-shrink-0" />
+                                <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
                             </>
                         )}
                         {/* ... existing tool buttons ... */}
-                        <Button variant={activeTool === "select" ? "default" : "ghost"} size="icon" onClick={() => setActiveTool("select")} title="Seleccionar (S)" className="w-9 h-9">
-                            <MousePointer2 className="h-4 w-4" />
+                        <Button variant={activeTool === "select" ? "default" : "ghost"} size="icon" onClick={() => setActiveTool("select")} title="Seleccionar (S)" className="w-12 h-12">
+                            <MousePointer2 className="h-5 w-5" />
                         </Button>
 
                         <DropdownMenu onOpenChange={setIsDrawMenuOpen}>
@@ -1700,10 +1700,10 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                     variant={["wall", "arc", "door", "window", "shunt"].includes(activeTool) ? "default" : "ghost"}
                                     size="icon"
                                     title="Dibujar Herramientas"
-                                    className="w-9 h-9 relative"
+                                    className="w-12 h-12 relative"
                                 >
-                                    <Pencil className="h-4 w-4" />
-                                    <ChevronRight className={`h-2.5 w-2.5 absolute bottom-0.5 right-0.5 opacity-50 transition-transform duration-300 ${isDrawMenuOpen ? "rotate-180" : ""}`} />
+                                    <Pencil className="h-5 w-5" />
+                                    <ChevronRight className={`h-3 w-3 absolute bottom-1 right-1 opacity-50 transition-transform duration-300 ${isDrawMenuOpen ? "rotate-180" : ""}`} />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent container={fullscreenContainer} side="right" align="start" className="w-48 ml-2">
@@ -1728,41 +1728,41 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        <Button variant={activeTool === "ruler" ? "default" : "ghost"} size="icon" onClick={() => setActiveTool("ruler")} title="Regla (M)" className="w-9 h-9">
-                            <Ruler className="h-4 w-4" />
+                        <Button variant={activeTool === "ruler" ? "default" : "ghost"} size="icon" onClick={() => setActiveTool("ruler")} title="Regla (M)" className="w-12 h-12">
+                            <Ruler className="h-5 w-5" />
                         </Button>
                         <Button
                             variant={showAllQuotes ? "default" : "ghost"}
                             size="icon"
                             onClick={() => setShowAllQuotes(!showAllQuotes)}
                             title={showAllQuotes ? "Ocultar todas las cotas" : "Mostrar todas las cotas"}
-                            className="w-9 h-9"
+                            className="w-12 h-12"
                         >
-                            <LayoutGrid className={`h-4 w-4 ${showAllQuotes ? "text-white" : "text-slate-600"}`} />
+                            <LayoutGrid className={`h-5 w-5 ${showAllQuotes ? "text-white" : "text-slate-600"}`} />
                         </Button>
 
-                        <div className="h-px w-6 bg-slate-200 my-1 flex-shrink-0" />
+                        <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
 
-                        <Button variant="ghost" size="icon" onClick={handleUndo} disabled={history.length === 0} title="Deshacer (Ctrl+Z)" className="w-9 h-9">
-                            <Undo2 className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" onClick={handleUndo} disabled={history.length === 0} title="Deshacer (Ctrl+Z)" className="w-12 h-12">
+                            <Undo2 className="h-5 w-5" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={handleRedo} disabled={redoHistory.length === 0} title="Rehacer (Ctrl+Y)" className="w-9 h-9">
-                            <Redo2 className="h-4 w-4" />
-                        </Button>
-
-                        <div className="h-px w-6 bg-slate-200 my-1 flex-shrink-0" />
-
-                        <Button variant="ghost" size="icon" onClick={() => document.getElementById('bg-import')?.click()} title="Importar Imagen" className="w-9 h-9 text-slate-600 hover:text-orange-600 hover:bg-orange-50">
-                            <ImagePlus className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" onClick={handleRedo} disabled={redoHistory.length === 0} title="Rehacer (Ctrl+Y)" className="w-12 h-12">
+                            <Redo2 className="h-5 w-5" />
                         </Button>
 
-                        <div className="h-px w-6 bg-slate-200 my-1 flex-shrink-0" />
+                        <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
+
+                        <Button variant="ghost" size="icon" onClick={() => document.getElementById('bg-import')?.click()} title="Importar Imagen" className="w-12 h-12 text-slate-600 hover:text-orange-600 hover:bg-orange-50">
+                            <ImagePlus className="h-5 w-5" />
+                        </Button>
+
+                        <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
 
                         {/* Trash directly on bar */}
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="w-9 h-9 text-red-500 hover:bg-red-50 hover:text-red-600" title="Limpiar Plano">
-                                    <Trash2 className="h-4 w-4" />
+                                <Button variant="ghost" size="icon" className="w-12 h-12 text-red-500 hover:bg-red-50 hover:text-red-600" title="Limpiar Plano">
+                                    <Trash2 className="h-5 w-5" />
                                 </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent container={fullscreenContainer}>
@@ -1777,12 +1777,12 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                             </AlertDialogContent>
                         </AlertDialog>
 
-                        <div className="h-px w-6 bg-slate-200 my-1 flex-shrink-0" />
+                        <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
 
                         <Sheet onOpenChange={setShowSummary} open={showSummary}>
                             <SheetTrigger asChild>
-                                <Button variant="ghost" size="icon" title="Resumen" className="w-9 h-9 text-slate-500">
-                                    <FileText className="h-4 w-4" />
+                                <Button variant="ghost" size="icon" title="Resumen" className="w-12 h-12 text-slate-500">
+                                    <FileText className="h-5 w-5" />
                                 </Button>
                             </SheetTrigger>
                             <SheetContent container={fullscreenContainer} side="right" className="overflow-y-auto w-[400px] sm:w-[540px]">
@@ -1802,24 +1802,24 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                         <Button
                             size="icon"
                             variant="ghost"
-                            className="w-9 h-9 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                            className="w-12 h-12 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                             onClick={handleSave}
                             disabled={isSaving}
                             title="Guardar"
                         >
-                            {isSaving ? "..." : <Save className="h-4 w-4" />}
+                            {isSaving ? "..." : <Save className="h-5 w-5" />}
                         </Button>
 
-                        <div className="h-px w-6 bg-slate-200 my-1 flex-shrink-0" />
+                        <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
 
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="w-9 h-9"
+                            className="w-12 h-12"
                             onClick={toggleFullscreen}
                             title="Pantalla Completa"
                         >
-                            <Maximize2 className="h-4 w-4 text-slate-500" />
+                            <Maximize2 className="h-5 w-5 text-slate-500" />
                         </Button>
                     </Card>
 

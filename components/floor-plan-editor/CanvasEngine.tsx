@@ -3858,8 +3858,16 @@ export const CanvasEngine = ({
                                                                 // @ts-ignore
                                                                 const currentIdx = types.indexOf(el.openType || "single")
                                                                 const nextType = types[(currentIdx + 1) % types.length]
+
+                                                                let newWidth = el.width || 82
+                                                                if (nextType === "double") {
+                                                                    newWidth = (el.width || 82) * 2
+                                                                } else if (el.openType === "double") {
+                                                                    newWidth = (el.width || 164) / 2
+                                                                }
+
                                                                 // @ts-ignore
-                                                                onUpdateElement("door", el.id, { openType: nextType })
+                                                                onUpdateElement("door", el.id, { openType: nextType, width: newWidth })
                                                             }
                                                         }}
                                                         title="Cambiar tipo apertura"
