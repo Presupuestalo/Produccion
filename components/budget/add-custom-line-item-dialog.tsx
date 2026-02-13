@@ -109,18 +109,19 @@ interface CustomPrice {
   user_id: string
 }
 
-interface PriceCategory {
+interface LocalPriceCategory {
   id: string
   name: string
 }
 
 export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false }: AddCustomLineItemDialogProps) {
   const [open, setOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState("manual")
   const [loading, setLoading] = useState(false)
   const [saveToCustomPrices, setSaveToCustomPrices] = useState(false)
   const [loadedFromList, setLoadedFromList] = useState(false)
   const [customPrices, setCustomPrices] = useState<CustomPrice[]>([])
-  const [priceCategories, setPriceCategories] = useState<PriceCategory[]>([])
+  const [priceCategories, setPriceCategories] = useState<LocalPriceCategory[]>([])
   const [searchOpen, setSearchOpen] = useState(false)
   const [generatingWithAI, setGeneratingWithAI] = useState(false)
   const [aiDescription, setAiDescription] = useState("")
