@@ -199,14 +199,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         setRooms(lastState.rooms)
         setDoors(lastState.doors)
         setWindows(lastState.windows)
-
-        // Restore drawing cursor position
-        if (lastState.currentWall) {
-            // Set end to start to make it invisible until mouse moves
-            setCurrentWall({ ...lastState.currentWall, end: lastState.currentWall.start })
-        } else {
-            setCurrentWall(null)
-        }
+        // FIX: Do not restore currentWall. This prevents "ghost" walls appearing when undoing a finished wall.
+        setCurrentWall(null)
 
         historyRef.current = newHistory
         setHistory(newHistory)
@@ -1796,10 +1790,10 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                             <ImagePlus className="h-5 w-5" />
                         </Button>
 
-                        {/* Ajustes de Fondo (Transparencia / Escala) - Centered on Mobile */}
+                        {/* Ajustes de Fondo (Transparencia / Escala) - Mobile friendly */}
                         {bgImage && !activeTool?.startsWith("door") && !activeTool?.startsWith("window") && activeTool !== "wall" && (
-                            <div className="absolute top-20 right-4 z-30 flex flex-col gap-2 pointer-events-none sm:pointer-events-auto">
-                                <Card className="p-4 w-72 shadow-lg bg-white/95 backdrop-blur pointer-events-auto max-h-[calc(100vh-160px)] overflow-y-auto">
+                            <div className="absolute top-20 right-4 z-30 flex flex-col gap-2 pointer-events-none">
+                                <Card className="p-4 w-72 max-w-[calc(100vw-32px)] shadow-lg bg-white/95 backdrop-blur pointer-events-auto max-h-[calc(100vh-160px)] overflow-y-auto">
                                     <div className="space-y-4">
                                         <div className="flex items-center justify-between">
                                             <h4 className="font-medium text-sm">Opacidad del Plano</h4>
