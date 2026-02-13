@@ -70,19 +70,33 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
                 </div>
             </div>
 
-            {/* Horizontal Scrollable Row */}
-            <div className="flex items-center gap-1 p-1.5 pb-6 overflow-x-auto scrollbar-hide">
-                {/* Digits 1-9 */}
-                {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "."].map(digit => (
+            {/* Grid Layout */}
+            <div className="grid grid-cols-3 gap-2 p-4 pb-8">
+                {/* Row 1 */}
+                {["1", "2", "3"].map(digit => (
                     <KeypadButton key={digit} onClick={() => handleDigit(digit)} label={digit} />
                 ))}
+
+                {/* Row 2 */}
+                {["4", "5", "6"].map(digit => (
+                    <KeypadButton key={digit} onClick={() => handleDigit(digit)} label={digit} />
+                ))}
+
+                {/* Row 3 */}
+                {["7", "8", "9"].map(digit => (
+                    <KeypadButton key={digit} onClick={() => handleDigit(digit)} label={digit} />
+                ))}
+
+                {/* Row 4 */}
+                <KeypadButton key="." onClick={() => handleDigit(".")} label="." />
+                <KeypadButton key="0" onClick={() => handleDigit("0")} label="0" />
 
                 {/* Delete Button */}
                 <button
                     onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete() }}
                     onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation() }}
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete() }}
-                    className="flex-shrink-0 w-14 h-14 flex items-center justify-center rounded-md bg-red-50 text-red-600 hover:bg-red-100 active:bg-red-300 transition-all border border-red-200"
+                    className="flex items-center justify-center rounded-xl bg-red-50 text-red-600 hover:bg-red-100 active:bg-red-300 transition-all border border-red-200 h-14"
                 >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 14l9-5-9-5-9 5 9 5z" />
@@ -91,14 +105,14 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
                     </svg>
                 </button>
 
-                {/* OK Button */}
+                {/* OK Button - Spans full width */}
                 <button
                     onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm() }}
                     onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation() }}
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm() }}
-                    className="flex-shrink-0 w-16 h-14 flex items-center justify-center rounded-md bg-sky-500 text-white font-bold text-xl hover:bg-sky-600 active:bg-sky-700 transition-all active:scale-95 shadow-lg shadow-sky-200"
+                    className="col-span-3 flex items-center justify-center rounded-xl bg-sky-500 text-white font-bold text-xl hover:bg-sky-600 active:bg-sky-700 transition-all active:scale-95 shadow-lg shadow-sky-200 h-14 mt-2"
                 >
-                    OK
+                    CONFIRMAR
                 </button>
             </div>
         </div>
@@ -121,7 +135,7 @@ const KeypadButton = ({ label, onClick }: { label: string, onClick: () => void }
             e.stopPropagation()
             onClick()
         }}
-        className="flex-shrink-0 w-14 h-14 flex items-center justify-center rounded-md text-2xl font-bold bg-slate-50 text-slate-800 hover:bg-slate-100 active:bg-sky-200 transition-all border border-slate-200"
+        className="w-full h-14 flex items-center justify-center rounded-xl text-2xl font-bold bg-slate-50 text-slate-800 hover:bg-slate-100 active:bg-sky-200 transition-all border border-slate-200"
     >
         {label}
     </button>
