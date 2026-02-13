@@ -1850,18 +1850,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                         </Button>
                     </Card>
 
-                    {/* Handle (Pestañita) */}
-                    <div className="self-center">
-                        <Button
-                            variant="secondary"
-                            size="icon"
-                            onClick={() => setIsToolbarVisible(!isToolbarVisible)}
-                            className={`w-5 h-12 rounded-l-none rounded-r-md border-l-0 shadow-md bg-white/90 backdrop-blur-sm hover:bg-white -ml-px border-slate-200 transition-all ${!isToolbarVisible ? "translate-x-[calc(100%+1rem)]" : ""}`}
-                            title={isToolbarVisible ? "Ocultar Herramientas" : "Mostrar Herramientas"}
-                        >
-                            {isToolbarVisible ? <ChevronLeft className="h-3 w-3 text-slate-400" /> : <ChevronRight className="h-3 w-3 text-slate-400" />}
-                        </Button>
-                    </div>
+
                 </div>
                 <input type="file" id="bg-import" className="hidden" accept="image/*" onChange={handleImportImage} />
                 <CanvasEngine
