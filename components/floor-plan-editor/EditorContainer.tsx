@@ -111,6 +111,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [wallSnapshot, setWallSnapshot] = useState<Wall[] | null>(null)
     const wallSnapshotRef = useRef<Wall[] | null>(null)
     const lastRoomDetectionTime = useRef<number>(0)
+    const lastMousePosRef = useRef<Point | null>(null)
 
     // Estado del plano de fondo (Plantilla)
     const [bgImage, setBgImage] = useState<string | null>(props.initialData?.bgConfig?.url || null)
@@ -188,8 +189,18 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         setRooms(lastState.rooms)
         setDoors(lastState.doors)
         setWindows(lastState.windows)
-        // Restore drawing cursor position if it existed
-        setCurrentWall(lastState.currentWall || null)
+
+        // Restore drawing cursor position
+        if (lastState.currentWall) {
+            // Apply current mouse position to the restored wall segment to avoid "ghost line"
+            if (lastMousePosRef.current) {
+                setCurrentWall({ ...lastState.currentWall, end: lastMousePosRef.current })
+            } else {
+                setCurrentWall(lastState.currentWall)
+            }
+        } else {
+            setCurrentWall(null)
+        }
 
         historyRef.current = newHistory
         setHistory(newHistory)
@@ -216,7 +227,16 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         setRooms(nextState.rooms)
         setDoors(nextState.doors)
         setWindows(nextState.windows)
-        setCurrentWall(nextState.currentWall || null)
+
+        if (nextState.currentWall) {
+            if (lastMousePosRef.current) {
+                setCurrentWall({ ...nextState.currentWall, end: lastMousePosRef.current })
+            } else {
+                setCurrentWall(nextState.currentWall)
+            }
+        } else {
+            setCurrentWall(null)
+        }
 
         redoHistoryRef.current = newRedoHistory
         setRedoHistory(newRedoHistory)
@@ -1415,6 +1435,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     }
 
     const handleMouseMove = (point: Point) => {
+        lastMousePosRef.current = point
         if (isCalibrating) return
         if (activeTool === "wall" && currentWall) {
             setCurrentWall({ ...currentWall, end: point })
@@ -1685,7 +1706,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
             <div ref={containerRef} className="flex-1 relative border-t border-slate-200 overflow-hidden bg-slate-50">
                 {/* Vertical Collapsible Toolbar */}
-                <div className={`absolute left-0 bottom-0 ${isFullscreen ? "top-0" : "top-[50px]"} z-40 transition-all duration-300 ease-in-out flex flex-col items-start ${!isToolbarVisible ? "-translate-x-full" : "translate-x-0"}`}>
+                <div className={`absolute left-0 bottom-0 ${isFullscreen ? "top-0" : "top-[50px]"} z-40 transition-all duration-300 ease-in-out flex flex-col items-start translate-x-0`}>
                     <Card className="p-2 flex flex-col items-center justify-between gap-1 bg-white/95 backdrop-blur-md border-slate-200 shadow-xl pointer-events-auto rounded-none border-l-0 border-t-0 border-b-0 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
                         {!isFullscreen && (
                             <>
