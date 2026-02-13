@@ -4,6 +4,8 @@ import { Stage, Layer, Group, Line, Rect, Text, Circle, Arc as KonvaArc, Arrow }
 import { Grid } from "./Grid"
 import { getClosestPointOnSegment, generateArcPoints, getLineIntersection } from "@/lib/utils/geometry"
 import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical, SquareDashed, Spline, Check } from "lucide-react"
+import { NumericInput } from "./NumericInput"
+
 
 interface Point { x: number; y: number }
 interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean }
@@ -503,211 +505,7 @@ export const CanvasEngine = ({
         return () => window.removeEventListener('resize', checkMobile)
     }, [])
 
-    // Componente Teclado Numérico Personalizado para Móvil - Estilo Bottom Sheet
-    const NumericKeypad = ({ value, onChange, onConfirm, onCancel, title }: { value: string, onChange: (v: string) => void, onConfirm: (val: string) => void, onCancel: () => void, title: string }) => {
-        // Use local state for editing - only send to parent on OK
-        const [tempValue, setTempValue] = React.useState(value)
-        const [isFirstInput, setIsFirstInput] = React.useState(true)
-
-        // Reset when keypad opens (value changes from parent)
-        React.useEffect(() => {
-            setTempValue(value)
-            setIsFirstInput(true)
-        }, [value])
-
-        const handleDigit = (digit: string) => {
-            if (isFirstInput) {
-                // First input replaces the entire value
-                setTempValue(digit)
-                setIsFirstInput(false)
-            } else {
-                // Subsequent inputs append
-                if (tempValue.length < 5) setTempValue(tempValue + digit)
-            }
-        }
-
-        const handleDelete = () => {
-            if (isFirstInput) {
-                // Delete all on first click
-                setTempValue("")
-                setIsFirstInput(false)
-            } else {
-                // Normal backspace
-                setTempValue(tempValue.slice(0, -1))
-            }
-        }
-
-        const handleConfirm = () => {
-            // Send final value to parent
-            onChange(tempValue)
-            onConfirm(tempValue)
-        }
-
-        return (
-            <div className="w-full bg-white border-t-2 border-slate-200 shadow-2xl animate-in slide-in-from-bottom-full duration-300">
-                {/* Value Display */}
-                <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{title}</span>
-                    <div className="flex items-center gap-2">
-                        <span className="text-2xl font-black text-slate-800">{tempValue || "0"}</span>
-                    </div>
-                </div>
-
-                {/* Keyboard Row */}
-                <div className="flex items-center gap-0.5 p-1.5">
-                    {/* Digits 0-9 */}
-                    {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"].map(digit => (
-                        <button
-                            key={digit}
-                            onTouchStart={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                handleDigit(digit)
-                            }}
-                            onTouchEnd={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                            }}
-                            onClick={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                handleDigit(digit)
-                            }}
-                            className="flex-1 h-11 flex items-center justify-center rounded-md text-lg font-bold bg-slate-50 text-slate-800 hover:bg-slate-100 active:bg-sky-200 transition-all border border-slate-200"
-                        >
-                            {digit}
-                        </button>
-                    ))}
-
-                    {/* Delete Button */}
-                    <button
-                        onTouchStart={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            handleDelete()
-                        }}
-                        onTouchEnd={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                        }}
-                        onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            handleDelete()
-                        }}
-                        className="flex-1 h-11 flex items-center justify-center rounded-md bg-red-50 text-red-600 hover:bg-red-100 active:bg-red-300 transition-all border border-red-200"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                    </button>
-
-                    <button
-                        onTouchStart={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            handleConfirm()
-                        }}
-                        onTouchEnd={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                        }}
-                        onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            handleConfirm()
-                        }}
-                        className="flex-[1.2] h-11 flex items-center justify-center rounded-md bg-sky-500 text-white font-bold text-base hover:bg-sky-600 active:bg-sky-700 transition-all active:scale-95 shadow-lg shadow-sky-200"
-                    >
-                        OK
-                    </button>
-                </div>
-            </div>
-        )
-    }
-
-    const NumericInput = ({ label, value, setter, onEnter, placeholder, step = 1 }: { label?: string, value: string, setter: (v: string) => void, onEnter: (val?: string) => void, placeholder?: string, step?: number }) => {
-        const [showKeypad, setShowKeypad] = React.useState(false)
-
-        if (isMobile) {
-            return (
-                <div className="flex items-center gap-1">
-                    <button
-                        onPointerDown={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            // Only open on touch/pen, not mouse
-                            if (e.pointerType === 'touch' || e.pointerType === 'pen') {
-                                setShowKeypad(true)
-                            }
-                        }}
-                        onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            // Fallback for mouse/desktop
-                            setShowKeypad(true)
-                        }}
-                        className="min-w-[100px] h-10 px-3 bg-white border-2 border-sky-400 rounded-xl text-center text-lg font-black text-slate-800 hover:bg-sky-50 active:scale-95 transition-all shadow-md flex items-center justify-center gap-1"
-                    >
-                        {value || placeholder || "0"}
-                    </button>
-                    {showKeypad && (
-                        <div
-                            className="fixed inset-0 z-[3000] bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200"
-                            onTouchEnd={(e) => {
-                                // Only close if touching the backdrop, not the keypad
-                                if (e.target === e.currentTarget) {
-                                    setShowKeypad(false)
-                                }
-                            }}
-                            onClick={(e) => {
-                                // Fallback for mouse
-                                if (e.target === e.currentTarget) {
-                                    setShowKeypad(false)
-                                }
-                            }}
-                        >
-                            <div className="fixed bottom-0 left-0 right-0 safe-area-inset-bottom" onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
-                                <NumericKeypad
-                                    title={label || "Introducir valor"}
-                                    value={value}
-                                    onChange={setter}
-                                    onConfirm={(val) => {
-                                        onEnter(val)
-                                        setShowKeypad(false)
-                                    }}
-                                    onCancel={() => setShowKeypad(false)}
-                                />
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )
-        }
-
-        return (
-            <input
-                type="text"
-                inputMode="decimal"
-                autoFocus
-                value={value}
-                onChange={(e) => {
-                    // Normalize comma to dot
-                    const val = e.target.value.replace(/,/g, '.')
-                    // Allow only numbers and dots
-                    if (/^[\d.]*$/.test(val)) {
-                        setter(val)
-                    }
-                }}
-                onKeyDown={(e) => {
-                    if (e.key === 'Enter') onEnter(value)
-                }}
-                onDoubleClick={(e) => e.currentTarget.select()}
-                className="w-20 p-1.5 border-2 border-slate-200 rounded-lg text-center text-sm font-bold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
-                placeholder={placeholder}
-            />
-        )
-    }
+    // Keyboard shortcuts for grid rotation
 
     const wallsRef = React.useRef(walls)
     const pointerTypeRef = React.useRef<string>("mouse")
@@ -1740,17 +1538,10 @@ export const CanvasEngine = ({
 
         const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
 
-        // NEW TOUCH-UP DRAWING LOGIC:
-        // On touch devices with drawing tools, DELAY the click until finger is released
-        // This allows users to "aim" using the crosshair and snapping guides
-        const isDrawingTool = activeTool === "wall" || activeTool === "door" || activeTool === "window" || activeTool === "ruler" || activeTool === "arc" || activeTool === "shunt"
-        if (isTouchInteraction && isDrawingTool) {
-            isAimingDrawing.current = true
-            aimingStartPos.current = { x: stagePos.x, y: adjustedY }
-            // Update mouse position for preview but DON'T call onMouseDown yet
-            setMousePos(pos)
-            return
-        }
+        // REMOVED DELAY LOGIC FOR IMMEDIATE DRAWING
+        // const isDrawingTool = activeTool === "wall" || activeTool === "door" || activeTool === "window" || activeTool === "ruler" || activeTool === "arc" || activeTool === "shunt"
+        // if (isTouchInteraction && isDrawingTool) { ... }
+
 
         // Desktop: immediate click
         onMouseDown(pos)
@@ -1783,9 +1574,7 @@ export const CanvasEngine = ({
         setMousePos(pos)
 
         // If we're in aiming mode, update the preview
-        if (isAimingDrawing.current) {
-            onMouseMove(pos)
-        } else if ((activeTool === "wall" && currentWall) || (activeTool === "ruler") || (activeTool === "arc")) {
+        if ((activeTool === "wall" && currentWall) || (activeTool === "ruler") || (activeTool === "arc")) {
             onMouseMove(pos)
         }
     }
@@ -1811,35 +1600,12 @@ export const CanvasEngine = ({
 
         const isTouchOrPen = e.evt.pointerType === 'touch' || e.evt.pointerType === 'pen'
 
-        // NEW TOUCH-UP DRAWING LOGIC:
-        // If we were in aiming mode, commit the point NOW (on finger release)
+        // REMOVED AIMING COMMIT LOGIC
+        /*
         if (isAimingDrawing.current) {
-            isAimingDrawing.current = false
-
-            // Check if this was just a tap (no movement) or a drag
-            const TAP_THRESHOLD = 10 // pixels
-            let isTap = false
-            if (aimingStartPos.current) {
-                const dx = stagePos.x - aimingStartPos.current.x
-                const dy = (adjustedY) - aimingStartPos.current.y
-                const dist = Math.sqrt(dx * dx + dy * dy)
-                isTap = dist < TAP_THRESHOLD
-            }
-            aimingStartPos.current = null
-
-            // Commit the point (first click equivalent)
-            onMouseDown(pos)
-
-            // For drag-to-draw on walls, also immediately confirm if user dragged
-            // This creates the wall in one gesture: touch -> drag -> release
-            if (!isTap && activeTool === "wall") {
-                // Small delay to ensure state updates
-                setTimeout(() => {
-                    onMouseUp(pos)
-                }, 10)
-            }
-            return
+             // ...
         }
+        */
 
         if ((activeTool === "wall" && currentWall) || activeTool === "ruler" || activeTool === "arc") {
             // Desktop: Click-Move-Click (Up does nothing initially, waits for 2nd click)
@@ -4295,18 +4061,74 @@ export const CanvasEngine = ({
             {/* Generic Measurement Input Overlay */}
             {
                 editInputState && (() => {
-                    if (editInputState.type === 'window-dimensions' || editInputState.type === 'shunt-dimensions') {
-                        const handleCommit = (wRaw: string, hRaw: string) => {
-                            const w = parseFloat(wRaw.replace(/,/g, '.'))
-                            const h = parseFloat(hRaw.replace(/,/g, '.'))
-                            if (!isNaN(w) && !isNaN(h)) {
-                                // @ts-ignore
-                                editInputState.onCommit({ w, h })
+                    if (typeof editInputState.val === 'object' && editInputState.val !== null) {
+                        // Dual Input (Window/Door Width x Height)
+                        const valObj = editInputState.val as any
+                        const DualInput = () => {
+                            const [w, setW] = React.useState(valObj.width?.toString() || "0")
+                            const [h, setH] = React.useState(valObj.height?.toString() || "0")
+
+                            const commit = () => {
+                                const wNum = parseFloat(w)
+                                const hNum = parseFloat(h)
+                                if (!isNaN(wNum) && !isNaN(hNum)) {
+                                    // @ts-ignore
+                                    editInputState.onCommit({ width: wNum, height: hNum })
+                                }
+                                setEditInputState(null)
+                            }
+
+                            return (
+                                <div
+                                    style={{
+                                        position: "absolute",
+                                        left: editInputState.screenPos.x,
+                                        top: editInputState.screenPos.y,
+                                        transform: "translate(-50%, -50%)",
+                                        zIndex: 100
+                                    }}
+                                    className="flex items-center gap-1 p-1 bg-white rounded shadow-md border border-slate-200"
+                                >
+                                    <NumericInput
+                                        isMobile={isMobile}
+                                        value={w}
+                                        setter={setW}
+                                        onEnter={commit}
+                                        placeholder="Ancho"
+                                        label="Ancho (cm)"
+                                    />
+                                    <span className="text-xs font-bold text-slate-400">x</span>
+                                    <NumericInput
+                                        isMobile={isMobile}
+                                        value={h}
+                                        setter={setH}
+                                        onEnter={commit}
+                                        placeholder="Alto"
+                                        label="Alto (cm)"
+                                    />
+                                    <button
+                                        onClick={commit}
+                                        className="bg-green-500 text-white p-1 rounded shadow-sm flex items-center justify-center hover:bg-green-600 w-7 h-7 ml-1"
+                                    >
+                                        <Check className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            )
+                        }
+                        return <DualInput />
+                    }
+
+                    // Single Value Input (Length, Thickness, Distance)
+                    const SingleInput = () => {
+                        const [val, setVal] = React.useState((editInputState.val as number).toFixed(1))
+
+                        const commit = (v?: string) => {
+                            const final = parseFloat(v || val)
+                            if (!isNaN(final)) {
+                                editInputState.onCommit(final)
                             }
                             setEditInputState(null)
                         }
-                        // @ts-ignore
-                        const { w, h } = editInputState.props || { w: 0, h: 0 }
 
                         return (
                             <div
@@ -4317,116 +4139,28 @@ export const CanvasEngine = ({
                                     transform: "translate(-50%, -50%)",
                                     zIndex: 100
                                 }}
-                                className="flex items-center gap-1 p-1 bg-white rounded shadow-md border border-slate-200"
+                                className="flex items-center gap-1 bg-white p-1 rounded shadow-md border border-slate-200"
                             >
-                                <div className="flex items-center gap-1">
-                                    <input
-                                        autoFocus
-                                        ref={(input) => { if (input) input.select() }}
-                                        type="text"
-                                        inputMode="decimal"
-                                        defaultValue={w}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
-                                                e.preventDefault()
-                                                // Focus next input
-                                                const next = e.currentTarget.parentElement?.nextElementSibling?.nextElementSibling as HTMLInputElement // skip spacer
-                                                if (next && next.tagName === 'INPUT') next.focus()
-                                                else {
-                                                    // Fallback if structure changes, just try referencing nearby input
-                                                    const inputs = e.currentTarget.closest('div')?.parentElement?.querySelectorAll('input')
-                                                    if (inputs && inputs[1]) inputs[1].focus()
-                                                }
-                                            } else if (e.key === "Escape") {
-                                                setEditInputState(null)
-                                            }
-                                        }}
-                                        className="w-12 px-1 py-0.5 text-center text-xs font-bold border border-slate-300 rounded focus:outline-none ring-2 focus:ring-sky-500"
-                                        placeholder="Ancho"
-                                    />
-                                    <span className="text-xs font-bold text-slate-400">x</span>
-                                    <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        defaultValue={h}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
-                                                e.preventDefault()
-                                                const inputs = e.currentTarget.closest('div')?.parentElement?.querySelectorAll('input')
-                                                if (inputs && inputs.length === 2) {
-                                                    handleCommit(inputs[0].value, inputs[1].value)
-                                                }
-                                            } else if (e.key === "Escape") {
-                                                setEditInputState(null)
-                                            }
-                                        }}
-                                        className="w-12 px-1 py-0.5 text-center text-xs font-bold border border-slate-300 rounded focus:outline-none ring-2 focus:ring-sky-500"
-                                        placeholder="Alto"
-                                    />
-                                </div>
+                                <NumericInput
+                                    isMobile={isMobile}
+                                    value={val}
+                                    setter={setVal}
+                                    onEnter={commit}
+                                    label="Medida (cm)"
+                                />
                                 <button
-                                    onClick={(e) => {
-                                        const inputs = e.currentTarget.parentElement?.querySelectorAll('input')
-                                        if (inputs && inputs.length === 2) {
-                                            handleCommit(inputs[0].value, inputs[1].value)
-                                        }
+                                    onMouseDown={(e) => {
+                                        e.preventDefault()
+                                        commit()
                                     }}
-                                    className="bg-green-500 text-white p-0.5 rounded shadow-sm flex items-center justify-center hover:bg-green-600 w-6 h-6 ml-1"
+                                    className="bg-green-500 text-white p-1 rounded shadow-sm flex items-center justify-center hover:bg-green-600 w-7 h-7"
                                 >
                                     <Check className="h-4 w-4" />
                                 </button>
                             </div>
                         )
                     }
-
-                    const handleCommit = (rawVal: string) => {
-                        const val = parseFloat(rawVal.replace(/,/g, '.'))
-                        if (!isNaN(val)) {
-                            editInputState.onCommit(val)
-                        }
-                        setEditInputState(null)
-                    }
-
-                    return (
-                        <div
-                            style={{
-                                position: "absolute",
-                                left: editInputState.screenPos.x,
-                                top: editInputState.screenPos.y,
-                                transform: "translate(-50%, -50%)",
-                                zIndex: 100
-                            }}
-                            className="flex items-center gap-1"
-                        >
-                            <input
-                                autoFocus
-                                ref={(input) => { if (input) input.select() }}
-                                type="text"
-                                inputMode="decimal"
-                                defaultValue={editInputState.val.toFixed(1)}
-                                onBlur={(e) => handleCommit(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                        handleCommit(e.currentTarget.value)
-                                    } else if (e.key === "Escape") {
-                                        setEditInputState(null)
-                                    }
-                                }}
-                                className="w-16 px-1 py-0.5 text-center text-xs font-bold border border-black rounded shadow-sm focus:outline-none ring-2 ring-sky-500 bg-white"
-                            />
-                            {/* Mobile/Touch Confirm Button */}
-                            <button
-                                onMouseDown={(e) => {
-                                    e.preventDefault()
-                                    const input = e.currentTarget.previousElementSibling as HTMLInputElement
-                                    if (input) handleCommit(input.value)
-                                }}
-                                className="bg-green-500 text-white p-0.5 rounded shadow-sm flex items-center justify-center hover:bg-green-600 w-6 h-6"
-                            >
-                                <Check className="h-4 w-4" />
-                            </button>
-                        </div>
-                    )
+                    return <SingleInput />
                 })()
             }
 

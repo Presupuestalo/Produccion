@@ -1730,7 +1730,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                             </>
                         )}
                         {/* ... existing tool buttons ... */}
-                        <Button variant={activeTool === "select" ? "default" : "ghost"} size="icon" onClick={() => setActiveTool("select")} title="Seleccionar (S)" className="w-12 h-12">
+                        <Button variant={activeTool === "select" ? "default" : "ghost"} size="icon" onClick={() => setActiveTool("select")} title={isMobile ? "Seleccionar" : "Seleccionar (S)"} className="w-12 h-12">
                             <MousePointer2 className="h-5 w-5" />
                         </Button>
 
@@ -1748,16 +1748,16 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent container={fullscreenContainer} side="right" align="start" className="w-48 ml-2">
                                 <DropdownMenuItem onClick={() => setActiveTool("wall")} className="gap-2">
-                                    <Pencil className="h-4 w-4" /> <span>Muros (W)</span>
+                                    <Pencil className="h-4 w-4" /> <span>{isMobile ? "Muros" : "Muros (W)"}</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setActiveTool("arc")} className="gap-2">
                                     <Spline className="h-4 w-4" /> <span>Arco</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setActiveTool("door")} className="gap-2">
-                                    <DoorClosed className="h-4 w-4" /> <span>Puerta (D)</span>
+                                    <DoorClosed className="h-4 w-4" /> <span>{isMobile ? "Puerta" : "Puerta (D)"}</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setActiveTool("window")} className="gap-2">
-                                    <Layout className="h-4 w-4" /> <span>Ventana (V)</span>
+                                    <Layout className="h-4 w-4" /> <span>{isMobile ? "Ventana" : "Ventana (V)"}</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setActiveTool("shunt")} className="gap-2">
                                     <Square className="h-4 w-4" /> <span>Columna</span>
@@ -1768,7 +1768,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        <Button variant={activeTool === "ruler" ? "default" : "ghost"} size="icon" onClick={() => setActiveTool("ruler")} title="Regla (M)" className="w-12 h-12">
+                        <Button variant={activeTool === "ruler" ? "default" : "ghost"} size="icon" onClick={() => setActiveTool("ruler")} title={isMobile ? "Regla" : "Regla (M)"} className="w-12 h-12">
                             <Ruler className="h-5 w-5" />
                         </Button>
                         <Button
@@ -1783,10 +1783,10 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
                         <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
 
-                        <Button variant="ghost" size="icon" onClick={handleUndo} disabled={history.length === 0} title="Deshacer (Ctrl+Z)" className="w-12 h-12">
+                        <Button variant="ghost" size="icon" onClick={handleUndo} disabled={history.length === 0} title={isMobile ? "Deshacer" : "Deshacer (Ctrl+Z)"} className="w-12 h-12">
                             <Undo2 className="h-5 w-5" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={handleRedo} disabled={redoHistory.length === 0} title="Rehacer (Ctrl+Y)" className="w-12 h-12">
+                        <Button variant="ghost" size="icon" onClick={handleRedo} disabled={redoHistory.length === 0} title={isMobile ? "Rehacer" : "Rehacer (Ctrl+Y)"} className="w-12 h-12">
                             <Redo2 className="h-5 w-5" />
                         </Button>
 
@@ -2035,7 +2035,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 {/* Floating Navigation Controls (Right Bottom) */}
                 {!showSummary && (
                     <div className="absolute bottom-6 right-6 flex flex-col gap-1 items-center p-1 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-lg shadow-sm z-30 opacity-70 hover:opacity-100 transition-opacity duration-200">
-                        <Button variant="ghost" size="icon" onClick={() => handleRotatePlan(15)} title="Girar (])" className="w-8 h-8 rounded-md hover:bg-slate-200/50">
+                        <Button variant="ghost" size="icon" onClick={() => handleRotatePlan(15)} title={isMobile ? "Girar" : "Girar (])"} className="w-8 h-8 rounded-md hover:bg-slate-200/50">
                             <RotateCw className="h-4 w-4 text-slate-600" />
                         </Button>
                         <div className="w-5 h-px bg-slate-200 my-0.5" />
