@@ -1426,14 +1426,24 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             }
             reader.readAsDataURL(file)
 
-            // Attempt to restore fullscreen immediately after file selection (browsers often exit fullscreen on file picker)
+            // Fix mobile zoom issue after file picker
+            const viewport = document.querySelector("meta[name=viewport]");
+            if (viewport) {
+                viewport.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1");
+            }
+
+            // Attempt to restore fullscreen immediately after file selection
+            // Note: Most mobile browsers block programmatic fullscreen without user gesture.
+            // We try, but if it fails, we rely on the user tapping the "Fullscreen" prompt which should appear.
             setTimeout(() => {
                 if (!document.fullscreenElement && editorWrapperRef.current) {
                     editorWrapperRef.current.requestFullscreen().catch(err => {
                         console.warn("Could not auto-restore fullscreen:", err)
+                        // If auto-restore fails, ensure we are in a state where the prompt shows up
+                        setIsFullscreen(false)
                     })
                 }
-            }, 100)
+            }, 500) // Increased delay to allow browser UI to settle
         }
     }
 
