@@ -168,6 +168,16 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         setRedoHistory([])
     }
 
+    // Cleanup zoom on unmount (Mobile)
+    useEffect(() => {
+        return () => {
+            const viewport = document.querySelector("meta[name=viewport]");
+            if (viewport) {
+                viewport.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1");
+            }
+        }
+    }, [])
+
     const handleUndo = () => {
         if (historyRef.current.length === 0) return
 
@@ -192,12 +202,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
         // Restore drawing cursor position
         if (lastState.currentWall) {
-            // Apply current mouse position to the restored wall segment to avoid "ghost line"
-            if (lastMousePosRef.current) {
-                setCurrentWall({ ...lastState.currentWall, end: lastMousePosRef.current })
-            } else {
-                setCurrentWall(lastState.currentWall)
-            }
+            // Set end to start to make it invisible until mouse moves
+            setCurrentWall({ ...lastState.currentWall, end: lastState.currentWall.start })
         } else {
             setCurrentWall(null)
         }
@@ -229,11 +235,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         setWindows(nextState.windows)
 
         if (nextState.currentWall) {
-            if (lastMousePosRef.current) {
-                setCurrentWall({ ...nextState.currentWall, end: lastMousePosRef.current })
-            } else {
-                setCurrentWall(nextState.currentWall)
-            }
+            // Set end to start to make it invisible until mouse moves
+            setCurrentWall({ ...nextState.currentWall, end: nextState.currentWall.start })
         } else {
             setCurrentWall(null)
         }
