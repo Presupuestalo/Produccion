@@ -1,19 +1,7 @@
 ﻿export const dynamic = "force-dynamic"
-import { generateObject } from "ai"
+import { generateText } from "ai"
 import { NextResponse } from "next/server"
-import { z } from "zod"
-import { groqProvider, FAST_GROQ_MODEL } from "@/lib/ia/groq"
-
-const priceSchema = z.object({
-  category: z.string().describe("La categoría más apropiada para este trabajo"),
-  subcategory: z.string().describe("Un concepto corto y descriptivo en mayúsculas"),
-  description: z.string().describe("Una descripción detallada del trabajo a realizar"),
-  unit: z.enum(["Ud", "mÂ²", "ml", "mÂ³", "kg", "H"]).describe("La unidad de medida más apropiada"),
-  final_price: z.number().describe("Un precio aproximado en euros basado en el mercado español"),
-  color: z.string().optional().describe("Color del material si aplica"),
-  brand: z.string().optional().describe("Marca sugerida si aplica"),
-  model: z.string().optional().describe("Modelo sugerido si aplica"),
-})
+import { groqProvider, DEFAULT_GROQ_MODEL } from "@/lib/ia/groq"
 
 export async function POST(request: Request) {
   try {
@@ -23,32 +11,58 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Prompt y categorías son requeridos" }, { status: 400 })
     }
 
-    const categoryList = categories.map((c: { id: string; name: string }) => `${c.id}: ${c.name}`).join(", ")
+    const categoryList = categories.map((c: { id: string; name: string }) => `ID: "${c.id}" - Nombre: "${c.name}"`).join("\n")
 
-    const { object } = await generateObject({
-      model: groqProvider(FAST_GROQ_MODEL),
-      schema: priceSchema,
-      prompt: `Eres un experto en presupuestos de reformas y construcción en España. 
+    const { text } = await generateText({
+      model: groqProvider(DEFAULT_GROQ_MODEL),
+      prompt: `Eres un experto en presupuestos de reformas y construcción en España con 20 años de experiencia.
 
 El usuario quiere crear un precio para: "${prompt}"
 
-Categorías disponibles: ${categoryList}
+Categorías disponibles para elegir:
+${categoryList}
 
-Genera un precio detallado con:
-1. La categoría más apropiada (usa el ID exacto de las categorías disponibles)
-2. Un concepto corto y descriptivo en MAYíšSCULAS
-3. Una descripción detallada del trabajo
-4. La unidad de medida más apropiada
-5. Un precio aproximado realista para el mercado español de reformas
-6. Si es un material, incluye color, marca y modelo sugeridos
+Genera un objeto JSON válido (SIN MARKDOWN, SIN BLOQUES DE CÓDIGO) con la siguiente estructura:
+{
+  "category": "ID exacto de la categoría seleccionada de la lista",
+  "subcategory": "Un concepto corto y descriptivo en MAYÚSCULAS",
+  "description": "Una descripción técnica detallada del trabajo y materiales incluidos",
+  "unit": "La unidad de medida más apropiada (Ud, m², ml, m³, kg, H)",
+  "final_price": 0.00 (Número: precio de venta al público en euros),
+  "color": "Color sugerido (opcional)",
+  "brand": "Marca sugerida (opcional)",
+  "model": "Modelo sugerido (opcional)"
+}
 
-Sé específico y profesional. Los precios deben ser realistas para el mercado español de reformas.`,
+IMPORTANTE:
+1. La categoría DEBE ser uno de los IDs proporcionados.
+2. El precio debe ser realista para España.
+3. Responde SOLAMENTE con el JSON.`,
     })
+
+    // Limpiar el texto de posibles bloques de código markdown
+    const cleanText = text.replace(/```json/g, "").replace(/```/g, "").trim()
+
+    let object
+    try {
+      object = JSON.parse(cleanText)
+    } catch (e) {
+      console.error("Error parsing JSON:", e, "Text:", text)
+      throw new Error("La IA no generó un JSON válido")
+    }
 
     return NextResponse.json(object)
   } catch (error) {
-    console.error("Error generating price with AI:", error)
-    return NextResponse.json({ error: "Error al generar el precio con IA" }, { status: 500 })
+    console.error("CRITICAL ERROR in /api/generate-price:", error)
+    if (error && typeof error === 'object' && 'cause' in error) {
+      console.error("Error cause:", (error as any).cause)
+    }
+    return NextResponse.json(
+      {
+        error: "Error interno al generar el precio",
+        details: error instanceof Error ? error.message : String(error)
+      },
+      { status: 500 }
+    )
   }
 }
-

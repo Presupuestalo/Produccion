@@ -306,8 +306,8 @@ export async function generateBudgetPDF(
         }
 
         const baseData = [
-          item.concept, // Concepto (subcategory)
-          fullDescription, // Descripción completa con características
+          item.concept.toUpperCase(), // Concepto (Subcategoría/Título)
+          fullDescription, // Descripción completa
           item.unit, // Unidad
           item.quantity.toString(), // Cantidad
         ]
@@ -343,17 +343,17 @@ export async function generateBudgetPDF(
         columnStyles: hidePrices
           ? {
             0: { cellWidth: 45 }, // Concepto
-            1: { cellWidth: 95 }, // Descripción (más ancho para color, marca, modelo)
+            1: { cellWidth: 95 }, // Descripción
             2: { cellWidth: 12 }, // Unidad
             3: { cellWidth: 23 }, // Cantidad
           }
           : {
-            0: { cellWidth: 40 }, // Concepto
-            1: { cellWidth: 75 }, // Descripción (más ancho para color, marca, modelo)
+            0: { cellWidth: 45 }, // Concepto (Título corto)
+            1: { cellWidth: 70 }, // Descripción (Detalle largo)
             2: { cellWidth: 12 }, // Unidad
-            3: { cellWidth: 13 }, // Cantidad (reducido)
-            4: { cellWidth: 22 }, // Precio Unit. (más a la derecha)
-            5: { cellWidth: 28 }, // Total (más a la derecha)
+            3: { cellWidth: 13 }, // Cantidad
+            4: { cellWidth: 22 }, // Precio Unit.
+            5: { cellWidth: 28 }, // Total
           },
         margin: { left: 15, right: 15 },
       })
@@ -410,8 +410,8 @@ export async function generateBudgetPDF(
         }
 
         return [
-          item.concept, // Concepto
-          fullDescription, // Descripción completa
+          item.concept.toUpperCase(), // Concepto
+          fullDescription, // Descripción
           item.unit, // Unidad
           item.quantity.toString(), // Cantidad
         ]

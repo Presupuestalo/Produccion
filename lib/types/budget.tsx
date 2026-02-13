@@ -759,7 +759,7 @@ export const PRICE_CATALOG: PriceCatalogItem[] = [
     base_price: 350,
   },
   {
-    id: "02-E-10",
+    id: "06-E-18",
     category: "06. ELECTRICIDAD",
     concept: "INSTALACIÓN DE TOMA DE TIERRA",
     description: "Instalación completa de sistema de puesta a tierra según normativa vigente.",

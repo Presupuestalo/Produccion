@@ -267,6 +267,33 @@ export class BudgetGenerator {
       })
     }
 
+    // 3. Fallback/Fix for Grounding Installation (Toma de Tierra)
+    // If the database hasn't been updated yet, ensure 06-E-18 exists in the cache
+    if (!this.priceCache.has("06-E-18")) {
+      const oldItem = this.priceCache.get("02-E-10")
+      if (oldItem) {
+        console.log("[v0] BudgetGenerator - Auto-patching 06-E-18 from 02-E-10")
+        this.priceCache.set("06-E-18", {
+          ...oldItem,
+          code: "06-E-18",
+          category: "ELECTRICIDAD", // Override category for correct section grouping
+        })
+      } else {
+        // Absolute fallback if not even 02-E-10 exists
+        console.log("[v0] BudgetGenerator - Creating fallback for 06-E-18")
+        this.priceCache.set("06-E-18", {
+          id: "fallback-grounding", // Temporary ID
+          code: "06-E-18",
+          category: "ELECTRICIDAD",
+          subcategory: "Instalaciones generales",
+          description: "Instalación completa de sistema de puesta a tierra según normativa vigente.",
+          unit: "Ud",
+          final_price: 149.5,
+          is_custom: false,
+        } as PriceItem)
+      }
+    }
+
     console.log(`[v0] BudgetGenerator - Total prices in cache: ${this.priceCache.size}`)
   }
 
@@ -1683,8 +1710,8 @@ export class BudgetGenerator {
     this.addLineItem("06-E-17", 1, "Boletín y legalización")
 
     console.log("[v0] BudgetGenerator - Nueva instalación eléctrica: agregando toma de tierra obligatoria")
-    // 02-E-10: Grounding installation (always required for new electrical installations)
-    this.addLineItem("02-E-10", 1, "Obligatorio para nueva instalación eléctrica")
+    // 06-E-18: Grounding installation (always required for new electrical installations)
+    this.addLineItem("06-E-18", 1, "Obligatorio para nueva instalación eléctrica")
 
     console.log("[v0] BudgetGenerator - Electrical items generation completed")
     console.log(

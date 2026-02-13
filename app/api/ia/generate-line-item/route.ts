@@ -1,7 +1,7 @@
 ﻿export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import { generateText } from "ai"
-import { groqProvider, FAST_GROQ_MODEL } from "@/lib/ia/groq"
+import { groqProvider, DEFAULT_GROQ_MODEL } from "@/lib/ia/groq"
 
 export async function POST(request: Request) {
   try {
@@ -12,38 +12,37 @@ export async function POST(request: Request) {
     }
 
     const { text } = await generateText({
-      model: groqProvider(FAST_GROQ_MODEL),
-      prompt: `Eres un experto en construcción y reformas. Genera una partida de presupuesto basada en esta descripción: "${prompt}"
+      model: groqProvider(DEFAULT_GROQ_MODEL),
+      system: `Eres un experto Jefe de Obra y Presupuestador con 20 años de experiencia en reformas integrales en España. 
+      Tu objetivo es generar partidas de presupuesto técnico, precisas y con precios de mercado realistas.
+      El tono debe ser profesional y los detalles técnicos deben ser rigurosos.`,
+      prompt: `Genera una partida de presupuesto detallada basada en esta descripción: "${prompt}"
 
-Responde SOLO con un objeto JSON válido con esta estructura exacta:
+Responde EXCLUSIVAMENTE con un objeto JSON válido con esta estructura:
 {
-  "category": "01. DERRIBOS" | "02. ALBAí‘ILERíA" | "03. FONTANERíA" | "04. CARPINTERíA" | "05. ELECTRICIDAD" | "06. CALEFACCIí“N" | "07. LIMPIEZA" | "08. MATERIALES" | "09. OTROS",
-  "code": "código alfanumérico corto (ej: ELE-001)",
-  "concept": "NOMBRE CORTO DE LA PARTIDA EN MAYíšSCULAS (máximo 80 caracteres)",
-  "description": "descripción detallada de la partida incluyendo materiales y mano de obra",
-  "unit": "Ud" | "mÂ²" | "ml" | "mÂ³" | "H" | "PA",
-  "quantity": número (cantidad estimada razonable),
-  "unit_price": número (precio unitario estimado en euros, realista para España)
+  "category": "01. DERRIBOS" | "02. ALBAÑILERÍA" | "03. FONTANERÍA" | "04. CARPINTERÍA" | "05. ELECTRICIDAD" | "06. CALEFACCIÓN" | "07. LIMPIEZA" | "08. MATERIALES" | "09. OTROS",
+  "code": "Código técnico (ej: DER-01, ALB-05)",
+  "concept": "NOMBRE CORTO (MÁX 80 CARACTERES)",
+  "description": "Descripción técnica detallada que incluya: tipo de material, gramajes/espesores si aplica, medios auxiliares y limpieza previa/posterior.",
+  "unit": "Ud" | "m²" | "ml" | "m³" | "h" | "PA",
+  "quantity": número (cantidad lógica para la descripción),
+  "unit_price": número (precio unitario actual de mercado en España, incluyendo mano de obra y materiales)
 }
 
-Importante:
-- El concepto DEBE estar completamente en MAYíšSCULAS
-- El precio debe ser realista para el mercado español de reformas
-- La descripción debe ser técnica y completa
-- Elige la categoría más apropiada
-- NO incluyas explicaciones adicionales, SOLO el JSON`,
+Reglas críticas:
+1. El "concept" SIEMPRE en MAYÚSCULAS.
+2. La "description" debe sonar profesional, no genérica.
+3. Los precios deben reflejar los costes actuales de 2024-2025 en España.
+4. No añadas nada de texto fuera del JSON.`,
     })
 
     // Limpiar el texto para extraer solo el JSON
-    let jsonText = text.trim()
-
-    // Intentar extraer JSON si viene con texto adicional
-    const jsonMatch = jsonText.match(/\{[\s\S]*\}/)
-    if (jsonMatch) {
-      jsonText = jsonMatch[0]
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      throw new Error("No se pudo extraer JSON de la respuesta de la IA")
     }
 
-    const lineItem = JSON.parse(jsonText)
+    const lineItem = JSON.parse(jsonMatch[0])
 
     if (lineItem.concept) {
       lineItem.concept = lineItem.concept.toUpperCase()
@@ -55,4 +54,3 @@ Importante:
     return NextResponse.json({ error: "Error al generar la partida" }, { status: 500 })
   }
 }
-

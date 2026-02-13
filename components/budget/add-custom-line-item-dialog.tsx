@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,7 @@ import * as SubscriptionLimitsService from "@/lib/services/subscription-limits-s
 import { Badge } from "@/components/ui/badge"
 import { AIPriceImportDialog } from "@/components/precios/ai-price-import-dialog"
 import { formatNumber } from "@/lib/utils/format"
+import { getPriceCategories, type PriceCategory } from "@/lib/services/price-service"
 
 interface AddCustomLineItemDialogProps {
   budgetId: string
@@ -37,7 +38,7 @@ interface AddCustomLineItemDialogProps {
   isOwner?: boolean // Añadir prop para identificar propietarios
 }
 
-const CATEGORIES = [
+const FALLBACK_CATEGORIES = [
   "DERRIBOS",
   "ALBAÑILERÍA",
   "TABIQUES Y TRASDOSADOS",
@@ -140,8 +141,36 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
     }
     checkAccess()
   }, [])
+  // Estados para categorías dinámicas
+  const [dynamicCategories, setDynamicCategories] = useState<PriceCategory[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+
+  useEffect(() => {
+    loadCategories()
+  }, [])
+
+  async function loadCategories() {
+    try {
+      setCategoriesLoading(true)
+      const data = await getPriceCategories()
+      setDynamicCategories(data)
+    } catch (error) {
+      console.error("Error loading categories:", error)
+    } finally {
+      setCategoriesLoading(false)
+    }
+  }
+
+  // Lista combinada de categorías (nombres) para selectores
+  // Lista combinada de categorías (nombres) para selectores
+  const availableCategories = useMemo(() => {
+    return dynamicCategories.length > 0
+      ? dynamicCategories.map(c => c.name.toUpperCase())
+      : FALLBACK_CATEGORIES
+  }, [dynamicCategories])
+
   const [formData, setFormData] = useState({
-    category: "",
+    category: availableCategories[0] || "DERRIBOS",
     concept_code: "",
     concept: "",
     description: "",
@@ -154,7 +183,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
     if (!open) {
       // Reset form data when dialog closes
       setFormData({
-        category: "",
+        category: availableCategories[0] || "DERRIBOS",
         concept_code: "",
         concept: "",
         description: "",
@@ -165,7 +194,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
       setAiDescription("")
       setLoadedFromList(false)
     }
-  }, [open])
+  }, [open, availableCategories]) // Added availableCategories to dependency array
 
   useEffect(() => {
     if (open && !isOwner) {
@@ -564,7 +593,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
 
   const resetForm = () => {
     setFormData({
-      category: "",
+      category: availableCategories[0] || "DERRIBOS",
       concept_code: "",
       concept: "",
       description: "",
@@ -727,7 +756,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                       <SelectValue placeholder="Seleccionar categoría" />
                     </SelectTrigger>
                     <SelectContent>
-                      {CATEGORIES.map((cat) => (
+                      {availableCategories.map((cat) => (
                         <SelectItem key={cat} value={cat}>
                           {cat}
                         </SelectItem>
@@ -879,7 +908,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                         <SelectValue placeholder="Seleccionar categoría" />
                       </SelectTrigger>
                       <SelectContent>
-                        {CATEGORIES.map((cat) => (
+                        {availableCategories.map((cat) => (
                           <SelectItem key={cat} value={cat}>
                             {cat}
                           </SelectItem>
@@ -996,7 +1025,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                       <SelectValue placeholder="Seleccionar categoría" />
                     </SelectTrigger>
                     <SelectContent>
-                      {CATEGORIES.map((cat) => (
+                      {availableCategories.map((cat) => (
                         <SelectItem key={cat} value={cat}>
                           {cat}
                         </SelectItem>

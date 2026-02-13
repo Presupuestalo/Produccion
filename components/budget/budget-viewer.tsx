@@ -352,6 +352,49 @@ export function BudgetViewer({ projectId, budgetId, onBudgetUpdated }: BudgetVie
 
   categoryMap.forEach((value) => categories.push(value))
 
+  // Ordenar categorías según el orden estándar de construcción
+  const CATEGORY_ORDER = [
+    "DERRIBOS",
+    "DESMONTAJES",
+    "DEMOLICIÓN",
+    "ALBAÑILERÍA",
+    "TABIQUES Y TRASDOSADOS",
+    "TABIQUERÍA",
+    "SOLADOS Y ALICATADOS",
+    "FONTANERÍA",
+    "CALEFACCIÓN",
+    "AIRE ACONDICIONADO",
+    "ELECTRICIDAD",
+    "ILUMINACIÓN",
+    "CARPINTERÍA",
+    "VENTANAS",
+    "PINTURA",
+    "LIMPIEZA",
+    "MATERIALES",
+    "OTROS",
+  ]
+
+  categories.sort((a, b) => {
+    const cleanA = a.category.toUpperCase().replace(/^\d+\.\s*/, "")
+    const cleanB = b.category.toUpperCase().replace(/^\d+\.\s*/, "")
+
+    const indexA = CATEGORY_ORDER.indexOf(cleanA)
+    const indexB = CATEGORY_ORDER.indexOf(cleanB)
+
+    // Si la categoría no está en la lista (es personalizada), la ponemos antes de LIMPIEZA
+    // LIMPIEZA es donde queremos que empiece el bloque final
+    const limpiezaIndex = CATEGORY_ORDER.indexOf("LIMPIEZA")
+    const orderA = indexA === -1 ? limpiezaIndex - 0.5 : indexA
+    const orderB = indexB === -1 ? limpiezaIndex - 0.5 : indexB
+
+    // Si tienen el mismo orden (ambas personalizadas), ordenar alfabéticamente
+    if (orderA === orderB) {
+      return cleanA.localeCompare(cleanB)
+    }
+
+    return orderA - orderB
+  })
+
   const isAccepted = budget.status === "approved"
   const showVat = budgetSettings?.show_vat ?? false
   const vatPercentage = budgetSettings?.vat_percentage ?? 21

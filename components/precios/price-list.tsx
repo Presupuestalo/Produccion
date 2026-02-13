@@ -18,6 +18,7 @@ import { PriceEditDialog } from "./price-edit-dialog"
 import { PriceCreateDialog } from "./price-create-dialog"
 import { PriceIncreaseDialog } from "./price-increase-dialog"
 import { Button } from "@/components/ui/button"
+import { CategoryManagerDialog } from "./category-manager-dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,7 +58,7 @@ export function PriceList() {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
   const [isTouchScrolling, setIsTouchScrolling] = useState(false)
-
+  const [showCategoryManager, setShowCategoryManager] = useState(false)
   useEffect(() => {
     loadCategories()
     loadUserCountry()
@@ -386,6 +387,10 @@ export function PriceList() {
           Crear Precio
         </Button>
 
+        <Button onClick={() => setShowCategoryManager(true)} variant="outline" className="gap-2">
+          Categorías
+        </Button>
+
         {isMaster && (
           <Button onClick={() => setShowGlobalIncreaseDialog(true)} variant="outline" className="gap-2">
             <Percent className="h-4 w-4" />
@@ -406,10 +411,9 @@ export function PriceList() {
                 onClick={() => setSelectedCategory(category.id)}
                 className={`
                   px-3 md:px-6 py-2.5 md:py-4 text-xs md:text-sm font-medium whitespace-nowrap transition-colors border-b-2 shrink-0
-                  ${
-                    selectedCategory === category.id
-                      ? "border-primary text-primary bg-primary/5"
-                      : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  ${selectedCategory === category.id
+                    ? "border-primary text-primary bg-primary/5"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   }
                 `}
               >
@@ -533,6 +537,19 @@ export function PriceList() {
               loadPrices(createdCategoryId || selectedCategory)
             }
             setShowCreateDialog(false)
+          }}
+        />
+      )}
+
+      {showCategoryManager && (
+        <CategoryManagerDialog
+          open={showCategoryManager}
+          onOpenChange={setShowCategoryManager}
+          onCategoriesChange={() => {
+            loadCategories()
+            if (selectedCategory) {
+              loadPrices(selectedCategory)
+            }
           }}
         />
       )}

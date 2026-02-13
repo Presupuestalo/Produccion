@@ -91,7 +91,10 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
       })
 
       if (!response.ok) {
-        throw new Error("Error al generar el precio")
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.error || `Error al generar el precio: ${response.statusText}`
+        const errorDetails = errorData.details ? ` (${errorData.details})` : ""
+        throw new Error(errorMessage + errorDetails)
       }
 
       const data = await response.json()

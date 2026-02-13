@@ -9,6 +9,7 @@ export interface PriceCategory {
   display_order: number
   created_at: string
   updated_at: string
+  user_id?: string | null
 }
 
 export interface PriceMaster {
@@ -82,6 +83,89 @@ export async function getPriceCategories(): Promise<PriceCategory[]> {
   }
 
   return data || []
+}
+
+export async function createCategory(name: string, description?: string): Promise<PriceCategory> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) throw new Error("Usuario no autenticado")
+
+  // Obtener el orden máximo para añadir al final
+  const { data: maxOrderData } = await supabase
+    .from("price_categories")
+    .select("display_order")
+    .order("display_order", { ascending: false })
+    .limit(1)
+    .single()
+
+  const nextOrder = (maxOrderData?.display_order || 0) + 1
+
+  const { data, error } = await supabase
+    .from("price_categories")
+    .insert({
+      name,
+      description,
+      display_order: nextOrder,
+      user_id: user.id,
+      is_active: true,
+      icon: "📦", // Icono por defecto
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error("Error creating category:", error)
+    throw error
+  }
+
+  return data
+}
+
+export async function updateCategory(id: string, updates: Partial<PriceCategory>): Promise<PriceCategory> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) throw new Error("Usuario no autenticado")
+
+  const { data, error } = await supabase
+    .from("price_categories")
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("user_id", user.id) // Asegurar que solo edita las suyas
+    .select()
+    .single()
+
+  if (error) {
+    console.error("Error updating category:", error)
+    throw error
+  }
+
+  return data
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) throw new Error("Usuario no autenticado")
+
+  const { error } = await supabase
+    .from("price_categories")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id) // Asegurar que solo borra las suyas
+
+  if (error) {
+    console.error("Error deleting category:", error)
+    throw error
+  }
 }
 
 function getUserPriceTableByCountry(countryCode: string): string {
