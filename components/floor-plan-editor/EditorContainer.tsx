@@ -1796,6 +1796,63 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                             <ImagePlus className="h-5 w-5" />
                         </Button>
 
+                        {/* Ajustes de Fondo (Transparencia / Escala) - Centered on Mobile */}
+                        {bgImage && !activeTool?.startsWith("door") && !activeTool?.startsWith("window") && activeTool !== "wall" && (
+                            <div className="absolute top-20 right-4 z-30 flex flex-col gap-2 pointer-events-none sm:pointer-events-auto">
+                                <Card className="p-4 w-72 shadow-lg bg-white/95 backdrop-blur pointer-events-auto max-h-[calc(100vh-160px)] overflow-y-auto">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="font-medium text-sm">Opacidad del Plano</h4>
+                                            <span className="text-xs text-muted-foreground">{Math.round(bgConfig.opacity * 100)}%</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="0.1"
+                                            max="1"
+                                            step="0.05"
+                                            value={bgConfig.opacity}
+                                            onChange={(e) => setBgConfig({ ...bgConfig, opacity: parseFloat(e.target.value) })}
+                                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                                        />
+
+                                        <Separator />
+
+                                        <div className="space-y-2">
+                                            <h4 className="font-medium text-sm">Calibración</h4>
+                                            <p className="text-xs text-slate-500">
+                                                {isCalibrating
+                                                    ? "Haz clic en dos puntos del plano para definir una distancia conocida."
+                                                    : "Si las medidas no coinciden, calibra el plano usando una distancia conocida (ej. una puerta de 80cm)."}
+                                            </p>
+                                            {!isCalibrating ? (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="w-full"
+                                                    onClick={() => setIsCalibrating(true)}
+                                                >
+                                                    <Ruler className="w-4 h-4 mr-2" />
+                                                    Calibrar Escala
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    className="w-full"
+                                                    onClick={() => {
+                                                        setIsCalibrating(false)
+                                                        setCalibrationPoints({ p1: null, p2: null })
+                                                    }}
+                                                >
+                                                    Cancelar
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </Card>
+                            </div>
+                        )}
+
                         <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
 
                         {/* Trash directly on bar */}
