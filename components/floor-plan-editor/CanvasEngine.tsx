@@ -3909,6 +3909,7 @@ export const CanvasEngine = ({
                                                 </button>
                                                 <div className="flex items-center gap-1 bg-white border-2 border-slate-100 rounded-lg px-2 py-1">
                                                     <NumericInput
+                                                        isMobile={isMobile}
                                                         label={editFace === "interior" ? "Medida Azul" : "Medida Naranja"}
                                                         value={editLength}
                                                         step={0.1}
