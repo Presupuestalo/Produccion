@@ -3485,7 +3485,7 @@ export const CanvasEngine = ({
                                         stroke="#ffffff"
                                         strokeWidth={2 / zoom}
                                         hitStrokeWidth={20 / zoom}
-                                        draggable={false}
+                                        draggable={activeTool === "select" && isSelected}
                                         onPointerDown={(e) => {
                                             e.cancelBubble = true
                                             const stage = e.target.getStage()
