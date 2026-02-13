@@ -3825,6 +3825,7 @@ export const CanvasEngine = ({
                                     <span className="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">Grosor pared</span>
                                     <div className="flex items-center gap-1">
                                         <NumericInput
+                                            isMobile={isMobile}
                                             label="Grosor de pared"
                                             value={editThickness}
                                             step={0.1}
