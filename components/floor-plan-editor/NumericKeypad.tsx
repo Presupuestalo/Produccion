@@ -17,7 +17,8 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
 
     // Reset when keypad opens (value changes from parent)
     useEffect(() => {
-        setTempValue(value)
+        // Ensure initial value uses comma for display/editing
+        setTempValue(value?.replace('.', ',') || "")
         setIsFirstInput(true)
     }, [value])
 
@@ -102,7 +103,7 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
             </div>
 
             {/* Linear Keypad Row */}
-            <div className="flex w-full overflow-x-auto no-scrollbar bg-white pb-safe min-h-[64px]">
+            <div className="flex w-full overflow-hidden bg-white pb-safe min-h-[64px]">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "."].map((digit, i) => (
                     <KeypadButton
                         key={digit}
@@ -132,7 +133,7 @@ const KeypadButton = ({ label, onClick, isLast }: { label: string, onClick: () =
             e.stopPropagation()
             onClick()
         }}
-        className={`flex-1 min-w-[10%] h-16 flex items-center justify-center text-xl font-bold bg-white text-slate-800 active:bg-sky-50 active:text-sky-600 transition-all border-r border-slate-100 ${isLast ? 'border-r-0' : ''}`}
+        className={`flex-1 h-14 flex items-center justify-center text-xl font-bold bg-white text-slate-800 active:bg-sky-50 active:text-sky-600 transition-all border-r border-slate-100 ${isLast ? 'border-r-0' : ''}`}
     >
         {label}
     </button>
