@@ -386,6 +386,8 @@ export const CanvasEngine = ({
     const lastTapRef = React.useRef<number>(0)
     const dragOffsetRef = React.useRef<{ x: number, y: number } | null>(null)
     const lastClickedWallForEdit = React.useRef<string | null>(null)
+    const touchStartPos = React.useRef<{ x: number, y: number } | null>(null)
+    const currentDynamicOffset = React.useRef<number>(0)
 
     // Calculate the geometric center of all floor plan content
     const calculateFloorPlanCenter = React.useCallback(() => {
@@ -1530,10 +1532,23 @@ export const CanvasEngine = ({
         const stagePos = stage.getPointerPosition()
         if (!stagePos) return
 
-        let adjustedY = stagePos.y
         const isTouchInteraction = (e.evt as any).pointerType === "touch" || forceTouchOffset
+
+        let adjustedY = stagePos.y
         if (isTouchInteraction) {
-            adjustedY -= touchOffset
+            // WALL TOOL: Progressive offset starts at 0
+            if (activeTool === "wall") {
+                touchStartPos.current = { x: stagePos.x, y: stagePos.y }
+                currentDynamicOffset.current = 0
+            } else {
+                // Other tools: use full offset immediately
+                adjustedY -= touchOffset
+                touchStartPos.current = null
+                currentDynamicOffset.current = touchOffset
+            }
+        } else {
+            touchStartPos.current = null
+            currentDynamicOffset.current = 0
         }
 
         // Si es táctil, buscamos qué hay "bajo el puntero virtual" (80px arriba)
@@ -1659,7 +1674,19 @@ export const CanvasEngine = ({
 
         let adjustedY = stagePos.y
         if (e.evt.pointerType === "touch" || forceTouchOffset) {
-            adjustedY -= touchOffset
+            if (touchStartPos.current && activeTool === "wall") {
+                // Calculate distance moved
+                const dist = Math.sqrt(
+                    Math.pow(stagePos.x - touchStartPos.current.x, 2) +
+                    Math.pow(stagePos.y - touchStartPos.current.y, 2)
+                )
+                // Linear interpolation: 0 to touchOffset over 50px
+                const factor = Math.min(1, dist / 50)
+                currentDynamicOffset.current = factor * touchOffset
+                adjustedY -= currentDynamicOffset.current
+            } else {
+                adjustedY -= touchOffset
+            }
         }
 
         const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
@@ -1687,8 +1714,15 @@ export const CanvasEngine = ({
 
         let adjustedY = stagePos.y
         if (e.evt.pointerType === "touch" || forceTouchOffset) {
-            adjustedY -= touchOffset
+            if (touchStartPos.current && activeTool === "wall") {
+                adjustedY -= currentDynamicOffset.current
+            } else {
+                adjustedY -= touchOffset
+            }
         }
+
+        // Reset for next interaction
+        touchStartPos.current = null
 
         const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
 
