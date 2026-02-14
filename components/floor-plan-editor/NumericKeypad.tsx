@@ -97,8 +97,7 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
                     {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "."].map((digit) => (
                         <button
                             key={digit}
-                            onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleDigit(digit) }}
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDigit(digit) }}
+                            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDigit(digit) }}
                             className="h-9 w-9 flex-shrink-0 flex items-center justify-center text-lg font-bold bg-white text-slate-800 rounded border border-slate-300 active:bg-sky-100 active:text-sky-700 active:border-sky-400"
                         >
                             {digit === '.' ? ',' : digit}

@@ -13,10 +13,7 @@ export const UnifiedWallEditor = ({ initialValue, orientation, onConfirm, onCanc
     return (
         <div
             className="fixed inset-0 z-[9999] flex flex-col justify-end"
-            onTouchEnd={(e) => {
-                if (e.target === e.currentTarget) onCancel()
-            }}
-            onClick={(e) => {
+            onPointerDown={(e) => {
                 if (e.target === e.currentTarget) onCancel()
             }}
         >
