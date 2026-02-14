@@ -2231,8 +2231,8 @@ export const CanvasEngine = ({
                                         height={wall.thickness + 4}
                                         x={-door.width / 2}
                                         y={-(wall.thickness + 4) / 2}
-                                        fill={isSelected ? "#e0f2fe" : "#ffffff"}
-                                        stroke={isSelected ? "#0ea5e9" : "#334155"}
+                                        fill={isSelected ? "#e0f2fe" : "#fffbeb"}
+                                        stroke={isSelected ? "#0ea5e9" : "#d97706"}
                                         strokeWidth={isSelected ? 2 : 1}
                                         listening={false}
                                     />
@@ -2246,7 +2246,7 @@ export const CanvasEngine = ({
                                             outerRadius={door.width}
                                             angle={90}
                                             rotation={door.flipY ? (door.flipX ? 0 : 90) : (door.flipX ? -90 : -180)}
-                                            stroke={isSelected ? "#0ea5e9" : "#334155"}
+                                            stroke={isSelected ? "#0ea5e9" : "#d97706"}
                                             strokeWidth={isSelected ? 2 : 1}
                                             fill={isSelected ? "#0ea5e920" : "transparent"}
                                             listening={false}
@@ -2261,7 +2261,7 @@ export const CanvasEngine = ({
                                                 outerRadius={door.width / 2}
                                                 angle={90}
                                                 rotation={door.flipY ? 0 : -90}
-                                                stroke={isSelected ? "#0ea5e9" : "#334155"}
+                                                stroke={isSelected ? "#0ea5e9" : "#d97706"}
                                                 strokeWidth={isSelected ? 2 : 1}
                                                 fill={isSelected ? "#0ea5e920" : "transparent"}
                                                 listening={false}
@@ -2273,7 +2273,7 @@ export const CanvasEngine = ({
                                                 outerRadius={door.width / 2}
                                                 angle={90}
                                                 rotation={door.flipY ? 90 : 180}
-                                                stroke={isSelected ? "#0ea5e9" : "#334155"}
+                                                stroke={isSelected ? "#0ea5e9" : "#d97706"}
                                                 strokeWidth={isSelected ? 2 : 1}
                                                 fill={isSelected ? "#0ea5e920" : "transparent"}
                                                 listening={false}
@@ -2287,7 +2287,7 @@ export const CanvasEngine = ({
                                             x={-door.width / 2}
                                             y={door.flipY ? (wall.thickness / 2) + 2 : -(wall.thickness / 2) - 8}
                                             fill={isSelected ? "#e0f2fe" : "#ffffff"}
-                                            stroke={isSelected ? "#0ea5e9" : "#334155"}
+                                            stroke={isSelected ? "#0ea5e9" : "#d97706"}
                                             strokeWidth={1}
                                             cornerRadius={1}
                                             listening={false}
@@ -2591,8 +2591,8 @@ export const CanvasEngine = ({
                                         height={wall.thickness + 4}
                                         x={-window.width / 2}
                                         y={-(wall.thickness + 4) / 2}
-                                        fill={isSelected ? "#e0f2fe" : "#ffffff"}
-                                        stroke={isSelected ? "#0ea5e9" : "#0369a1"} // Distinct Blue for Windows
+                                        fill={isSelected ? "#e0f2fe" : "#f0f9ff"}
+                                        stroke={isSelected ? "#0ea5e9" : "#38bdf8"} // Light Blue for Windows
                                         strokeWidth={isSelected ? 2 : 1.5}
                                         listening={false}
                                     />
@@ -2602,7 +2602,7 @@ export const CanvasEngine = ({
                                         // Single Leaf (1 Hoja) - Continuous Line
                                         <Line
                                             points={[-window.width / 2, 0, window.width / 2, 0]}
-                                            stroke={isSelected ? "#0ea5e9" : "#0369a1"}
+                                            stroke={isSelected ? "#0ea5e9" : "#38bdf8"}
                                             strokeWidth={isSelected ? 2 : 1.5}
                                             listening={false}
                                         />
@@ -2611,27 +2611,27 @@ export const CanvasEngine = ({
                                         <Group>
                                             <Line
                                                 points={[-window.width / 2, 0, window.width / 2, 0]}
-                                                stroke={isSelected ? "#0ea5e9" : "#0369a1"}
+                                                stroke={isSelected ? "#0ea5e9" : "#38bdf8"}
                                                 strokeWidth={isSelected ? 2 : 1.5}
                                                 listening={false}
                                             />
-                                            {/* Mid tick */}
+                                            {/* Mid tick - Full Switch */}
                                             <Line
-                                                points={[0, -4, 0, 4]}
-                                                stroke={isSelected ? "#0ea5e9" : "#0369a1"}
+                                                points={[0, -(wall.thickness + 4) / 2, 0, (wall.thickness + 4) / 2]}
+                                                stroke={isSelected ? "#0ea5e9" : "#38bdf8"}
                                                 strokeWidth={isSelected ? 2 : 1.5}
                                                 listening={false}
                                             />
                                             {/* Quarter ticks for detail */}
                                             <Line
                                                 points={[-window.width / 2, -2, -window.width / 2, 2]}
-                                                stroke={isSelected ? "#0ea5e9" : "#0369a1"}
+                                                stroke={isSelected ? "#0ea5e9" : "#38bdf8"}
                                                 strokeWidth={1}
                                                 listening={false}
                                             />
                                             <Line
                                                 points={[window.width / 2, -2, window.width / 2, 2]}
-                                                stroke={isSelected ? "#0ea5e9" : "#0369a1"}
+                                                stroke={isSelected ? "#0ea5e9" : "#38bdf8"}
                                                 strokeWidth={1}
                                                 listening={false}
                                             />

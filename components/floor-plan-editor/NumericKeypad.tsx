@@ -153,14 +153,13 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
                 </div>
             </div>
 
-            {/* Keypad Grid - Single Row is preferred by user, but let's make buttons tall enough */}
-            <div className="flex w-full overflow-hidden bg-slate-50 pb-safe">
-                {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "."].map((digit, i) => (
+            {/* Keypad Grid - Standard Phone Layout (3 cols) */}
+            <div className="grid grid-cols-3 gap-[1px] bg-slate-200 pb-safe">
+                {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0"].map((digit) => (
                     <KeypadButton
                         key={digit}
                         onClick={() => handleDigit(digit)}
                         label={digit === '.' ? ',' : digit}
-                        isLast={i === 10}
                     />
                 ))}
             </div>
@@ -168,7 +167,7 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
     )
 }
 
-const KeypadButton = ({ label, onClick, isLast }: { label: string, onClick: () => void, isLast?: boolean }) => (
+const KeypadButton = ({ label, onClick }: { label: string, onClick: () => void }) => (
     <button
         onTouchStart={(e) => {
             e.preventDefault()
@@ -184,7 +183,7 @@ const KeypadButton = ({ label, onClick, isLast }: { label: string, onClick: () =
             e.stopPropagation()
             onClick()
         }}
-        className={`flex-1 h-14 flex items-center justify-center text-2xl font-bold bg-white text-slate-700 active:bg-sky-50 active:text-sky-600 transition-all border-r border-slate-200 border-b border-slate-200 ${isLast ? 'border-r-0' : ''}`}
+        className={`h-16 flex items-center justify-center text-2xl font-bold bg-white text-slate-700 active:bg-sky-50 active:text-sky-600 transition-all ${label === '0' ? 'col-span-2' : ''}`}
     >
         {label}
     </button>
