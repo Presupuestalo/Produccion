@@ -1758,22 +1758,22 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent container={fullscreenContainer} side="right" align="start" className="w-48 ml-2">
-                                <DropdownMenuItem onClick={() => setActiveTool("wall")} className="gap-2">
+                                <DropdownMenuItem onClick={() => setActiveTool("wall")} onTouchStart={() => setActiveTool("wall")} className="gap-2 cursor-pointer">
                                     <Pencil className="h-4 w-4" /> <span>{isMobile ? "Muros" : "Muros (W)"}</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setActiveTool("arc")} className="gap-2">
+                                <DropdownMenuItem onClick={() => setActiveTool("arc")} onTouchStart={() => setActiveTool("arc")} className="gap-2 cursor-pointer">
                                     <Spline className="h-4 w-4" /> <span>Arco</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setActiveTool("door")} className="gap-2">
+                                <DropdownMenuItem onClick={() => setActiveTool("door")} onTouchStart={() => setActiveTool("door")} className="gap-2 cursor-pointer">
                                     <DoorClosed className="h-4 w-4" /> <span>{isMobile ? "Puerta" : "Puerta (D)"}</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setActiveTool("window")} className="gap-2">
+                                <DropdownMenuItem onClick={() => setActiveTool("window")} onTouchStart={() => setActiveTool("window")} className="gap-2 cursor-pointer">
                                     <Layout className="h-4 w-4" /> <span>{isMobile ? "Ventana" : "Ventana (V)"}</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setActiveTool("shunt")} className="gap-2">
+                                <DropdownMenuItem onClick={() => setActiveTool("shunt")} onTouchStart={() => setActiveTool("shunt")} className="gap-2 cursor-pointer">
                                     <Square className="h-4 w-4" /> <span>Columna</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => { setActiveTool("wall"); applyFacadeHighlight(); toast({ title: "Fachada", description: "Dibujar muro de fachada" }) }} className="gap-2">
+                                <DropdownMenuItem onClick={() => { setActiveTool("wall"); applyFacadeHighlight(); toast({ title: "Fachada", description: "Dibujar muro de fachada" }) }} onTouchStart={() => { setActiveTool("wall"); applyFacadeHighlight(); toast({ title: "Fachada", description: "Dibujar muro de fachada" }) }} className="gap-2 cursor-pointer">
                                     <Building2 className="h-4 w-4" /> <span>Fachada</span>
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
