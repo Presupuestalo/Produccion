@@ -91,27 +91,20 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
                 {renderActionButtons()}
             </div>
 
-            {/* Row 2: Number Keys - Scrollable */}
-            <div className="bg-white py-2 overflow-x-auto" style={{
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none',
-                WebkitOverflowScrolling: 'touch'
-            }}>
-                <div className="flex gap-1 px-2" style={{ minWidth: 'max-content' }}>
+            {/* Row 2: Number Keys - Fit to screen */}
+            <div className="bg-white py-2 px-2">
+                <div className="flex flex-wrap gap-1 justify-center">
                     {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "."].map((digit) => (
                         <button
                             key={digit}
                             onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDigit(digit) }}
-                            className="h-10 w-9 flex-shrink-0 flex items-center justify-center text-lg font-bold bg-white text-slate-700 rounded-md border border-slate-300 shadow-sm active:bg-slate-100 active:scale-95 transition-all"
+                            className="h-10 w-8 flex items-center justify-center text-lg font-bold bg-white text-slate-700 rounded-md border border-slate-300 shadow-sm active:bg-slate-100 active:scale-95 transition-all"
                             style={{ WebkitTapHighlightColor: 'transparent' }}
                         >
                             {digit === '.' ? ',' : digit}
                         </button>
                     ))}
                 </div>
-                <style dangerouslySetInnerHTML={{
-                    __html: `.bg-white::-webkit-scrollbar { display: none; }`
-                }} />
             </div>
         </div>
     )

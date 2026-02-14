@@ -1973,7 +1973,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     onCloneElement={handleCloneElement}
                     onDeleteElement={handleDeleteElement}
                     phantomArc={phantomArc}
-                    touchOffset={touchOffset}
+                    touchOffset={activeTool === "door" || activeTool === "window" ? 0 : touchOffset}
                     forceTouchOffset={forceTouchOffset}
                     shunts={shunts}
                     onUpdateShunt={handleUpdateShunt}
