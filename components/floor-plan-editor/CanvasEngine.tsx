@@ -1461,17 +1461,7 @@ export const CanvasEngine = ({
                         : ((Math.atan2(dy, dx) * 180 / Math.PI) < -90
                             ? (Math.atan2(dy, dx) * 180 / Math.PI) + 180
                             : Math.atan2(dy, dx) * 180 / Math.PI)}
-                    onClick={(e) => {
-                        e.cancelBubble = true
-                        lastClickedWallForEdit.current = wall.id
-                        if (!selectedWallIds.includes(wall.id)) {
-                            onSelectWall(wall.id)
-                        }
-                        setEditFace(faceType)
-                        setEditLength(displayLength.toFixed(1))
-                        setEditMode("length")
-                    }}
-                    onTap={(e) => {
+                    onPointerDown={(e) => {
                         e.cancelBubble = true
                         lastClickedWallForEdit.current = wall.id
                         if (!selectedWallIds.includes(wall.id)) {
