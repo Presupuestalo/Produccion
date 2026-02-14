@@ -199,8 +199,13 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         setRooms(lastState.rooms)
         setDoors(lastState.doors)
         setWindows(lastState.windows)
-        // FIX: Do not restore currentWall. This prevents "ghost" walls appearing when undoing a finished wall.
-        setCurrentWall(null)
+        // FIX: Resume drawing from the last vertex if in wall tool, satisfying user request to continue drawing after undo
+        if (activeTool === "wall" && lastState.walls.length > 0) {
+            const lastWall = lastState.walls[lastState.walls.length - 1]
+            setCurrentWall({ start: lastWall.end, end: lastWall.end })
+        } else {
+            setCurrentWall(null)
+        }
 
         historyRef.current = newHistory
         setHistory(newHistory)
@@ -1246,12 +1251,22 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         setRulerState({ start: null, end: null, active: false })
         setBgImage(null)
         setIsCalibrating(false)
+        setCalibrationPoints({ p1: null, p2: null })
+        setCalibrationTargetValue(500)
         setShunts([])
         setActiveTool("select") // Security: Reset tool to avoid accidental drawing
     }
 
     const handleMouseDown = (point: Point) => {
-        if (isCalibrating) return
+        if (isCalibrating) {
+            // Logic to set calibration points by clicking
+            if (!calibrationPoints.p1) {
+                setCalibrationPoints(prev => ({ ...prev, p1: point }))
+            } else if (!calibrationPoints.p2) {
+                setCalibrationPoints(prev => ({ ...prev, p2: point }))
+            }
+            return
+        }
         switch (activeTool) {
 
             case "wall":
@@ -1401,6 +1416,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     }
 
     const handleApplyCalibration = () => {
+        if (!calibrationPoints.p1 || !calibrationPoints.p2) return
         const dx = calibrationPoints.p2.x - calibrationPoints.p1.x
         const dy = calibrationPoints.p2.y - calibrationPoints.p1.y
         const pixelDist = Math.sqrt(dx * dx + dy * dy)
@@ -1408,6 +1424,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             const newScale = (calibrationTargetValue / pixelDist) * bgConfig.scale
             setBgConfig((prev: any) => ({ ...prev, scale: newScale }))
             setIsCalibrating(false)
+            setCalibrationPoints({ p1: null, p2: null })
         }
     }
 
@@ -1430,7 +1447,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             // Note: Most mobile browsers block programmatic fullscreen without user gesture.
             // We try, but if it fails, we rely on the user tapping the "Fullscreen" prompt which should appear.
             setTimeout(() => {
-                if (!document.fullscreenElement && editorWrapperRef.current) {
+                if (isMobile && !document.fullscreenElement && editorWrapperRef.current) {
                     editorWrapperRef.current.requestFullscreen().catch(err => {
                         console.warn("Could not auto-restore fullscreen:", err)
                         // If auto-restore fails, ensure we are in a state where the prompt shows up
@@ -1790,62 +1807,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                             <ImagePlus className="h-5 w-5" />
                         </Button>
 
-                        {/* Ajustes de Fondo (Transparencia / Escala) - Mobile friendly */}
-                        {bgImage && !activeTool?.startsWith("door") && !activeTool?.startsWith("window") && activeTool !== "wall" && (
-                            <div className="absolute top-20 right-4 z-30 flex flex-col gap-2 pointer-events-none">
-                                <Card className="p-4 w-72 max-w-[calc(100vw-32px)] shadow-lg bg-white/95 backdrop-blur pointer-events-auto max-h-[calc(100vh-160px)] overflow-y-auto">
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <h4 className="font-medium text-sm">Opacidad del Plano</h4>
-                                            <span className="text-xs text-muted-foreground">{Math.round(bgConfig.opacity * 100)}%</span>
-                                        </div>
-                                        <input
-                                            type="range"
-                                            min="0.1"
-                                            max="1"
-                                            step="0.05"
-                                            value={bgConfig.opacity}
-                                            onChange={(e) => setBgConfig({ ...bgConfig, opacity: parseFloat(e.target.value) })}
-                                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-                                        />
 
-                                        <Separator />
-
-                                        <div className="space-y-2">
-                                            <h4 className="font-medium text-sm">Calibración</h4>
-                                            <p className="text-xs text-slate-500">
-                                                {isCalibrating
-                                                    ? "Haz clic en dos puntos del plano para definir una distancia conocida."
-                                                    : "Si las medidas no coinciden, calibra el plano usando una distancia conocida (ej. una puerta de 80cm)."}
-                                            </p>
-                                            {!isCalibrating ? (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="w-full"
-                                                    onClick={() => setIsCalibrating(true)}
-                                                >
-                                                    <Ruler className="w-4 h-4 mr-2" />
-                                                    Calibrar Escala
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    variant="destructive"
-                                                    size="sm"
-                                                    className="w-full"
-                                                    onClick={() => {
-                                                        setIsCalibrating(false)
-                                                        setCalibrationPoints({ p1: null, p2: null })
-                                                    }}
-                                                >
-                                                    Cancelar
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </Card>
-                            </div>
-                        )}
 
                         <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
 
@@ -1979,6 +1941,21 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     isCalibrating={isCalibrating}
                     calibrationPoints={calibrationPoints}
                     calibrationTargetValue={calibrationTargetValue}
+                    onUpdateCalibrationValue={(val) => {
+                        setCalibrationTargetValue(val)
+                        // Auto-apply if we have points and valid value
+                        if (calibrationPoints.p1 && calibrationPoints.p2 && val > 0) {
+                            const dx = calibrationPoints.p2.x - calibrationPoints.p1.x
+                            const dy = calibrationPoints.p2.y - calibrationPoints.p1.y
+                            const pixelDist = Math.sqrt(dx * dx + dy * dy)
+                            if (pixelDist > 0) {
+                                const newScale = (val / pixelDist) * bgConfig.scale
+                                setBgConfig((prev: any) => ({ ...prev, scale: newScale }))
+                                setIsCalibrating(false)
+                                setCalibrationPoints({ p1: null, p2: null })
+                            }
+                        }
+                    }}
                     onUpdateCalibrationPoint={(id: "p1" | "p2", p: Point) => setCalibrationPoints((prev: any) => ({ ...prev, [id]: p }))}
                     onStartDragWall={() => {
                         saveStateToHistory()
@@ -2006,13 +1983,89 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
 
 
-                {bgImage && !showSummary && (
-                    <div className="absolute top-4 right-4 p-4 bg-white/95 backdrop-blur-md rounded-xl border border-slate-200 shadow-xl w-72 animate-in fade-in slide-in-from-right-4 hidden md:block">
-                        {/* Desktop BG Config - Keep existing logic here if needed, or move to Menu */}
-                        {/* For brevity, I'm hiding it on mobile and keeping the desktop generic one, 
-                             but ideally this should also be adaptable. 
-                             For now, let's keep it simple as user asked for Toolbar and Selection Properties.
-                         */}
+                {bgImage && (
+                    <div className="absolute top-20 right-4 z-30 flex flex-col gap-2 pointer-events-none">
+                        <Card className="p-4 w-72 max-w-[calc(100vw-32px)] shadow-lg bg-white/95 backdrop-blur pointer-events-auto max-h-[calc(100vh-160px)] overflow-y-auto">
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="font-medium text-sm">Opacidad del Plano</h4>
+                                    <span className="text-xs text-muted-foreground">{Math.round(bgConfig.opacity * 100)}%</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0.1"
+                                    max="1"
+                                    step="0.05"
+                                    value={bgConfig.opacity}
+                                    onChange={(e) => setBgConfig({ ...bgConfig, opacity: parseFloat(e.target.value) })}
+                                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                                />
+
+                                <Separator />
+
+                                <div className="space-y-2">
+                                    <h4 className="font-medium text-sm">Calibración</h4>
+                                    <p className="text-xs text-slate-500">
+                                        {isCalibrating
+                                            ? "Haz clic en dos puntos del plano para definir una distancia conocida."
+                                            : "Si las medidas no coinciden, calibra el plano usando una distancia conocida (ej. una puerta de 80cm)."}
+                                    </p>
+                                    {!isCalibrating ? (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full"
+                                            onClick={() => setIsCalibrating(true)}
+                                        >
+                                            <Ruler className="w-4 h-4 mr-2" />
+                                            Calibrar Escala
+                                        </Button>
+                                    ) : (
+                                        <div className="flex flex-col gap-2">
+                                            <p className="text-xs font-semibold text-orange-600">
+                                                Distancia actual: {calibrationTargetValue} cm
+                                            </p>
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    variant="default"
+                                                    size="sm"
+                                                    className="flex-1 bg-orange-600 hover:bg-orange-700"
+                                                    disabled={!calibrationPoints.p1 || !calibrationPoints.p2 || calibrationTargetValue <= 0}
+                                                    onClick={handleApplyCalibration}
+                                                >
+                                                    Aplicar
+                                                </Button>
+                                                <Button
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    className="flex-1"
+                                                    onClick={() => {
+                                                        setIsCalibrating(false)
+                                                        setCalibrationPoints({ p1: null, p2: null })
+                                                    }}
+                                                >
+                                                    Cancelar
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-full text-red-500 hover:text-red-600 hover:bg-red-50"
+                                        onClick={() => {
+                                            if (confirm("¿Estás seguro de que quieres eliminar la imagen de fondo?")) {
+                                                setBgImage(null)
+                                                setBgConfig({ x: 0, y: 0, scale: 1, rotation: 0, opacity: 0.5 })
+                                            }
+                                        }}
+                                    >
+                                        <Trash2 className="w-4 h-4 mr-2" />
+                                        Eliminar Imagen
+                                    </Button>
+                                </div>
+                            </div>
+                        </Card>
                     </div>
                 )}
 

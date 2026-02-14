@@ -3,8 +3,9 @@ import React from "react"
 import { Stage, Layer, Group, Line, Rect, Text, Circle, Arc as KonvaArc, Arrow } from "react-konva"
 import { Grid } from "./Grid"
 import { getClosestPointOnSegment, generateArcPoints, getLineIntersection } from "@/lib/utils/geometry"
-import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical, SquareDashed, Spline, Check } from "lucide-react"
+import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical, SquareDashed, Spline, Check, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from "lucide-react"
 import { NumericInput } from "./NumericInput"
+import { UnifiedWallEditor } from "./UnifiedWallEditor"
 
 
 interface Point { x: number; y: number }
@@ -93,6 +94,7 @@ interface CanvasEngineProps {
     isCalibrating?: boolean
     calibrationPoints?: { p1: Point, p2: Point }
     calibrationTargetValue?: number
+    onUpdateCalibrationValue?: (val: number) => void
     onUpdateCalibrationPoint?: (id: "p1" | "p2", point: Point) => void
     phantomArc?: { start: Point, end: Point, depth: number }
     touchOffset?: number
@@ -255,10 +257,104 @@ const ShuntItem = React.memo(({
         prev.isEditing === next.isEditing
 })
 
+// Helper Components outside main component to avoid re-mounting on every render
+const SingleInputWrapper = ({ val, screenPos, onCommit, onClose, isMobile }: any) => {
+    const [localVal, setLocalVal] = React.useState(val.toFixed(1))
+
+    const commit = (v?: string) => {
+        const final = parseFloat(v || localVal)
+        if (!isNaN(final)) {
+            onCommit(final)
+        }
+        onClose()
+    }
+
+    return (
+        <div
+            style={{
+                position: "absolute",
+                left: screenPos.x,
+                top: screenPos.y,
+                transform: "translate(-50%, -50%)",
+                zIndex: 100
+            }}
+            className="flex items-center gap-1 bg-white p-1 rounded shadow-md border border-slate-200"
+        >
+            <NumericInput
+                isMobile={isMobile}
+                value={localVal}
+                setter={setLocalVal}
+                onEnter={commit}
+                label="Medida (cm)"
+            />
+            <button
+                onMouseDown={(e) => {
+                    e.preventDefault()
+                    commit()
+                }}
+                className="bg-green-500 text-white p-1 rounded shadow-sm flex items-center justify-center hover:bg-green-600 w-7 h-7"
+            >
+                <Check className="h-4 w-4" />
+            </button>
+        </div>
+    )
+}
+
+const DualInputWrapper = ({ valObj, screenPos, onCommit, onClose, isMobile }: any) => {
+    const [w, setW] = React.useState(valObj.width?.toString() || "0")
+    const [h, setH] = React.useState(valObj.height?.toString() || "0")
+
+    const commit = () => {
+        const wNum = parseFloat(w)
+        const hNum = parseFloat(h)
+        if (!isNaN(wNum) && !isNaN(hNum)) {
+            onCommit({ width: wNum, height: hNum })
+        }
+        onClose()
+    }
+
+    return (
+        <div
+            style={{
+                position: "absolute",
+                left: screenPos.x,
+                top: screenPos.y,
+                transform: "translate(-50%, -50%)",
+                zIndex: 100
+            }}
+            className="flex items-center gap-1 bg-white p-1 rounded shadow-md border border-slate-200"
+        >
+            <NumericInput
+                isMobile={isMobile}
+                value={w}
+                setter={setW}
+                onEnter={commit}
+                placeholder="Ancho"
+                label="Ancho (cm)"
+            />
+            <span className="text-xs font-bold text-slate-400">x</span>
+            <NumericInput
+                isMobile={isMobile}
+                value={h}
+                setter={setH}
+                onEnter={commit}
+                placeholder="Alto"
+                label="Alto (cm)"
+            />
+            <button
+                onClick={commit}
+                className="bg-green-500 text-white p-1 rounded shadow-sm flex items-center justify-center hover:bg-green-600 w-7 h-7 ml-1"
+            >
+                <Check className="h-4 w-4" />
+            </button>
+        </div>
+    )
+}
+
 export const CanvasEngine = ({
     width, height, zoom, offset,
     walls, rooms, doors, windows, shunts = [],
-    currentWall, activeTool, hoveredWallId, onPan, onZoom, onMouseDown, onMouseMove, onMouseUp, onHoverWall, onSelectWall, onDragWall, onDragEnd, onUpdateWallLength, onDeleteWall, onSplitWall, onUpdateWallThickness, onUpdateWallInvisible, onUpdateRoom, onDeleteRoom, onCloneRoom, selectedWallIds, selectedRoomId, onSelectRoom, onDragVertex, wallSnapshot, onStartDragWall, onDragElement, selectedElement, onSelectElement, onUpdateElement, onCloneElement, onDeleteElement, onUpdateShunt, bgImage, bgConfig, onUpdateBgConfig, isCalibrating, calibrationPoints, calibrationTargetValue, onUpdateCalibrationPoint,
+    currentWall, activeTool, hoveredWallId, onPan, onZoom, onMouseDown, onMouseMove, onMouseUp, onHoverWall, onSelectWall, onDragWall, onDragEnd, onUpdateWallLength, onDeleteWall, onSplitWall, onUpdateWallThickness, onUpdateWallInvisible, onUpdateRoom, onDeleteRoom, onCloneRoom, selectedWallIds, selectedRoomId, onSelectRoom, onDragVertex, wallSnapshot, onStartDragWall, onDragElement, selectedElement, onSelectElement, onUpdateElement, onCloneElement, onDeleteElement, onUpdateShunt, bgImage, bgConfig, onUpdateBgConfig, isCalibrating, calibrationPoints, calibrationTargetValue, onUpdateCalibrationPoint, onUpdateCalibrationValue,
     phantomArc,
     snappingEnabled = true,
     rulerPoints,
@@ -278,11 +374,12 @@ export const CanvasEngine = ({
 
     // Generic Input State for Inline Editing (Shunts, Doors, Windows, Measures)
     const [editInputState, setEditInputState] = React.useState<{
-        id: string, // Unique ID of the element/measurement being edited to hide the static text
-        type: string, // "shunt-dist", "door-width", etc
-        val: number,
+        id: string,
+        type: string,
+        val: number | any,
+        props?: any,
         screenPos: { x: number, y: number },
-        onCommit: (newVal: number) => void
+        onCommit: (newVal: any) => void
     } | null>(null)
 
     const isSamePoint = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < 5.0
@@ -2986,14 +3083,14 @@ export const CanvasEngine = ({
                                                     />
                                                     {/* HALO TEXT for Shunts */}
                                                     <Text
-                                                        text={`${surfaceDist.toFixed(1)}`}
+                                                        text={`${surfaceDist.toFixed(1).replace('.', ',')}`}
                                                         width={60 / zoom} x={-30 / zoom} y={-5 / zoom} align="center"
                                                         fontSize={11 / zoom} fontStyle="bold" fill="white"
                                                         stroke="white" strokeWidth={3 / zoom}
                                                         listening={false}
                                                     />
                                                     <Text
-                                                        text={`${surfaceDist.toFixed(1)}`}
+                                                        text={`${surfaceDist.toFixed(1).replace('.', ',')}`}
                                                         width={60 / zoom} x={-30 / zoom} y={-5 / zoom} align="center"
                                                         fontSize={11 / zoom} fontStyle="bold" fill="#000000"
                                                     />
@@ -3051,7 +3148,7 @@ export const CanvasEngine = ({
                                     <Text
                                         x={(currentWall.start.x + currentWall.end.x) / 2}
                                         y={(currentWall.start.y + currentWall.end.y) / 2 - 20 / zoom}
-                                        text={`${lengthCm.toFixed(1)}`}
+                                        text={`${lengthCm.toFixed(1).replace('.', ',')}`}
                                         fontSize={14 / zoom}
                                         fill="white"
                                         stroke="white"
@@ -3065,7 +3162,7 @@ export const CanvasEngine = ({
                                     <Text
                                         x={(currentWall.start.x + currentWall.end.x) / 2}
                                         y={(currentWall.start.y + currentWall.end.y) / 2 - 20 / zoom}
-                                        text={`${lengthCm.toFixed(1)}`}
+                                        text={`${lengthCm.toFixed(1).replace('.', ',')}`}
                                         fontSize={14 / zoom}
                                         fill="#0284c7"
                                         fontStyle="bold"
@@ -3180,7 +3277,7 @@ export const CanvasEngine = ({
                                     const dist = Math.sqrt(
                                         Math.pow(rulerPoints.end.x - rulerPoints.start.x, 2) +
                                         Math.pow(rulerPoints.end.y - rulerPoints.start.y, 2)
-                                    ).toFixed(1)
+                                    ).toFixed(1).replace('.', ',')
                                     const midX = (rulerPoints.start.x + rulerPoints.end.x) / 2
                                     const midY = (rulerPoints.start.y + rulerPoints.end.y) / 2
                                     return (
@@ -3308,75 +3405,107 @@ export const CanvasEngine = ({
                         {/* 2. Herramienta de Calibración (Ultima posición para máxima visibilidad) */}
                         {isCalibrating && calibrationPoints && (
                             <Group>
-                                <Line
-                                    points={[calibrationPoints.p1.x, calibrationPoints.p1.y, calibrationPoints.p2.x, calibrationPoints.p2.y]}
-                                    stroke="#fbbf24"
-                                    strokeWidth={4 / zoom}
-                                    dash={[10, 5]}
-                                    shadowBlur={4 / zoom}
-                                    shadowColor="rgba(0,0,0,0.3)"
-                                />
-                                <Group
-                                    x={calibrationPoints.p1.x}
-                                    y={calibrationPoints.p1.y}
-                                    draggable
-                                    onDragMove={(e) => onUpdateCalibrationPoint?.("p1", { x: e.target.x(), y: e.target.y() })}
-                                >
-                                    <Circle
-                                        radius={15 / zoom}
-                                        fill="white"
+                                {calibrationPoints.p1 && calibrationPoints.p2 && (
+                                    <Line
+                                        points={[calibrationPoints.p1.x, calibrationPoints.p1.y, calibrationPoints.p2.x, calibrationPoints.p2.y]}
                                         stroke="#fbbf24"
                                         strokeWidth={4 / zoom}
-                                        shadowBlur={10 / zoom}
-                                        shadowOpacity={0.4}
-                                        shadowColor="rgba(0,0,0,0.5)"
+                                        dash={[10, 5]}
+                                        shadowBlur={4 / zoom}
+                                        shadowColor="rgba(0,0,0,0.3)"
                                     />
-                                    <Line points={[-22 / zoom, 0, 22 / zoom, 0]} stroke="#fbbf24" strokeWidth={2 / zoom} />
-                                    <Line points={[0, -22 / zoom, 0, 22 / zoom]} stroke="#fbbf24" strokeWidth={2 / zoom} />
-                                </Group>
-                                <Group
-                                    x={calibrationPoints.p2.x}
-                                    y={calibrationPoints.p2.y}
-                                    draggable
-                                    onDragMove={(e) => onUpdateCalibrationPoint?.("p2", { x: e.target.x(), y: e.target.y() })}
-                                >
-                                    <Circle
-                                        radius={15 / zoom}
-                                        fill="white"
-                                        stroke="#fbbf24"
-                                        strokeWidth={4 / zoom}
-                                        shadowBlur={10 / zoom}
-                                        shadowOpacity={0.4}
-                                        shadowColor="rgba(0,0,0,0.5)"
-                                    />
-                                    <Line points={[-22 / zoom, 0, 22 / zoom, 0]} stroke="#fbbf24" strokeWidth={2 / zoom} />
-                                    <Line points={[0, -22 / zoom, 0, 22 / zoom]} stroke="#fbbf24" strokeWidth={2 / zoom} />
-                                </Group>
-                                <Group
-                                    x={(calibrationPoints.p1.x + calibrationPoints.p2.x) / 2}
-                                    y={(calibrationPoints.p1.y + calibrationPoints.p2.y) / 2}
-                                >
-                                    <Rect
-                                        width={100 / zoom}
-                                        height={28 / zoom}
-                                        fill="#fbbf24"
-                                        cornerRadius={6 / zoom}
-                                        offsetX={50 / zoom}
-                                        offsetY={45 / zoom}
-                                        shadowBlur={10 / zoom}
-                                        shadowOpacity={0.2}
-                                    />
-                                    <Text
-                                        text={`${calibrationTargetValue || 0}`}
-                                        fontSize={16 / zoom}
-                                        fill="white"
-                                        fontStyle="bold"
-                                        width={100 / zoom}
-                                        align="center"
-                                        offsetX={50 / zoom}
-                                        offsetY={39 / zoom}
-                                    />
-                                </Group>
+                                )}
+                                {calibrationPoints.p1 && (
+                                    <Group
+                                        x={calibrationPoints.p1.x}
+                                        y={calibrationPoints.p1.y}
+                                        draggable
+                                        onDragMove={(e) => onUpdateCalibrationPoint?.("p1", { x: e.target.x(), y: e.target.y() })}
+                                    >
+                                        <Circle
+                                            radius={15 / zoom}
+                                            fill="rgba(255,255,255,0.2)"
+                                            stroke="#fbbf24"
+                                            strokeWidth={4 / zoom}
+                                            shadowBlur={10 / zoom}
+                                            shadowOpacity={0.4}
+                                            shadowColor="rgba(0,0,0,0.5)"
+                                        />
+                                        <Line points={[-22 / zoom, 0, 22 / zoom, 0]} stroke="#fbbf24" strokeWidth={2 / zoom} />
+                                        <Line points={[0, -22 / zoom, 0, 22 / zoom]} stroke="#fbbf24" strokeWidth={2 / zoom} />
+                                    </Group>
+                                )}
+                                {calibrationPoints.p2 && (
+                                    <Group
+                                        x={calibrationPoints.p2.x}
+                                        y={calibrationPoints.p2.y}
+                                        draggable
+                                        onDragMove={(e) => onUpdateCalibrationPoint?.("p2", { x: e.target.x(), y: e.target.y() })}
+                                    >
+                                        <Circle
+                                            radius={15 / zoom}
+                                            fill="rgba(255,255,255,0.2)"
+                                            stroke="#fbbf24"
+                                            strokeWidth={4 / zoom}
+                                            shadowBlur={10 / zoom}
+                                            shadowOpacity={0.4}
+                                            shadowColor="rgba(0,0,0,0.5)"
+                                        />
+                                        <Line points={[-22 / zoom, 0, 22 / zoom, 0]} stroke="#fbbf24" strokeWidth={2 / zoom} />
+                                        <Line points={[0, -22 / zoom, 0, 22 / zoom]} stroke="#fbbf24" strokeWidth={2 / zoom} />
+                                    </Group>
+                                )}
+                                {calibrationPoints.p1 && calibrationPoints.p2 && (
+                                    <Group
+                                        x={(calibrationPoints.p1.x + calibrationPoints.p2.x) / 2}
+                                        y={(calibrationPoints.p1.y + calibrationPoints.p2.y) / 2}
+                                    >
+                                        <Rect
+                                            width={100 / zoom}
+                                            height={28 / zoom}
+                                            fill="#fbbf24"
+                                            cornerRadius={6 / zoom}
+                                            offsetX={50 / zoom}
+                                            offsetY={45 / zoom}
+                                            shadowBlur={10 / zoom}
+                                            shadowOpacity={0.2}
+                                        />
+                                        <Text
+                                            text={`${calibrationTargetValue || 0}`}
+                                            fontSize={16 / zoom}
+                                            fill="white"
+                                            fontStyle="bold"
+                                            width={100 / zoom}
+                                            align="center"
+                                            offsetX={50 / zoom}
+                                            offsetY={39 / zoom}
+                                            onClick={(e) => {
+                                                e.cancelBubble = true
+                                                const stage = e.target.getStage()
+                                                const absPos = e.target.getAbsolutePosition()
+                                                setEditInputState({
+                                                    id: 'calibration-value',
+                                                    type: 'calibration-value',
+                                                    val: calibrationTargetValue || 0,
+                                                    screenPos: absPos,
+                                                    onCommit: (val) => onUpdateCalibrationValue?.(val)
+                                                })
+                                            }}
+                                            onTap={(e) => {
+                                                e.cancelBubble = true
+                                                const stage = e.target.getStage()
+                                                const absPos = e.target.getAbsolutePosition()
+                                                setEditInputState({
+                                                    id: 'calibration-value',
+                                                    type: 'calibration-value',
+                                                    val: calibrationTargetValue || 0,
+                                                    screenPos: absPos,
+                                                    onCommit: (val) => onUpdateCalibrationValue?.(val)
+                                                })
+                                            }}
+                                        />
+                                    </Group>
+                                )}
                             </Group>
                         )}
                     </Group>
@@ -3820,6 +3949,55 @@ export const CanvasEngine = ({
                                         </button>
                                     )}
                                 </div>
+                            ) : editMode === "length" && isMobile ? (
+                                <UnifiedWallEditor
+                                    initialValue={editLength}
+                                    isVertical={(selectedWall && Math.abs(selectedWall.start.x - selectedWall.end.x) < 1) ?? false}
+                                    onCancel={() => setEditMode("menu")}
+                                    onConfirm={(val, direction) => {
+                                        if (!selectedWall) return
+                                        const targetLen = parseFloat(val.replace(',', '.'))
+                                        if (isNaN(targetLen)) return
+
+                                        const dx = selectedWall.end.x - selectedWall.start.x
+                                        const dy = selectedWall.end.y - selectedWall.start.y
+                                        const centerLength = Math.sqrt(dx * dx + dy * dy)
+                                        const chainIds = new Set([selectedWall.id])
+
+                                        const isUpOrLeft = direction === "up" || direction === "left"
+                                        const side = isUpOrLeft ? "left" : "right"
+
+                                        let currentTotal = centerLength
+                                        let faceNormal: Point | undefined = undefined
+
+                                        if (editFace !== "center") {
+                                            const nx = -dy / centerLength
+                                            const ny = dx / centerLength
+                                            faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
+
+                                            const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
+                                            const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
+                                            const isInterior = (editFace === "interior") || isPointInAnyRoom(testP)
+
+                                            const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, isInterior)
+                                            const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, isInterior)
+                                            const chainLen = centerLength + back.addedLen + forward.addedLen
+
+                                            const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || selectedWall
+                                            const terminalEndWall = walls.find(w => w.id === forward.terminalWallId) || selectedWall
+
+                                            currentTotal = chainLen +
+                                                getFaceOffsetAt(terminalEndWall, forward.terminal, faceNormal, chainIds, true) -
+                                                getFaceOffsetAt(terminalStartWall, back.terminal, faceNormal, chainIds, false)
+                                        }
+
+                                        const delta = targetLen - currentTotal
+                                        if (Math.abs(delta) > 0.01) {
+                                            onUpdateWallLength(selectedWall.id, centerLength + delta, side, faceNormal)
+                                        }
+                                        setEditMode("menu")
+                                    }}
+                                />
                             ) : editMode === "thickness" ? (
                                 <div className="flex items-center gap-3 px-3 py-1.5">
                                     <span className="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">Grosor pared</span>
@@ -3847,7 +4025,7 @@ export const CanvasEngine = ({
                                         <X className="h-3.5 w-3.5" />
                                     </button>
                                 </div>
-                            ) : editMode === "length" ? (
+                            ) : editMode === "length" && !isMobile ? (
                                 <div className="flex flex-col items-center gap-1 min-w-[160px]">
                                     {selectedWall && (
                                         <>
@@ -4063,110 +4241,25 @@ export const CanvasEngine = ({
                 )
             }
             {/* Generic Measurement Input Overlay */}
-            {
-                editInputState && (() => {
-                    if (typeof editInputState.val === 'object' && editInputState.val !== null) {
-                        // Dual Input (Window/Door Width x Height)
-                        const valObj = editInputState.val as any
-                        const DualInput = () => {
-                            const [w, setW] = React.useState(valObj.width?.toString() || "0")
-                            const [h, setH] = React.useState(valObj.height?.toString() || "0")
-
-                            const commit = () => {
-                                const wNum = parseFloat(w)
-                                const hNum = parseFloat(h)
-                                if (!isNaN(wNum) && !isNaN(hNum)) {
-                                    // @ts-ignore
-                                    editInputState.onCommit({ width: wNum, height: hNum })
-                                }
-                                setEditInputState(null)
-                            }
-
-                            return (
-                                <div
-                                    style={{
-                                        position: "absolute",
-                                        left: editInputState.screenPos.x,
-                                        top: editInputState.screenPos.y,
-                                        transform: "translate(-50%, -50%)",
-                                        zIndex: 100
-                                    }}
-                                    className="flex items-center gap-1 p-1 bg-white rounded shadow-md border border-slate-200"
-                                >
-                                    <NumericInput
-                                        isMobile={isMobile}
-                                        value={w}
-                                        setter={setW}
-                                        onEnter={commit}
-                                        placeholder="Ancho"
-                                        label="Ancho (cm)"
-                                    />
-                                    <span className="text-xs font-bold text-slate-400">x</span>
-                                    <NumericInput
-                                        isMobile={isMobile}
-                                        value={h}
-                                        setter={setH}
-                                        onEnter={commit}
-                                        placeholder="Alto"
-                                        label="Alto (cm)"
-                                    />
-                                    <button
-                                        onClick={commit}
-                                        className="bg-green-500 text-white p-1 rounded shadow-sm flex items-center justify-center hover:bg-green-600 w-7 h-7 ml-1"
-                                    >
-                                        <Check className="h-4 w-4" />
-                                    </button>
-                                </div>
-                            )
-                        }
-                        return <DualInput />
-                    }
-
-                    // Single Value Input (Length, Thickness, Distance)
-                    const SingleInput = () => {
-                        const [val, setVal] = React.useState((editInputState.val as number).toFixed(1))
-
-                        const commit = (v?: string) => {
-                            const final = parseFloat(v || val)
-                            if (!isNaN(final)) {
-                                editInputState.onCommit(final)
-                            }
-                            setEditInputState(null)
-                        }
-
-                        return (
-                            <div
-                                style={{
-                                    position: "absolute",
-                                    left: editInputState.screenPos.x,
-                                    top: editInputState.screenPos.y,
-                                    transform: "translate(-50%, -50%)",
-                                    zIndex: 100
-                                }}
-                                className="flex items-center gap-1 bg-white p-1 rounded shadow-md border border-slate-200"
-                            >
-                                <NumericInput
-                                    isMobile={isMobile}
-                                    value={val}
-                                    setter={setVal}
-                                    onEnter={commit}
-                                    label="Medida (cm)"
-                                />
-                                <button
-                                    onMouseDown={(e) => {
-                                        e.preventDefault()
-                                        commit()
-                                    }}
-                                    className="bg-green-500 text-white p-1 rounded shadow-sm flex items-center justify-center hover:bg-green-600 w-7 h-7"
-                                >
-                                    <Check className="h-4 w-4" />
-                                </button>
-                            </div>
-                        )
-                    }
-                    return <SingleInput />
-                })()
-            }
+            {editInputState && (
+                typeof editInputState.val === 'object' && editInputState.val !== null ? (
+                    <DualInputWrapper
+                        valObj={editInputState.val}
+                        screenPos={editInputState.screenPos}
+                        onCommit={editInputState.onCommit}
+                        onClose={() => setEditInputState(null)}
+                        isMobile={isMobile}
+                    />
+                ) : (
+                    <SingleInputWrapper
+                        val={editInputState.val}
+                        screenPos={editInputState.screenPos}
+                        onCommit={editInputState.onCommit}
+                        onClose={() => setEditInputState(null)}
+                        isMobile={isMobile}
+                    />
+                )
+            )}
 
         </div >
     )
