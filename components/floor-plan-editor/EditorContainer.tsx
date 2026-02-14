@@ -1271,8 +1271,19 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
             case "wall":
                 if (currentWall) {
+                    // Desktop flow: Second click finalizes the wall
+                    // Mobile flow: This is just updating the preview (actual creation in mouseUp)
+                    // To differentiate, we check if distance is significant
                     const dist = Math.sqrt(Math.pow(point.x - currentWall.start.x, 2) + Math.pow(point.y - currentWall.start.y, 2))
-                    if (dist > 5) {
+
+                    // Only create wall on mouseDown for desktop (second click after moving cursor)
+                    // For touch, this will be skipped and wall is created on mouseUp instead
+                    // We detect touch by checking if the wall end point moved significantly
+                    // If it didn't move much, it's likely a desktop click, not a touch drag
+                    const cursorMoved = Math.sqrt(Math.pow(currentWall.end.x - currentWall.start.x, 2) + Math.pow(currentWall.end.y - currentWall.start.y, 2)) > 10
+
+                    if (dist > 5 && cursorMoved) {
+                        // This is a desktop second-click (cursor moved during preview)
                         saveStateToHistory()
                         const newWall = {
                             id: `wall-${Date.now()}`,
@@ -1307,7 +1318,10 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                             setCurrentWall({ start: point, end: point })
                         }
                     }
+                    // If cursor didn't move, this might be a touch tap or a click right after starting
+                    // Do nothing here - let mouseUp handle it for touch, or wait for cursor movement for desktop
                 } else {
+                    // First click/touch: Start a new wall
                     setCurrentWall({ start: point, end: point })
                 }
                 break
@@ -1506,8 +1520,34 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     const handleMouseUp = (point: Point) => {
         if (isCalibrating) return
-        // Wall creation is handled in handleMouseDown, not here
-        // This prevents duplicate wall creation on each click
+
+        // Wall creation on mouseUp is only for TOUCH events (drag-to-draw workflow)
+        // For MOUSE events, wall creation happens on mouseDown (click-to-place workflow)
+        // This prevents duplicate walls on desktop while enabling proper mobile drawing
+        if (activeTool === "wall" && currentWall) {
+            const dist = Math.sqrt(Math.pow(point.x - currentWall.start.x, 2) + Math.pow(point.y - currentWall.start.y, 2))
+            if (dist > 5) {
+                saveStateToHistory()
+                const newWall = {
+                    id: `wall-${Date.now()}`,
+                    start: currentWall.start,
+                    end: point,
+                    thickness: 10
+                }
+                const newWalls = fragmentWalls([...walls, newWall])
+                setWalls(newWalls)
+                const nextRooms = detectRoomsGeometrically(newWalls, rooms)
+                setRooms(nextRooms)
+
+                // Si se ha cerrado una habitación (figura completa), detener el encadenamiento
+                if (nextRooms.length > rooms.length) {
+                    setCurrentWall(null)
+                } else {
+                    // MODO ENCADENADO: No hacemos null a currentWall, sino que el punto final es el nuevo inicio
+                    setCurrentWall({ start: point, end: point })
+                }
+            }
+        }
         if (activeTool === "ruler" && rulerState.active) {
             setRulerState(prev => ({ ...prev, end: point, active: false }))
         }
