@@ -1506,30 +1506,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     const handleMouseUp = (point: Point) => {
         if (isCalibrating) return
-        if (activeTool === "wall" && currentWall) {
-            const dist = Math.sqrt(Math.pow(point.x - currentWall.start.x, 2) + Math.pow(point.y - currentWall.start.y, 2))
-            if (dist > 5) {
-                saveStateToHistory()
-                const newWall = {
-                    id: `wall-${Date.now()}`,
-                    start: currentWall.start,
-                    end: point,
-                    thickness: 10
-                }
-                const newWalls = fragmentWalls([...walls, newWall])
-                setWalls(newWalls)
-                const nextRooms = detectRoomsGeometrically(newWalls, rooms)
-                setRooms(nextRooms)
-
-                // Si se ha cerrado una habitación (figura completa), detener el encadenamiento
-                if (nextRooms.length > rooms.length) {
-                    setCurrentWall(null)
-                } else {
-                    // MODO ENCADENADO: No hacemos null a currentWall, sino que el punto final es el nuevo inicio
-                    setCurrentWall({ start: point, end: point })
-                }
-            }
-        }
+        // Wall creation is handled in handleMouseDown, not here
+        // This prevents duplicate wall creation on each click
         if (activeTool === "ruler" && rulerState.active) {
             setRulerState(prev => ({ ...prev, end: point, active: false }))
         }
