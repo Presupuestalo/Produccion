@@ -1604,14 +1604,21 @@ export const CanvasEngine = ({
                 } else if (targetName === "room-poly" || targetName.startsWith("room-")) {
                     // Try to find roomId from ancestors or ID if encoded
                 }
-            }
 
-            // Disparamos pointerdown para que Konva inicie draggables
-            virtualTarget.fire('pointerdown', e, true)
+                // Disparamos pointerdown para que Konva inicie draggables
+                virtualTarget.fire('pointerdown', e, true)
 
-            // Si es un vértice o una medida, evitamos que se empiece a dibujar un muro debajo
-            if (targetName === "vertex-handle" || targetName.startsWith("measurement-")) {
-                return
+                // Si es un vértice o una medida, evitamos que se empiece a dibujar un muro debajo
+                if (targetName === "vertex-handle" || targetName.startsWith("measurement-")) {
+                    return
+                }
+            } else {
+                // Para otras herramientas (door, window, etc.), permitir el flujo normal
+                // Solo disparar evento para elementos draggables si es necesario
+                if (targetName === "vertex-handle" || targetName.startsWith("measurement-")) {
+                    virtualTarget.fire('pointerdown', e, true)
+                    return
+                }
             }
         }
 

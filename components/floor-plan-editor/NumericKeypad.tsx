@@ -92,13 +92,13 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
             </div>
 
             {/* Row 2: Number Keys - Single Line */}
-            <div className="bg-white px-2 py-2">
-                <div className="flex flex-wrap gap-1 justify-center">
+            <div className="bg-white px-1 py-2">
+                <div className="flex gap-0.5 justify-center overflow-x-auto">
                     {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "."].map((digit) => (
                         <button
                             key={digit}
                             onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDigit(digit) }}
-                            className="h-9 w-8 flex-shrink-0 flex items-center justify-center text-lg font-bold bg-white text-slate-700 rounded-md border border-slate-300 shadow-sm hover:bg-slate-50 active:scale-95 transition-transform"
+                            className="h-9 w-7 flex-shrink-0 flex items-center justify-center text-base font-bold bg-white text-slate-700 rounded-md border border-slate-300 shadow-sm hover:bg-slate-50 active:scale-95 transition-transform"
                         >
                             {digit === '.' ? ',' : digit}
                         </button>
