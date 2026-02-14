@@ -153,15 +153,17 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
                 </div>
             </div>
 
-            {/* Keypad Grid - Standard Phone Layout (3 cols) */}
-            <div className="grid grid-cols-3 gap-[1px] bg-slate-200 pb-safe">
-                {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0"].map((digit) => (
-                    <KeypadButton
-                        key={digit}
-                        onClick={() => handleDigit(digit)}
-                        label={digit === '.' ? ',' : digit}
-                    />
-                ))}
+            {/* Keypad Row - Scrollable Horizontal List */}
+            <div className="flex w-full overflow-x-auto bg-slate-100 pb-safe no-scrollbar">
+                <div className="flex w-full min-w-max px-1 gap-1 py-1">
+                    {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "."].map((digit) => (
+                        <KeypadButton
+                            key={digit}
+                            onClick={() => handleDigit(digit)}
+                            label={digit === '.' ? ',' : digit}
+                        />
+                    ))}
+                </div>
             </div>
         </div>
     )
@@ -183,7 +185,7 @@ const KeypadButton = ({ label, onClick }: { label: string, onClick: () => void }
             e.stopPropagation()
             onClick()
         }}
-        className={`h-16 flex items-center justify-center text-2xl font-bold bg-white text-slate-700 active:bg-sky-50 active:text-sky-600 transition-all ${label === '0' ? 'col-span-2' : ''}`}
+        className="h-14 w-12 flex-shrink-0 flex items-center justify-center text-xl font-bold bg-white text-slate-700 rounded-lg shadow-sm border border-slate-200 active:bg-sky-50 active:text-sky-600 active:border-sky-300 transition-all"
     >
         {label}
     </button>
