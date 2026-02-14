@@ -3951,6 +3951,22 @@ export const CanvasEngine = ({
                                         const isHorizontal = Math.abs(selectedWall.start.y - selectedWall.end.y) < 1
                                         const isVertical = Math.abs(selectedWall.start.x - selectedWall.end.x) < 1
                                         orientation = isHorizontal ? 'horizontal' : (isVertical ? 'vertical' : 'inclined')
+                                    } else if (selectedElement) {
+                                        // For elements (doors/windows), get orientation from their parent wall
+                                        let parentWall: Wall | undefined
+                                        if (selectedElement.type === "door") {
+                                            const door = doors.find(d => d.id === selectedElement.id)
+                                            if (door) parentWall = walls.find(w => w.id === door.wallId)
+                                        } else if (selectedElement.type === "window") {
+                                            const window = windows.find(w => w.id === selectedElement.id)
+                                            if (window) parentWall = walls.find(w => w.id === window.wallId)
+                                        }
+
+                                        if (parentWall) {
+                                            const isHorizontal = Math.abs(parentWall.start.y - parentWall.end.y) < 1
+                                            const isVertical = Math.abs(parentWall.start.x - parentWall.end.x) < 1
+                                            orientation = isHorizontal ? 'horizontal' : (isVertical ? 'vertical' : 'inclined')
+                                        }
                                     }
 
                                     return (
