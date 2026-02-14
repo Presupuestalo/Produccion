@@ -56,50 +56,50 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
         if (orientation === 'horizontal') {
             return (
                 <>
-                    <button onClick={(e) => { e.stopPropagation(); handleConfirm('left') }} className="h-12 px-4 flex items-center justify-center rounded-lg bg-sky-500 text-white font-semibold active:bg-sky-600" title="Izquierda" aria-label="Extender izquierda"><ArrowLeft className="w-5 h-5" /></button>
-                    <button onClick={(e) => { e.stopPropagation(); handleConfirm('right') }} className="h-12 px-4 flex items-center justify-center rounded-lg bg-sky-500 text-white font-semibold active:bg-sky-600" title="Derecha" aria-label="Extender derecha"><ArrowRight className="w-5 h-5" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); handleConfirm('left') }} className="h-9 px-3 flex items-center justify-center rounded-lg bg-sky-500 text-white font-semibold active:bg-sky-600" title="Izquierda" aria-label="Extender izquierda"><ArrowLeft className="w-4 h-4" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); handleConfirm('right') }} className="h-9 px-3 flex items-center justify-center rounded-lg bg-sky-500 text-white font-semibold active:bg-sky-600" title="Derecha" aria-label="Extender derecha"><ArrowRight className="w-4 h-4" /></button>
                 </>
             )
         }
         if (orientation === 'vertical') {
             return (
                 <>
-                    <button onClick={(e) => { e.stopPropagation(); handleConfirm('up') }} className="h-12 px-4 flex items-center justify-center rounded-lg bg-sky-500 text-white font-semibold active:bg-sky-600" title="Arriba" aria-label="Extender arriba"><ArrowUp className="w-5 h-5" /></button>
-                    <button onClick={(e) => { e.stopPropagation(); handleConfirm('down') }} className="h-12 px-4 flex items-center justify-center rounded-lg bg-sky-500 text-white font-semibold active:bg-sky-600" title="Abajo" aria-label="Extender abajo"><ArrowDown className="w-5 h-5" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); handleConfirm('up') }} className="h-9 px-3 flex items-center justify-center rounded-lg bg-sky-500 text-white font-semibold active:bg-sky-600" title="Arriba" aria-label="Extender arriba"><ArrowUp className="w-4 h-4" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); handleConfirm('down') }} className="h-9 px-3 flex items-center justify-center rounded-lg bg-sky-500 text-white font-semibold active:bg-sky-600" title="Abajo" aria-label="Extender abajo"><ArrowDown className="w-4 h-4" /></button>
                 </>
             )
         }
-        return <button onClick={(e) => { e.stopPropagation(); handleConfirm() }} className="h-12 px-6 flex items-center justify-center rounded-lg bg-sky-500 text-white font-semibold active:bg-sky-600">OK</button>
+        return <button onClick={(e) => { e.stopPropagation(); handleConfirm() }} className="h-9 px-4 flex items-center justify-center rounded-lg bg-sky-500 text-white font-semibold active:bg-sky-600">OK</button>
     }
 
     return (
         <div className="w-full bg-white border-t-2 border-slate-300 shadow-2xl">
-            {/* Row 1: Value + Actions - Very Compact */}
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-200 bg-slate-50">
-                <button onClick={onCancel} className="p-2 text-slate-500 hover:text-slate-700 active:text-slate-900" title="Cerrar" aria-label="Cerrar"><X className="w-5 h-5" /></button>
+            {/* Row 1: Value + Actions - Compact */}
+            <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-slate-200 bg-slate-50">
+                <button onClick={onCancel} className="p-1.5 text-slate-500 hover:text-slate-700 active:text-slate-900" title="Cerrar" aria-label="Cerrar"><X className="w-4 h-4" /></button>
 
-                <div className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-md">
-                    <span className="text-2xl font-bold text-slate-900 tabular-nums">
+                <div className="flex-1 px-2 py-1.5 bg-white border border-slate-300 rounded">
+                    <span className="text-xl font-bold text-slate-900 tabular-nums">
                         {tempValue || <span className="text-slate-400">0</span>}
                     </span>
                 </div>
 
-                <button onClick={(e) => { e.stopPropagation(); handleDelete() }} className="h-12 px-3 flex items-center justify-center rounded-lg bg-slate-200 text-slate-700 active:bg-slate-300" title="Borrar" aria-label="Borrar">
-                    <Delete className="w-5 h-5" />
+                <button onClick={(e) => { e.stopPropagation(); handleDelete() }} className="h-9 px-2 flex items-center justify-center rounded-lg bg-slate-200 text-slate-700 active:bg-slate-300" title="Borrar" aria-label="Borrar">
+                    <Delete className="w-4 h-4" />
                 </button>
 
                 {renderActionButtons()}
             </div>
 
-            {/* Row 2: Number Keys - Horizontal Scroll */}
-            <div className="overflow-x-auto bg-slate-100">
-                <div className="flex gap-2 px-3 py-3 min-w-max">
+            {/* Row 2: Number Keys - All Visible */}
+            <div className="bg-slate-100">
+                <div className="flex gap-1 px-2 py-2 justify-center">
                     {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "."].map((digit) => (
                         <button
                             key={digit}
                             onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleDigit(digit) }}
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDigit(digit) }}
-                            className="h-12 w-12 flex items-center justify-center text-xl font-bold bg-white text-slate-800 rounded-lg border border-slate-300 active:bg-sky-100 active:text-sky-700 active:border-sky-400 shadow-sm"
+                            className="h-9 w-9 flex-shrink-0 flex items-center justify-center text-lg font-bold bg-white text-slate-800 rounded border border-slate-300 active:bg-sky-100 active:text-sky-700 active:border-sky-400"
                         >
                             {digit === '.' ? ',' : digit}
                         </button>
