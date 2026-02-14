@@ -12,23 +12,18 @@ interface NumericKeypadProps {
 }
 
 export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, onConfirm, onCancel, title, orientation = 'none' }) => {
-    // Use local state for editing
     const [tempValue, setTempValue] = useState(value)
     const [isFirstInput, setIsFirstInput] = useState(true)
 
     useEffect(() => {
-        // Ensure initial value uses comma for display/editing
         setTempValue(value?.replace('.', ',') || "")
         setIsFirstInput(true)
     }, [value])
 
     const handleDigit = (digit: string) => {
         if (isFirstInput) {
-            if (digit === '.') {
-                setTempValue('0,')
-            } else {
-                setTempValue(digit)
-            }
+            if (digit === '.') setTempValue('0,')
+            else setTempValue(digit)
             setIsFirstInput(false)
         } else {
             if (digit === '.' && tempValue.includes(',')) return
@@ -52,110 +47,64 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
         let finalVal = tempValue
         if (finalVal.endsWith(',')) finalVal = finalVal.slice(0, -1)
         if (finalVal === '') finalVal = '0'
-
-        // Return dot format for internal logic, but display is comma
         const normalized = finalVal.replace(',', '.')
-
         onChange(normalized)
         onConfirm(normalized, direction)
     }
 
-    // Determine command buttons based on orientation
+    // Compact Command Buttons (Icons Only)
     const renderCommandButtons = () => {
+        const btnClass = "h-10 w-12 flex items-center justify-center rounded-lg bg-sky-100 text-sky-700 border border-sky-200 active:bg-sky-200 transition-all"
+
         if (orientation === 'horizontal') {
             return (
                 <div className="flex gap-2">
-                    <button
-                        onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm('left') }}
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm('left') }}
-                        className="h-12 w-16 flex items-center justify-center rounded-xl bg-slate-100 text-slate-700 font-bold text-lg border-2 border-slate-200 active:bg-sky-100 active:border-sky-300 active:text-sky-600 transition-all"
-                        title="Extender izquierda"
-                    >
-                        <ArrowLeft className="w-6 h-6" />
-                    </button>
-                    <button
-                        onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm('right') }}
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm('right') }}
-                        className="h-12 w-16 flex items-center justify-center rounded-xl bg-slate-100 text-slate-700 font-bold text-lg border-2 border-slate-200 active:bg-sky-100 active:border-sky-300 active:text-sky-600 transition-all"
-                        title="Extender derecha"
-                    >
-                        <ArrowRight className="w-6 h-6" />
-                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); handleConfirm('left') }} className={btnClass} title="Extender izquierda" aria-label="Extender izquierda"><ArrowLeft className="w-5 h-5" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); handleConfirm('right') }} className={btnClass} title="Extender derecha" aria-label="Extender derecha"><ArrowRight className="w-5 h-5" /></button>
                 </div>
             )
         }
-
         if (orientation === 'vertical') {
             return (
                 <div className="flex gap-2">
-                    <button
-                        onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm('up') }}
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm('up') }}
-                        className="h-12 w-16 flex items-center justify-center rounded-xl bg-slate-100 text-slate-700 font-bold text-lg border-2 border-slate-200 active:bg-sky-100 active:border-sky-300 active:text-sky-600 transition-all"
-                        title="Extender arriba"
-                    >
-                        <ArrowUp className="w-6 h-6" />
-                    </button>
-                    <button
-                        onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm('down') }}
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm('down') }}
-                        className="h-12 w-16 flex items-center justify-center rounded-xl bg-slate-100 text-slate-700 font-bold text-lg border-2 border-slate-200 active:bg-sky-100 active:border-sky-300 active:text-sky-600 transition-all"
-                        title="Extender abajo"
-                    >
-                        <ArrowDown className="w-6 h-6" />
-                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); handleConfirm('up') }} className={btnClass} title="Extender arriba" aria-label="Extender arriba"><ArrowUp className="w-5 h-5" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); handleConfirm('down') }} className={btnClass} title="Extender abajo" aria-label="Extender abajo"><ArrowDown className="w-5 h-5" /></button>
                 </div>
             )
         }
-
-        // Default OK button
         return (
-            <button
-                onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm() }}
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm() }}
-                className="h-12 w-20 flex items-center justify-center rounded-xl bg-sky-500 text-white font-bold text-lg shadow-sm active:bg-sky-600 active:scale-95 transition-all"
-            >
-                OK
-            </button>
+            <button onClick={(e) => { e.stopPropagation(); handleConfirm() }} className="h-10 w-14 flex items-center justify-center rounded-lg bg-sky-500 text-white font-bold text-sm shadow-sm active:bg-sky-600 transition-all">OK</button>
         )
     }
 
     return (
-        <div className="w-full bg-slate-100 border-t border-slate-300 shadow-2xl pb-safe animate-in slide-in-from-bottom-5 duration-200">
-            {/* Header: Title and Value Display */}
-            <div className="flex flex-col gap-2 px-4 py-3 bg-white border-b border-slate-200">
-                <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{title}</span>
-                    <button onClick={onCancel} className="text-slate-400 hover:text-slate-600" title="Cerrar" aria-label="Cerrar">
-                        <X className="w-5 h-5" />
-                    </button>
+        <div className="w-full bg-slate-50 border-t border-slate-200 shadow-2xl pb-safe">
+            {/* Row 1: Display & Actions */}
+            <div className="flex items-center gap-2 px-2 py-2 border-b border-slate-200 bg-white">
+                {/* Title (Small) & Close */}
+                <div className="flex flex-col justify-center mr-1">
+                    <button onClick={onCancel} className="p-1 -ml-1 text-slate-400 hover:text-slate-600" title="Cerrar" aria-label="Cerrar"><X className="w-4 h-4" /></button>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    {/* Simulated Input Box */}
-                    <div className="flex-1 h-12 bg-slate-50 border-2 border-slate-200 rounded-xl flex items-center px-4 relative overflow-hidden focus-within:border-sky-500 transition-colors">
-                        <span className="text-3xl font-black text-slate-800 tracking-tight tabular-nums w-full text-right">
-                            {tempValue || <span className="text-slate-300">0</span>}
-                        </span>
-                    </div>
-
-                    {/* Backspace Button - Large and Clear */}
-                    <button
-                        onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete() }}
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete() }}
-                        className="h-12 w-14 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 border-2 border-slate-200 active:bg-slate-200 active:scale-95 transition-all"
-                    >
-                        <Delete className="w-6 h-6" />
-                    </button>
-
-                    {/* Dynamic Command Buttons */}
-                    {renderCommandButtons()}
+                {/* Simulated Input */}
+                <div className="flex-1 h-10 bg-slate-50 border border-slate-200 rounded-lg flex items-center px-3 overflow-hidden">
+                    <span className="text-xl font-bold text-slate-800 tracking-tight tabular-nums w-full text-right">
+                        {tempValue || <span className="text-slate-300">0</span>}
+                    </span>
                 </div>
+
+                {/* Backspace */}
+                <button onClick={(e) => { e.stopPropagation(); handleDelete() }} className="h-10 w-10 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 border border-slate-200 active:bg-slate-200" title="Borrar" aria-label="Borrar">
+                    <Delete className="w-5 h-5" />
+                </button>
+
+                {/* OK / Direction Buttons */}
+                {renderCommandButtons()}
             </div>
 
-            {/* Keypad Row - Scrollable Horizontal List */}
-            <div className="flex w-full overflow-x-auto bg-slate-100 pb-safe no-scrollbar">
-                <div className="flex w-full min-w-max px-1 gap-1 py-1">
+            {/* Row 2: Scrollable Numbers */}
+            <div className="flex w-full overflow-x-auto bg-slate-100 no-scrollbar py-2">
+                <div className="flex w-full min-w-max px-2 gap-2 justify-center">
                     {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "."].map((digit) => (
                         <KeypadButton
                             key={digit}
@@ -171,21 +120,9 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
 
 const KeypadButton = ({ label, onClick }: { label: string, onClick: () => void }) => (
     <button
-        onTouchStart={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            onClick()
-        }}
-        onTouchEnd={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-        }}
-        onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            onClick()
-        }}
-        className="h-14 w-12 flex-shrink-0 flex items-center justify-center text-xl font-bold bg-white text-slate-700 rounded-lg shadow-sm border border-slate-200 active:bg-sky-50 active:text-sky-600 active:border-sky-300 transition-all"
+        onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); onClick() }}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick() }}
+        className="h-10 w-10 flex-shrink-0 flex items-center justify-center text-lg font-bold bg-white text-slate-700 rounded-md shadow-sm border border-slate-200 active:bg-sky-50 active:text-sky-600 active:border-sky-300 transition-all"
     >
         {label}
     </button>

@@ -1,5 +1,6 @@
 "use client"
 import React from "react"
+import { createPortal } from "react-dom"
 import { NumericKeypad } from "./NumericKeypad"
 
 interface UnifiedWallEditorProps {
@@ -22,7 +23,7 @@ export const UnifiedWallEditor = ({ initialValue, orientation, onConfirm, onCanc
     if (!mounted) return null
 
     // Portal to document.body
-    return React.createPortal(
+    return createPortal(
         <div
             className="fixed inset-0 z-[99999] isolate"
             style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }} // Force full viewport
