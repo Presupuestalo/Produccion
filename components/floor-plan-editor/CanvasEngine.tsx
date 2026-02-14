@@ -1487,7 +1487,7 @@ export const CanvasEngine = ({
                         name="measurement-text-halo"
                         x={0}
                         y={-10 / zoom} // Moved slightly more "above" the line
-                        text={`${typeof displayLength === 'number' ? displayLength.toFixed(1) : displayLength}`}
+                        text={`${displayLength.toFixed(1).replace('.', ',')}`}
                         fontSize={14 / zoom}
                         fill="white"
                         stroke="white"
@@ -1502,7 +1502,7 @@ export const CanvasEngine = ({
                         name="measurement-text"
                         x={0}
                         y={-10 / zoom}
-                        text={`${typeof displayLength === 'number' ? displayLength.toFixed(1) : displayLength}`}
+                        text={`${displayLength.toFixed(1).replace('.', ',')}`}
                         fontSize={14 / zoom}
                         fill={isInteractive && editMode === "length" && editFace === faceType ? "#0ea5e9" : (showAllQuotes ? "#334155" : color)}
                         align="center"
@@ -1541,7 +1541,7 @@ export const CanvasEngine = ({
         if (!stagePos) return
 
         let adjustedY = stagePos.y
-        const isTouchInteraction = e.evt.pointerType === "touch" || forceTouchOffset
+        const isTouchInteraction = (e.evt as any).pointerType === "touch" || forceTouchOffset
         if (isTouchInteraction) {
             adjustedY -= touchOffset
         }
@@ -1564,7 +1564,7 @@ export const CanvasEngine = ({
         const isRoom = targetName.startsWith("room-")
 
         // Handle multi-touch for zoom (prevent drawing if 2 fingers)
-        if (e.evt.pointerType === 'touch' && e.evt.isPrimary === false) {
+        if ((e.evt as any).pointerType === 'touch' && e.evt.isPrimary === false) {
             return
         }
 
@@ -1594,7 +1594,7 @@ export const CanvasEngine = ({
             }
         }
 
-        if (e.evt.button !== 0 && e.evt.pointerType === 'mouse') return
+        if (e.evt.button !== 0 && (e.evt as any).pointerType === 'mouse') return
 
         // Si pinchamos en algo (o cerca por el offset) y es táctil, disparamos su lógica
         if (isTouchInteraction && !isBackground) {
@@ -2118,8 +2118,8 @@ export const CanvasEngine = ({
                             // FIX: Restar mitad del grosor del muro vecino para medir hasta la cara interior
                             const d1Val = Math.max(0, (door.t * wallLen) - (door.width / 2) - (startThick / 2))
                             const d2Val = Math.max(0, ((1 - door.t) * wallLen) - (door.width / 2) - (endThick / 2))
-                            const d1 = d1Val.toFixed(1)
-                            const d2 = d2Val.toFixed(1)
+                            const d1 = d1Val.toFixed(1).replace('.', ',')
+                            const d2 = d2Val.toFixed(1).replace('.', ',')
 
                             const isSelected = selectedElement?.id === door.id && selectedElement?.type === "door"
 
@@ -2144,6 +2144,7 @@ export const CanvasEngine = ({
                                             transform.invert()
                                             const sp = stage.getPointerPosition()
                                             if (sp) {
+                                                if (((e.evt as any).pointerType === 'touch' || forceTouchOffset) && touchOffset) sp.y -= touchOffset;
                                                 const cursorPos = transform.point(sp)
                                                 // Store offset: Vector from Cursor to Element Center
                                                 dragOffsetRef.current = {
@@ -2160,6 +2161,7 @@ export const CanvasEngine = ({
                                         transform.invert()
                                         const sp = stage.getPointerPosition()
                                         if (!sp) return
+                                        if (((e.evt as any).pointerType === 'touch' || forceTouchOffset) && touchOffset) sp.y -= touchOffset;
                                         const cursorPos = transform.point(sp)
 
                                         // 1. Desired Center (perfectly tracking cursor + offset)
@@ -2303,7 +2305,7 @@ export const CanvasEngine = ({
                                             })()}>
                                             {/* HALO TEXT for Door Width */}
                                             <Text
-                                                text={`${door.width}`}
+                                                text={`${door.width.toString().replace('.', ',')}`}
                                                 fontSize={12}
                                                 fill="white"
                                                 stroke="white"
@@ -2316,7 +2318,7 @@ export const CanvasEngine = ({
                                                 listening={false}
                                             />
                                             <Text
-                                                text={`${door.width}`}
+                                                text={`${door.width.toString().replace('.', ',')}`}
                                                 fontSize={12}
                                                 fill="#475569"
                                                 align="center"
@@ -2479,8 +2481,8 @@ export const CanvasEngine = ({
                             // FIX: Restar mitad del grosor del muro vecino para medir hasta la cara interior
                             const d1Val = Math.max(0, (window.t * wallLen) - (window.width / 2) - (startThick / 2))
                             const d2Val = Math.max(0, ((1 - window.t) * wallLen) - (window.width / 2) - (endThick / 2))
-                            const d1 = d1Val.toFixed(1)
-                            const d2 = d2Val.toFixed(1)
+                            const d1 = d1Val.toFixed(1).replace('.', ',')
+                            const d2 = d2Val.toFixed(1).replace('.', ',')
 
                             const isSelected = selectedElement?.id === window.id && selectedElement?.type === "window"
 
@@ -2505,6 +2507,7 @@ export const CanvasEngine = ({
                                             transform.invert()
                                             const sp = stage.getPointerPosition()
                                             if (sp) {
+                                                if (((e.evt as any).pointerType === 'touch' || forceTouchOffset) && touchOffset) sp.y -= touchOffset;
                                                 const cursorPos = transform.point(sp)
                                                 dragOffsetRef.current = {
                                                     x: pos.x - cursorPos.x,
@@ -2520,6 +2523,7 @@ export const CanvasEngine = ({
                                         transform.invert()
                                         const sp = stage.getPointerPosition()
                                         if (!sp) return
+                                        if (((e.evt as any).pointerType === 'touch' || forceTouchOffset) && touchOffset) sp.y -= touchOffset;
                                         const cursorPos = transform.point(sp)
 
                                         // 1. Desired Center
@@ -2646,7 +2650,7 @@ export const CanvasEngine = ({
                                             })()}>
                                             {/* HALO TEXT for Window Dims */}
                                             <Text
-                                                text={`${window.width}x${window.height}`}
+                                                text={`${window.width.toString().replace('.', ',')}x${window.height.toString().replace('.', ',')}`}
                                                 fontSize={10}
                                                 fill="white"
                                                 stroke="white"
@@ -2659,7 +2663,7 @@ export const CanvasEngine = ({
                                                 listening={false}
                                             />
                                             <Text
-                                                text={`${window.width}x${window.height}`}
+                                                text={`${window.width.toString().replace('.', ',')}x${window.height.toString().replace('.', ',')}`}
                                                 fontSize={10}
                                                 fill="#475569"
                                                 align="center"
@@ -3950,54 +3954,74 @@ export const CanvasEngine = ({
                                     )}
                                 </div>
                             ) : editMode === "length" && isMobile ? (
-                                <UnifiedWallEditor
-                                    initialValue={editLength}
-                                    isVertical={(selectedWall && Math.abs(selectedWall.start.x - selectedWall.end.x) < 1) ?? false}
-                                    onCancel={() => setEditMode("menu")}
-                                    onConfirm={(val, direction) => {
-                                        if (!selectedWall) return
-                                        const targetLen = parseFloat(val.replace(',', '.'))
-                                        if (isNaN(targetLen)) return
+                                (() => {
+                                    // Calculate orientation logic
+                                    let orientation: 'horizontal' | 'vertical' | 'inclined' | 'none' = 'none'
+                                    if (selectedWall) {
+                                        const isHorizontal = Math.abs(selectedWall.start.y - selectedWall.end.y) < 1
+                                        const isVertical = Math.abs(selectedWall.start.x - selectedWall.end.x) < 1
+                                        orientation = isHorizontal ? 'horizontal' : (isVertical ? 'vertical' : 'inclined')
+                                    }
 
-                                        const dx = selectedWall.end.x - selectedWall.start.x
-                                        const dy = selectedWall.end.y - selectedWall.start.y
-                                        const centerLength = Math.sqrt(dx * dx + dy * dy)
-                                        const chainIds = new Set([selectedWall.id])
+                                    return (
+                                        <UnifiedWallEditor
+                                            initialValue={editLength}
+                                            orientation={orientation}
+                                            onCancel={() => setEditMode("menu")}
+                                            onConfirm={(val, direction) => {
+                                                if (!selectedWall) return
+                                                const targetLen = parseFloat(val.replace(',', '.'))
+                                                if (isNaN(targetLen)) return
 
-                                        const isUpOrLeft = direction === "up" || direction === "left"
-                                        const side = isUpOrLeft ? "left" : "right"
+                                                const dx = selectedWall.end.x - selectedWall.start.x
+                                                const dy = selectedWall.end.y - selectedWall.start.y
+                                                const centerLength = Math.sqrt(dx * dx + dy * dy)
+                                                // ... (rest of the logic remains similar but streamlined)
 
-                                        let currentTotal = centerLength
-                                        let faceNormal: Point | undefined = undefined
+                                                const chainIds = new Set([selectedWall.id])
+                                                let currentTotal = centerLength
+                                                let faceNormal: Point | undefined = undefined
 
-                                        if (editFace !== "center") {
-                                            const nx = -dy / centerLength
-                                            const ny = dx / centerLength
-                                            faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
+                                                if (editFace !== "center") {
+                                                    const nx = -dy / centerLength
+                                                    const ny = dx / centerLength
+                                                    faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
 
-                                            const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
-                                            const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
-                                            const isInterior = (editFace === "interior") || isPointInAnyRoom(testP)
+                                                    const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
+                                                    const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
+                                                    const isInterior = (editFace === "interior") || isPointInAnyRoom(testP)
 
-                                            const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, isInterior)
-                                            const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, isInterior)
-                                            const chainLen = centerLength + back.addedLen + forward.addedLen
+                                                    const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, isInterior)
+                                                    const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, isInterior)
+                                                    const chainLen = centerLength + back.addedLen + forward.addedLen
 
-                                            const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || selectedWall
-                                            const terminalEndWall = walls.find(w => w.id === forward.terminalWallId) || selectedWall
+                                                    const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || selectedWall
+                                                    const terminalEndWall = walls.find(w => w.id === forward.terminalWallId) || selectedWall
 
-                                            currentTotal = chainLen +
-                                                getFaceOffsetAt(terminalEndWall, forward.terminal, faceNormal, chainIds, true) -
-                                                getFaceOffsetAt(terminalStartWall, back.terminal, faceNormal, chainIds, false)
-                                        }
+                                                    currentTotal = chainLen +
+                                                        getFaceOffsetAt(terminalEndWall, forward.terminal, faceNormal, chainIds, true) -
+                                                        getFaceOffsetAt(terminalStartWall, back.terminal, faceNormal, chainIds, false)
+                                                }
 
-                                        const delta = targetLen - currentTotal
-                                        if (Math.abs(delta) > 0.01) {
-                                            onUpdateWallLength(selectedWall.id, centerLength + delta, side, faceNormal)
-                                        }
-                                        setEditMode("menu")
-                                    }}
-                                />
+                                                const delta = targetLen - currentTotal
+                                                // Determine side based on direction
+                                                let side: "left" | "right" = "right"
+                                                if (direction) {
+                                                    if (direction === "left" || direction === "up") side = "left"
+                                                    else side = "right"
+                                                } else {
+                                                    // Default fallback (e.g. for inclined walls or if no direction passed)
+                                                    side = "right"
+                                                }
+
+                                                if (Math.abs(delta) > 0.01) {
+                                                    onUpdateWallLength(selectedWall.id, centerLength + delta, side, faceNormal)
+                                                }
+                                                setEditMode("menu")
+                                            }}
+                                        />
+                                    )
+                                })()
                             ) : editMode === "thickness" ? (
                                 <div className="flex items-center gap-3 px-3 py-1.5">
                                     <span className="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">Grosor pared</span>

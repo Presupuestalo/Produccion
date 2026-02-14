@@ -1,16 +1,17 @@
 "use client"
 import React, { useState, useEffect } from "react"
-import { Delete, Check, X } from "lucide-react"
+import { Delete, Check, X, ArrowLeft, ArrowRight, ArrowUp, ArrowDown } from "lucide-react"
 
 interface NumericKeypadProps {
     value: string
     onChange: (v: string) => void
-    onConfirm: (val: string) => void
+    onConfirm: (val: string, direction?: "left" | "right" | "up" | "down" | null) => void
     onCancel: () => void
     title: string
+    orientation?: 'horizontal' | 'vertical' | 'inclined' | 'none'
 }
 
-export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, onConfirm, onCancel, title }) => {
+export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, onConfirm, onCancel, title, orientation = 'none' }) => {
     // Use local state for editing
     const [tempValue, setTempValue] = useState(value)
     const [isFirstInput, setIsFirstInput] = useState(true)
@@ -47,7 +48,7 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
         if (isFirstInput) setIsFirstInput(false)
     }
 
-    const handleConfirm = () => {
+    const handleConfirm = (direction?: "left" | "right" | "up" | "down" | null) => {
         let finalVal = tempValue
         if (finalVal.endsWith(',')) finalVal = finalVal.slice(0, -1)
         if (finalVal === '') finalVal = '0'
@@ -56,7 +57,67 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
         const normalized = finalVal.replace(',', '.')
 
         onChange(normalized)
-        onConfirm(normalized)
+        onConfirm(normalized, direction)
+    }
+
+    // Determine command buttons based on orientation
+    const renderCommandButtons = () => {
+        if (orientation === 'horizontal') {
+            return (
+                <div className="flex gap-2">
+                    <button
+                        onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm('left') }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm('left') }}
+                        className="h-12 w-16 flex items-center justify-center rounded-xl bg-slate-100 text-slate-700 font-bold text-lg border-2 border-slate-200 active:bg-sky-100 active:border-sky-300 active:text-sky-600 transition-all"
+                        title="Extender izquierda"
+                    >
+                        <ArrowLeft className="w-6 h-6" />
+                    </button>
+                    <button
+                        onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm('right') }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm('right') }}
+                        className="h-12 w-16 flex items-center justify-center rounded-xl bg-slate-100 text-slate-700 font-bold text-lg border-2 border-slate-200 active:bg-sky-100 active:border-sky-300 active:text-sky-600 transition-all"
+                        title="Extender derecha"
+                    >
+                        <ArrowRight className="w-6 h-6" />
+                    </button>
+                </div>
+            )
+        }
+
+        if (orientation === 'vertical') {
+            return (
+                <div className="flex gap-2">
+                    <button
+                        onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm('up') }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm('up') }}
+                        className="h-12 w-16 flex items-center justify-center rounded-xl bg-slate-100 text-slate-700 font-bold text-lg border-2 border-slate-200 active:bg-sky-100 active:border-sky-300 active:text-sky-600 transition-all"
+                        title="Extender arriba"
+                    >
+                        <ArrowUp className="w-6 h-6" />
+                    </button>
+                    <button
+                        onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm('down') }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm('down') }}
+                        className="h-12 w-16 flex items-center justify-center rounded-xl bg-slate-100 text-slate-700 font-bold text-lg border-2 border-slate-200 active:bg-sky-100 active:border-sky-300 active:text-sky-600 transition-all"
+                        title="Extender abajo"
+                    >
+                        <ArrowDown className="w-6 h-6" />
+                    </button>
+                </div>
+            )
+        }
+
+        // Default OK button
+        return (
+            <button
+                onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm() }}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm() }}
+                className="h-12 w-20 flex items-center justify-center rounded-xl bg-sky-500 text-white font-bold text-lg shadow-sm active:bg-sky-600 active:scale-95 transition-all"
+            >
+                OK
+            </button>
+        )
     }
 
     return (
@@ -87,14 +148,8 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
                         <Delete className="w-6 h-6" />
                     </button>
 
-                    {/* OK Button */}
-                    <button
-                        onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm() }}
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm() }}
-                        className="h-12 w-20 flex items-center justify-center rounded-xl bg-sky-500 text-white font-bold text-lg shadow-sm active:bg-sky-600 active:scale-95 transition-all"
-                    >
-                        OK
-                    </button>
+                    {/* Dynamic Command Buttons */}
+                    {renderCommandButtons()}
                 </div>
             </div>
 
