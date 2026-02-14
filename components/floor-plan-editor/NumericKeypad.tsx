@@ -91,35 +91,19 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
                 {renderActionButtons()}
             </div>
 
-            {/* Row 2: Number Keys - 2-Row Layout for better pressability */}
-            <div className="bg-white py-2 px-2">
-                <div className="flex flex-col gap-1.5 w-full">
-                    {/* First Row: 1-6 */}
-                    <div className="flex gap-1.5 w-full">
-                        {["1", "2", "3", "4", "5", "6"].map((digit) => (
-                            <button
-                                key={digit}
-                                onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDigit(digit) }}
-                                className="h-11 flex-1 flex items-center justify-center text-lg font-bold bg-white text-slate-700 rounded-lg border border-slate-300 shadow-sm active:bg-slate-100 active:scale-95 transition-all"
-                                style={{ WebkitTapHighlightColor: 'transparent' }}
-                            >
-                                {digit}
-                            </button>
-                        ))}
-                    </div>
-                    {/* Second Row: 7-0, , */}
-                    <div className="flex gap-1.5 w-full">
-                        {["7", "8", "9", "0", "."].map((digit) => (
-                            <button
-                                key={digit}
-                                onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDigit(digit) }}
-                                className="h-11 flex-1 flex items-center justify-center text-lg font-bold bg-white text-slate-700 rounded-lg border border-slate-300 shadow-sm active:bg-slate-100 active:scale-95 transition-all"
-                                style={{ WebkitTapHighlightColor: 'transparent' }}
-                            >
-                                {digit === '.' ? ',' : digit}
-                            </button>
-                        ))}
-                    </div>
+            {/* Row 2: Number Keys - Single Row with Horizontal Scroll */}
+            <div className="bg-white py-2 px-2 overflow-x-auto">
+                <div className="flex gap-1.5 w-max">
+                    {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "."].map((digit) => (
+                        <button
+                            key={digit}
+                            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDigit(digit) }}
+                            className="h-11 w-16 flex-shrink-0 flex items-center justify-center text-lg font-bold bg-white text-slate-700 rounded-lg border border-slate-300 shadow-sm active:bg-slate-100 active:scale-95 transition-all"
+                            style={{ WebkitTapHighlightColor: 'transparent' }}
+                        >
+                            {digit === '.' ? ',' : digit}
+                        </button>
+                    ))}
                 </div>
             </div>
         </div>
