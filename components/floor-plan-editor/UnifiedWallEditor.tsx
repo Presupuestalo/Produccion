@@ -10,11 +10,22 @@ interface UnifiedWallEditorProps {
 }
 
 export const UnifiedWallEditor = ({ initialValue, orientation, onConfirm, onCancel }: UnifiedWallEditorProps) => {
-    // We can render the Keypad directly as a fixed overlay since this component is invoked
-    // specifically when editing a wall length on mobile.
-    return (
+    // Render Keypad in a Portal to escape parent stacking contexts (Canvas/Zoom)
+    // This ensures it is always fixed to the viewport.
+    const [mounted, setMounted] = React.useState(false)
+
+    React.useEffect(() => {
+        setMounted(true)
+        return () => setMounted(false)
+    }, [])
+
+    if (!mounted) return null
+
+    // Portal to document.body
+    return React.createPortal(
         <div
-            className="fixed inset-0 z-[3000] bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200"
+            className="fixed inset-0 z-[99999] isolate"
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }} // Force full viewport
             onTouchEnd={(e) => {
                 if (e.target === e.currentTarget) onCancel()
             }}
@@ -22,16 +33,27 @@ export const UnifiedWallEditor = ({ initialValue, orientation, onConfirm, onCanc
                 if (e.target === e.currentTarget) onCancel()
             }}
         >
-            <div className="fixed bottom-0 left-0 right-0 safe-area-inset-bottom" onTouchEnd={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px] animate-in fade-in duration-200" />
+
+            {/* Keypad Container - Fixed Bottom */}
+            <div
+                className="absolute bottom-0 left-0 right-0 z-50 animate-in slide-in-from-bottom-10 duration-200"
+                onTouchEnd={e => e.stopPropagation()}
+                onClick={e => e.stopPropagation()}
+            >
                 <NumericKeypad
                     title="Editar Medida"
                     value={initialValue}
                     orientation={orientation}
-                    onChange={() => { }} // Internal state handled by keypad, but we could sync if needed
+                    onChange={() => { }}
                     onConfirm={onConfirm}
                     onCancel={onCancel}
                 />
+                {/* Safe Area Spacer */}
+                <div className="h-safe-bottom bg-slate-100 w-full" />
             </div>
-        </div>
+        </div>,
+        document.body
     )
 }
