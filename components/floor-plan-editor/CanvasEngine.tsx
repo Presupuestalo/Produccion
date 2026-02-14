@@ -2794,7 +2794,7 @@ export const CanvasEngine = ({
                                     <Text
                                         name="room-label-text"
                                         y={5 * scale}
-                                        text={`${room.area.toFixed(2)} m²`}
+                                        text={`${room.area.toFixed(2).replace('.', ',')} m²`}
                                         fontSize={14 * scale}
                                         fill="#64748b"
                                         align="center"
@@ -4029,8 +4029,8 @@ export const CanvasEngine = ({
                                                         onEnter={(val) => {
                                                             const finalVal = val !== undefined ? val : editHeight
                                                             onUpdateElement(selectedElement.type, selectedElement.id, {
-                                                                width: parseFloat(editLength),
-                                                                height: parseFloat(finalVal)
+                                                                width: parseFloat(editLength.replace(',', '.')),
+                                                                height: parseFloat(finalVal.replace(',', '.'))
                                                             })
                                                             setEditMode("menu")
                                                         }}
@@ -4039,8 +4039,8 @@ export const CanvasEngine = ({
                                             )}
                                             <button
                                                 onClick={() => {
-                                                    const updates: any = { width: parseFloat(editLength) }
-                                                    if (selectedElement.type === "window" || selectedElement.type === "shunt") updates.height = parseFloat(editHeight)
+                                                    const updates: any = { width: parseFloat(editLength.replace(',', '.')) }
+                                                    if (selectedElement.type === "window" || selectedElement.type === "shunt") updates.height = parseFloat(editHeight.replace(',', '.'))
                                                     onUpdateElement(selectedElement.type, selectedElement.id, updates)
                                                     setEditMode("menu")
                                                 }}
