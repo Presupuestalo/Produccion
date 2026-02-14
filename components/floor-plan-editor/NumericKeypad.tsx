@@ -62,64 +62,59 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
 
     return (
         <div className="w-full bg-white border-t-2 border-slate-200 shadow-2xl animate-in slide-in-from-bottom-full duration-300 pb-safe">
-            {/* Value Display */}
-            <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{title}</span>
-                <div className="flex items-center gap-2">
-                    <span className="text-2xl font-black text-slate-800">{tempValue || "0"}</span>
+            {/* Value Display & Actions Row */}
+            <div className="flex items-center justify-between px-2 py-2 bg-slate-50 border-b border-slate-200">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate max-w-[80px]">{title}</span>
+
+                <div className="flex items-center gap-2 flex-1 justify-end">
+                    {/* Value */}
+                    <span className="text-xl font-black text-slate-800 tabular-nums tracking-tight">{tempValue || "0"}</span>
+
+                    {/* Divider */}
+                    <div className="w-px h-6 bg-slate-200 mx-1"></div>
+
+                    {/* Delete Button (Small Icon) */}
+                    <button
+                        onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete() }}
+                        onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation() }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete() }}
+                        className="w-8 h-8 flex items-center justify-center rounded-md text-red-500 hover:bg-red-50 active:bg-red-100 transition-all"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 14l9-5-9-5-9 5 9 5z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                    </button>
+
+                    {/* Confirm Button (Small, next to value) */}
+                    <button
+                        onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm() }}
+                        onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation() }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm() }}
+                        className="h-8 px-3 flex items-center justify-center rounded-md bg-sky-500 text-white text-xs font-bold uppercase tracking-wider hover:bg-sky-600 active:bg-sky-700 transition-all shadow-sm"
+                    >
+                        OK
+                    </button>
                 </div>
             </div>
 
-            {/* Grid Layout */}
-            <div className="grid grid-cols-3 gap-2 p-4 pb-8">
-                {/* Row 1 */}
-                {["1", "2", "3"].map(digit => (
-                    <KeypadButton key={digit} onClick={() => handleDigit(digit)} label={digit} />
+            {/* Linear Keypad Row */}
+            <div className="flex w-full overflow-hidden bg-white pb-safe">
+                {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "."].map((digit, i) => (
+                    <KeypadButton
+                        key={digit}
+                        onClick={() => handleDigit(digit)}
+                        label={digit}
+                        isLast={i === 10}
+                    />
                 ))}
-
-                {/* Row 2 */}
-                {["4", "5", "6"].map(digit => (
-                    <KeypadButton key={digit} onClick={() => handleDigit(digit)} label={digit} />
-                ))}
-
-                {/* Row 3 */}
-                {["7", "8", "9"].map(digit => (
-                    <KeypadButton key={digit} onClick={() => handleDigit(digit)} label={digit} />
-                ))}
-
-                {/* Row 4 */}
-                <KeypadButton key="." onClick={() => handleDigit(".")} label="." />
-                <KeypadButton key="0" onClick={() => handleDigit("0")} label="0" />
-
-                {/* Delete Button */}
-                <button
-                    onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete() }}
-                    onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation() }}
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete() }}
-                    className="flex items-center justify-center rounded-xl bg-red-50 text-red-600 hover:bg-red-100 active:bg-red-300 transition-all border border-red-200 h-14"
-                >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 14l9-5-9-5-9 5 9 5z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                    </svg>
-                </button>
-
-                {/* OK Button - Spans full width */}
-                <button
-                    onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm() }}
-                    onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation() }}
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm() }}
-                    className="col-span-3 flex items-center justify-center rounded-xl bg-sky-500 text-white font-bold text-xl hover:bg-sky-600 active:bg-sky-700 transition-all active:scale-95 shadow-lg shadow-sky-200 h-14 mt-2"
-                >
-                    CONFIRMAR
-                </button>
             </div>
         </div>
     )
 }
 
-const KeypadButton = ({ label, onClick }: { label: string, onClick: () => void }) => (
+const KeypadButton = ({ label, onClick, isLast }: { label: string, onClick: () => void, isLast?: boolean }) => (
     <button
         onTouchStart={(e) => {
             e.preventDefault()
@@ -135,7 +130,7 @@ const KeypadButton = ({ label, onClick }: { label: string, onClick: () => void }
             e.stopPropagation()
             onClick()
         }}
-        className="w-full h-14 flex items-center justify-center rounded-xl text-2xl font-bold bg-slate-50 text-slate-800 hover:bg-slate-100 active:bg-sky-200 transition-all border border-slate-200"
+        className={`flex-1 h-16 flex items-center justify-center text-xl font-bold bg-white text-slate-800 active:bg-sky-100 transition-all border-r border-slate-100 ${isLast ? 'border-r-0' : ''}`}
     >
         {label}
     </button>
