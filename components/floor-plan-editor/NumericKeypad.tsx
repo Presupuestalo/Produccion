@@ -78,7 +78,7 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
             <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-slate-200 bg-slate-50">
                 <button onClick={onCancel} className="p-1.5 text-slate-500 hover:text-slate-700 active:text-slate-900" title="Cerrar" aria-label="Cerrar"><X className="w-4 h-4" /></button>
 
-                <div className="flex-1 px-2 py-1.5 bg-white border border-slate-300 rounded">
+                <div className="flex-1 min-w-[80px] px-2 py-1.5 bg-white border border-slate-300 rounded">
                     <span className="text-xl font-bold text-slate-900 tabular-nums">
                         {tempValue || <span className="text-slate-400">0</span>}
                     </span>
