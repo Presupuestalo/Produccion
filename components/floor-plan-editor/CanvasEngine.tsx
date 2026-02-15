@@ -228,6 +228,7 @@ const ShuntItem = React.memo(({
                 listening={activeTool === "select"}
             />
             <Rect
+                name={`shunt-${shunt.id}`}
                 width={shunt.width}
                 height={shunt.height}
                 offsetX={shunt.width / 2}
@@ -247,10 +248,11 @@ const ShuntItem = React.memo(({
                     verticalAlign="middle"
                     width={120 / zoom}
                     height={30 / zoom}
+                    name="measurement-label"
                     offsetX={60 / zoom}
                     offsetY={15 / zoom}
-                    onClick={(e) => { e.cancelBubble = true; onEditDimensions(e) }}
-                    onTap={(e) => { e.cancelBubble = true; onEditDimensions(e) }}
+                    onClick={(e) => { e.cancelBubble = true; if (e.evt) e.evt.stopPropagation(); onEditDimensions(e) }}
+                    onTap={(e) => { e.cancelBubble = true; if (e.evt) e.evt.stopPropagation(); onEditDimensions(e) }}
                 />
             )}
         </Group>
@@ -272,7 +274,7 @@ const SingleInputWrapper = ({ val, screenPos, onCommit, onClose, isMobile }: any
     const [localVal, setLocalVal] = React.useState(val.toFixed(1))
 
     const commit = (v?: string) => {
-        const final = parseFloat(v || localVal)
+        const final = parseFloat((v || localVal).toString().replace(',', '.'))
         if (!isNaN(final)) {
             onCommit(final)
         }
@@ -280,32 +282,36 @@ const SingleInputWrapper = ({ val, screenPos, onCommit, onClose, isMobile }: any
     }
 
     return (
-        <div
-            style={{
-                position: "absolute",
-                left: screenPos.x,
-                top: screenPos.y,
-                transform: "translate(-50%, -50%)",
-                zIndex: 100
-            }}
-            className="flex items-center gap-1 bg-white p-1 rounded shadow-md border border-slate-200"
-        >
-            <NumericInput
-                isMobile={isMobile}
-                value={localVal}
-                setter={setLocalVal}
-                onEnter={commit}
-                label="Medida (cm)"
-            />
-            <button
-                onMouseDown={(e) => {
-                    e.preventDefault()
-                    commit()
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center pointer-events-none">
+            {isMobile && <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px] pointer-events-auto" onClick={onClose} />}
+            <div
+                style={{
+                    position: isMobile ? "relative" : "absolute",
+                    left: isMobile ? "auto" : screenPos.x,
+                    top: isMobile ? "auto" : screenPos.y,
+                    transform: isMobile ? "none" : "translate(-50%, -50%)",
+                    zIndex: 9999
                 }}
-                className="bg-green-500 text-white p-1 rounded shadow-sm flex items-center justify-center hover:bg-green-600 w-7 h-7"
+                className="flex items-center gap-1 bg-white p-2 rounded-xl shadow-2xl border border-slate-200 pointer-events-auto animate-in fade-in zoom-in duration-200"
+                onClick={(e) => e.stopPropagation()}
             >
-                <Check className="h-4 w-4" />
-            </button>
+                <NumericInput
+                    isMobile={isMobile}
+                    value={localVal}
+                    setter={setLocalVal}
+                    onEnter={commit}
+                    label="Medida (cm)"
+                />
+                <button
+                    onMouseDown={(e) => {
+                        e.preventDefault()
+                        commit()
+                    }}
+                    className="bg-green-500 text-white p-1 rounded-lg shadow-sm flex items-center justify-center hover:bg-green-600 w-9 h-9 active:scale-90 transition-all ml-1"
+                >
+                    <Check className="h-5 w-5" />
+                </button>
+            </div>
         </div>
     )
 }
@@ -315,8 +321,8 @@ const DualInputWrapper = ({ valObj, screenPos, onCommit, onClose, isMobile }: an
     const [h, setH] = React.useState(valObj.height?.toString() || "0")
 
     const commit = () => {
-        const wNum = parseFloat(w)
-        const hNum = parseFloat(h)
+        const wNum = parseFloat(w.replace(',', '.'))
+        const hNum = parseFloat(h.replace(',', '.'))
         if (!isNaN(wNum) && !isNaN(hNum)) {
             onCommit({ width: wNum, height: hNum })
         }
@@ -324,39 +330,43 @@ const DualInputWrapper = ({ valObj, screenPos, onCommit, onClose, isMobile }: an
     }
 
     return (
-        <div
-            style={{
-                position: "absolute",
-                left: screenPos.x,
-                top: screenPos.y,
-                transform: "translate(-50%, -50%)",
-                zIndex: 100
-            }}
-            className="flex items-center gap-1 bg-white p-1 rounded shadow-md border border-slate-200"
-        >
-            <NumericInput
-                isMobile={isMobile}
-                value={w}
-                setter={setW}
-                onEnter={commit}
-                placeholder="Ancho"
-                label="Ancho (cm)"
-            />
-            <span className="text-xs font-bold text-slate-400">x</span>
-            <NumericInput
-                isMobile={isMobile}
-                value={h}
-                setter={setH}
-                onEnter={commit}
-                placeholder="Alto"
-                label="Alto (cm)"
-            />
-            <button
-                onClick={commit}
-                className="bg-green-500 text-white p-1 rounded shadow-sm flex items-center justify-center hover:bg-green-600 w-7 h-7 ml-1"
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center pointer-events-none">
+            {isMobile && <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px] pointer-events-auto" onClick={onClose} />}
+            <div
+                style={{
+                    position: isMobile ? "relative" : "absolute",
+                    left: isMobile ? "auto" : screenPos.x,
+                    top: isMobile ? "auto" : screenPos.y,
+                    transform: isMobile ? "none" : "translate(-50%, -50%)",
+                    zIndex: 9999
+                }}
+                className="flex items-center gap-1 bg-white p-2 rounded-xl shadow-2xl border border-slate-200 pointer-events-auto animate-in fade-in zoom-in duration-200"
+                onClick={(e) => e.stopPropagation()}
             >
-                <Check className="h-4 w-4" />
-            </button>
+                <NumericInput
+                    isMobile={isMobile}
+                    value={w}
+                    setter={setW}
+                    onEnter={() => { }}
+                    placeholder="Ancho"
+                    label="Ancho (cm)"
+                />
+                <span className="text-xs font-bold text-slate-400 mx-1">x</span>
+                <NumericInput
+                    isMobile={isMobile}
+                    value={h}
+                    setter={setH}
+                    onEnter={() => { }}
+                    placeholder="Alto/Largo"
+                    label="Alto / Largo (cm)"
+                />
+                <button
+                    onClick={commit}
+                    className="bg-green-500 text-white p-1 rounded-lg shadow-sm flex items-center justify-center hover:bg-green-600 w-9 h-9 active:scale-90 transition-all ml-2"
+                >
+                    <Check className="h-5 w-5" />
+                </button>
+            </div>
         </div>
     )
 }
@@ -597,8 +607,11 @@ export const CanvasEngine = ({
     const dragStartPos = React.useRef<Point | null>(null)
     const dragStartPointerPos = React.useRef<Point | null>(null) // Para calcular delta del ratón sin saltos
     const isDraggingVertexRef = React.useRef(false) // Manual drag state
-    const lastPointerPos = React.useRef<Point | null>(null) // Para el panning
+    const isPanning = React.useRef(false)
     const isAimingDrawing = React.useRef(false) // Track if touch user is aiming before committing draw point
+    const lastPointerPos = React.useRef<Point | null>(null) // Para el panning
+    const pointerDownPos = React.useRef<Point | null>(null)
+    const pointerDownTime = React.useRef<number>(0)
     const aimingStartPos = React.useRef<Point | null>(null) // Where touch started (for tap detection)
     const [isMobile, setIsMobile] = React.useState(false)
 
@@ -754,7 +767,7 @@ export const CanvasEngine = ({
         }
     }, [onDragVertex, onDragEnd, touchOffset, forceTouchOffset]) // Added touchOffset and forceTouchOffset to dependencies
 
-    const isPanning = React.useRef(false)
+
     const draggingVertexWallIds = React.useRef<string[]>([])
     // Pinch-to-zoom refs
     const lastDist = React.useRef<number>(0)
@@ -1543,18 +1556,32 @@ export const CanvasEngine = ({
         const stagePos = stage.getPointerPosition()
         if (!stagePos) return
 
+        pointerDownPos.current = { ...stagePos }
+        pointerDownTime.current = Date.now()
+
         const isTouchInteraction = (e.evt as any).pointerType === "touch" || forceTouchOffset
 
         // IMPROVED: If we tapped exactly on a "protected" element (like a measurement label), 
         // use it directly instead of applying the 80px offset.
         const originalTarget = e.target
-        const originalName = originalTarget?.attrs?.name || originalTarget?.name?.() || ""
+        let namedAncestor = originalTarget
+        let originalName = namedAncestor?.attrs?.name || namedAncestor?.name?.() || ""
+
+        if (!originalName) {
+            const found = originalTarget.findAncestor?.((n: any) => !!(n.attrs?.name || n.name?.()))
+            if (found) {
+                namedAncestor = found
+                originalName = found.attrs?.name || found.name?.() || ""
+            }
+        }
+
         const isOriginalProtected = originalName.startsWith("wall-") ||
             originalName.startsWith("door-") ||
             originalName.startsWith("window-") ||
             originalName.startsWith("shunt-") ||
             originalName.startsWith("vertex-") ||
             originalName.startsWith("measurement-") ||
+            originalName === "measurement-label" ||
             originalName.startsWith("room-")
 
         let adjustedY = stagePos.y
@@ -1605,6 +1632,7 @@ export const CanvasEngine = ({
             targetName.startsWith("shunt-") ||
             targetName.startsWith("vertex-") ||
             targetName.startsWith("measurement-") ||
+            targetName === "measurement-label" ||
             targetName.startsWith("room-")
 
         if (isRightClick || isMiddleClick || isBackground || (activeTool === "select" && (!isProtected || isRoom))) {
@@ -1779,6 +1807,44 @@ export const CanvasEngine = ({
                 // For touch/pen, releasing the pointer should confirm the placement (2nd click)
                 // We execute onMouseUp which handles the "Confirm" step in EditorContainer
                 onMouseUp(pos)
+            }
+        }
+
+        // SIMULATED CLICK/TAP for mobile crosshair targets
+        // If it was a short tap (minimal move and short time), fire click/tap on the virtual target
+        const now = Date.now()
+        const clickDuration = now - pointerDownTime.current
+        const dist = pointerDownPos.current ? Math.sqrt(
+            Math.pow(stagePos.x - pointerDownPos.current.x, 2) +
+            Math.pow(stagePos.y - pointerDownPos.current.y, 2)
+        ) : 100
+
+        if (isTouchOrPen && clickDuration < 400 && dist < 15) {
+            // Find what's under the crosshair (virtual target)
+            let adjustedY_forClick = stagePos.y
+            const isOriginalProtected = e.target?.name?.()?.startsWith("wall-") ||
+                e.target?.name?.()?.startsWith("door-") ||
+                e.target?.name?.()?.startsWith("window-") ||
+                e.target?.name?.()?.startsWith("shunt-") ||
+                e.target?.name?.()?.startsWith("vertex-") ||
+                e.target?.name?.()?.startsWith("measurement-") ||
+                e.target?.name?.()?.startsWith("room-")
+
+            if (!isOriginalProtected) {
+                adjustedY_forClick -= currentDynamicOffset.current
+            }
+
+            let virtualTarget = isOriginalProtected ? e.target : stage.getIntersection({ x: stagePos.x, y: adjustedY_forClick })
+            if (virtualTarget && virtualTarget !== stage) {
+                const name = virtualTarget.attrs?.name || virtualTarget.name?.() || ""
+                if (!name) {
+                    const ancestor = virtualTarget.findAncestor?.((n: any) => !!(n.attrs?.name || n.name?.()))
+                    if (ancestor) virtualTarget = ancestor
+                }
+
+                // If we found a target, fire clinical events
+                // ONLY fire click, and cancel bubble to avoid stage/background logic
+                virtualTarget.fire('click', { ...e, cancelBubble: true }, true)
             }
         }
     }
@@ -2367,7 +2433,9 @@ export const CanvasEngine = ({
                                             rotation={(() => {
                                                 const normalized = ((wallAngle % 360) + 360) % 360
                                                 return (normalized > 90 && normalized < 270) ? 180 : 0
-                                            })()}>
+                                            })()}
+                                            listening={true}
+                                        >
                                             {/* HALO TEXT for Door Width */}
                                             <Text
                                                 text={`${door.width.toString().replace('.', ',')}`}
@@ -2390,27 +2458,30 @@ export const CanvasEngine = ({
                                                 width={door.width}
                                                 offsetX={door.width / 2}
                                                 offsetY={6} // Centered vertically
+                                                name="measurement-label"
                                                 fontStyle="bold"
                                                 onClick={(e) => {
                                                     e.cancelBubble = true
+                                                    if (e.evt) e.evt.stopPropagation()
                                                     const absPos = e.currentTarget.getAbsolutePosition()
                                                     setEditInputState({
                                                         id: `door-width-${door.id}`,
                                                         type: 'door-width',
                                                         val: door.width,
                                                         screenPos: absPos,
-                                                        onCommit: (val) => onUpdateElement('door', door.id, { width: val })
+                                                        onCommit: (val: any) => onUpdateElement('door', door.id, { width: val })
                                                     })
                                                 }}
                                                 onTap={(e) => {
                                                     e.cancelBubble = true
+                                                    if (e.evt) e.evt.stopPropagation()
                                                     const absPos = e.currentTarget.getAbsolutePosition()
                                                     setEditInputState({
                                                         id: `door-width-${door.id}`,
                                                         type: 'door-width',
                                                         val: door.width,
                                                         screenPos: absPos,
-                                                        onCommit: (val) => onUpdateElement('door', door.id, { width: val })
+                                                        onCommit: (val: any) => onUpdateElement('door', door.id, { width: val })
                                                     })
                                                 }}
                                             />
@@ -2419,7 +2490,7 @@ export const CanvasEngine = ({
 
                                     {/* Distancias dinámicas alineadas con el muro (Estilo HomeByMe) */}
                                     {isSelected && (
-                                        <Group rotation={0}>
+                                        <Group rotation={0} listening={true}>
                                             {d1Val > 0 && editInputState?.id !== `door-d1-${door.id}` && (
                                                 <Group x={gap1CenterLocalX} y={0}>
                                                     <Group rotation={(() => {
@@ -2432,6 +2503,7 @@ export const CanvasEngine = ({
                                                             shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
                                                         />
                                                         <Text
+                                                            name="measurement-label"
                                                             text={`${d1}`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold"
                                                         />
                                                     </Group>
@@ -2449,6 +2521,7 @@ export const CanvasEngine = ({
                                                             shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
                                                         />
                                                         <Text
+                                                            name="measurement-label"
                                                             text={`${d2}`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold"
                                                         />
                                                     </Group>
@@ -2654,7 +2727,9 @@ export const CanvasEngine = ({
                                             rotation={(() => {
                                                 const normalized = ((wallAngle % 360) + 360) % 360
                                                 return (normalized >= 90 && normalized < 270) ? 180 : 0
-                                            })()}>
+                                            })()}
+                                            listening={true}
+                                        >
                                             {/* HALO TEXT for Window Dims */}
                                             <Text
                                                 text={`${window.width.toString().replace('.', ',')}x${window.height.toString().replace('.', ',')}`}
@@ -2677,32 +2752,31 @@ export const CanvasEngine = ({
                                                 width={window.width}
                                                 offsetX={window.width / 2}
                                                 offsetY={6}
+                                                name="measurement-label"
                                                 fontStyle="bold"
                                                 onClick={(e) => {
                                                     e.cancelBubble = true
+                                                    if (e.evt) e.evt.stopPropagation()
                                                     const absPos = e.currentTarget.getAbsolutePosition()
                                                     setEditInputState({
                                                         id: `window-dims-${window.id}`,
                                                         type: 'window-dimensions',
-                                                        val: 0, // Dummy
-                                                        props: { w: window.width, h: window.height },
+                                                        val: { width: window.width, height: window.height },
                                                         screenPos: absPos,
-                                                        // @ts-ignore
-                                                        onCommit: ({ w, h }: { w: number, h: number }) => onUpdateElement('window', window.id, { width: w, height: h })
-                                                    } as any)
+                                                        onCommit: (vals: any) => onUpdateElement('window', window.id, { width: vals.width, height: vals.height })
+                                                    })
                                                 }}
                                                 onTap={(e) => {
                                                     e.cancelBubble = true
+                                                    if (e.evt) e.evt.stopPropagation()
                                                     const absPos = e.currentTarget.getAbsolutePosition()
                                                     setEditInputState({
                                                         id: `window-dims-${window.id}`,
                                                         type: 'window-dimensions',
-                                                        val: 0, // Dummy
-                                                        props: { w: window.width, h: window.height },
+                                                        val: { width: window.width, height: window.height },
                                                         screenPos: absPos,
-                                                        // @ts-ignore
-                                                        onCommit: ({ w, h }: { w: number, h: number }) => onUpdateElement('window', window.id, { width: w, height: h })
-                                                    } as any)
+                                                        onCommit: (vals: any) => onUpdateElement('window', window.id, { width: vals.width, height: vals.height })
+                                                    })
                                                 }}
                                             />
                                         </Group>
@@ -2710,7 +2784,7 @@ export const CanvasEngine = ({
 
                                     {/* Distancias dinámicas alineadas con el muro */}
                                     {isSelected && (
-                                        <Group rotation={0}>
+                                        <Group rotation={0} listening={true}>
                                             {d1Val > 0 && editInputState?.id !== `window-d1-${window.id}` && (
                                                 <Group x={gap1CenterLocalX} y={0}>
                                                     <Group rotation={(() => {
@@ -2723,6 +2797,7 @@ export const CanvasEngine = ({
                                                             shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
                                                         />
                                                         <Text
+                                                            name="measurement-label"
                                                             text={`${d1}`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold"
                                                         />
                                                     </Group>
@@ -2740,6 +2815,7 @@ export const CanvasEngine = ({
                                                             shadowColor="black" shadowBlur={2} shadowOpacity={0.1}
                                                         />
                                                         <Text
+                                                            name="measurement-label"
                                                             text={`${d2}`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold"
                                                         />
                                                     </Group>
@@ -2752,110 +2828,6 @@ export const CanvasEngine = ({
                         })}
 
 
-                        {/* Shunts (Nodes) - Memoized for smooth drag */}
-                        {shunts.map(shunt => (
-                            <ShuntItem
-                                key={shunt.id}
-                                shunt={shunt}
-                                isSelected={selectedElement?.id === shunt.id && selectedElement?.type === "shunt"}
-                                activeTool={activeTool}
-                                walls={walls}
-                                snappingEnabled={snappingEnabled}
-                                zoom={zoom}
-                                shunts={shunts}
-                                setDragShuntState={setDragShuntState}
-                                onSelect={() => onSelectElement({ type: "shunt", id: shunt.id })}
-                                onDragEnd={(id, x, y) => onDragElement("shunt", id, { x, y })}
-                                isEditing={editInputState?.id === `shunt-dimensions-${shunt.id}`}
-                                onEditDimensions={(e) => {
-                                    const stage = e.target.getStage()
-                                    // Calculate center of shunt in screen coords
-                                    // Use absolute position of the Text or Shunt group
-                                    const absPos = e.target.getAbsolutePosition()
-                                    // The text is offsets, so let's rely on event target or group
-                                    // Shunt Group is target's parent probably.
-                                    // Let's use event target absolute position which is the text center roughly.
-                                    const screenPos = {
-                                        x: (absPos.x),
-                                        y: (absPos.y)
-                                    }
-
-                                    setEditInputState({
-                                        id: `shunt-dimensions-${shunt.id}`,
-                                        type: "shunt-dimensions",
-                                        val: 0, // unused
-                                        screenPos,
-                                        // @ts-ignore
-                                        props: {
-                                            w: shunt.width,
-                                            h: shunt.height,
-                                            onCommit: (res: { w: number, h: number }) => {
-                                                if (res.w !== shunt.width) onUpdateShunt?.(shunt.id, { width: res.w })
-                                                if (res.h !== shunt.height) onUpdateShunt?.(shunt.id, { height: res.h })
-                                            }
-                                        },
-                                        onCommit: () => { } // unused
-                                    })
-                                }}
-                            />
-                        ))}
-
-                        {/* Renderizar etiquetas de habitación (CAPA SUPERIOR - Encima de shunts) */}
-                        {rooms.map((room: Room) => {
-                            const centroid = {
-                                x: room.polygon.reduce((sum: number, p: Point) => sum + p.x, 0) / room.polygon.length,
-                                y: room.polygon.reduce((sum: number, p: Point) => sum + p.y, 0) / room.polygon.length
-                            }
-                            const labelPos = room.visualCenter || centroid
-
-                            // Dynamic Font Size Calculation
-                            const bounds = room.polygon.reduce((acc, p) => ({
-                                minX: Math.min(acc.minX, p.x),
-                                maxX: Math.max(acc.maxX, p.x),
-                                minY: Math.min(acc.minY, p.y),
-                                maxY: Math.max(acc.maxY, p.y)
-                            }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity })
-
-                            const rW = bounds.maxX - bounds.minX
-                            const rH = bounds.maxY - bounds.minY
-                            const minDim = Math.min(rW, rH)
-
-                            // Scale factor: Base 200px -> Scale 1. Range [0.8, 3.0]
-                            const scale = Math.max(0.8, Math.min(3.0, minDim / 200))
-
-                            return (
-                                <Group
-                                    key={`label-${room.id}`}
-                                    name="room-label"
-                                    x={labelPos.x} y={labelPos.y}
-                                    onClick={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
-                                    onTap={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
-                                    listening={false}
-                                >
-                                    <Text
-                                        name="room-label-text"
-                                        y={-10 * scale}
-                                        text={room.name}
-                                        fontSize={18 * scale}
-                                        fill="#1e293b"
-                                        fontStyle="bold"
-                                        align="center"
-                                        offsetX={50 * scale}
-                                        width={100 * scale}
-                                    />
-                                    <Text
-                                        name="room-label-text"
-                                        y={5 * scale}
-                                        text={`${room.area.toFixed(2).replace('.', ',')} m²`}
-                                        fontSize={14 * scale}
-                                        fill="#64748b"
-                                        align="center"
-                                        offsetX={50 * scale}
-                                        width={100 * scale}
-                                    />
-                                </Group>
-                            )
-                        })}
 
                         {/* Shunt Measurements - Global Overlay (Separate Layer) */}
                         {shunts.map(shunt => {
@@ -3057,6 +3029,96 @@ export const CanvasEngine = ({
                                 return null
                             })
                         })}
+
+                        {/* Shunts (Nodes) - Memoized for smooth drag */}
+                        {shunts.map(shunt => (
+                            <ShuntItem
+                                key={shunt.id}
+                                shunt={shunt}
+                                isSelected={selectedElement?.id === shunt.id && selectedElement?.type === "shunt"}
+                                activeTool={activeTool}
+                                walls={walls}
+                                snappingEnabled={snappingEnabled}
+                                zoom={zoom}
+                                shunts={shunts}
+                                setDragShuntState={setDragShuntState}
+                                onSelect={() => onSelectElement({ type: "shunt", id: shunt.id })}
+                                onDragEnd={(id, x, y) => onDragElement("shunt", id, { x, y })}
+                                isEditing={editInputState?.id === `shunt-dimensions-${shunt.id}`}
+                                onEditDimensions={(e) => {
+                                    const absPos = e.target.getAbsolutePosition()
+                                    setEditInputState({
+                                        id: `shunt-dimensions-${shunt.id}`,
+                                        type: "shunt-dimensions",
+                                        val: { width: shunt.width, height: shunt.height },
+                                        screenPos: absPos,
+                                        onCommit: (vals: any) => {
+                                            if (vals.width !== shunt.width) onUpdateShunt?.(shunt.id, { width: vals.width })
+                                            if (vals.height !== shunt.height) onUpdateShunt?.(shunt.id, { height: vals.height })
+                                        }
+                                    })
+                                }}
+                            />
+                        ))}
+
+                        {/* Renderizar etiquetas de habitación (CAPA SUPERIOR - Encima de shunts) */}
+                        {rooms.map((room: Room) => {
+                            const centroid = {
+                                x: room.polygon.reduce((sum: number, p: Point) => sum + p.x, 0) / room.polygon.length,
+                                y: room.polygon.reduce((sum: number, p: Point) => sum + p.y, 0) / room.polygon.length
+                            }
+                            const labelPos = room.visualCenter || centroid
+
+                            // Dynamic Font Size Calculation
+                            const bounds = room.polygon.reduce((acc, p) => ({
+                                minX: Math.min(acc.minX, p.x),
+                                maxX: Math.max(acc.maxX, p.x),
+                                minY: Math.min(acc.minY, p.y),
+                                maxY: Math.max(acc.maxY, p.y)
+                            }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity })
+
+                            const rW = bounds.maxX - bounds.minX
+                            const rH = bounds.maxY - bounds.minY
+                            const minDim = Math.min(rW, rH)
+
+                            // Scale factor: Base 200px -> Scale 1. Range [0.8, 3.0]
+                            const scale = Math.max(0.8, Math.min(3.0, minDim / 200))
+
+                            return (
+                                <Group
+                                    key={`label-${room.id}`}
+                                    name="room-label"
+                                    x={labelPos.x} y={labelPos.y}
+                                    onClick={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
+                                    onTap={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
+                                    listening={false}
+                                >
+                                    <Text
+                                        name="room-label-text"
+                                        y={-10 * scale}
+                                        text={room.name}
+                                        fontSize={18 * scale}
+                                        fill="#1e293b"
+                                        fontStyle="bold"
+                                        align="center"
+                                        offsetX={50 * scale}
+                                        width={100 * scale}
+                                    />
+                                    <Text
+                                        name="room-label-text"
+                                        y={5 * scale}
+                                        text={`${room.area.toFixed(2).replace('.', ',')} m²`}
+                                        fontSize={14 * scale}
+                                        fill="#64748b"
+                                        align="center"
+                                        offsetX={50 * scale}
+                                        width={100 * scale}
+                                    />
+                                </Group>
+                            )
+                        })}
+
+
 
                         {/* Renderizar muro actual (fantasma) con medida */}
                         {currentWall && (() => {
@@ -3742,7 +3804,37 @@ export const CanvasEngine = ({
                                     )}
                                     <MenuButton
                                         icon={<Pencil className="h-3 w-3" />}
-                                        onClick={() => setEditMode(selectedWall ? "thickness" : selectedElement ? "length" : "room")}
+                                        onClick={() => {
+                                            if (selectedWall) {
+                                                setEditMode("thickness")
+                                            } else if (selectedElement) {
+                                                if (isMobile) {
+                                                    const el = selectedElement.type === "door"
+                                                        ? doors.find(d => d.id === selectedElement.id)
+                                                        : selectedElement.type === "window"
+                                                            ? windows.find(w => w.id === selectedElement.id)
+                                                            : shunts.find(s => s.id === selectedElement.id)
+
+                                                    if (el) {
+                                                        const isDual = selectedElement.type === "window" || selectedElement.type === "shunt"
+                                                        setEditInputState({
+                                                            id: `${selectedElement.type}-pencil-${el.id}`,
+                                                            type: isDual ? 'window-dimensions' : 'door-width',
+                                                            val: isDual ? { width: (el as any).width, height: (el as any).height } : (el as any).width,
+                                                            screenPos: currentEPos!,
+                                                            onCommit: (vals: any) => {
+                                                                const updates = typeof vals === 'object' ? vals : { width: vals }
+                                                                onUpdateElement(selectedElement.type, el.id, updates)
+                                                            }
+                                                        })
+                                                    }
+                                                } else {
+                                                    setEditMode("length")
+                                                }
+                                            } else {
+                                                setEditMode("room")
+                                            }
+                                        }}
                                         title="Editar"
                                     />
                                     <div className="w-px h-4 bg-slate-100 mx-0.5" />
@@ -4104,10 +4196,10 @@ export const CanvasEngine = ({
                                             </div>
                                             {(selectedElement.type === "window" || selectedElement.type === "shunt") && (
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Alto</span>
+                                                    <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Alto / Largo</span>
                                                     <NumericInput
                                                         isMobile={isMobile}
-                                                        label="Alto"
+                                                        label="Alto / Largo"
                                                         value={editHeight}
                                                         setter={setEditHeight}
                                                         onEnter={(val) => {

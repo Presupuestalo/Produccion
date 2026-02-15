@@ -630,6 +630,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     }
 
     const handleDragElement = (type: "door" | "window" | "shunt", id: string, pointer: Point) => {
+        saveStateToHistory()
         if (type === "shunt") {
             setShunts(prev => prev.map(s => s.id === id ? { ...s, x: pointer.x, y: pointer.y } : s))
             return
