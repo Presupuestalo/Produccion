@@ -37,7 +37,16 @@ export function SimpleSaveDialog({ open, onOpenChange, onSave, isLoading, contai
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent container={container} className="sm:max-w-[425px]">
+            {/* 
+                Mobile optimizations: 
+                - anchor to top (top-[12%]) instead of center to avoid keyboard occlusion
+                - remove translateY centering on mobile
+                - restore desktop defaults with sm: prefix
+            */}
+            <DialogContent
+                container={container}
+                className="sm:max-w-[425px] top-[12%] translate-y-0 data-[state=open]:slide-in-from-top-[12%] sm:top-[50%] sm:translate-y-[-50%] sm:data-[state=open]:slide-in-from-top-[48%]"
+            >
                 <DialogHeader>
                     <DialogTitle>Guardar Plano</DialogTitle>
                     <DialogDescription>
