@@ -282,37 +282,51 @@ const SingleInputWrapper = ({ val, screenPos, onCommit, onClose, isMobile }: any
     }
 
     return (
-        <div className={`fixed inset-0 z-[9998] flex ${isMobile ? "items-start pt-4 lg:pt-24" : "items-center"} justify-center pointer-events-none`}>
-            {isMobile && <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px] pointer-events-auto" onClick={onClose} />}
+        <>
+            <div className="fixed inset-0 z-[9998] bg-transparent pointer-events-auto" onClick={onClose} />
             <div
                 style={{
-                    position: isMobile ? "relative" : "absolute",
-                    left: isMobile ? "auto" : screenPos.x,
-                    top: isMobile ? "auto" : screenPos.y,
-                    transform: isMobile ? "none" : "translate(-50%, -50%)",
+                    position: "absolute",
+                    left: screenPos.x,
+                    top: screenPos.y,
+                    transform: "translate(-50%, -50%)",
                     zIndex: 9999
                 }}
-                className="flex items-center gap-1 bg-white p-2 rounded-xl shadow-2xl border border-slate-200 pointer-events-auto animate-in fade-in zoom-in duration-200"
+                className="flex items-center gap-1 bg-amber-400 p-1.5 rounded-lg shadow-md border border-amber-500 pointer-events-auto animate-in fade-in zoom-in duration-100 origin-center"
                 onClick={(e) => e.stopPropagation()}
             >
-                <NumericInput
-                    isMobile={isMobile}
-                    value={localVal}
-                    setter={setLocalVal}
-                    onEnter={commit}
-                    label="Medida (cm)"
-                />
+                <div onPointerDown={(e) => e.stopPropagation()}>
+                    <NumericInput
+                        isMobile={isMobile}
+                        value={localVal}
+                        setter={setLocalVal}
+                        onEnter={commit}
+                        placeholder="0"
+                    />
+                </div>
                 <button
                     onMouseDown={(e) => {
                         e.preventDefault()
                         commit()
                     }}
-                    className="bg-green-500 text-white p-1 rounded-lg shadow-sm flex items-center justify-center hover:bg-green-600 w-9 h-9 active:scale-90 transition-all ml-1"
+                    className="bg-white/20 text-white p-1 rounded hover:bg-white/30 w-8 h-8 flex items-center justify-center transition-colors shadow-sm active:scale-95 mx-0.5"
+                    title="Aceptar"
                 >
-                    <Check className="h-5 w-5" />
+                    <Check className="w-5 h-5" />
+                </button>
+                <button
+                    onMouseDown={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        onClose()
+                    }}
+                    className="bg-red-500/80 text-white p-1 rounded hover:bg-red-600 w-8 h-8 flex items-center justify-center transition-colors shadow-sm active:scale-95 ml-0.5"
+                    title="Cancelar"
+                >
+                    <X className="w-5 h-5" />
                 </button>
             </div>
-        </div>
+        </>
     )
 }
 
@@ -617,7 +631,7 @@ export const CanvasEngine = ({
 
     React.useEffect(() => {
         const checkMobile = () => {
-            setIsMobile(window.innerWidth < 768 || (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)))
+            setIsMobile(window.innerWidth < 1200 || (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)))
         }
         checkMobile()
         window.addEventListener('resize', checkMobile)

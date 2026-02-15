@@ -1886,7 +1886,10 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
                         <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
 
-                        <Button variant="ghost" size="icon" onClick={handleTriggerImageUpload} title="Subir Imagen de Fondo" className="w-12 h-12">
+                        <Button variant="ghost" size="icon" onClick={() => {
+                            if (bgImage && !confirm("Ya hay un plano de fondo cargado. ¿Estás seguro de que quieres reemplazarlo?")) return
+                            document.getElementById("bg-import")?.click()
+                        }} title="Subir Imagen de Fondo" className="w-12 h-12">
                             <ImagePlus className="h-5 w-5" />
                         </Button>
 
@@ -1961,7 +1964,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
 
                 </div>
-                <input type="file" id="bg-import" className="hidden" accept="image/*" onChange={handleImportImage} />
+                <input type="file" id="bg-import" className="hidden" accept="image/*" onChange={handleImportImage} title="Importar imagen de fondo" />
                 <CanvasEngine
                     onReady={(api) => { canvasEngineRef.current = api }}
                     width={dimensions.width}
@@ -2062,94 +2065,94 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     onUpdateShunt={handleUpdateShunt}
                     hideFloatingUI={showSummary || (isMobile && !isFullscreen && typeof window !== 'undefined' && window.innerWidth > window.innerHeight)}
                     showAllQuotes={showAllQuotes}
+                    calibrationTargetValue={calibrationTargetValue}
+                    onUpdateCalibrationValue={setCalibrationTargetValue}
                 />
 
 
 
                 {bgImage && (
-                    <div className="absolute top-20 right-4 z-30 flex flex-col gap-2 pointer-events-none">
-                        <Card className="p-4 w-72 max-w-[calc(100vw-32px)] shadow-lg bg-white/95 backdrop-blur pointer-events-auto max-h-[calc(100vh-160px)] overflow-y-auto">
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <h4 className="font-medium text-sm">Opacidad del Plano</h4>
-                                    <span className="text-xs text-muted-foreground">{Math.round(bgConfig.opacity * 100)}%</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0.1"
-                                    max="1"
-                                    step="0.05"
-                                    value={bgConfig.opacity}
-                                    onChange={(e) => setBgConfig({ ...bgConfig, opacity: parseFloat(e.target.value) })}
-                                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-                                />
-
-                                <Separator />
-
-                                <div className="space-y-2">
-                                    <h4 className="font-medium text-sm">Calibración</h4>
-                                    <p className="text-xs text-slate-500">
-                                        {isCalibrating
-                                            ? "Haz clic en dos puntos del plano para definir una distancia conocida."
-                                            : "Si las medidas no coinciden, calibra el plano usando una distancia conocida (ej. una puerta de 80cm)."}
-                                    </p>
-                                    {!isCalibrating ? (
+                    <>
+                        {isCalibrating ? (
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex gap-2 w-full justify-center px-4 pointer-events-none">
+                                <Card className="p-2 shadow-xl bg-orange-50 border-orange-200 border flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 pointer-events-auto max-w-full overflow-x-auto">
+                                    <div className="flex flex-col ml-1 min-w-[100px]">
+                                        <span className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Calibrando</span>
+                                        <span className="text-sm font-mono font-bold text-orange-900 leading-none">{calibrationTargetValue ? `${calibrationTargetValue}cm` : 'Selecciona 2 puntos'}</span>
+                                    </div>
+                                    <div className="h-8 w-px bg-orange-200 shrink-0" />
+                                    <div className="flex gap-2 shrink-0">
                                         <Button
-                                            variant="outline"
                                             size="sm"
-                                            className="w-full"
-                                            onClick={() => setIsCalibrating(true)}
+                                            className="bg-orange-600 hover:bg-orange-700 text-white h-8 px-3"
+                                            disabled={!calibrationPoints.p1 || !calibrationPoints.p2 || !calibrationTargetValue}
+                                            onClick={handleApplyCalibration}
                                         >
-                                            <Ruler className="w-4 h-4 mr-2" />
-                                            Calibrar Escala
+                                            Aplicar
                                         </Button>
-                                    ) : (
-                                        <div className="flex flex-col gap-2">
-                                            <p className="text-xs font-semibold text-orange-600">
-                                                Distancia actual: {calibrationTargetValue} cm
-                                            </p>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    variant="default"
-                                                    size="sm"
-                                                    className="flex-1 bg-orange-600 hover:bg-orange-700"
-                                                    disabled={!calibrationPoints.p1 || !calibrationPoints.p2 || calibrationTargetValue <= 0}
-                                                    onClick={handleApplyCalibration}
-                                                >
-                                                    Aplicar
-                                                </Button>
-                                                <Button
-                                                    variant="destructive"
-                                                    size="sm"
-                                                    className="flex-1"
-                                                    onClick={() => {
-                                                        setIsCalibrating(false)
-                                                        setCalibrationPoints({ p1: null, p2: null })
-                                                    }}
-                                                >
-                                                    Cancelar
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    )}
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="w-full text-red-500 hover:text-red-600 hover:bg-red-50"
-                                        onClick={() => {
-                                            if (confirm("¿Estás seguro de que quieres eliminar la imagen de fondo?")) {
-                                                setBgImage(null)
-                                                setBgConfig({ x: 0, y: 0, scale: 1, rotation: 0, opacity: 0.5 })
-                                            }
-                                        }}
-                                    >
-                                        <Trash2 className="w-4 h-4 mr-2" />
-                                        Eliminar Imagen
-                                    </Button>
-                                </div>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="text-orange-700 hover:bg-orange-100 h-8 px-3"
+                                            onClick={() => {
+                                                setIsCalibrating(false)
+                                                setCalibrationPoints({ p1: null, p2: null })
+                                            }}
+                                        >
+                                            Cancelar
+                                        </Button>
+                                    </div>
+                                </Card>
                             </div>
-                        </Card>
-                    </div>
+                        ) : (
+                            <div className="absolute top-20 right-4 z-30 flex flex-col gap-2 pointer-events-none">
+                                <Card className="p-3 w-60 shadow-lg bg-white/95 backdrop-blur pointer-events-auto border-slate-200">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="font-medium text-xs text-slate-500 uppercase tracking-wider">Opacidad</h4>
+                                            <span className="text-xs font-mono font-medium text-slate-700">{Math.round(bgConfig.opacity * 100)}%</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="0.1"
+                                            max="1"
+                                            step="0.05"
+                                            value={bgConfig.opacity}
+                                            onChange={(e) => setBgConfig({ ...bgConfig, opacity: parseFloat(e.target.value) })}
+                                            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                                            title="Ajustar opacidad del plano de fondo"
+                                        />
+
+                                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-8 text-xs font-medium"
+                                                onClick={() => setIsCalibrating(true)}
+                                            >
+                                                <Ruler className="w-3.5 h-3.5 mr-1.5" />
+                                                Calibrar
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 text-xs font-medium text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                onClick={() => {
+                                                    if (confirm("¿Estás seguro de que quieres eliminar la imagen de fondo?")) {
+                                                        setBgImage(null)
+                                                        setBgConfig({ x: 0, y: 0, scale: 1, rotation: 0, opacity: 0.5 })
+                                                    }
+                                                }}
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                                                Borrar
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </Card>
+                            </div>
+                        )}
+                    </>
                 )}
 
                 {/* Properties Panel for Selected Element */}

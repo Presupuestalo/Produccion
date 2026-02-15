@@ -14,6 +14,7 @@ interface NumericInputProps {
 
 export const NumericInput: React.FC<NumericInputProps> = ({ label, value, setter, onEnter, placeholder, step = 1, isMobile }) => {
     const [showKeypad, setShowKeypad] = useState(false)
+    const [isReadyToClose, setIsReadyToClose] = useState(false)
     const [position, setPosition] = useState({ x: 0, y: 0 })
     const isDraggingRef = React.useRef(false)
     const dragStartRef = React.useRef({ x: 0, y: 0 })
@@ -41,6 +42,14 @@ export const NumericInput: React.FC<NumericInputProps> = ({ label, value, setter
         e.currentTarget.releasePointerCapture(e.pointerId)
     }
 
+    React.useEffect(() => {
+        if (showKeypad) {
+            setIsReadyToClose(false)
+            const t = setTimeout(() => setIsReadyToClose(true), 500)
+            return () => clearTimeout(t)
+        }
+    }, [showKeypad])
+
     if (isMobile) {
         return (
             <div className="flex items-center gap-1">
@@ -61,6 +70,7 @@ export const NumericInput: React.FC<NumericInputProps> = ({ label, value, setter
                         setShowKeypad(true)
                         setPosition({ x: 0, y: 0 })
                     }}
+                    onTouchEnd={(e) => e.stopPropagation()}
                     className="min-w-[80px] h-9 px-2 bg-white border-2 border-sky-400 rounded-lg text-center text-base font-black text-slate-800 hover:bg-sky-50 active:scale-95 transition-all shadow-md flex items-center justify-center gap-1"
                 >
                     {value || placeholder || "0"}
@@ -68,11 +78,8 @@ export const NumericInput: React.FC<NumericInputProps> = ({ label, value, setter
                 {showKeypad && (
                     <div
                         className="fixed inset-0 z-[3000] bg-transparent" // Invisible overlay for click-outside
-                        onTouchEnd={(e) => {
-                            if (e.target === e.currentTarget) setShowKeypad(false)
-                        }}
                         onClick={(e) => {
-                            if (e.target === e.currentTarget) setShowKeypad(false)
+                            if (e.target === e.currentTarget && isReadyToClose) setShowKeypad(false)
                         }}
                     >
                         {/* Draggable Container */}
