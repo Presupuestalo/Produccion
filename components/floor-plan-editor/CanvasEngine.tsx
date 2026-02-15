@@ -282,7 +282,7 @@ const SingleInputWrapper = ({ val, screenPos, onCommit, onClose, isMobile }: any
     }
 
     return (
-        <div className={`fixed inset-0 z-[9998] flex ${isMobile ? "items-start pt-4 sm:pt-24" : "items-center"} justify-center pointer-events-none`}>
+        <div className={`fixed inset-0 z-[9998] flex ${isMobile ? "items-start pt-4 lg:pt-24" : "items-center"} justify-center pointer-events-none`}>
             {isMobile && <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px] pointer-events-auto" onClick={onClose} />}
             <div
                 style={{
@@ -330,7 +330,7 @@ const DualInputWrapper = ({ valObj, screenPos, onCommit, onClose, isMobile }: an
     }
 
     return (
-        <div className={`fixed inset-0 z-[9998] flex ${isMobile ? "items-start pt-4 sm:pt-24" : "items-center"} justify-center pointer-events-none`}>
+        <div className={`fixed inset-0 z-[9998] flex ${isMobile ? "items-start pt-4 lg:pt-24" : "items-center"} justify-center pointer-events-none`}>
             {isMobile && <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px] pointer-events-auto" onClick={onClose} />}
             <div
                 style={{

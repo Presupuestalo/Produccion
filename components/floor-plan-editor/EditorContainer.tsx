@@ -1464,6 +1464,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             // Reset calibration
             setCalibrationPoints({ p1: { x: 200, y: 200 }, p2: { x: 500, y: 200 } })
             setIsCalibrating(false)
+            setActiveTool("select") // Reset tool to avoid accidental drawing
         }
         reader.readAsDataURL(file)
 
