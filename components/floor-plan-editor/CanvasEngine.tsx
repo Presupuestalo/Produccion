@@ -217,6 +217,16 @@ const ShuntItem = React.memo(({
                 onDragEnd(shunt.id, node.x(), node.y())
             }}
         >
+            {/* INVISIBLE HIT AREA FOR MOBILE DRAGGING */}
+            <Rect
+                name={`shunt-${shunt.id}`}
+                width={Math.max(shunt.width, 100 / zoom)}
+                height={Math.max(shunt.height, 100 / zoom)}
+                offsetX={Math.max(shunt.width, 100 / zoom) / 2}
+                offsetY={Math.max(shunt.height, 100 / zoom) / 2}
+                fill="rgba(255,255,255,0.01)"
+                listening={activeTool === "select"}
+            />
             <Rect
                 width={shunt.width}
                 height={shunt.height}
@@ -1523,6 +1533,10 @@ export const CanvasEngine = ({
     }
 
     const handleStagePointerDown = (e: any) => {
+        // RE-ENTRY GUARD: Prevent recursion loops if we manually fire pointerdown on targets
+        if (e.evt && (e.evt as any)._stagePointerHandled) return
+        if (e.evt) (e.evt as any)._stagePointerHandled = true
+
         const stage = e.target?.getStage?.()
         if (!stage) return
 
@@ -1617,23 +1631,25 @@ export const CanvasEngine = ({
         if (isTouchInteraction && !isBackground) {
             if (activeTool === "select") {
                 if (targetName.startsWith("wall-")) {
-                    const wallId = targetName.split("wall-")[1]
+                    const wallId = targetName.split("wall-")[1].split("-")[0]
                     onSelectWall(wallId, e.evt.ctrlKey)
                 } else if (targetName.startsWith("door-")) {
-                    const doorId = targetName.split("door-")[1]
+                    const doorId = targetName.split("door-")[1].split("-")[0]
                     onSelectElement({ type: "door", id: doorId })
                 } else if (targetName.startsWith("window-")) {
-                    const windowId = targetName.split("window-")[1]
+                    const windowId = targetName.split("window-")[1].split("-")[0]
                     onSelectElement({ type: "window", id: windowId })
                 } else if (targetName.startsWith("shunt-")) {
-                    const shuntId = targetName.split("shunt-")[1]
+                    const shuntId = targetName.split("shunt-")[1].split("-")[0]
                     onSelectElement({ type: "shunt", id: shuntId })
                 } else if (targetName === "room-poly" || targetName.startsWith("room-")) {
                     // Try to find roomId from ancestors or ID if encoded
                 }
 
-                // Disparamos pointerdown para que Konva inicie draggables
-                virtualTarget.fire('pointerdown', e, true)
+                // Disparamos pointerdown para que Konva inicie draggables SOLO si cambiamos de target
+                if (virtualTarget && virtualTarget !== originalTarget) {
+                    virtualTarget.fire('pointerdown', e, true)
+                }
 
                 // Si es un vértice o una medida, evitamos que se empiece a dibujar un muro debajo
                 if (targetName === "vertex-handle" || targetName.startsWith("measurement-")) {
@@ -2417,35 +2433,6 @@ export const CanvasEngine = ({
                                                         />
                                                         <Text
                                                             text={`${d1}`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold"
-                                                            name="measurement-group"
-                                                            onClick={(e) => {
-                                                                e.cancelBubble = true
-                                                                const absPos = e.currentTarget.getAbsolutePosition()
-                                                                setEditInputState({
-                                                                    id: `door-d1-${door.id}`,
-                                                                    type: 'door-d1',
-                                                                    val: d1Val,
-                                                                    screenPos: absPos,
-                                                                    onCommit: (val) => {
-                                                                        const newT = (val + door.width / 2) / wallLen
-                                                                        if (newT >= 0 && newT <= 1) onUpdateElement('door', door.id, { t: newT })
-                                                                    }
-                                                                })
-                                                            }}
-                                                            onTap={(e) => {
-                                                                e.cancelBubble = true
-                                                                const absPos = e.currentTarget.getAbsolutePosition()
-                                                                setEditInputState({
-                                                                    id: `door-d1-${door.id}`,
-                                                                    type: 'door-d1',
-                                                                    val: d1Val,
-                                                                    screenPos: absPos,
-                                                                    onCommit: (val) => {
-                                                                        const newT = (val + door.width / 2) / wallLen
-                                                                        if (newT >= 0 && newT <= 1) onUpdateElement('door', door.id, { t: newT })
-                                                                    }
-                                                                })
-                                                            }}
                                                         />
                                                     </Group>
                                                 </Group>
@@ -2463,40 +2450,6 @@ export const CanvasEngine = ({
                                                         />
                                                         <Text
                                                             text={`${d2}`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold"
-                                                            name="measurement-group"
-                                                            onClick={(e) => {
-                                                                e.cancelBubble = true
-                                                                const absPos = e.currentTarget.getAbsolutePosition()
-                                                                setEditInputState({
-                                                                    id: `door-d2-${door.id}`,
-                                                                    type: 'door-d2',
-                                                                    val: d2Val,
-                                                                    screenPos: absPos,
-                                                                    onCommit: (val) => {
-                                                                        // d2 is from END. t is from START.
-                                                                        // d2 = (1-t)*L - W/2
-                                                                        // val + W/2 = (1-t)*L
-                                                                        // (val + W/2)/L = 1 - t
-                                                                        // t = 1 - (val + W/2)/L
-                                                                        const newT = 1 - (val + door.width / 2) / wallLen
-                                                                        if (newT >= 0 && newT <= 1) onUpdateElement('door', door.id, { t: newT })
-                                                                    }
-                                                                })
-                                                            }}
-                                                            onTap={(e) => {
-                                                                e.cancelBubble = true
-                                                                const absPos = e.currentTarget.getAbsolutePosition()
-                                                                setEditInputState({
-                                                                    id: `door-d2-${door.id}`,
-                                                                    type: 'door-d2',
-                                                                    val: d2Val,
-                                                                    screenPos: absPos,
-                                                                    onCommit: (val) => {
-                                                                        const newT = 1 - (val + door.width / 2) / wallLen
-                                                                        if (newT >= 0 && newT <= 1) onUpdateElement('door', door.id, { t: newT })
-                                                                    }
-                                                                })
-                                                            }}
                                                         />
                                                     </Group>
                                                 </Group>
@@ -2771,35 +2724,6 @@ export const CanvasEngine = ({
                                                         />
                                                         <Text
                                                             text={`${d1}`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold"
-                                                            name="measurement-group"
-                                                            onClick={(e) => {
-                                                                e.cancelBubble = true
-                                                                const absPos = e.currentTarget.getAbsolutePosition()
-                                                                setEditInputState({
-                                                                    id: `window-d1-${window.id}`,
-                                                                    type: 'window-d1',
-                                                                    val: d1Val,
-                                                                    screenPos: absPos,
-                                                                    onCommit: (val) => {
-                                                                        const newT = (val + window.width / 2) / wallLen
-                                                                        if (newT >= 0 && newT <= 1) onUpdateElement('window', window.id, { t: newT })
-                                                                    }
-                                                                })
-                                                            }}
-                                                            onTap={(e) => {
-                                                                e.cancelBubble = true
-                                                                const absPos = e.currentTarget.getAbsolutePosition()
-                                                                setEditInputState({
-                                                                    id: `window-d1-${window.id}`,
-                                                                    type: 'window-d1',
-                                                                    val: d1Val,
-                                                                    screenPos: absPos,
-                                                                    onCommit: (val) => {
-                                                                        const newT = (val + window.width / 2) / wallLen
-                                                                        if (newT >= 0 && newT <= 1) onUpdateElement('window', window.id, { t: newT })
-                                                                    }
-                                                                })
-                                                            }}
                                                         />
                                                     </Group>
                                                 </Group>
@@ -2817,35 +2741,6 @@ export const CanvasEngine = ({
                                                         />
                                                         <Text
                                                             text={`${d2}`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold"
-                                                            name="measurement-group"
-                                                            onClick={(e) => {
-                                                                e.cancelBubble = true
-                                                                const absPos = e.currentTarget.getAbsolutePosition()
-                                                                setEditInputState({
-                                                                    id: `window-d2-${window.id}`,
-                                                                    type: 'window-d2',
-                                                                    val: d2Val,
-                                                                    screenPos: absPos,
-                                                                    onCommit: (val) => {
-                                                                        const newT = 1 - (val + window.width / 2) / wallLen
-                                                                        if (newT >= 0 && newT <= 1) onUpdateElement('window', window.id, { t: newT })
-                                                                    }
-                                                                })
-                                                            }}
-                                                            onTap={(e) => {
-                                                                e.cancelBubble = true
-                                                                const absPos = e.currentTarget.getAbsolutePosition()
-                                                                setEditInputState({
-                                                                    id: `window-d2-${window.id}`,
-                                                                    type: 'window-d2',
-                                                                    val: d2Val,
-                                                                    screenPos: absPos,
-                                                                    onCommit: (val) => {
-                                                                        const newT = 1 - (val + window.width / 2) / wallLen
-                                                                        if (newT >= 0 && newT <= 1) onUpdateElement('window', window.id, { t: newT })
-                                                                    }
-                                                                })
-                                                            }}
                                                         />
                                                     </Group>
                                                 </Group>
