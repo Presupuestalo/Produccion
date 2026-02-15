@@ -39,33 +39,31 @@ export function SimpleSaveDialog({ open, onOpenChange, onSave, isLoading, contai
         <Dialog open={open} onOpenChange={onOpenChange}>
             {/* 
                 Mobile optimizations: 
-                - anchor to top (top-[4%]) to maximize space above keyboard
-                - remove translateY centering on mobile
-                - restore desktop defaults with sm: prefix
-                - reduce max-width on mobile to avoid edge-to-edge
+                - anchor to top (top-0) to maximize space above keyboard
+                - remove unnecessary header space
             */}
             <DialogContent
                 container={container}
-                className="w-[95vw] sm:max-w-[425px] top-[4%] translate-y-0 data-[state=open]:slide-in-from-top-[4%] sm:top-[50%] sm:translate-y-[-50%] sm:data-[state=open]:slide-in-from-top-[48%] p-4 gap-2 max-h-[90vh] overflow-y-auto"
+                className="w-full sm:max-w-[425px] top-0 translate-y-0 data-[state=open]:slide-in-from-top-0 sm:top-[50%] sm:translate-y-[-50%] sm:data-[state=open]:slide-in-from-top-[48%] p-3 gap-1 max-h-[90vh] overflow-y-auto rounded-none sm:rounded-lg"
             >
-                <DialogHeader className="p-0 space-y-1">
-                    <DialogTitle>Guardar Plano</DialogTitle>
-                    <DialogDescription className="hidden xs:block text-xs">
+                <DialogHeader className="p-0 space-y-0 items-start">
+                    <DialogTitle className="text-sm font-medium">Guardar Plano</DialogTitle>
+                    <DialogDescription className="hidden sm:block text-xs">
                         Dale un nombre a tu plano para guardarlo.
                     </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="mt-2">
+                <form onSubmit={handleSubmit} className="mt-1">
                     <div className="grid gap-2 py-0">
                         <div className="grid grid-cols-1 gap-1">
-                            <Label htmlFor="name" className="text-left text-xs">
+                            <Label htmlFor="name" className="text-left text-xs sr-only">
                                 Nombre
                             </Label>
                             <Input
                                 id="name"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                placeholder="Ej: Salón reformado"
-                                className="col-span-1 h-9 text-sm"
+                                placeholder="Nombre del plano..."
+                                className="col-span-1 h-10 text-base"
                             // autoFocus removed to prevent mobile keyboard glitches
                             />
                         </div>
