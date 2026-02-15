@@ -94,14 +94,14 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
                 </div>
             </div>
 
-            {/* Keys: Scrollable horizontal list */}
-            <div className="w-full overflow-x-auto py-3 px-2 bg-slate-50">
-                <div className="flex gap-2 min-w-full px-2">
+            {/* Keys: Grid layout for better visibility on small screens */}
+            <div className="w-full py-2 px-2 bg-slate-50">
+                <div className="grid grid-cols-6 gap-2 px-1">
                     {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "."].map((digit) => (
                         <button
                             key={digit}
                             onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDigit(digit) }}
-                            className="flex-1 h-14 min-w-[60px] flex items-center justify-center text-xl font-bold bg-white text-slate-800 rounded-xl border-b-4 border-slate-200 active:border-b-0 active:translate-y-1 active:bg-slate-50 transition-all shadow-sm"
+                            className="h-12 flex items-center justify-center text-xl font-bold bg-white text-slate-800 rounded-lg border-b-4 border-slate-200 active:border-b-0 active:translate-y-1 active:bg-slate-50 transition-all shadow-sm"
                             style={{ WebkitTapHighlightColor: 'transparent' }}
                         >
                             {digit === '.' ? ',' : digit}
