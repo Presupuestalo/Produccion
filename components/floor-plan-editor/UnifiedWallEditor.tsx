@@ -12,18 +12,20 @@ interface UnifiedWallEditorProps {
 export const UnifiedWallEditor = ({ initialValue, orientation, onConfirm, onCancel }: UnifiedWallEditorProps) => {
     return (
         <div
-            className="fixed inset-0 z-[9999] flex flex-col justify-end pb-safe safe-area-inset-bottom"
-            style={{ paddingBottom: 'env(safe-area-inset-bottom, 20px)' }}
-            onPointerDown={(e) => {
-                if (e.target === e.currentTarget) onCancel()
-            }}
+            className="fixed inset-0 z-[9999]"
+            style={{ zIndex: 9999 }}
         >
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/10 backdrop-blur-sm" />
+            <div
+                className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+                onPointerDown={(e) => {
+                    if (e.target === e.currentTarget) onCancel()
+                }}
+            />
 
-            {/* Keypad at bottom as a floating card to avoid system UI issues */}
-            <div className="relative z-10 w-full px-4 pb-8 mb-safe">
-                <div className="bg-white shadow-[0_0_30px_rgba(0,0,0,0.15)] rounded-2xl overflow-hidden p-1">
+            {/* Keypad Bottom Sheet */}
+            <div className="absolute bottom-0 left-0 right-0 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.15)] rounded-t-2xl overflow-hidden flex flex-col pb-safe">
+                <div className="w-full max-w-md mx-auto">
                     <NumericKeypad
                         title="Editar Medida"
                         value={initialValue}
@@ -33,6 +35,8 @@ export const UnifiedWallEditor = ({ initialValue, orientation, onConfirm, onCanc
                         onCancel={onCancel}
                     />
                 </div>
+                {/* Safe area spacer */}
+                <div className="h-6 w-full bg-white" />
             </div>
         </div>
     )
