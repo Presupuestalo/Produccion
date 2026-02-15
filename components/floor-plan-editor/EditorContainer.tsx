@@ -1448,32 +1448,39 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     const handleImportImage = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
-        if (file) {
-            const reader = new FileReader()
-            reader.onload = (event) => {
-                setBgImage(event.target?.result as string)
-            }
-            reader.readAsDataURL(file)
+        if (!file) return
 
-            // Fix mobile zoom issue after file picker
-            const viewport = document.querySelector("meta[name=viewport]");
-            if (viewport) {
-                viewport.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1");
-            }
-
-            // Attempt to restore fullscreen immediately after file selection
-            // Note: Most mobile browsers block programmatic fullscreen without user gesture.
-            // We try, but if it fails, we rely on the user tapping the "Fullscreen" prompt which should appear.
-            setTimeout(() => {
-                if (isMobile && !document.fullscreenElement && editorWrapperRef.current) {
-                    editorWrapperRef.current.requestFullscreen().catch(err => {
-                        console.warn("Could not auto-restore fullscreen:", err)
-                        // If auto-restore fails, ensure we are in a state where the prompt shows up
-                        setIsFullscreen(false)
-                    })
-                }
-            }, 500) // Increased delay to allow browser UI to settle
+        const reader = new FileReader()
+        reader.onload = (e) => {
+            const result = e.target?.result as string
+            setBgImage(result)
+            setBgConfig({
+                ...bgConfig,
+                x: 0,
+                y: 0,
+                scale: 1, // Reset scale or keep context logic if desired
+                opacity: 0.5
+            })
+            // Reset calibration
+            setCalibrationPoints({ p1: { x: 200, y: 200 }, p2: { x: 500, y: 200 } })
+            setIsCalibrating(false)
         }
+        reader.readAsDataURL(file)
+
+        // Reset input value to allow re-upload of same file if needed in future
+        e.target.value = ''
+    }
+
+    const handleTriggerImageUpload = () => {
+        const isLandscape = typeof window !== 'undefined' && window.innerWidth > window.innerHeight
+        if (isMobile && isLandscape) {
+            toast({
+                title: "Sugerencia de visualización",
+                description: "Gira el móvil a vertical para ver mejor tus fotos al seleccionarlas.",
+                duration: 4000,
+            })
+        }
+        document.getElementById('bg-import')?.click()
     }
 
     const handleMouseMove = (point: Point) => {
@@ -1878,7 +1885,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
                         <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
 
-                        <Button variant="ghost" size="icon" onClick={() => document.getElementById('bg-import')?.click()} title="Importar Imagen" className="w-12 h-12 text-slate-600 hover:text-orange-600 hover:bg-orange-50">
+                        <Button variant="ghost" size="icon" onClick={handleTriggerImageUpload} title="Subir Imagen de Fondo" className="w-12 h-12">
                             <ImagePlus className="h-5 w-5" />
                         </Button>
 
