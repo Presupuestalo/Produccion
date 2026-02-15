@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2 } from "lucide-react"
+import { Loader2, Save } from "lucide-react"
 
 interface SimpleSaveDialogProps {
     open: boolean
@@ -39,13 +39,13 @@ export function SimpleSaveDialog({ open, onOpenChange, onSave, isLoading, contai
         <Dialog open={open} onOpenChange={onOpenChange}>
             {/* 
                 Mobile optimizations: 
-                - anchor to top (-mt-2) to go even higher
-                - REMOVE Header on mobile to save vertical space
-                - compact buttons
+                - FORCE anchor to top with !important (!top-0 !translate-y-0)
+                - Full width (!w-full)
+                - No rounded corners on mobile
             */}
             <DialogContent
                 container={container}
-                className="w-full sm:max-w-[425px] top-0 -mt-2 sm:mt-0 translate-y-0 data-[state=open]:slide-in-from-top-0 sm:top-[50%] sm:translate-y-[-50%] sm:data-[state=open]:slide-in-from-top-[48%] p-2 gap-1 max-h-[100vh] overflow-y-auto rounded-none sm:rounded-lg border-t-0"
+                className="!fixed !top-0 !left-0 !translate-x-0 !translate-y-0 !w-full sm:!w-full sm:!max-w-[425px] sm:!left-[50%] sm:!top-[50%] sm:!translate-x-[-50%] sm:!translate-y-[-50%] p-3 gap-2 rounded-none sm:rounded-lg border-x-0 border-t-0 bg-white shadow-lg"
             >
                 <div className="hidden sm:block">
                     <DialogHeader>
@@ -56,25 +56,31 @@ export function SimpleSaveDialog({ open, onOpenChange, onSave, isLoading, contai
                     </DialogHeader>
                 </div>
 
-                <form onSubmit={handleSubmit} className="mt-0">
-                    <div className="grid gap-2 py-0">
-                        <div className="grid grid-cols-1 gap-1">
-                            {/* Mobile-only tiny label */}
-                            <label className="block sm:hidden text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                                Nombre del Plano
-                            </label>
+                <form onSubmit={handleSubmit} className="mt-0 w-full">
+                    <div className="flex flex-col gap-1 w-full">
+                        {/* Mobile Label */}
+                        <label className="block sm:hidden text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            Nombre del Plano
+                        </label>
+                        <div className="flex gap-2 w-full">
                             <Input
                                 id="name"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="Nombre..."
-                                className="col-span-1 h-9 text-base border-0 border-b border-slate-200 rounded-none px-0 focus-visible:ring-0 focus-visible:border-orange-500 sm:border sm:rounded-md sm:px-3 sm:focus-visible:ring-2 sm:h-10"
+                                className="flex-1 h-10 text-base border-slate-300 focus-visible:ring-offset-0 focus-visible:ring-1 focus-visible:ring-orange-500"
                             // autoFocus removed to prevent mobile keyboard glitches
                             />
+                            {/* Mobile Save Button in-line to save vertical space */}
+                            <Button type="submit" size="icon" disabled={!name.trim() || isLoading} className="sm:hidden h-10 w-10 shrink-0 bg-orange-600 hover:bg-orange-700">
+                                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-5 w-5" />}
+                            </Button>
                         </div>
                     </div>
-                    <DialogFooter className="mt-4 flex-row gap-2 justify-end sm:justify-end">
-                        <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} className="h-8 text-xs">
+
+                    {/* Desktop Footer */}
+                    <DialogFooter className="hidden sm:flex mt-4">
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                             Cancelar
                         </Button>
                         <Button type="submit" disabled={!name.trim() || isLoading} className="bg-orange-600 hover:bg-orange-700">
@@ -82,6 +88,13 @@ export function SimpleSaveDialog({ open, onOpenChange, onSave, isLoading, contai
                             Guardar
                         </Button>
                     </DialogFooter>
+
+                    {/* Mobile Cancel (Text only) */}
+                    <div className="sm:hidden mt-2 flex justify-center">
+                        <button type="button" onClick={() => onOpenChange(false)} className="text-xs text-slate-400 p-2 font-medium">
+                            Cancelar
+                        </button>
+                    </div>
                 </form>
             </DialogContent>
         </Dialog>
