@@ -12,7 +12,8 @@ interface UnifiedWallEditorProps {
 export const UnifiedWallEditor = ({ initialValue, orientation, onConfirm, onCancel }: UnifiedWallEditorProps) => {
     return (
         <div
-            className="fixed inset-0 z-[9999] flex flex-col justify-end"
+            className="fixed inset-0 z-[9999] flex flex-col justify-end pb-safe safe-area-inset-bottom"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom, 20px)' }}
             onPointerDown={(e) => {
                 if (e.target === e.currentTarget) onCancel()
             }}
@@ -20,8 +21,8 @@ export const UnifiedWallEditor = ({ initialValue, orientation, onConfirm, onCanc
             {/* Backdrop */}
             <div className="absolute inset-0 bg-black/10 backdrop-blur-sm" />
 
-            {/* Keypad at bottom */}
-            <div className="relative z-10">
+            {/* Keypad at bottom with extra spacing */}
+            <div className="relative z-10 w-full bg-white pb-6 pt-2 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] rounded-t-2xl">
                 <NumericKeypad
                     title="Editar Medida"
                     value={initialValue}
