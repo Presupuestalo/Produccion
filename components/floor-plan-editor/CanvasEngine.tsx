@@ -564,10 +564,7 @@ export const CanvasEngine = ({
 
     React.useEffect(() => {
         if (onReady) {
-            console.log("DEBUG: Calling onReady with getSnapshot")
             onReady({ getSnapshot })
-        } else {
-            console.log("DEBUG: onReady prop missing in CanvasEngine")
         }
     }, [onReady, getSnapshot])
 

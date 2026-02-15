@@ -870,12 +870,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             return
         }
 
-        console.log('🔍 handleDragVertex called', {
-            originalPoint,
-            totalDelta,
-            activeIds,
-            snapshotLength: snapshot.length
-        })
+
+
 
         // Unwrapped setWalls to prevent nested update loop
         {
