@@ -3981,87 +3981,6 @@ export const CanvasEngine = ({
                                         </button>
                                     )}
                                 </div>
-                            ) : editMode === "length" && isMobile ? (
-                                (() => {
-                                    // Calculate orientation logic
-                                    let orientation: 'horizontal' | 'vertical' | 'inclined' | 'none' = 'none'
-                                    if (selectedWall) {
-                                        const isHorizontal = Math.abs(selectedWall.start.y - selectedWall.end.y) < 1
-                                        const isVertical = Math.abs(selectedWall.start.x - selectedWall.end.x) < 1
-                                        orientation = isHorizontal ? 'horizontal' : (isVertical ? 'vertical' : 'inclined')
-                                    } else if (selectedElement) {
-                                        // For elements (doors/windows/columns), we don't need directional arrows
-                                        // as the user requested ("sin las flechitas")
-                                        orientation = 'none'
-                                    }
-
-                                    return (
-                                        <UnifiedWallEditor
-                                            initialValue={editLength}
-                                            orientation={orientation}
-                                            onCancel={() => setEditMode("menu")}
-                                            onConfirm={(val, direction) => {
-                                                const targetLen = parseFloat(val.replace(',', '.'))
-                                                if (isNaN(targetLen)) return
-
-                                                // Handle wall editing
-                                                if (selectedWall) {
-                                                    const dx = selectedWall.end.x - selectedWall.start.x
-                                                    const dy = selectedWall.end.y - selectedWall.start.y
-                                                    const centerLength = Math.sqrt(dx * dx + dy * dy)
-                                                    // ... (rest of the logic remains similar but streamlined)
-
-                                                    const chainIds = new Set([selectedWall.id])
-                                                    let currentTotal = centerLength
-                                                    let faceNormal: Point | undefined = undefined
-
-                                                    if (editFace !== "center") {
-                                                        const nx = -dy / centerLength
-                                                        const ny = dx / centerLength
-                                                        faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
-
-                                                        const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
-                                                        const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
-                                                        const isInterior = (editFace === "interior") || isPointInAnyRoom(testP)
-
-                                                        const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, isInterior)
-                                                        const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, isInterior)
-                                                        const chainLen = centerLength + back.addedLen + forward.addedLen
-
-                                                        const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || selectedWall
-                                                        const terminalEndWall = walls.find(w => w.id === forward.terminalWallId) || selectedWall
-
-                                                        currentTotal = chainLen +
-                                                            getFaceOffsetAt(terminalEndWall, forward.terminal, faceNormal, chainIds, true) -
-                                                            getFaceOffsetAt(terminalStartWall, back.terminal, faceNormal, chainIds, false)
-                                                    }
-
-                                                    const delta = targetLen - currentTotal
-                                                    // Determine side based on direction
-                                                    let side: "left" | "right" = "right"
-                                                    if (direction) {
-                                                        if (direction === "left" || direction === "up") side = "left"
-                                                        else side = "right"
-                                                    } else {
-                                                        // Default fallback (e.g. for inclined walls or if no direction passed)
-                                                        side = "right"
-                                                    }
-
-                                                    if (Math.abs(delta) > 0.01) {
-                                                        onUpdateWallLength(selectedWall.id, centerLength + delta, side, faceNormal)
-                                                    }
-                                                }
-                                                // Handle element (door/window) editing
-                                                else if (selectedElement) {
-                                                    const updates: any = { width: targetLen }
-                                                    onUpdateElement(selectedElement.type, selectedElement.id, updates)
-                                                }
-
-                                                setEditMode("menu")
-                                            }}
-                                        />
-                                    )
-                                })()
                             ) : editMode === "thickness" ? (
                                 <div className="flex items-center gap-3 px-3 py-1.5">
                                     <span className="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">Grosor pared</span>
@@ -4325,6 +4244,78 @@ export const CanvasEngine = ({
                 )
             )}
 
+            {/* Unified Wall Editor (Keypad) - Root Level Pattern to avoid CSS Stacking Context issues */}
+            {editMode === "length" && isMobile && (() => {
+                let orientation: 'horizontal' | 'vertical' | 'inclined' | 'none' = 'none'
+                if (selectedWall) {
+                    const isHorizontal = Math.abs(selectedWall.start.y - selectedWall.end.y) < 1
+                    const isVertical = Math.abs(selectedWall.start.x - selectedWall.end.x) < 1
+                    orientation = isHorizontal ? 'horizontal' : (isVertical ? 'vertical' : 'inclined')
+                } else if (selectedElement) {
+                    orientation = 'none'
+                }
+
+                return (
+                    <UnifiedWallEditor
+                        initialValue={editLength}
+                        orientation={orientation}
+                        onCancel={() => setEditMode("menu")}
+                        onConfirm={(val, direction) => {
+                            const targetLen = parseFloat(val.replace(',', '.'))
+                            if (isNaN(targetLen)) return
+
+                            if (selectedWall) {
+                                const dx = selectedWall.end.x - selectedWall.start.x
+                                const dy = selectedWall.end.y - selectedWall.start.y
+                                const centerLength = Math.sqrt(dx * dx + dy * dy)
+
+                                const chainIds = new Set([selectedWall.id])
+                                let currentTotal = centerLength
+                                let faceNormal: Point | undefined = undefined
+
+                                if (editFace !== "center") {
+                                    const nx = -dy / centerLength
+                                    const ny = dx / centerLength
+                                    faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
+
+                                    const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
+                                    const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
+                                    const isInterior = (editFace === "interior") || isPointInAnyRoom(testP)
+
+                                    const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, isInterior)
+                                    const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, isInterior)
+                                    const chainLen = centerLength + back.addedLen + forward.addedLen
+
+                                    const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || selectedWall
+                                    const terminalEndWall = walls.find(w => w.id === forward.terminalWallId) || selectedWall
+
+                                    currentTotal = chainLen +
+                                        getFaceOffsetAt(terminalEndWall, forward.terminal, faceNormal, chainIds, true) -
+                                        getFaceOffsetAt(terminalStartWall, back.terminal, faceNormal, chainIds, false)
+                                }
+
+                                const delta = targetLen - currentTotal
+                                let side: "left" | "right" = "right"
+                                if (direction) {
+                                    if (direction === "left" || direction === "up") side = "left"
+                                    else side = "right"
+                                }
+
+                                if (Math.abs(delta) > 0.01) {
+                                    onUpdateWallLength(selectedWall.id, targetLen, side, faceNormal)
+                                }
+                            } else if (selectedElement) {
+                                if (selectedElement.type === "door" || selectedElement.type === "window") {
+                                    onUpdateElement(selectedElement.id, { width: targetLen })
+                                } else if (selectedElement.type === "shunt") {
+                                    onUpdateShunt(selectedElement.id, { width: targetLen, height: targetLen })
+                                }
+                            }
+                            setEditMode("menu")
+                        }}
+                    />
+                )
+            })()}
         </div >
     )
 }
