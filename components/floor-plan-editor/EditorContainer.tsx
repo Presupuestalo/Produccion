@@ -2076,8 +2076,6 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     onUpdateShunt={handleUpdateShunt}
                     hideFloatingUI={showSummary || (isMobile && !isFullscreen && typeof window !== 'undefined' && window.innerWidth > window.innerHeight)}
                     showAllQuotes={showAllQuotes}
-                    calibrationTargetValue={calibrationTargetValue}
-                    onUpdateCalibrationValue={setCalibrationTargetValue}
                 />
 
 
