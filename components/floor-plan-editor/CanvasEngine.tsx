@@ -2222,21 +2222,7 @@ export const CanvasEngine = ({
                                         if (closestWall) {
                                             const cw = closestWall as { wallId: string, t: number, projX: number, projY: number }
                                             e.target.position({ x: cw.projX, y: cw.projY })
-
-                                            let offX = virtualCenterX - cw.projX
-                                            let offY = virtualCenterY - cw.projY
-                                            const currentDist = Math.sqrt(offX * offX + offY * offY)
-
-                                            let reportX = cw.projX
-                                            let reportY = cw.projY
-
-                                            if (currentDist > 0.001) {
-                                                const scale = Math.min(currentDist, 10) / currentDist
-                                                reportX += offX * scale
-                                                reportY += offY * scale
-                                            }
-
-                                            onDragElement("door", door.id, { x: reportX, y: reportY })
+                                            onDragElement("door", door.id, { x: cw.projX, y: cw.projY })
                                         }
                                     }}
                                     onDragEnd={(e) => {
@@ -2396,6 +2382,7 @@ export const CanvasEngine = ({
                                                         />
                                                         <Text
                                                             text={`${d1}`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold"
+                                                            name="measurement-group"
                                                             onClick={(e) => {
                                                                 e.cancelBubble = true
                                                                 const absPos = e.currentTarget.getAbsolutePosition()
@@ -2441,6 +2428,7 @@ export const CanvasEngine = ({
                                                         />
                                                         <Text
                                                             text={`${d2}`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold"
+                                                            name="measurement-group"
                                                             onClick={(e) => {
                                                                 e.cancelBubble = true
                                                                 const absPos = e.currentTarget.getAbsolutePosition()
@@ -2583,21 +2571,7 @@ export const CanvasEngine = ({
                                         if (closestWall) {
                                             const cw = closestWall as { wallId: string, t: number, projX: number, projY: number }
                                             e.target.position({ x: cw.projX, y: cw.projY })
-
-                                            let offX = virtualCenterX - cw.projX
-                                            let offY = virtualCenterY - cw.projY
-                                            const currentDist = Math.sqrt(offX * offX + offY * offY)
-
-                                            let reportX = cw.projX
-                                            let reportY = cw.projY
-
-                                            if (currentDist > 0.001) {
-                                                const scale = Math.min(currentDist, 10) / currentDist
-                                                reportX += offX * scale
-                                                reportY += offY * scale
-                                            }
-
-                                            onDragElement("window", window.id, { x: reportX, y: reportY })
+                                            onDragElement("window", window.id, { x: cw.projX, y: cw.projY })
                                         }
                                     }}
                                     onDragEnd={(e) => {

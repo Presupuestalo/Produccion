@@ -1756,13 +1756,13 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                             <MousePointer2 className="h-5 w-5" />
                         </Button>
 
-                        {/* PENCIL: Walls, Arcs, Facades */}
+                        {/* PENCIL: Walls, Arcs, Facades + Mobile Tools */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button
-                                    variant={["wall", "arc"].includes(activeTool) ? "default" : "ghost"}
+                                    variant={["wall", "arc", "door", "window", "shunt"].includes(activeTool) ? "default" : "ghost"}
                                     size="icon"
-                                    title="Dibujar Muros"
+                                    title="Dibujar"
                                     className="w-12 h-12 relative"
                                 >
                                     <Pencil className="h-5 w-5" />
@@ -1779,62 +1779,83 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 <DropdownMenuItem onSelect={() => { setActiveTool("wall"); applyFacadeHighlight(); toast({ title: "Fachada", description: "Dibujar muro de fachada" }) }} className="gap-3 py-2 cursor-pointer">
                                     <Building2 className="h-4 w-4" /> <span>Fachada</span>
                                 </DropdownMenuItem>
+
+                                {isMobile && (
+                                    <>
+                                        <div className="h-px bg-slate-100 my-1" />
+                                        <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("single") }} className="gap-3 py-2 cursor-pointer">
+                                            <DoorClosed className="h-4 w-4" /> <span>Puerta</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("single") }} className="gap-3 py-2 cursor-pointer">
+                                            <Layout className="h-4 w-4" /> <span>Ventana</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => setActiveTool("shunt")} className="gap-3 py-2 cursor-pointer">
+                                            <Square className="h-4 w-4" /> <span>Columna</span>
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        {/* DOOR: Single, Double, Sliding */}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    variant={activeTool === "door" ? "default" : "ghost"}
-                                    size="icon"
-                                    title="Puertas"
-                                    className="w-12 h-12 relative"
-                                >
-                                    <DoorClosed className="h-5 w-5" />
-                                    <ChevronRight className={`h-3 w-3 absolute bottom-1 right-1 opacity-50 transition-transform duration-300 rotate-90`} />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
-                                <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("single") }} className="gap-3 py-2 cursor-pointer">
-                                    <DoorClosed className="h-4 w-4" /> <span>Simple</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("double") }} className="gap-3 py-2 cursor-pointer">
-                                    <DoorOpen className="h-4 w-4" /> <span>Doble</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("sliding") }} className="gap-3 py-2 cursor-pointer">
-                                    <GalleryVerticalEnd className="h-4 w-4" /> <span>Corredera</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        {/* DOOR: Single, Double, Sliding - Desktop Only */}
+                        {!isMobile && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant={activeTool === "door" ? "default" : "ghost"}
+                                        size="icon"
+                                        title="Puertas"
+                                        className="w-12 h-12 relative"
+                                    >
+                                        <DoorClosed className="h-5 w-5" />
+                                        <ChevronRight className={`h-3 w-3 absolute bottom-1 right-1 opacity-50 transition-transform duration-300 rotate-90`} />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
+                                    <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("single") }} className="gap-3 py-2 cursor-pointer">
+                                        <DoorClosed className="h-4 w-4" /> <span>Simple</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("double") }} className="gap-3 py-2 cursor-pointer">
+                                        <DoorOpen className="h-4 w-4" /> <span>Doble</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("sliding") }} className="gap-3 py-2 cursor-pointer">
+                                        <GalleryVerticalEnd className="h-4 w-4" /> <span>Corredera</span>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
 
-                        {/* WINDOW: Single, Double */}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    variant={activeTool === "window" ? "default" : "ghost"}
-                                    size="icon"
-                                    title="Ventanas"
-                                    className="w-12 h-12 relative"
-                                >
-                                    <Layout className="h-5 w-5" />
-                                    <ChevronRight className={`h-3 w-3 absolute bottom-1 right-1 opacity-50 transition-transform duration-300 rotate-90`} />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
-                                <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("single") }} className="gap-3 py-2 cursor-pointer">
-                                    <AppWindow className="h-4 w-4" /> <span>Sencilla</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("double") }} className="gap-3 py-2 cursor-pointer">
-                                    <Columns className="h-4 w-4" /> <span>Doble</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        {/* WINDOW: Single, Double - Desktop Only */}
+                        {!isMobile && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant={activeTool === "window" ? "default" : "ghost"}
+                                        size="icon"
+                                        title="Ventanas"
+                                        className="w-12 h-12 relative"
+                                    >
+                                        <Layout className="h-5 w-5" />
+                                        <ChevronRight className={`h-3 w-3 absolute bottom-1 right-1 opacity-50 transition-transform duration-300 rotate-90`} />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
+                                    <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("single") }} className="gap-3 py-2 cursor-pointer">
+                                        <AppWindow className="h-4 w-4" /> <span>Sencilla</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("double") }} className="gap-3 py-2 cursor-pointer">
+                                        <Columns className="h-4 w-4" /> <span>Doble</span>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
 
-                        {/* COLUMN: Shunt */}
-                        <Button variant={activeTool === "shunt" ? "default" : "ghost"} size="icon" onClick={() => setActiveTool("shunt")} title="Columna" className="w-12 h-12">
-                            <Square className="h-5 w-5" />
-                        </Button>
+                        {/* COLUMN: Shunt - Desktop Only */}
+                        {!isMobile && (
+                            <Button variant={activeTool === "shunt" ? "default" : "ghost"} size="icon" onClick={() => setActiveTool("shunt")} title="Columna" className="w-12 h-12">
+                                <Square className="h-5 w-5" />
+                            </Button>
+                        )}
                         <Button
                             variant={showAllQuotes ? "default" : "ghost"}
                             size="icon"
