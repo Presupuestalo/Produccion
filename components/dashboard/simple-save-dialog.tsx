@@ -23,7 +23,10 @@ interface SimpleSaveDialogProps {
 }
 
 export function SimpleSaveDialog({ open, onOpenChange, onSave, isLoading, container }: SimpleSaveDialogProps) {
-    const [name, setName] = useState("")
+    const [name, setName] = useState(() => {
+        const now = new Date()
+        return `Plano ${now.toLocaleDateString()} ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`
+    })
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
@@ -53,7 +56,7 @@ export function SimpleSaveDialog({ open, onOpenChange, onSave, isLoading, contai
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="Ej: Salón reformado"
                                 className="col-span-3"
-                                autoFocus
+                            // autoFocus removed to prevent mobile keyboard glitches
                             />
                         </div>
                     </div>
