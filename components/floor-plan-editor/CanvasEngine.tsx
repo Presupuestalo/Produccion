@@ -4306,7 +4306,7 @@ export const CanvasEngine = ({
                                 }
                             } else if (selectedElement) {
                                 if (selectedElement.type === "door" || selectedElement.type === "window") {
-                                    onUpdateElement(selectedElement.id, { width: targetLen })
+                                    onUpdateElement(selectedElement.type, selectedElement.id, { width: targetLen })
                                 } else if (selectedElement.type === "shunt") {
                                     onUpdateShunt(selectedElement.id, { width: targetLen, height: targetLen })
                                 }
