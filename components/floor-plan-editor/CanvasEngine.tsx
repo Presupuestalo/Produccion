@@ -377,8 +377,16 @@ const DualInputWrapper = ({ valObj, screenPos, onCommit, onClose, isMobile }: an
                 <button
                     onClick={commit}
                     className="bg-green-500 text-white p-1 rounded-lg shadow-sm flex items-center justify-center hover:bg-green-600 w-9 h-9 active:scale-90 transition-all ml-2"
+                    title="Aceptar"
                 >
                     <Check className="h-5 w-5" />
+                </button>
+                <button
+                    onClick={(e) => { e.stopPropagation(); onClose(); }}
+                    className="bg-red-500 text-white p-1 rounded-lg shadow-sm flex items-center justify-center hover:bg-red-600 w-9 h-9 active:scale-90 transition-all ml-1"
+                    title="Cancelar"
+                >
+                    <X className="h-5 w-5" />
                 </button>
             </div>
         </div>
