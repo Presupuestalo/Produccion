@@ -1531,6 +1531,18 @@ export const CanvasEngine = ({
 
         const isTouchInteraction = (e.evt as any).pointerType === "touch" || forceTouchOffset
 
+        // IMPROVED: If we tapped exactly on a "protected" element (like a measurement label), 
+        // use it directly instead of applying the 80px offset.
+        const originalTarget = e.target
+        const originalName = originalTarget?.attrs?.name || originalTarget?.name?.() || ""
+        const isOriginalProtected = originalName.startsWith("wall-") ||
+            originalName.startsWith("door-") ||
+            originalName.startsWith("window-") ||
+            originalName.startsWith("shunt-") ||
+            originalName.startsWith("vertex-") ||
+            originalName.startsWith("measurement-") ||
+            originalName.startsWith("room-")
+
         let adjustedY = stagePos.y
         if (isTouchInteraction) {
             // WALL TOOL: Progressive offset starts at 0
@@ -1538,19 +1550,22 @@ export const CanvasEngine = ({
                 touchStartPos.current = { x: stagePos.x, y: stagePos.y }
                 currentDynamicOffset.current = 0
             } else {
-                // Other tools: use full offset immediately
-                adjustedY -= touchOffset
+                // If we hit a protected element directly, don't offset (accuracy priority)
+                if (isOriginalProtected) {
+                    currentDynamicOffset.current = 0
+                } else {
+                    adjustedY -= touchOffset
+                    currentDynamicOffset.current = touchOffset
+                }
                 touchStartPos.current = null
-                currentDynamicOffset.current = touchOffset
             }
         } else {
             touchStartPos.current = null
             currentDynamicOffset.current = 0
         }
 
-        // Si es táctil, buscamos qué hay "bajo el puntero virtual" (80px arriba)
-        // En vez de usar e.target directamente.
-        let virtualTarget = isTouchInteraction ? stage.getIntersection({ x: stagePos.x, y: adjustedY }) : e.target
+        // Si es táctil, buscamos qué hay "bajo el puntero virtual" (con offset bajado si no hubo hit directo)
+        let virtualTarget = (isTouchInteraction && !isOriginalProtected) ? stage.getIntersection({ x: stagePos.x, y: adjustedY }) : originalTarget
         if (virtualTarget && virtualTarget !== stage) {
             const name = virtualTarget.attrs?.name || virtualTarget.name?.() || ""
             if (!name) {
@@ -2219,10 +2234,30 @@ export const CanvasEngine = ({
                                         })
 
                                         // 3. STRICTLY snap to the closest wall.
+                                        // 3. SNAPPING: Visual vs Logic reporting
                                         if (closestWall) {
                                             const cw = closestWall as { wallId: string, t: number, projX: number, projY: number }
+
+                                            // STRICT visual snap
                                             e.target.position({ x: cw.projX, y: cw.projY })
-                                            onDragElement("door", door.id, { x: cw.projX, y: cw.projY })
+
+                                            // RESTORED: Report an offset to parent for flip logic
+                                            let offX = virtualCenterX - cw.projX
+                                            let offY = virtualCenterY - cw.projY
+                                            const currentDist = Math.sqrt(offX * offX + offY * offY)
+
+                                            let reportX = cw.projX
+                                            let reportY = cw.projY
+
+                                            if (currentDist > 0.001) {
+                                                // Pull the reporting point slightly towards cursor (max 10px) 
+                                                // so det calculation in EditorContainer works
+                                                const scale = Math.min(currentDist, 10) / currentDist
+                                                reportX += offX * scale
+                                                reportY += offY * scale
+                                            }
+
+                                            onDragElement("door", door.id, { x: reportX, y: reportY })
                                         }
                                     }}
                                     onDragEnd={(e) => {
@@ -2570,8 +2605,25 @@ export const CanvasEngine = ({
                                         // 3. Strict Snap
                                         if (closestWall) {
                                             const cw = closestWall as { wallId: string, t: number, projX: number, projY: number }
+
+                                            // STRICT visual snap
                                             e.target.position({ x: cw.projX, y: cw.projY })
-                                            onDragElement("window", window.id, { x: cw.projX, y: cw.projY })
+
+                                            // RESTORED: Report an offset to parent for flip/orientation logic
+                                            let offX = virtualCenterX - cw.projX
+                                            let offY = virtualCenterY - cw.projY
+                                            const currentDist = Math.sqrt(offX * offX + offY * offY)
+
+                                            let reportX = cw.projX
+                                            let reportY = cw.projY
+
+                                            if (currentDist > 0.001) {
+                                                const scale = Math.min(currentDist, 10) / currentDist
+                                                reportX += offX * scale
+                                                reportY += offY * scale
+                                            }
+
+                                            onDragElement("window", window.id, { x: reportX, y: reportY })
                                         }
                                     }}
                                     onDragEnd={(e) => {
@@ -2719,6 +2771,7 @@ export const CanvasEngine = ({
                                                         />
                                                         <Text
                                                             text={`${d1}`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold"
+                                                            name="measurement-group"
                                                             onClick={(e) => {
                                                                 e.cancelBubble = true
                                                                 const absPos = e.currentTarget.getAbsolutePosition()
@@ -2764,6 +2817,7 @@ export const CanvasEngine = ({
                                                         />
                                                         <Text
                                                             text={`${d2}`} x={-17.5} y={-6} fontSize={10} fill="#0ea5e9" align="center" width={35} fontStyle="bold"
+                                                            name="measurement-group"
                                                             onClick={(e) => {
                                                                 e.cancelBubble = true
                                                                 const absPos = e.currentTarget.getAbsolutePosition()
