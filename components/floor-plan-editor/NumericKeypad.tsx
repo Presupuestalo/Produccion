@@ -91,19 +91,21 @@ export const NumericKeypad: React.FC<NumericKeypadProps> = ({ value, onChange, o
                 {renderActionButtons()}
             </div>
 
-            {/* Row 2: Number Keys - Single Row with Horizontal Scroll */}
-            <div className="bg-white py-2 px-2 overflow-x-auto">
-                <div className="flex gap-1.5 w-max">
-                    {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "."].map((digit) => (
-                        <button
-                            key={digit}
-                            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDigit(digit) }}
-                            className="h-11 w-16 flex-shrink-0 flex items-center justify-center text-lg font-bold bg-white text-slate-700 rounded-lg border border-slate-300 shadow-sm active:bg-slate-100 active:scale-95 transition-all"
-                            style={{ WebkitTapHighlightColor: 'transparent' }}
-                        >
-                            {digit === '.' ? ',' : digit}
-                        </button>
-                    ))}
+            {/* Number Keys - Single Scrollable Row */}
+            <div className="bg-white py-3 px-2">
+                <div className="overflow-x-auto -mx-2 px-2">
+                    <div className="flex gap-2 min-w-min">
+                        {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "."].map((digit) => (
+                            <button
+                                key={digit}
+                                onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDigit(digit) }}
+                                className="h-12 w-14 min-w-[56px] flex-shrink-0 flex items-center justify-center text-xl font-bold bg-white text-slate-800 rounded-lg border-2 border-slate-300 shadow-sm active:bg-sky-50 active:border-sky-400 active:scale-95 transition-all"
+                                style={{ WebkitTapHighlightColor: 'transparent' }}
+                            >
+                                {digit === '.' ? ',' : digit}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>
