@@ -21,16 +21,18 @@ export const UnifiedWallEditor = ({ initialValue, orientation, onConfirm, onCanc
             {/* Backdrop */}
             <div className="absolute inset-0 bg-black/10 backdrop-blur-sm" />
 
-            {/* Keypad at bottom with extra spacing */}
-            <div className="relative z-10 w-full bg-white pb-6 pt-2 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] rounded-t-2xl">
-                <NumericKeypad
-                    title="Editar Medida"
-                    value={initialValue}
-                    orientation={orientation}
-                    onChange={() => { }}
-                    onConfirm={onConfirm}
-                    onCancel={onCancel}
-                />
+            {/* Keypad at bottom as a floating card to avoid system UI issues */}
+            <div className="relative z-10 w-full px-4 pb-8 mb-safe">
+                <div className="bg-white shadow-[0_0_30px_rgba(0,0,0,0.15)] rounded-2xl overflow-hidden p-1">
+                    <NumericKeypad
+                        title="Editar Medida"
+                        value={initialValue}
+                        orientation={orientation}
+                        onChange={() => { }}
+                        onConfirm={onConfirm}
+                        onCancel={onCancel}
+                    />
+                </div>
             </div>
         </div>
     )
