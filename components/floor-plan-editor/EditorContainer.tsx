@@ -2052,7 +2052,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     forceTouchOffset={forceTouchOffset}
                     shunts={shunts}
                     onUpdateShunt={handleUpdateShunt}
-                    hideFloatingUI={showSummary}
+                    hideFloatingUI={showSummary || (isMobile && !isFullscreen && typeof window !== 'undefined' && window.innerWidth > window.innerHeight)}
                     showAllQuotes={showAllQuotes}
                 />
 
