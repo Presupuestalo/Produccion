@@ -16,7 +16,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Minimize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, LayoutGrid, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, RefreshCw, FileText, ClipboardList, Spline, Menu, Square, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react"
+import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Minimize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, LayoutGrid, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, RefreshCw, FileText, ClipboardList, Spline, Menu, Square, ChevronDown, ChevronRight, ChevronLeft, DoorOpen, GalleryVerticalEnd, AppWindow, Columns } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import {
     DropdownMenu,
@@ -1253,9 +1253,14 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         setActiveTool("select") // Security: Reset tool to avoid accidental drawing
     }
 
+    // Tool Creation State
+    const [creationDoorType, setCreationDoorType] = useState<"single" | "double" | "sliding">("single")
+    const [creationWindowType, setCreationWindowType] = useState<"single" | "double">("single")
+
+    // ... existing handleMouseDown ...
     const handleMouseDown = (point: Point) => {
         if (isCalibrating) {
-            // Logic to set calibration points by clicking
+            // ... existing calibration logic ...
             if (!calibrationPoints.p1) {
                 setCalibrationPoints(prev => ({ ...prev, p1: point }))
             } else if (!calibrationPoints.p2) {
@@ -1331,10 +1336,11 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                         id: newId,
                         wallId: closest.wallId,
                         t: closest.t,
-                        width: 82,
+                        width: creationDoorType === "double" ? 120 : (creationDoorType === "sliding" ? 150 : 82),
                         height: 205,
                         flipX: false,
-                        flipY: false
+                        flipY: false,
+                        openType: creationDoorType
                     }])
                     setActiveTool("select")
                     setSelectedElement({ type: "door", id: newId })
@@ -1351,9 +1357,10 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                         id: newId,
                         wallId: closest.wallId,
                         t: closest.t,
-                        width: 100,
+                        width: creationWindowType === "double" ? 120 : 100,
                         height: 100,
-                        flipY: false
+                        flipY: false,
+                        openType: creationWindowType
                     }])
                     setActiveTool("select")
                     setSelectedElement({ type: "window", id: newId })
@@ -1550,11 +1557,6 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     }
 
 
-
-
-
-
-
     const handleSave = async () => {
         setIsSaving(true)
         try {
@@ -1711,6 +1713,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     }, [selectedElement, shunts]) // Re-bind when shunts change to get latest positions
 
     return (
+        // ... (JSX wrapper)
         <div
             ref={(node) => {
                 editorWrapperRef.current = node
@@ -1736,12 +1739,6 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 </div>
             )}
 
-
-
-
-
-
-
             <div ref={containerRef} className="flex-1 relative border-t border-slate-200 overflow-hidden bg-slate-50">
                 {/* Vertical Collapsible Toolbar */}
                 <div className={`absolute left-0 bottom-0 ${isFullscreen ? "top-0" : "top-[50px]"} z-40 transition-all duration-300 ease-in-out flex flex-col items-start translate-x-0`}>
@@ -1759,42 +1756,84 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                             <MousePointer2 className="h-5 w-5" />
                         </Button>
 
-                        <DropdownMenu onOpenChange={setIsDrawMenuOpen}>
+                        {/* PENCIL: Walls, Arcs, Facades */}
+                        <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button
-                                    variant={["wall", "arc", "door", "window", "shunt"].includes(activeTool) ? "default" : "ghost"}
+                                    variant={["wall", "arc"].includes(activeTool) ? "default" : "ghost"}
                                     size="icon"
-                                    title="Dibujar Herramientas"
+                                    title="Dibujar Muros"
                                     className="w-12 h-12 relative"
                                 >
                                     <Pencil className="h-5 w-5" />
-                                    <ChevronRight className={`h-3 w-3 absolute bottom-1 right-1 opacity-50 transition-transform duration-300 ${isDrawMenuOpen ? "rotate-180" : ""}`} />
+                                    <ChevronRight className={`h-3 w-3 absolute bottom-1 right-1 opacity-50 transition-transform duration-300 rotate-90`} />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent container={fullscreenContainer} side="right" align="start" className="w-48 ml-2">
-                                <DropdownMenuItem onSelect={() => setActiveTool("wall")} className="gap-2 touch-manipulation">
-                                    <Pencil className="h-4 w-4" /> <span>{isMobile ? "Muros" : "Muros (W)"}</span>
+                            <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
+                                <DropdownMenuItem onSelect={() => setActiveTool("wall")} className="gap-3 py-2 cursor-pointer">
+                                    <Pencil className="h-4 w-4" /> <span>Muros {isMobile ? "" : "(W)"}</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => setActiveTool("arc")} className="gap-2 touch-manipulation">
+                                <DropdownMenuItem onSelect={() => setActiveTool("arc")} className="gap-3 py-2 cursor-pointer">
                                     <Spline className="h-4 w-4" /> <span>Arco</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => setActiveTool("door")} className="gap-2 touch-manipulation">
-                                    <DoorClosed className="h-4 w-4" /> <span>{isMobile ? "Puerta" : "Puerta (D)"}</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => setActiveTool("window")} className="gap-2 touch-manipulation">
-                                    <Layout className="h-4 w-4" /> <span>{isMobile ? "Ventana" : "Ventana (V)"}</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => setActiveTool("shunt")} className="gap-2 touch-manipulation">
-                                    <Square className="h-4 w-4" /> <span>Columna</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => { setActiveTool("wall"); applyFacadeHighlight(); toast({ title: "Fachada", description: "Dibujar muro de fachada" }) }} className="gap-2 touch-manipulation">
+                                <DropdownMenuItem onSelect={() => { setActiveTool("wall"); applyFacadeHighlight(); toast({ title: "Fachada", description: "Dibujar muro de fachada" }) }} className="gap-3 py-2 cursor-pointer">
                                     <Building2 className="h-4 w-4" /> <span>Fachada</span>
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        <Button variant={activeTool === "ruler" ? "default" : "ghost"} size="icon" onClick={() => setActiveTool("ruler")} title={isMobile ? "Regla" : "Regla (M)"} className="w-12 h-12">
-                            <Ruler className="h-5 w-5" />
+                        {/* DOOR: Single, Double, Sliding */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant={activeTool === "door" ? "default" : "ghost"}
+                                    size="icon"
+                                    title="Puertas"
+                                    className="w-12 h-12 relative"
+                                >
+                                    <DoorClosed className="h-5 w-5" />
+                                    <ChevronRight className={`h-3 w-3 absolute bottom-1 right-1 opacity-50 transition-transform duration-300 rotate-90`} />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
+                                <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("single") }} className="gap-3 py-2 cursor-pointer">
+                                    <DoorClosed className="h-4 w-4" /> <span>Simple</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("double") }} className="gap-3 py-2 cursor-pointer">
+                                    <DoorOpen className="h-4 w-4" /> <span>Doble</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("sliding") }} className="gap-3 py-2 cursor-pointer">
+                                    <GalleryVerticalEnd className="h-4 w-4" /> <span>Corredera</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        {/* WINDOW: Single, Double */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant={activeTool === "window" ? "default" : "ghost"}
+                                    size="icon"
+                                    title="Ventanas"
+                                    className="w-12 h-12 relative"
+                                >
+                                    <Layout className="h-5 w-5" />
+                                    <ChevronRight className={`h-3 w-3 absolute bottom-1 right-1 opacity-50 transition-transform duration-300 rotate-90`} />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
+                                <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("single") }} className="gap-3 py-2 cursor-pointer">
+                                    <AppWindow className="h-4 w-4" /> <span>Sencilla</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("double") }} className="gap-3 py-2 cursor-pointer">
+                                    <Columns className="h-4 w-4" /> <span>Doble</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        {/* COLUMN: Shunt */}
+                        <Button variant={activeTool === "shunt" ? "default" : "ghost"} size="icon" onClick={() => setActiveTool("shunt")} title="Columna" className="w-12 h-12">
+                            <Square className="h-5 w-5" />
                         </Button>
                         <Button
                             variant={showAllQuotes ? "default" : "ghost"}
