@@ -39,24 +39,25 @@ export function SimpleSaveDialog({ open, onOpenChange, onSave, isLoading, contai
         <Dialog open={open} onOpenChange={onOpenChange}>
             {/* 
                 Mobile optimizations: 
-                - anchor to top (top-[12%]) instead of center to avoid keyboard occlusion
+                - anchor to top (top-[4%]) to maximize space above keyboard
                 - remove translateY centering on mobile
                 - restore desktop defaults with sm: prefix
+                - reduce max-width on mobile to avoid edge-to-edge
             */}
             <DialogContent
                 container={container}
-                className="sm:max-w-[425px] top-[12%] translate-y-0 data-[state=open]:slide-in-from-top-[12%] sm:top-[50%] sm:translate-y-[-50%] sm:data-[state=open]:slide-in-from-top-[48%]"
+                className="w-[95vw] sm:max-w-[425px] top-[4%] translate-y-0 data-[state=open]:slide-in-from-top-[4%] sm:top-[50%] sm:translate-y-[-50%] sm:data-[state=open]:slide-in-from-top-[48%] p-4 gap-2 max-h-[90vh] overflow-y-auto"
             >
-                <DialogHeader>
+                <DialogHeader className="p-0 space-y-1">
                     <DialogTitle>Guardar Plano</DialogTitle>
-                    <DialogDescription>
+                    <DialogDescription className="hidden xs:block text-xs">
                         Dale un nombre a tu plano para guardarlo.
                     </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit}>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="name" className="text-right">
+                <form onSubmit={handleSubmit} className="mt-2">
+                    <div className="grid gap-2 py-0">
+                        <div className="grid grid-cols-1 gap-1">
+                            <Label htmlFor="name" className="text-left text-xs">
                                 Nombre
                             </Label>
                             <Input
@@ -64,13 +65,13 @@ export function SimpleSaveDialog({ open, onOpenChange, onSave, isLoading, contai
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="Ej: Salón reformado"
-                                className="col-span-3"
+                                className="col-span-1 h-9 text-sm"
                             // autoFocus removed to prevent mobile keyboard glitches
                             />
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                    <DialogFooter className="mt-4 flex-row gap-2 justify-end sm:justify-end">
+                        <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} className="h-8 text-xs">
                             Cancelar
                         </Button>
                         <Button type="submit" disabled={!name.trim() || isLoading} className="bg-orange-600 hover:bg-orange-700">
