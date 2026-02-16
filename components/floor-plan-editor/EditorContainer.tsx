@@ -1459,6 +1459,30 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         const file = e.target.files?.[0]
         if (!file) return
 
+        // 5MB Limit
+        const MAX_SIZE = 5 * 1024 * 1024;
+        if (file.size > MAX_SIZE) {
+            toast({
+                title: "Archivo demasiado grande",
+                description: "El archivo no debe superar los 5MB.",
+                variant: "destructive"
+            })
+            e.target.value = ''
+            return
+        }
+
+        // Type check
+        const allowedTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+        if (!allowedTypes.includes(file.type)) {
+            toast({
+                title: "Formato no soportado",
+                description: "Por favor sube una imagen (JPG, PNG, WebP) o un PDF.",
+                variant: "destructive"
+            })
+            e.target.value = ''
+            return
+        }
+
         const reader = new FileReader()
         reader.onload = (e) => {
             const result = e.target?.result as string
@@ -1585,6 +1609,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 windows,
                 rooms,
                 bgConfig,
+                bgImage: (bgImage && bgImage.startsWith("data:")) ? bgImage : null, // Send only if it's new (base64)
                 gridRotation,
                 calibration: {
                     p1: calibrationPoints.p1,
@@ -1983,7 +2008,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
 
                 </div>
-                <input type="file" id="bg-import" className="hidden" accept="image/*" onChange={handleImportImage} title="Importar imagen de fondo" />
+                <input type="file" id="bg-import" className="hidden" accept="image/*,application/pdf" onChange={handleImportImage} title="Importar imagen de fondo" />
                 <CanvasEngine
                     onReady={(api) => { canvasEngineRef.current = api }}
                     width={dimensions.width}
