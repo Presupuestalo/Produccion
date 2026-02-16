@@ -4339,7 +4339,7 @@ export const CanvasEngine = ({
                                 }
 
                                 if (Math.abs(delta) > 0.01) {
-                                    onUpdateWallLength(selectedWall.id, targetLen, side, faceNormal)
+                                    onUpdateWallLength(selectedWall.id, centerLength + delta, side, faceNormal)
                                 }
                             } else if (selectedElement) {
                                 if (selectedElement.type === "door" || selectedElement.type === "window") {
