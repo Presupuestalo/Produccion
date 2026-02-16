@@ -3128,14 +3128,14 @@ export const CanvasEngine = ({
                                 let targetShunt: Shunt | null = null
 
                                 // 1. Raycast to Walls
-                                walls.forEach(w => {
-                                    if (w.isInvisible) return
+                                for (const w of walls) {
+                                    if (w.isInvisible) continue
                                     if (dir.dy === 0) { // Horizontal ray
                                         const yMin = Math.min(w.start.y, w.end.y)
                                         const yMax = Math.max(w.start.y, w.end.y)
                                         if (dir.faceY >= yMin - 1 && dir.faceY <= yMax + 1) {
                                             const isHorizWall = Math.abs(w.end.y - w.start.y) < 1
-                                            if (isHorizWall) return
+                                            if (isHorizWall) continue
                                             const t = (dir.faceY - w.start.y) / (w.end.y - w.start.y)
                                             const ix = w.start.x + t * (w.end.x - w.start.x)
                                             const dist = dir.dx > 0 ? (ix - dir.faceX) : (dir.faceX - ix)
@@ -3151,7 +3151,7 @@ export const CanvasEngine = ({
                                         const xMax = Math.max(w.start.x, w.end.x)
                                         if (dir.faceX >= xMin - 1 && dir.faceX <= xMax + 1) {
                                             const isVertWall = Math.abs(w.end.x - w.start.x) < 1
-                                            if (isVertWall) return
+                                            if (isVertWall) continue
                                             const t = (dir.faceX - w.start.x) / (w.end.x - w.start.x)
                                             const iy = w.start.y + t * (w.end.y - w.start.y)
                                             const dist = dir.dy > 0 ? (iy - dir.faceY) : (dir.faceY - iy)
@@ -3163,11 +3163,11 @@ export const CanvasEngine = ({
                                             }
                                         }
                                     }
-                                })
+                                }
 
                                 // 2. Raycast to other Shunts
-                                shunts.forEach(os => {
-                                    if (os.id === shunt.id) return
+                                for (const os of shunts) {
+                                    if (os.id === shunt.id) continue
                                     const osHalfW = os.width / 2
                                     const osHalfH = os.height / 2
 
@@ -3194,7 +3194,7 @@ export const CanvasEngine = ({
                                             }
                                         }
                                     }
-                                })
+                                }
 
                                 if (!targetPoint) return null
 
