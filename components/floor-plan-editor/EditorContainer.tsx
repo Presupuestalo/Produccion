@@ -2270,7 +2270,6 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     shunts={shunts}
                     onUpdateShunt={handleUpdateShunt}
                     hideFloatingUI={showSummary || (isMobile && !isFullscreen && typeof window !== 'undefined' && window.innerWidth > window.innerHeight)}
-                    showAllQuotes={showAllQuotes}
                     onDblClick={handleDblClick}
                 />
 
