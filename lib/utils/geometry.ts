@@ -9,6 +9,7 @@ export interface Wall {
     end: Point
     thickness: number
     isInvisible?: boolean
+    offsetMode?: 'center' | 'outward' | 'inward'
 }
 
 export interface Room {
