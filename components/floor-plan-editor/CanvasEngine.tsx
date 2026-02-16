@@ -1084,15 +1084,26 @@ export const CanvasEngine = ({
 
             // NEW: Break chain if face status (Interior vs Exterior) changes.
             // This prevents "Exterior" chains from swallowing shared walls that are actually interior.
+            // BUT: If we are measuring EXTERIOR, we want to proceed even if the next segment is technically 
+            // part of a room (interior) as long as it's collinear and we are on the outside face.
+
+            // Logic: 
+            // 1. If we are Interior, we MUST stay Interior.
+            // 2. If we are Exterior, we can cross into "Interior" segments IF they form a straight line
+            //    and the face we are measuring is still effectively outside (which is hard to know locally).
+            //    However, usually "Exterior" measurement implies the whole facade line.
+
             const midP_cont = { x: (cont.start.x + cont.end.x) / 2, y: (cont.start.y + cont.end.y) / 2 }
             const testP_cont = { x: midP_cont.x + faceNormal.x * 12, y: midP_cont.y + faceNormal.y * 12 }
             const contIsInterior = isPointInAnyRoom(testP_cont)
-            if (contIsInterior !== isInterior) {
+
+            if (isInterior && contIsInterior !== isInterior) {
                 return { terminal: curr, addedLen, terminalWallId }
             }
 
             // Check if ANY other neighbor (perpendicular) blocks this specific face
             // FACADE FIX: If we are measuring facade (exterior), we IGNORE partitions.
+            // i.e., we only stop at perpendicular walls if we are inside a room.
             if (isInterior) {
                 const isBlocked = neighbors.some(nw => {
                     const nwHorizontal = Math.abs(nw.start.y - nw.end.y) < 2.0
@@ -1220,7 +1231,8 @@ export const CanvasEngine = ({
 
             const isInterior = (editFace === "interior") || (() => {
                 const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
-                const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
+                const safeOffset = (selectedWall.thickness / 2) + 10
+                const testP = { x: midP.x + faceNormal.x * safeOffset, y: midP.y + faceNormal.y * safeOffset }
                 return isPointInAnyRoom(testP)
             })()
             const chainIds = new Set([selectedWall.id])
@@ -1257,7 +1269,9 @@ export const CanvasEngine = ({
         // Deterministic face type based on offset side
         const faceType: "interior" | "exterior" = offsetVal > 0 ? "interior" : "exterior"
         const midP = { x: (wall.start.x + wall.end.x) / 2, y: (wall.start.y + wall.end.y) / 2 }
-        const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
+        // Use a fixed distance that is always outside the wall for robust detection
+        const testP_dist = (wall.thickness / 2) + 8
+        const testP = { x: midP.x + faceNormal.x * testP_dist, y: midP.y + faceNormal.y * testP_dist }
         const isInterior = (faceType === "interior") || isPointInAnyRoom(testP)
 
         // COLLINEAR CHAIN SEARCH
@@ -1354,18 +1368,20 @@ export const CanvasEngine = ({
         const capP2A = { x: p2x + nx * capSize, y: p2y + ny * capSize }
         const capP2B = { x: p2x - nx * capSize, y: p2y - ny * capSize }
 
-        // DEDUPLICATION: Use wall geometry to ensure only one label per physical segment in global view
-        const geomKey = [
+        const geomKeyBase = [
             Math.round(back.terminal.x),
             Math.round(back.terminal.y),
             Math.round(forward.terminal.x),
             Math.round(forward.terminal.y)
-        ].sort((a, b) => a - b).join(',') + `-${faceType}`
+        ].sort((a, b) => a - b).join(',')
 
-        if (showAllQuotes && displayedMeasures.has(geomKey)) {
-            return null
+        const geomKeyWithFace = `${geomKeyBase}-${faceType}`
+
+        if (showAllQuotes && !isAnyInChainSelected) {
+            if (displayedMeasures.has(geomKeyBase)) {
+                return null
+            }
         }
-        displayedMeasures.add(geomKey)
 
         // REDUNDANCY FILTER: Avoid mirrored parallel measurements in simple rectangular rooms
         // If we are showing all quotes, we only show Top and Left faces to keep it clean,
@@ -1380,11 +1396,15 @@ export const CanvasEngine = ({
                 const roomsContainingTestP = rooms.filter(r => {
                     let inside = false
                     const poly = r.polygon
+                    // ROBUST TEST POINT: Use a distance that is ALWAYS outside the wall regardless of zoom
+                    const safeOffset = (wall.thickness / 2) + 10
+                    const testP_robust = { x: midP.x + nx * (faceType === "interior" ? safeOffset : -safeOffset), y: midP.y + ny * (faceType === "interior" ? safeOffset : -safeOffset) }
+
                     for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
                         const xi = poly[i].x, yi = poly[i].y
                         const xj = poly[j].x, yj = poly[j].y
-                        const intersect = ((yi > testP.y) !== (yj > testP.y)) &&
-                            (testP.x < (xj - xi) * (testP.y - yi) / (yj - yi) + xi)
+                        const intersect = ((yi > testP_robust.y) !== (yj > testP_robust.y)) &&
+                            (testP_robust.x < (xj - xi) * (testP_robust.y - yi) / (yj - yi) + xi)
                         if (intersect) inside = !inside
                     }
                     return inside
@@ -1461,6 +1481,14 @@ export const CanvasEngine = ({
         // CLUTTER REDUCTION: Hide extremely short measurements in global view
         if (showAllQuotes && displayLength < 40 && !isAnyInChainSelected) {
             return null
+        }
+
+        // REGISTRATION: Only register if we actually rendered
+        if (showAllQuotes && !isAnyInChainSelected) {
+            displayedMeasures.add(geomKeyBase)
+        } else if (showAllQuotes) {
+            displayedMeasures.add(geomKeyWithFace)
+            displayedMeasures.add(geomKeyBase)
         }
 
         return (
@@ -1556,15 +1584,16 @@ export const CanvasEngine = ({
         const L1 = Math.max(0.1, Math.sqrt(dx1 * dx1 + dy1 * dy1))
         const L2 = Math.max(0.1, Math.sqrt(dx2 * dx2 + dy2 * dy2))
 
-        const TOL = 5.0
-        const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
+        const TOL_VERTEX = 10.0 // Increased from 5.0
+        const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL_VERTEX
         const shareVertex = isSame(w1.start, w2.start) || isSame(w1.start, w2.end) ||
             isSame(w1.end, w2.start) || isSame(w1.end, w2.end)
         if (!shareVertex) return false
 
-        // Dot product of directions near 0 means they are perpendicular
+        // Dot product should be near 0 for perpendicularity. 
+        // Tolerance 0.5 supports up to 30 degrees of deviation.
         const dot = (dx1 / L1) * (dx2 / L2) + (dy1 / L1) * (dy2 / L2)
-        return Math.abs(dot) < 0.2 // Supports near-perpendicular inclined walls
+        return Math.abs(dot) < 0.5
     }
 
     const handleStagePointerDown = (e: any) => {
@@ -2207,24 +2236,31 @@ export const CanvasEngine = ({
                                         )
                                     })()}
                                     {/* Medidas duales SIEMPRE llamadas, filtrado interno */}
-                                    {[25 / zoom, -25 / zoom].map((offsetVal, idx) => (
-                                        <React.Fragment key={`wall-meas-${wall.id}-${idx}`}>
-                                            {(() => {
-                                                // De-duplication logic for global view:
-                                                // If showAllQuotes is true, we want to avoid redundant parallel measurements.
-                                                // For now, let's keep one side of the chain if they are identical.
-                                                // But wait, the user said "dentro de una habitación".
+                                    {/* Medidas duales SIEMPRE llamadas, filtrado interno */}
+                                    {(() => {
+                                        // PRIORITIZE INTERIOR: Process interior face first so it survives deduplication in global view
+                                        const midP = { x: (wall.start.x + wall.end.x) / 2, y: (wall.start.y + wall.end.y) / 2 }
+                                        const dx = wall.end.x - wall.start.x
+                                        const dy = wall.end.y - wall.start.y
+                                        const lenSq = dx * dx + dy * dy
+                                        const nx = -dy / Math.sqrt(lenSq)
+                                        const ny = dx / Math.sqrt(lenSq)
+                                        const faceNormal = { x: nx, y: ny }
+                                        const safeOffset = (wall.thickness / 2) + 10
+                                        const testP = { x: midP.x + faceNormal.x * safeOffset, y: midP.y + faceNormal.y * safeOffset }
+                                        const isOffsetValPosInterior = isPointInAnyRoom(testP)
 
-                                                // Better de-duplication: For global view, only show "interior" measurements (offsetVal > 0)
-                                                // UNLESS the chain is purely exterior (facade).
-                                                // This significantly reduces clutter.
-                                                // De-duplication logic for global view:
-                                                // We rely on renderWallMeasurement internal logic to suppress clutter.
-                                                // Removing the 'offsetVal < 0' check enables shared wall measurements and proper external dimensions.
-                                                return renderWallMeasurement(wall, offsetVal)
-                                            })()}
-                                        </React.Fragment>
-                                    ))}
+                                        const offsets = isOffsetValPosInterior ? [30 / zoom, -30 / zoom] : [-30 / zoom, 30 / zoom]
+
+                                        // In GLOBAL VIEW (!isSelected), only show the INTERIOR face to reduce clutter
+                                        const finalOffsets = (showAllQuotes && !isSelected) ? [offsets[0]] : offsets
+
+                                        return finalOffsets.map((offsetVal, idx) => (
+                                            <React.Fragment key={`wall-meas-${wall.id}-${idx}`}>
+                                                {renderWallMeasurement(wall, offsetVal)}
+                                            </React.Fragment>
+                                        ))
+                                    })()}
 
                                     {/* MEDIDAS PERPENDICULARES DINÁMICAS */}
                                     {(isSelected || dragStartPos.current) && (
@@ -4061,7 +4097,7 @@ export const CanvasEngine = ({
                                             <div className="flex items-center gap-2 px-2 py-1">
                                                 <button
                                                     onClick={() => {
-                                                        const targetLen = parseFloat(editLength)
+                                                        const targetLen = parseFloat(editLength.replace(',', '.'))
                                                         if (isNaN(targetLen)) return
 
                                                         // FIXED: Start/Up Arrow Logic (Single Segment)
@@ -4114,7 +4150,7 @@ export const CanvasEngine = ({
                                                         setter={setEditLength}
                                                         onEnter={(val) => {
                                                             const finalVal = val !== undefined ? val : editLength
-                                                            const targetLen = parseFloat(finalVal)
+                                                            const targetLen = parseFloat(finalVal.replace(',', '.'))
                                                             if (isNaN(targetLen) || !selectedWall) return
 
                                                             const dx = selectedWall.end.x - selectedWall.start.x
@@ -4156,7 +4192,7 @@ export const CanvasEngine = ({
                                                 </div>
                                                 <button
                                                     onClick={() => {
-                                                        const targetLen = parseFloat(editLength)
+                                                        const targetLen = parseFloat(editLength.replace(',', '.'))
                                                         if (isNaN(targetLen) || !selectedWall) return
 
                                                         const dx = selectedWall.end.x - selectedWall.start.x
@@ -4208,8 +4244,8 @@ export const CanvasEngine = ({
                                                     setter={setEditLength}
                                                     onEnter={(val) => {
                                                         const finalVal = val !== undefined ? val : editLength
-                                                        const updates: any = { width: parseFloat(finalVal) }
-                                                        if ((selectedElement.type === "window" || selectedElement.type === "shunt") && editHeight) updates.height = parseFloat(editHeight)
+                                                        const updates: any = { width: parseFloat(finalVal.replace(',', '.')) }
+                                                        if ((selectedElement.type === "window" || selectedElement.type === "shunt") && editHeight) updates.height = parseFloat(editHeight.replace(',', '.'))
                                                         onUpdateElement(selectedElement.type, selectedElement.id, updates)
                                                         setEditMode("menu")
                                                     }}
