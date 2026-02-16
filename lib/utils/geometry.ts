@@ -86,6 +86,153 @@ export function getLineIntersection(p1: Point, p2: Point, p3: Point, p4: Point):
     return null
 }
 
+// Helper for point in polygon
+export function isPointInPolygon(p: Point, polygon: Point[]) {
+    let inside = false
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].x, yi = polygon[i].y
+        const xj = polygon[j].x, yj = polygon[j].y
+        const intersect = ((yi > p.y) !== (yj > p.y)) &&
+            (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi)
+        if (intersect) inside = !inside
+    }
+    return inside
+}
+
+export function calculateRoomStats(room: Room, walls: Wall[], shunts: { x: number, y: number, width: number, height: number }[]) {
+    // 1. Identify wall properties for each segment of the polygon
+    const segments = room.polygon.map((p1, i) => {
+        const p2 = room.polygon[(i + 1) % room.polygon.length]
+        const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+
+        // Find the wall that contains this segment (using a small tolerance)
+        const wall = walls.find(w => isPointOnSegment(midP, w.start, w.end, 3.0))
+
+        return {
+            p1, p2,
+            len: Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)),
+            thickness: wall?.thickness || 10,
+            isInvisible: !!wall?.isInvisible
+        }
+    })
+
+    // 2. Calculate Internal Wall Perimeter
+    let wallPerimeter = 0
+    for (let i = 0; i < segments.length; i++) {
+        const seg = segments[i]
+
+        // Skip invisible walls entirely as per user request ("restar si no tiene pared")
+        if (seg.isInvisible) continue
+
+        const prev = segments[(i - 1 + segments.length) % segments.length]
+        const next = segments[(i + 1) % segments.length]
+
+        // Helper to check if two segments form a corner and calculate length reduction
+        const getReduction = (sA: any, sB: any, commonP: Point) => {
+            // Invisible neighbors don't cause internal face reduction
+            if (sB.isInvisible) return 0
+
+            const pA = (isSamePoint(sA.p1, commonP)) ? sA.p2 : sA.p1
+            const pB = (isSamePoint(sB.p1, commonP)) ? sB.p2 : sB.p1
+
+            const va = { x: pA.x - commonP.x, y: pA.y - commonP.y }
+            const vb = { x: pB.x - commonP.x, y: pB.y - commonP.y }
+            const magA = Math.sqrt(va.x ** 2 + va.y ** 2)
+            const magB = Math.sqrt(vb.x ** 2 + vb.y ** 2)
+            if (magA < 0.1 || magB < 0.1) return 0
+
+            const dot = (va.x * vb.x + va.y * vb.y) / (magA * magB)
+
+            // If dot < -0.99, segments are almost collinear (180 deg), no reduction
+            if (dot < -0.99) return 0
+
+            // For now, use 90-degree simplification: internal face is shifted by half thickness
+            // A more complex triangulation could be used for arbitrary angles, 
+            // but for floor plans this covers the vast majority of cases.
+            return sB.thickness / 2
+        }
+
+        const red1 = getReduction(seg, prev, seg.p1)
+        const red2 = getReduction(seg, next, seg.p2)
+
+        wallPerimeter += Math.max(0, seg.len - red1 - red2)
+    }
+
+    // 3. Column (Shunt) Perimeter
+    const roomShunts = shunts.filter(s => isPointInPolygon({ x: s.x, y: s.y }, room.polygon))
+
+    let columnPerimeterDisplay = 0
+    let columnPerimeterContribution = 0
+
+    roomShunts.forEach(s => {
+        // Define faces of the column
+        const faces = [
+            { p1: { x: s.x - s.width / 2, y: s.y - s.height / 2 }, p2: { x: s.x + s.width / 2, y: s.y - s.height / 2 }, len: s.width }, // Top
+            { p1: { x: s.x - s.width / 2, y: s.y + s.height / 2 }, p2: { x: s.x + s.width / 2, y: s.y + s.height / 2 }, len: s.width },  // Bottom
+            { p1: { x: s.x - s.width / 2, y: s.y - s.height / 2 }, p2: { x: s.x - s.width / 2, y: s.y + s.height / 2 }, len: s.height }, // Left
+            { p1: { x: s.x + s.width / 2, y: s.y - s.height / 2 }, p2: { x: s.x + s.width / 2, y: s.y + s.height / 2 }, len: s.height }  // Right
+        ]
+
+        let sumExposed = 0
+        let supportedCount = 0
+
+        faces.forEach(face => {
+            const midF = { x: (face.p1.x + face.p2.x) / 2, y: (face.p1.y + face.p2.y) / 2 }
+
+            // A face is supported if it touches a wall or another shunt
+            // 1. Check contact with walls (account for thickness)
+            const isSupportedByWall = walls.some(w => {
+                if (w.isInvisible) return false
+                const { point: proj } = getClosestPointOnSegment(midF, w.start, w.end)
+                const dist = Math.sqrt((midF.x - proj.x) ** 2 + (midF.y - proj.y) ** 2)
+                return dist < (w.thickness / 2) + 2.0
+            })
+
+            // 2. Check contact with other shunts
+            const isSupportedByShunt = shunts.some(os => {
+                if (os === s) return false
+                const osHalfW = os.width / 2
+                const osHalfH = os.height / 2
+                const inX = midF.x >= os.x - osHalfW - 1 && midF.x <= os.x + osHalfW + 1
+                const inY = midF.y >= os.y - osHalfH - 1 && midF.y <= os.y + osHalfH + 1
+                if (!inX || !inY) return false
+                const distL = Math.abs(midF.x - (os.x - osHalfW))
+                const distR = Math.abs(midF.x - (os.x + osHalfW))
+                const distT = Math.abs(midF.y - (os.y - osHalfH))
+                const distB = Math.abs(midF.y - (os.y + osHalfH))
+                return Math.min(distL, distR, distT, distB) < 2.0
+            })
+
+            if (isSupportedByWall || isSupportedByShunt) {
+                supportedCount++
+            } else {
+                sumExposed += face.len
+            }
+        })
+
+        // DISPLAY (Orange Col): Sum of exposed faces (NOT touching walls/shunts)
+        columnPerimeterDisplay += sumExposed
+
+        // CONTRIBUTION (to Total): 
+        // Case H2 (Corner): If 2 or more faces are supported, contribution is 0.
+        // H1/H3 cases: If fewer than 2 faces supported, add the exposed perimeter.
+        if (supportedCount < 2) {
+            columnPerimeterContribution += sumExposed
+        }
+    })
+
+    const wallPerimM = wallPerimeter / 100
+    const colPerimM = columnPerimeterContribution / 100
+    const colPerimDisplayM = columnPerimeterDisplay / 100
+
+    return {
+        wallPerimeter: wallPerimM,
+        columnPerimeter: colPerimDisplayM, // Orange display
+        totalPerimeter: wallPerimM + colPerimM, // Net perimeter
+        area: room.area
+    }
+}
+
 export function isPointOnSegment(p: Point, a: Point, b: Point, tolerance = 1.0): boolean {
     const dist = Math.sqrt(Math.pow(b.x - a.x, 2) + Math.pow(b.y - a.y, 2))
     if (dist < 0.1) return false
@@ -227,8 +374,8 @@ export function cleanupAndMergeWalls(walls: Wall[]): Wall[] {
                 const w1 = processed[i]
                 const w2 = processed[j]
 
-                // Must have same thickness
-                if (w1.thickness !== w2.thickness) continue
+                // Must have same thickness and invisible state
+                if (w1.thickness !== w2.thickness || !!w1.isInvisible !== !!w2.isInvisible) continue
 
                 // Check for colinearity
                 // Vector 1

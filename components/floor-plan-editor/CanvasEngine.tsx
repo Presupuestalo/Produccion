@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 import React from "react"
 import { Stage, Layer, Group, Line, Rect, Text, Circle, Arc as KonvaArc, Arrow } from "react-konva"
 import { Grid } from "./Grid"
@@ -9,7 +9,7 @@ import { UnifiedWallEditor } from "./UnifiedWallEditor"
 
 
 interface Point { x: number; y: number }
-interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean }
+interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward' }
 
 interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point }
 
@@ -107,6 +107,10 @@ interface CanvasEngineProps {
     isAdvancedEnabled?: boolean
     hideFloatingUI?: boolean
     showAllQuotes?: boolean
+    showRoomNames?: boolean
+    onDblClick?: (point: Point) => void
+    onDblTap?: (point: Point) => void
+    showAreas?: boolean
 }
 
 export interface CanvasEngineRef {
@@ -117,7 +121,8 @@ export interface CanvasEngineRef {
 // Memoized Shunt Item to prevent re-renders during drag (fixes stutter)
 const ShuntItem = React.memo(({
     shunt, isSelected, activeTool, walls, snappingEnabled, zoom, shunts,
-    setDragShuntState, onSelect, onDragEnd, onEditDimensions, isEditing
+    setDragShuntState, onSelect, onDragEnd, onEditDimensions, isEditing,
+    showAllQuotes
 }: {
     shunt: Shunt, isSelected: boolean, activeTool: string,
     walls: Wall[], snappingEnabled: boolean, zoom: number, shunts: Shunt[],
@@ -125,7 +130,8 @@ const ShuntItem = React.memo(({
     onSelect: () => void,
     onDragEnd: (id: string, x: number, y: number) => void,
     onEditDimensions: (e: any) => void,
-    isEditing: boolean
+    isEditing: boolean,
+    showAllQuotes?: boolean
 }) => {
     return (
         <Group
@@ -237,13 +243,13 @@ const ShuntItem = React.memo(({
                 stroke={isSelected ? "#0ea5e9" : "#334155"}
                 strokeWidth={2}
             />
-            {isSelected && !isEditing && (
+            {((isSelected || showAllQuotes) && !isEditing) && (
                 <Text
                     x={0}
                     y={0}
-                    text={`${shunt.width}x${shunt.height}`}
+                    text={`${shunt.width.toString().replace('.', ',')}x${shunt.height.toString().replace('.', ',')}`}
                     fontSize={12 / zoom}
-                    fill="#334155"
+                    fill={isSelected ? "#0ea5e9" : "#334155"}
                     align="center"
                     verticalAlign="middle"
                     width={120 / zoom}
@@ -251,6 +257,7 @@ const ShuntItem = React.memo(({
                     name="measurement-label"
                     offsetX={60 / zoom}
                     offsetY={15 / zoom}
+                    fontStyle="bold"
                     onClick={(e) => { e.cancelBubble = true; if (e.evt) e.evt.stopPropagation(); onEditDimensions(e) }}
                     onTap={(e) => { e.cancelBubble = true; if (e.evt) e.evt.stopPropagation(); onEditDimensions(e) }}
                 />
@@ -407,7 +414,9 @@ export const CanvasEngine = ({
     forceTouchOffset = false,
     isAdvancedEnabled = false,
     hideFloatingUI = false,
-    showAllQuotes = false
+    showAllQuotes = false,
+    showRoomNames = true,
+    showAreas = true
 }: CanvasEngineProps) => {
     const stageRef = React.useRef<any>(null)
     const gridRef = React.useRef<any>(null)
@@ -465,6 +474,58 @@ export const CanvasEngine = ({
     const displayedMeasures = new Set<string>()
     displayedMeasures.clear() // Explicitly clear to ensure no leak/stale data in specific React render scenarios
 
+    const isPointInPolygon = (p: Point, poly: Point[]) => {
+        let inside = false
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+            const pi = poly[i], pj = poly[j]
+            if (((pi.y > p.y) !== (pj.y > p.y)) && (p.x < (pj.x - pi.x) * (p.y - pi.y) / (pj.y - pi.y) + pi.x)) inside = !inside
+        }
+        return inside
+    }
+
+    const isPointInAnyRoom = (p: Point) => rooms.some(r => isPointInPolygon(p, r.polygon))
+    const getRoomIdAt = (p: Point) => rooms.find(r => isPointInPolygon(p, r.polygon))?.id
+
+    const getWallOffset = (wall: Wall): Point => {
+        if (!wall.offsetMode || wall.offsetMode === 'center') return { x: 0, y: 0 }
+
+        const dx = wall.end.x - wall.start.x
+        const dy = wall.end.y - wall.start.y
+        const len = Math.sqrt(dx * dx + dy * dy)
+        if (len === 0) return { x: 0, y: 0 }
+
+        // Normal unit vector
+        const nx = -dy / len
+        const ny = dx / len
+
+        // Test which side is the room - Use a larger distance for robust detection
+        const midP = { x: (wall.start.x + wall.end.x) / 2, y: (wall.start.y + wall.end.y) / 2 }
+        const testP = { x: midP.x + nx * 20, y: midP.y + ny * 20 }
+        const isRoomOnNormalSide = isPointInAnyRoom(testP)
+
+        // For 'outward', we want to shift AWAY from the room
+        const multiplier = wall.offsetMode === 'outward'
+            ? (isRoomOnNormalSide ? -1 : 1)
+            : (isRoomOnNormalSide ? 1 : -1)
+
+        // We shift by (thickness - 10)/2 to keep the inner face at exactly 5cm from skeleton
+        // This ensures internal room dimensions are preserved
+        const shiftDist = Math.max(0, (wall.thickness - 10) / 2)
+        return { x: nx * multiplier * shiftDist, y: ny * multiplier * shiftDist }
+    }
+
+    const calculateLineIntersection = (p1: Point, p2: Point, p3: Point, p4: Point): Point | null => {
+        const x1 = p1.x, y1 = p1.y, x2 = p2.x, y2 = p2.y
+        const x3 = p3.x, y3 = p3.y, x4 = p4.x, y4 = p4.y
+        const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1)
+        if (Math.abs(denom) < 0.001) return null // Parallel
+        const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom
+        return {
+            x: x1 + ua * (x2 - x1),
+            y: y1 + ua * (y2 - y1)
+        }
+    }
+
     const facadeChains = React.useMemo(() => {
         const currentWS = wallSnapshot || walls
         const facadeWalls = currentWS.filter(w => w.thickness === 20 && !w.isInvisible)
@@ -476,19 +537,25 @@ export const CanvasEngine = ({
         facadeWalls.forEach(startWall => {
             if (visited.has(startWall.id)) return
 
-            let currentChain: Point[] = [startWall.start, startWall.end]
+            let wallChain: Wall[] = [startWall]
             visited.add(startWall.id)
+
+            const isSamePointLocal = (p1: Point, p2: Point) => Math.abs(p1.x - p2.x) < 2 && Math.abs(p1.y - p2.y) < 2
 
             // Grow forward
             let growing = true
             while (growing) {
                 growing = false
-                const lastP = currentChain[currentChain.length - 1]
-                const nextWall = facadeWalls.find(w => !visited.has(w.id) && (isSamePoint(w.start, lastP) || isSamePoint(w.end, lastP)))
+                const lastWall = wallChain[wallChain.length - 1]
+                const lastP = lastWall.end
+                const nextWall = facadeWalls.find(w => !visited.has(w.id) && (isSamePointLocal(w.start, lastP) || isSamePointLocal(w.end, lastP)))
                 if (nextWall) {
                     visited.add(nextWall.id)
-                    const nextP = isSamePoint(nextWall.start, lastP) ? nextWall.end : nextWall.start
-                    currentChain.push(nextP)
+                    if (isSamePointLocal(nextWall.end, lastP)) {
+                        wallChain.push({ ...nextWall, start: nextWall.end, end: nextWall.start })
+                    } else {
+                        wallChain.push(nextWall)
+                    }
                     growing = true
                 }
             }
@@ -497,27 +564,66 @@ export const CanvasEngine = ({
             growing = true
             while (growing) {
                 growing = false
-                const firstP = currentChain[0]
-                const prevWall = facadeWalls.find(w => !visited.has(w.id) && (isSamePoint(w.start, firstP) || isSamePoint(w.end, firstP)))
+                const firstWall = wallChain[0]
+                const firstP = firstWall.start
+                const prevWall = facadeWalls.find(w => !visited.has(w.id) && (isSamePointLocal(w.start, firstP) || isSamePointLocal(w.end, firstP)))
                 if (prevWall) {
                     visited.add(prevWall.id)
-                    const prevP = isSamePoint(prevWall.start, firstP) ? prevWall.end : prevWall.start
-                    currentChain.unshift(prevP)
+                    if (isSamePointLocal(prevWall.start, firstP)) {
+                        wallChain.unshift({ ...prevWall, start: prevWall.end, end: prevWall.start })
+                    } else {
+                        wallChain.unshift(prevWall)
+                    }
                     growing = true
                 }
             }
 
-            const isLoop = isSamePoint(currentChain[0], currentChain[currentChain.length - 1]) && currentChain.length > 2
-            if (isLoop) currentChain.pop()
+            const isLoop = isSamePointLocal(wallChain[0].start, wallChain[wallChain.length - 1].end) && wallChain.length > 1
+
+            // Compute offset segments for each wall
+            const segments = wallChain.map(w => {
+                const off = getWallOffset(w)
+                return {
+                    p1: { x: w.start.x + off.x, y: w.start.y + off.y },
+                    p2: { x: w.end.x + off.x, y: w.end.y + off.y }
+                }
+            })
+
+            const chainPoints: number[] = []
+            if (isLoop) {
+                // For loops, every point is a joint
+                for (let i = 0; i < segments.length; i++) {
+                    const curr = segments[i]
+                    const next = segments[(i + 1) % segments.length]
+                    const inter = calculateLineIntersection(curr.p1, curr.p2, next.p1, next.p2)
+                    const joint = inter || curr.p2
+                    chainPoints.push(joint.x, joint.y)
+                }
+            } else {
+                // For open chains
+                // Start point of first wall
+                chainPoints.push(segments[0].p1.x, segments[0].p1.y)
+                // Intermediate joints
+                for (let i = 0; i < segments.length - 1; i++) {
+                    const curr = segments[i]
+                    const next = segments[i + 1]
+                    const inter = calculateLineIntersection(curr.p1, curr.p2, next.p1, next.p2)
+                    const joint = inter || curr.p2
+                    chainPoints.push(joint.x, joint.y)
+                }
+                // End point of last wall
+                const last = segments[segments.length - 1]
+                chainPoints.push(last.p2.x, last.p2.y)
+            }
 
             chains.push({
-                points: currentChain.flatMap(p => [p.x, p.y]),
+                points: chainPoints,
                 closed: isLoop
             })
         })
 
         return chains
-    }, [walls, wallSnapshot])
+    }, [walls, wallSnapshot, rooms])
 
     const getSnapshot = React.useCallback(() => {
         console.log("DEBUG: getSnapshot called")
@@ -627,10 +733,15 @@ export const CanvasEngine = ({
     const [editThickness, setEditThickness] = React.useState<string>("")
     const [editFace, setEditFace] = React.useState<"center" | "interior" | "exterior">("interior")
     const dragStartPos = React.useRef<Point | null>(null)
-    const dragStartPointerPos = React.useRef<Point | null>(null) // Para calcular delta del ratón sin saltos
+    const dragStartPointerPos = React.useRef<Point | null>(null) // Para calcular delta del ratÃ³n sin saltos
     const isDraggingVertexRef = React.useRef(false) // Manual drag state
     const isPanning = React.useRef(false)
     const isAimingDrawing = React.useRef(false) // Track if touch user is aiming before committing draw point
+    const spacePressed = React.useRef(false)
+    const autoPanRaf = React.useRef<number | null>(null)
+    const panDeltaRef = React.useRef<{ dx: number, dy: number }>({ dx: 0, dy: 0 })
+    const isPotentialSustainedPan = React.useRef(false)
+    const didSustainedPanOccur = React.useRef(false)
     const lastPointerPos = React.useRef<Point | null>(null) // Para el panning
     const pointerDownPos = React.useRef<Point | null>(null)
     const pointerDownTime = React.useRef<number>(0)
@@ -677,6 +788,33 @@ export const CanvasEngine = ({
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
     }, [onRotateGrid, gridRotation])
+
+    // Spacebar Panning 
+    React.useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.code === 'Space' && !spacePressed.current) {
+                const target = e.target as HTMLElement
+                if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+                e.preventDefault()
+                spacePressed.current = true
+                setIsPanningState(true)
+            }
+        }
+        const handleKeyUp = (e: KeyboardEvent) => {
+            if (e.code === 'Space') {
+                spacePressed.current = false
+                if (!isPanning.current) {
+                    setIsPanningState(false)
+                }
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        window.addEventListener('keyup', handleKeyUp)
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown)
+            window.removeEventListener('keyup', handleKeyUp)
+        }
+    }, [])
 
     // Global listeners for MANUAL VERTEX DRAGGING (Fixes ghosting)
     React.useEffect(() => {
@@ -809,7 +947,7 @@ export const CanvasEngine = ({
     const [menuDragOffset, setMenuDragOffset] = React.useState<Point>({ x: 0, y: 0 })
     const [isDraggingMenuState, setIsDraggingMenuState] = React.useState(false) // State version for Effect
     const menuDragStart = React.useRef<Point | null>(null)
-    const cellSize = 100 // 1 metro = 100 píxeles (1px = 1cm)
+    const cellSize = 100 // 1 metro = 100 pÃ­xeles (1px = 1cm)
 
     // Global listeners for menu dragging to prevent "getting stuck"
     React.useEffect(() => {
@@ -820,7 +958,7 @@ export const CanvasEngine = ({
                 const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
                 const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
 
-                // IMPORTANTE: En móvil el scrolling puede interferir, prevenimos si estamos arrastrando menú
+                // IMPORTANTE: En mÃ³vil el scrolling puede interferir, prevenimos si estamos arrastrando menÃº
                 if ('touches' in e) e.preventDefault()
 
                 setMenuDragOffset({
@@ -851,8 +989,8 @@ export const CanvasEngine = ({
     const selectedRoom = rooms.find(r => r.id === selectedRoomId)
 
     const roomTypes = [
-        "Salón", "Cocina", "Cocina Abierta", "Cocina Americana",
-        "Baño", "Dormitorio", "Pasillo", "Hall", "Terraza",
+        "SalÃ³n", "Cocina", "Cocina Abierta", "Cocina Americana",
+        "BaÃ±o", "Dormitorio", "Pasillo", "Hall", "Terraza",
         "Trastero", "Vestidor", "Otro"
     ]
 
@@ -927,7 +1065,7 @@ export const CanvasEngine = ({
         let nearest: Point | null = null
         let minDist = threshold
 
-        // Usar snapshot si existe para que los puntos de imán sean estáticos durante el arrastre
+        // Usar snapshot si existe para que los puntos de imÃ¡n sean estÃ¡ticos durante el arrastre
         const candidates: Point[] = []
         const snapshotWalls = wallSnapshot || walls
         snapshotWalls.forEach((w: Wall) => {
@@ -938,7 +1076,7 @@ export const CanvasEngine = ({
             r.polygon.forEach((p: Point) => candidates.push(p))
         })
 
-        // Buscar el más cercano con distancia euclidiana
+        // Buscar el mÃ¡s cercano con distancia euclidiana
         candidates.forEach(p => {
             const d = Math.sqrt(Math.pow(point.x - p.x, 2) + Math.pow(point.y - p.y, 2))
             if (d < minDist) {
@@ -950,17 +1088,6 @@ export const CanvasEngine = ({
         return nearest
     }
 
-    const isPointInPolygon = (p: Point, poly: Point[]) => {
-        let inside = false
-        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-            const pi = poly[i], pj = poly[j]
-            if (((pi.y > p.y) !== (pj.y > p.y)) && (p.x < (pj.x - pi.x) * (p.y - pi.y) / (pj.y - pi.y) + pi.x)) inside = !inside
-        }
-        return inside
-    }
-
-    const isPointInAnyRoom = (p: Point) => rooms.some(r => isPointInPolygon(p, r.polygon))
-    const getRoomIdAt = (p: Point) => rooms.find(r => isPointInPolygon(p, r.polygon))?.id
 
     const projectPointOnSegment = (p: Point, a: Point, b: Point): Point => {
         const l2 = Math.pow(b.x - a.x, 2) + Math.pow(b.y - a.y, 2)
@@ -1004,7 +1131,7 @@ export const CanvasEngine = ({
         currentWS.forEach(w => { candidates.push(w.start); candidates.push(w.end) })
         rooms.forEach(r => r.polygon.forEach(p => candidates.push(p)))
 
-        // También alinear con el punto de inicio de la acción actual
+        // TambiÃ©n alinear con el punto de inicio de la acciÃ³n actual
         const startPoint = currentWall?.start || dragStartPos.current
         if (startPoint) {
             candidates.push(startPoint)
@@ -1032,11 +1159,11 @@ export const CanvasEngine = ({
             if (snappedX !== null) point.x = snappedX
             if (snappedY !== null) point.y = snappedY
 
-            // Si snapamos ambos ejes es virtualmente un vértice, retornamos ya
+            // Si snapamos ambos ejes es virtualmente un vÃ©rtice, retornamos ya
             if (snappedX !== null && snappedY !== null) return point
         }
 
-        // 3. EDGE SNAP (Si no hay alineación fuerte de ejes)
+        // 3. EDGE SNAP (Si no hay alineaciÃ³n fuerte de ejes)
         if (snappedX === null || snappedY === null) {
             const edgeThreshold = 8 / zoom
             let nearestEdge: Point | null = null
@@ -1070,7 +1197,7 @@ export const CanvasEngine = ({
                 Math.sqrt(Math.pow(w.end.x - curr.x, 2) + Math.pow(w.end.y - curr.y, 2)) < TOL
             ))
 
-            // Buscar un muro que sea continuación colineal
+            // Buscar un muro que sea continuaciÃ³n colineal
             const cont = neighbors.find(nw => {
                 const nwHorizontal = Math.abs(nw.start.y - nw.end.y) < 2.0
                 const nwVertical = Math.abs(nw.start.x - nw.end.x) < 2.0
@@ -1149,6 +1276,10 @@ export const CanvasEngine = ({
         const extensions: number[] = [];
         let hasContinuation = false;
 
+        const wallOff = getWallOffset(wall)
+        // Actual distance from skeleton to the face we are calculating
+        const D = (wallOff.x * faceNormal.x + wallOff.y * faceNormal.y) + wall.thickness / 2
+
         neighbors.forEach(nw => {
             const nwDx = nw.end.x - nw.start.x
             const nwDy = nw.end.y - nw.start.y
@@ -1179,16 +1310,18 @@ export const CanvasEngine = ({
             }
 
             if (blocksFace || (isConnectedPerpendicular(wall, nw) && localDotFace < -0.5)) {
-                const D = wall.thickness / 2
-                const K = nw.thickness / 2
+                const nwOff = getWallOffset(nw)
                 const nnx = -nuy, nny = nux
+                // Face distances for neighbor
+                const K1 = (nwOff.x * nnx + nwOff.y * nny) + nw.thickness / 2
+                const K2 = (nwOff.x * nnx + nwOff.y * nny) - nw.thickness / 2
 
                 const solveS = (targetK: number) => {
                     const rx = targetK * nnx - D * faceNormal.x
                     const ry = targetK * nny - D * faceNormal.y
                     return (rx * nuy - ry * nux) / cross
                 }
-                const s1 = solveS(K), s2 = solveS(-K)
+                const s1 = solveS(K1), s2 = solveS(K2)
                 if (blocksFace) {
                     retractions.push(isEnd ? Math.min(s1, s2) : Math.max(s1, s2))
                 } else {
@@ -1328,7 +1461,7 @@ export const CanvasEngine = ({
         const ux = dx / centerLength
         const uy = dy / centerLength
 
-        // Offset visual de la línea de medida - CLOSE TO WALL
+        // Offset visual de la lÃ­nea de medida - CLOSE TO WALL
         const isShortWall = displayLength < 60
         // Scale offset to ensure it never touches the wall
         const baseOffsetFactor = 1.4
@@ -1368,7 +1501,9 @@ export const CanvasEngine = ({
         const geomKeyWithFace = `${geomKeyBase}-${faceType}`
 
         if (showAllQuotes && !isAnyInChainSelected) {
-            if (displayedMeasures.has(geomKeyBase)) {
+            // FACE-BASED DEDUPLICATION: We only hide if the EXACT same face (geom + side) was rendered.
+            // This ensures shared walls show interior measurements for BOTH rooms.
+            if (displayedMeasures.has(geomKeyWithFace)) {
                 return null
             }
         }
@@ -1430,12 +1565,9 @@ export const CanvasEngine = ({
                 // If the room is a simple rectangle, we only want to show 1 Width and 1 Height.
                 // Convention: Show Top and Left. Hide Bottom and Right.
                 if (isRectangular) {
-                    const room = roomsContainingTestP[0]
-                    // Calculate Centroid
-                    let cx = 0, cy = 0
-                    room.polygon.forEach(p => { cx += p.x; cy += p.y })
-                    cx /= room.polygon.length
-                    cy /= room.polygon.length
+                    // ROBUST CENTROID: Use BBox center instead of vertex average to handle split segments
+                    const cx = (minX + maxX) / 2
+                    const cy = (minY + maxY) / 2
 
                     // Check Wall Midpoint relative to Centroid
                     const wx = (back.terminal.x + forward.terminal.x) / 2
@@ -1474,16 +1606,13 @@ export const CanvasEngine = ({
         }
 
         // REGISTRATION: Only register if we actually rendered
-        if (showAllQuotes && !isAnyInChainSelected) {
-            displayedMeasures.add(geomKeyBase)
-        } else if (showAllQuotes) {
+        if (showAllQuotes) {
             displayedMeasures.add(geomKeyWithFace)
-            displayedMeasures.add(geomKeyBase)
         }
 
         return (
             <Group>
-                {/* Línea principal */}
+                {/* LÃ­nea principal */}
                 <Line
                     points={[p1x, p1y, p2x, p2y]}
                     stroke={color}
@@ -1646,7 +1775,7 @@ export const CanvasEngine = ({
             currentDynamicOffset.current = 0
         }
 
-        // Si es táctil, buscamos qué hay "bajo el puntero virtual" (con offset bajado si no hubo hit directo)
+        // Si es tÃ¡ctil, buscamos quÃ© hay "bajo el puntero virtual" (con offset bajado si no hubo hit directo)
         let virtualTarget = (isTouchInteraction && !isOriginalProtected) ? stage.getIntersection({ x: stagePos.x, y: adjustedY }) : originalTarget
         if (virtualTarget && virtualTarget !== stage) {
             const name = virtualTarget.attrs?.name || virtualTarget.name?.() || ""
@@ -1676,9 +1805,9 @@ export const CanvasEngine = ({
             targetName === "measurement-label" ||
             targetName.startsWith("room-")
 
-        if (isRightClick || isMiddleClick || isBackground || (activeTool === "select" && (!isProtected || isRoom))) {
+        if (isRightClick || isMiddleClick || isBackground || spacePressed.current || (activeTool === "select" && (!isProtected || isRoom))) {
             // Only deselect if we are NOT interacting with a room (unless it's a right/middle click which might imply context menu or pan anywhere)
-            if (!isRoom || isRightClick || isMiddleClick) {
+            if (!isRoom || isRightClick || isMiddleClick || spacePressed.current) {
                 if (!isRoom) { // Don't deselect everything if we clicked a room (let room onClick handle selection)
                     onSelectWall(null)
                     onSelectRoom(null)
@@ -1686,7 +1815,7 @@ export const CanvasEngine = ({
                 }
             }
 
-            if (isRightClick || isMiddleClick || activeTool === "select") {
+            if (isRightClick || isMiddleClick || spacePressed.current || activeTool === "select") {
                 isPanning.current = true
                 setIsPanningState(true)
                 lastPointerPos.current = stage.getPointerPosition()
@@ -1694,9 +1823,22 @@ export const CanvasEngine = ({
             }
         }
 
+        const isPrimaryClick = e.evt.button === 0
+        const isDrawingTool = activeTool === "wall" || activeTool === "door" || activeTool === "window" || activeTool === "ruler" || activeTool === "arc" || activeTool === "shunt"
+
+        // SPECIAL CASE: Sustained Click-to-Pan while drawing
+        if (isDrawingTool && isPrimaryClick && !isTouchInteraction) {
+            // If we are drawing a wall (currentWall exists) or using ruler/arc tool
+            if (currentWall || activeTool === "ruler" || activeTool === "arc") {
+                isPotentialSustainedPan.current = true
+                didSustainedPanOccur.current = false
+                return
+            }
+        }
+
         if (e.evt.button !== 0 && (e.evt as any).pointerType === 'mouse') return
 
-        // Si pinchamos en algo (o cerca por el offset) y es táctil, disparamos su lógica
+        // Si pinchamos en algo (o cerca por el offset) y es tÃ¡ctil, disparamos su lÃ³gica
         if (isTouchInteraction && !isBackground) {
             if (activeTool === "select") {
                 if (targetName.startsWith("wall-")) {
@@ -1720,7 +1862,7 @@ export const CanvasEngine = ({
                     virtualTarget.fire('pointerdown', e, true)
                 }
 
-                // Si es un vértice o una medida, evitamos que se empiece a dibujar un muro debajo
+                // Si es un vÃ©rtice o una medida, evitamos que se empiece a dibujar un muro debajo
                 if (targetName === "vertex-handle" || targetName.startsWith("measurement-")) {
                     return
                 }
@@ -1766,6 +1908,20 @@ export const CanvasEngine = ({
             return
         }
 
+        if (isPotentialSustainedPan.current && pointer && pointerDownPos.current) {
+            const dist = Math.sqrt(
+                Math.pow(pointer.x - pointerDownPos.current.x, 2) +
+                Math.pow(pointer.y - pointerDownPos.current.y, 2)
+            )
+            if (dist > 5) {
+                isPanning.current = true
+                didSustainedPanOccur.current = true
+                setIsPanningState(true)
+                lastPointerPos.current = pointer
+                return
+            }
+        }
+
         const stagePos = stage.getPointerPosition()
         if (!stagePos) return
 
@@ -1791,6 +1947,46 @@ export const CanvasEngine = ({
         // Always update cursor position for preview (including during aiming phase)
         setMousePos(pos)
 
+        // --- EDGE AUTO-PANNING ---
+        const isDrawingTool = (activeTool === "wall" && currentWall) || activeTool === "ruler" || activeTool === "arc"
+        if (isDrawingTool && e.evt.pointerType === "mouse") {
+            const edgePadding = 40
+            const panSpeed = 8 / zoom // Scale pan speed with zoom? No, fixed screen speed is usually better but let's see
+            const rect = stage.container().getBoundingClientRect()
+            const mouseX = e.evt.clientX - rect.left
+            const mouseY = e.evt.clientY - rect.top
+
+            let dx = 0
+            let dy = 0
+
+            if (mouseX < edgePadding) dx = panSpeed
+            else if (mouseX > width - edgePadding) dx = -panSpeed
+            if (mouseY < edgePadding) dy = panSpeed
+            else if (mouseY > height - edgePadding) dy = -panSpeed
+
+            if (dx !== 0 || dy !== 0) {
+                panDeltaRef.current = { dx, dy }
+                if (!autoPanRaf.current) {
+                    const step = () => {
+                        onPan(offset.x + panDeltaRef.current.dx, offset.y + panDeltaRef.current.dy)
+                        autoPanRaf.current = requestAnimationFrame(step)
+                    }
+                    autoPanRaf.current = requestAnimationFrame(step)
+                }
+            } else {
+                if (autoPanRaf.current) {
+                    cancelAnimationFrame(autoPanRaf.current)
+                    autoPanRaf.current = null
+                }
+                panDeltaRef.current = { dx: 0, dy: 0 }
+            }
+        } else {
+            if (autoPanRaf.current) {
+                cancelAnimationFrame(autoPanRaf.current)
+                autoPanRaf.current = null
+            }
+        }
+
         // If we're in aiming mode, update the preview
         if ((activeTool === "wall" && currentWall) || (activeTool === "ruler") || (activeTool === "arc")) {
             onMouseMove(pos)
@@ -1798,10 +1994,22 @@ export const CanvasEngine = ({
     }
 
     const handleStagePointerUp = (e: any) => {
+        if (autoPanRaf.current) {
+            cancelAnimationFrame(autoPanRaf.current)
+            autoPanRaf.current = null
+        }
+
         if (isPanning.current) {
             isPanning.current = false
-            setIsPanningState(false)
-            return
+            if (!spacePressed.current) {
+                setIsPanningState(false)
+            }
+            // If it was a sustained click pan, we consume the event and don't draw
+            if (didSustainedPanOccur.current) {
+                isPotentialSustainedPan.current = false
+                didSustainedPanOccur.current = false
+                return
+            }
         }
 
         const stage = e.target?.getStage?.()
@@ -1822,6 +2030,15 @@ export const CanvasEngine = ({
         touchStartPos.current = null
 
         const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
+
+        // If we were waiting to see if it was a sustained pan or a click...
+        if (isPotentialSustainedPan.current) {
+            isPotentialSustainedPan.current = false
+            // Since didSustainedPanOccur was false (otherwise we'd have returned above),
+            // it means it was a simple click. Trigger the standard onMouseDown flow.
+            onMouseDown(pos)
+            return
+        }
 
         const isTouchOrPen = e.evt.pointerType === 'touch' || e.evt.pointerType === 'pen'
 
@@ -1891,6 +2108,10 @@ export const CanvasEngine = ({
     }
 
     const handleMouseLeave = () => {
+        if (autoPanRaf.current) {
+            cancelAnimationFrame(autoPanRaf.current)
+            autoPanRaf.current = null
+        }
         isPanning.current = false
         setIsPanningState(false)
         setMousePos(null)
@@ -1994,6 +2215,20 @@ export const CanvasEngine = ({
                 onPointerDown={handleStagePointerDown}
                 onPointerMove={handleStagePointerMove}
                 onPointerUp={handleStagePointerUp}
+                onDblClick={(e) => {
+                    const stage = e.target.getStage()
+                    if (stage) {
+                        const pos = getRelativePointerPosition(stage)
+                        onDblClick?.(pos)
+                    }
+                }}
+                onDblTap={(e) => {
+                    const stage = e.target.getStage()
+                    if (stage) {
+                        const pos = getRelativePointerPosition(stage)
+                        onDblTap?.(pos)
+                    }
+                }}
                 onMouseLeave={handleMouseLeave}
                 onContextMenu={(e: any) => e.evt.preventDefault()}
                 style={{ cursor: isPanningState ? 'grabbing' : (activeTool === "wall" || activeTool === "arc" || activeTool === "ruler") ? 'crosshair' : 'default', touchAction: 'none' }}
@@ -2040,19 +2275,25 @@ export const CanvasEngine = ({
 
                             return (
                                 <Group key={room.id}>
-                                    {/* Capa base blanca para ocultar el grid */}
-                                    <Line
-                                        points={points}
-                                        fill="#ffffff"
-                                        stroke="transparent"
-                                        closed={true}
-                                        listening={false}
-                                    />
-                                    {/* Capa de color original (transparente pero sobre blanco = pastel) */}
+                                    {/* Capa base blanca para ocultar el grid - SOLO si NO hay imagen de fondo */}
+                                    {!bgImage && (
+                                        <Line
+                                            points={points}
+                                            fill="#ffffff"
+                                            stroke="transparent"
+                                            closed={true}
+                                            listening={false}
+                                        />
+                                    )}
+                                    {/* Capa de color original */}
+                                    {/* Si hay bgImage, bajamos aÃºn mÃ¡s la opacidad para que se vea el plano debajo */}
                                     <Line
                                         name="room-poly"
                                         points={points}
-                                        fill={selectedRoomId === room.id ? room.color + "60" : room.color + "40"}
+                                        fill={bgImage
+                                            ? (selectedRoomId === room.id ? room.color + "30" : room.color + "15")
+                                            : (selectedRoomId === room.id ? room.color + "60" : room.color + "40")
+                                        }
                                         stroke={selectedRoomId === room.id ? "#0ea5e9" : "transparent"}
                                         strokeWidth={selectedRoomId === room.id ? 4 : 2}
                                         closed={true}
@@ -2105,12 +2346,20 @@ export const CanvasEngine = ({
                                 lastTapRef.current = now
                             }
 
+                            const offsetVal = getWallOffset(wall)
+                            const renderPoints = [
+                                wall.start.x + offsetVal.x,
+                                wall.start.y + offsetVal.y,
+                                wall.end.x + offsetVal.x,
+                                wall.end.y + offsetVal.y
+                            ]
+
                             return (
                                 <Group key={wall.id}>
                                     <Line
                                         name={`wall-${wall.id}`}
-                                        points={[wall.start.x, wall.start.y, wall.end.x, wall.end.y]}
-                                        stroke={wall.isInvisible ? "#0ea5e9" : (isHovered && !isSelected ? "#ef4444" : "#334155")}
+                                        points={renderPoints}
+                                        stroke={wall.isInvisible ? "#0ea5e9" : (wall.thickness === 20 ? "transparent" : (isHovered && !isSelected ? "#ef4444" : "#334155"))}
                                         strokeWidth={wall.isInvisible ? (isSelected ? 4 : 2) : wall.thickness}
                                         dash={wall.isInvisible ? [5, 5] : undefined}
                                         hitStrokeWidth={30} // Increased from 20 for better mobile touch
@@ -2175,49 +2424,26 @@ export const CanvasEngine = ({
                                         const nx = -uy
                                         const ny = ux
 
-                                        // Use the exact same logic as interior measurements for the highlight
-                                        const pointSlightlyOff = { x: midX + nx * 5, y: midY + ny * 5 }
+                                        const wallOff = getWallOffset(wall)
+                                        const pointSlightlyOff = { x: midX + nx * 20, y: midY + ny * 20 }
                                         const pointsIntoRoom = isPointInAnyRoom(pointSlightlyOff)
                                         const faceNormal = { x: nx * (pointsIntoRoom ? 1 : -1), y: ny * (pointsIntoRoom ? 1 : -1) }
 
-                                        const getCornerAdjustment = (p: Point) => {
-                                            const TOL = 5.0
-                                            const neighbors = walls.filter(w => w.id !== wall.id && (
-                                                Math.sqrt(Math.pow(w.start.x - p.x, 2) + Math.pow(w.start.y - p.y, 2)) < TOL ||
-                                                Math.sqrt(Math.pow(w.end.x - p.x, 2) + Math.pow(w.end.y - p.y, 2)) < TOL
-                                            ))
-                                            const perps = neighbors.filter(nw => isConnectedPerpendicular(wall, nw))
-                                            const maxT = perps.length > 0 ? Math.max(...perps.map(nw => nw.thickness)) : 0
-
-                                            const blocksThisFace = perps.some(nw => {
-                                                const otherP = Math.sqrt(Math.pow(nw.start.x - p.x, 2) + Math.pow(nw.start.y - p.y, 2)) < TOL ? nw.end : nw.start
-                                                const dir = { x: otherP.x - p.x, y: otherP.y - p.y }
-                                                return (dir.x * faceNormal.x + dir.y * faceNormal.y) > 0.5
-                                            })
-
-                                            if (blocksThisFace && maxT > 0) return maxT / 2
-
-                                            const isContinuation = neighbors.some(nw => {
-                                                const nwHorizontal = Math.abs(nw.start.y - nw.end.y) < 5.0
-                                                const nwVertical = Math.abs(nw.start.x - nw.end.x) < 5.0
-                                                const wallHorizontal = Math.abs(wall.start.y - wall.end.y) < 5.0
-                                                const wallVertical = Math.abs(wall.start.x - wall.end.x) < 5.0
-                                                return (nwHorizontal === wallHorizontal && nwVertical === wallVertical) && !isConnectedPerpendicular(wall, nw)
-                                            })
-                                            if (isContinuation) return 0
-
-                                            return maxT > 0 ? -maxT / 2 : 0
-                                        }
-
-                                        const adjStart = getCornerAdjustment(wall.start)
-                                        const adjEnd = getCornerAdjustment(wall.end)
+                                        const adjStart = getFaceOffsetAt(wall, wall.start, faceNormal, new Set(), false)
+                                        const adjEnd = getFaceOffsetAt(wall, wall.end, faceNormal, new Set(), true)
 
                                         const trimmedStart = { x: wall.start.x + ux * adjStart, y: wall.start.y + uy * adjStart }
-                                        const trimmedEnd = { x: wall.end.x - ux * adjEnd, y: wall.end.y - uy * adjEnd }
+                                        const trimmedEnd = { x: wall.end.x + ux * adjEnd, y: wall.end.y + uy * adjEnd }
+
+                                        // Apply offset to the selection highlight as well
+                                        const renderPoints = [
+                                            trimmedStart.x + wallOff.x, trimmedStart.y + wallOff.y,
+                                            trimmedEnd.x + wallOff.x, trimmedEnd.y + wallOff.y
+                                        ]
 
                                         return (
                                             <Line
-                                                points={[trimmedStart.x, trimmedStart.y, trimmedEnd.x, trimmedEnd.y]}
+                                                points={renderPoints}
                                                 stroke="#0ea5e9"
                                                 strokeWidth={wall.thickness + 0.5}
                                                 lineCap="butt"
@@ -2243,7 +2469,7 @@ export const CanvasEngine = ({
                                         const offsets = isOffsetValPosInterior ? [30 / zoom, -30 / zoom] : [-30 / zoom, 30 / zoom]
 
                                         // In GLOBAL VIEW (!isSelected), only show the INTERIOR face to reduce clutter
-                                        const finalOffsets = (showAllQuotes && !isSelected) ? [offsets[0]] : offsets
+                                        const finalOffsets = (showAllQuotes && !isSelected) ? [30 / zoom, -30 / zoom].filter(ov => { const tP = { x: midP.x + nx * (ov > 0 ? 12 : -12), y: midP.y + ny * (ov > 0 ? 12 : -12) }; return isPointInAnyRoom(tP); }) : offsets
 
                                         return finalOffsets.map((offsetVal, idx) => (
                                             <React.Fragment key={`wall-meas-${wall.id}-${idx}`}>
@@ -2252,7 +2478,7 @@ export const CanvasEngine = ({
                                         ))
                                     })()}
 
-                                    {/* MEDIDAS PERPENDICULARES DINÁMICAS */}
+                                    {/* MEDIDAS PERPENDICULARES DINÃMICAS */}
                                     {(isSelected || dragStartPos.current) && (
                                         walls.filter(otherW => isConnectedPerpendicular(wall, otherW)).map(perpWall => (
                                             <React.Fragment key={`perp-${perpWall.id}`}>
@@ -2536,7 +2762,7 @@ export const CanvasEngine = ({
                                         </Group>
                                     )}
 
-                                    {/* Distancias dinámicas alineadas con el muro (Estilo HomeByMe) */}
+                                    {/* Distancias dinÃ¡micas alineadas con el muro (Estilo HomeByMe) */}
                                     {isSelected && (
                                         <Group rotation={0} listening={true}>
                                             {d1Val > 0 && editInputState?.id !== `door-d1-${door.id}` && (
@@ -2830,7 +3056,7 @@ export const CanvasEngine = ({
                                         </Group>
                                     )}
 
-                                    {/* Distancias dinámicas alineadas con el muro */}
+                                    {/* Distancias dinÃ¡micas alineadas con el muro */}
                                     {isSelected && (
                                         <Group rotation={0} listening={true}>
                                             {d1Val > 0 && editInputState?.id !== `window-d1-${window.id}` && (
@@ -2877,206 +3103,200 @@ export const CanvasEngine = ({
 
 
 
-                        {/* Shunt Measurements - Global Overlay (Separate Layer) */}
-                        {shunts.map(shunt => {
-                            const isSelected = selectedElement?.id === shunt.id && selectedElement?.type === "shunt"
-                            // if (!isSelected && editInputState?.id !== `shunt-meas-${shunt.id}-${idx}`) return null // Removed to fix idx error, logic moved to inner loop
+                        {/* Shunt Measurements (Rays to Walls) - RESTORED for move/select interaction */}
+                        {(selectedElement?.type === "shunt" || dragShuntState) && (() => {
+                            const shunt = shunts.find(s => s.id === (dragShuntState?.id || selectedElement?.id))
+                            if (!shunt) return null
 
-                            // Use drag state if available (LIVE MEASUREMENTS)
-                            const effectiveX = (dragShuntState?.id === shunt.id) ? dragShuntState.x : shunt.x
-                            const effectiveY = (dragShuntState?.id === shunt.id) ? dragShuntState.y : shunt.y
+                            // Use drag state if available for real-time update
+                            const sx = dragShuntState ? dragShuntState.x : shunt.x
+                            const sy = dragShuntState ? dragShuntState.y : shunt.y
 
-                            const rays = [
-                                { dir: { x: 0, y: -1 }, origin: { x: effectiveX, y: effectiveY - shunt.height / 2 }, label: "top" },
-                                { dir: { x: 0, y: 1 }, origin: { x: effectiveX, y: effectiveY + shunt.height / 2 }, label: "bottom" },
-                                { dir: { x: -1, y: 0 }, origin: { x: effectiveX - shunt.width / 2, y: effectiveY }, label: "left" },
-                                { dir: { x: 1, y: 0 }, origin: { x: effectiveX + shunt.width / 2, y: effectiveY }, label: "right" }
+                            const directions = [
+                                { dx: 1, dy: 0, faceX: sx + shunt.width / 2, faceY: sy },   // Right
+                                { dx: -1, dy: 0, faceX: sx - shunt.width / 2, faceY: sy },  // Left
+                                { dx: 0, dy: 1, faceX: sx, faceY: sy + shunt.height / 2 },  // Down
+                                { dx: 0, dy: -1, faceX: sx, faceY: sy - shunt.height / 2 }  // Up
                             ]
 
-                            return rays.map((ray, idx) => {
-                                const isEditingThis = editInputState?.id === `shunt-meas-${shunt.id}-${idx}`
-                                if (!showAllQuotes && !isSelected && !isEditingThis) return null
+                            return directions.map((dir, dIdx) => {
+                                let minDist = Infinity
+                                let targetPoint: Point | null = null
+                                let targetWall: Wall | null = null
+                                let targetShunt: Shunt | null = null
 
-                                const rayOrigin = ray.origin
-                                const intersections: { wallId: string, pt: Point, dist: number, thickness: number }[] = []
-
+                                // 1. Raycast to Walls
                                 walls.forEach(w => {
-                                    const rayEnd = {
-                                        x: rayOrigin.x + ray.dir.x * 5000,
-                                        y: rayOrigin.y + ray.dir.y * 5000
-                                    }
-                                    const pt = getLineIntersection(w.start, w.end, rayOrigin, rayEnd)
-                                    if (pt) {
-                                        const dist = Math.sqrt(Math.pow(pt.x - rayOrigin.x, 2) + Math.pow(pt.y - rayOrigin.y, 2))
-                                        intersections.push({ wallId: w.id, pt, dist, thickness: w.thickness })
-                                    }
-                                })
-                                // Check other shunts
-                                shunts.forEach(s => {
-                                    if (s.id === shunt.id) return
-                                    const halfW = s.width / 2
-                                    const halfH = s.height / 2
-                                    const corners = [
-                                        { x: s.x - halfW, y: s.y - halfH },
-                                        { x: s.x + halfW, y: s.y - halfH },
-                                        { x: s.x + halfW, y: s.y + halfH },
-                                        { x: s.x - halfW, y: s.y + halfH }
-                                    ]
-                                    const edges = [
-                                        { start: corners[0], end: corners[1] },
-                                        { start: corners[1], end: corners[2] },
-                                        { start: corners[2], end: corners[3] },
-                                        { start: corners[3], end: corners[0] }
-                                    ]
-                                    const rayEnd = { x: rayOrigin.x + ray.dir.x * 5000, y: rayOrigin.y + ray.dir.y * 5000 }
-                                    edges.forEach(edge => {
-                                        const pt = getLineIntersection(edge.start, edge.end, rayOrigin, rayEnd)
-                                        if (pt) {
-                                            const dist = Math.sqrt(Math.pow(pt.x - rayOrigin.x, 2) + Math.pow(pt.y - rayOrigin.y, 2))
-                                            intersections.push({ wallId: s.id, pt, dist, thickness: 0 })
+                                    if (w.isInvisible) return
+                                    if (dir.dy === 0) { // Horizontal ray
+                                        const yMin = Math.min(w.start.y, w.end.y)
+                                        const yMax = Math.max(w.start.y, w.end.y)
+                                        if (dir.faceY >= yMin - 1 && dir.faceY <= yMax + 1) {
+                                            const isHorizWall = Math.abs(w.end.y - w.start.y) < 1
+                                            if (isHorizWall) return
+                                            const t = (dir.faceY - w.start.y) / (w.end.y - w.start.y)
+                                            const ix = w.start.x + t * (w.end.x - w.start.x)
+                                            const dist = dir.dx > 0 ? (ix - dir.faceX) : (dir.faceX - ix)
+                                            if (dist > 0 && dist < minDist) {
+                                                minDist = dist
+                                                targetPoint = { x: ix, y: dir.faceY }
+                                                targetWall = w
+                                                targetShunt = null
+                                            }
                                         }
-                                    })
+                                    } else { // Vertical ray
+                                        const xMin = Math.min(w.start.x, w.end.x)
+                                        const xMax = Math.max(w.start.x, w.end.x)
+                                        if (dir.faceX >= xMin - 1 && dir.faceX <= xMax + 1) {
+                                            const isVertWall = Math.abs(w.end.x - w.start.x) < 1
+                                            if (isVertWall) return
+                                            const t = (dir.faceX - w.start.x) / (w.end.x - w.start.x)
+                                            const iy = w.start.y + t * (w.end.y - w.start.y)
+                                            const dist = dir.dy > 0 ? (iy - dir.faceY) : (dir.faceY - iy)
+                                            if (dist > 0 && dist < minDist) {
+                                                minDist = dist
+                                                targetPoint = { x: dir.faceX, y: iy }
+                                                targetWall = w
+                                                targetShunt = null
+                                            }
+                                        }
+                                    }
                                 })
 
-                                intersections.sort((a, b) => a.dist - b.dist)
-                                if (intersections.length > 0 && intersections[0].dist < 500) {
-                                    const best = intersections[0]
-                                    const centerDist = best.dist
-                                    const surfaceDist = Math.max(0, centerDist - best.thickness / 2)
+                                // 2. Raycast to other Shunts
+                                shunts.forEach(os => {
+                                    if (os.id === shunt.id) return
+                                    const osHalfW = os.width / 2
+                                    const osHalfH = os.height / 2
 
-                                    if (surfaceDist < 0.5 && !(editInputState?.id === `shunt-meas-${shunt.id}-${idx}`)) return null
+                                    if (dir.dy === 0) { // Horizontal ray
+                                        if (dir.faceY >= os.y - osHalfH && dir.faceY <= os.y + osHalfH) {
+                                            const ix = dir.dx > 0 ? (os.x - osHalfW) : (os.x + osHalfW)
+                                            const dist = dir.dx > 0 ? (ix - dir.faceX) : (dir.faceX - ix)
+                                            if (dist > 0 && dist < minDist) {
+                                                minDist = dist
+                                                targetPoint = { x: ix, y: dir.faceY }
+                                                targetShunt = os
+                                                targetWall = null
+                                            }
+                                        }
+                                    } else { // Vertical ray
+                                        if (dir.faceX >= os.x - osHalfW && dir.faceX <= os.x + osHalfW) {
+                                            const iy = dir.dy > 0 ? (os.y - osHalfH) : (os.y + osHalfH)
+                                            const dist = dir.dy > 0 ? (iy - dir.faceY) : (dir.faceY - iy)
+                                            if (dist > 0 && dist < minDist) {
+                                                minDist = dist
+                                                targetPoint = { x: dir.faceX, y: iy }
+                                                targetShunt = os
+                                                targetWall = null
+                                            }
+                                        }
+                                    }
+                                })
 
-                                    // Global coords for line endpoints
-                                    const startX = rayOrigin.x
-                                    const startY = rayOrigin.y
-                                    const endX = best.pt.x - ray.dir.x * (best.thickness / 2)
-                                    const endY = best.pt.y - ray.dir.y * (best.thickness / 2)
+                                if (!targetPoint) return null
 
-                                    const isEditing = editInputState?.id === `shunt-meas-${shunt.id}-${idx}`
+                                // Correction to face (only for walls)
+                                const finalDist = targetWall ? Math.max(0, minDist - targetWall.thickness / 2) : minDist
+                                if (finalDist < 1) return null
 
-                                    return (
+                                const endP = {
+                                    x: dir.faceX + dir.dx * finalDist,
+                                    y: dir.faceY + dir.dy * finalDist
+                                }
+
+                                const labelId = `shunt-ray-${shunt.id}-${dIdx}`
+                                const isEditing = editInputState?.id === labelId
+
+                                return (
+                                    <Group key={labelId}>
+                                        <Line
+                                            points={[dir.faceX, dir.faceY, endP.x, endP.y]}
+                                            stroke="#0ea5e9"
+                                            strokeWidth={1 / zoom}
+                                            dash={[5, 5]}
+                                            opacity={0.6}
+                                        />
                                         <Group
-                                            key={`${shunt.id}-${idx}`}
-                                            name={`measurement-${shunt.id}-${idx}`}
-                                            onMouseDown={(e) => { e.cancelBubble = true; e.evt.stopPropagation(); }}
-                                            onPointerDown={(e) => { e.cancelBubble = true; e.evt.stopPropagation(); }}
+                                            x={(dir.faceX + endP.x) / 2}
+                                            y={(dir.faceY + endP.y) / 2}
+                                            onClick={(e) => {
+                                                if (dragShuntState) return
+                                                const absPos = e.target.getAbsolutePosition()
+                                                setEditInputState({
+                                                    id: labelId,
+                                                    x: absPos.x,
+                                                    y: absPos.y,
+                                                    value: finalDist.toFixed(1),
+                                                    onConfirm: (val) => {
+                                                        const num = parseFloat(val.replace(',', '.'))
+                                                        if (!isNaN(num)) {
+                                                            const delta = num - finalDist
+                                                            // Move shunt AWAY from target by delta
+                                                            onUpdateShunt(shunt.id, {
+                                                                x: shunt.x - dir.dx * delta,
+                                                                y: shunt.y - dir.dy * delta
+                                                            })
+                                                        }
+                                                        setEditInputState(null)
+                                                    },
+                                                    onCancel: () => setEditInputState(null)
+                                                })
+                                            }}
+                                            onTap={(e) => {
+                                                // Handle touch tap for editing
+                                                const absPos = e.target.getAbsolutePosition()
+                                                setEditInputState({
+                                                    id: labelId,
+                                                    x: absPos.x,
+                                                    y: absPos.y,
+                                                    value: finalDist.toFixed(1),
+                                                    onConfirm: (val) => {
+                                                        const num = parseFloat(val.replace(',', '.'))
+                                                        if (!isNaN(num)) {
+                                                            const delta = num - finalDist
+                                                            onUpdateShunt(shunt.id, {
+                                                                x: shunt.x - dir.dx * delta,
+                                                                y: shunt.y - dir.dy * delta
+                                                            })
+                                                        }
+                                                        setEditInputState(null)
+                                                    },
+                                                    onCancel: () => setEditInputState(null)
+                                                })
+                                            }}
                                         >
-                                            <Line
-                                                points={[startX, startY, endX, endY]}
-                                                stroke="#000000"
-                                                strokeWidth={1.5}
-                                                listening={false}
-                                            />
-                                            {/* Hide start circle for small shunts to avoid clutter */}
-                                            {Math.min(shunt.width, shunt.height) >= 45 && (
-                                                <Circle
-                                                    x={startX} y={startY} radius={3.5} fill="white" stroke="#000000" strokeWidth={1.5}
-                                                    listening={false}
-                                                />
-                                            )}
-                                            <Circle
-                                                x={endX} y={endY} radius={3.5} fill="white" stroke="#000000" strokeWidth={1.5}
-                                                listening={false}
-                                            />
                                             {!isEditing && (
-                                                <Group
-                                                    name={`measurement-${shunt.id}-${idx}`}
-                                                    x={(startX + endX) / 2}
-                                                    y={(startY + endY) / 2}
-                                                    listening={true}
-                                                    onMouseDown={(e) => { e.cancelBubble = true; e.evt.stopPropagation(); }}
-                                                    onPointerDown={(e) => { e.cancelBubble = true; e.evt.stopPropagation(); }}
-                                                    onMouseEnter={(e) => {
-                                                        const container = e.target.getStage()?.container()
-                                                        if (container) container.style.cursor = "pointer"
-                                                    }}
-                                                    onMouseLeave={(e) => {
-                                                        const container = e.target.getStage()?.container()
-                                                        if (container) container.style.cursor = "default"
-                                                    }}
-                                                    onClick={(e) => {
-                                                        e.cancelBubble = true
-                                                        e.evt.stopPropagation()
-                                                        const absPos = e.currentTarget.getAbsolutePosition()
-                                                        setEditInputState({
-                                                            id: `shunt-meas-${shunt.id}-${idx}`,
-                                                            type: 'shunt-dist',
-                                                            val: surfaceDist,
-                                                            screenPos: absPos,
-                                                            onCommit: (val) => {
-                                                                if (onUpdateShunt) {
-                                                                    const thicknessOffset = (best.thickness || 10) / 2
-                                                                    const isHorizontal = Math.abs(ray.dir.x) > 0.5
-                                                                    const rotation = (shunt.rotation || 0) % 180
-                                                                    const is90Deg = Math.abs(rotation - 90) < 1
-                                                                    const effW = is90Deg ? shunt.height : shunt.width
-                                                                    const effH = is90Deg ? shunt.width : shunt.height
-                                                                    const colHalf = isHorizontal ? effW / 2 : effH / 2
-                                                                    const targetCenterDist = val + thicknessOffset + colHalf
-                                                                    const newX = best.pt.x - ray.dir.x * targetCenterDist
-                                                                    const newY = best.pt.y - ray.dir.y * targetCenterDist
-                                                                    if (Math.abs(val - surfaceDist) > 0.05) {
-                                                                        onUpdateShunt(shunt.id, { x: newX, y: newY })
-                                                                    }
-                                                                }
-                                                            }
-                                                        })
-                                                    }}
-                                                    onTap={(e) => {
-                                                        e.cancelBubble = true
-                                                        e.evt.stopPropagation()
-                                                        const absPos = e.currentTarget.getAbsolutePosition()
-                                                        setEditInputState({
-                                                            id: `shunt-meas-${shunt.id}-${idx}`,
-                                                            type: 'shunt-dist',
-                                                            val: surfaceDist,
-                                                            screenPos: absPos,
-                                                            onCommit: (val) => {
-                                                                if (onUpdateShunt) {
-                                                                    const thicknessOffset = (best.thickness || 10) / 2
-                                                                    const isHorizontal = Math.abs(ray.dir.x) > 0.5
-                                                                    const rotation = (shunt.rotation || 0) % 180
-                                                                    const is90Deg = Math.abs(rotation - 90) < 1
-                                                                    const effW = is90Deg ? shunt.height : shunt.width
-                                                                    const effH = is90Deg ? shunt.width : shunt.height
-                                                                    const colHalf = isHorizontal ? effW / 2 : effH / 2
-                                                                    const targetCenterDist = val + thicknessOffset + colHalf
-                                                                    const newX = best.pt.x - ray.dir.x * targetCenterDist
-                                                                    const newY = best.pt.y - ray.dir.y * targetCenterDist
-                                                                    if (Math.abs(val - surfaceDist) > 0.05) {
-                                                                        onUpdateShunt(shunt.id, { x: newX, y: newY })
-                                                                    }
-                                                                }
-                                                            }
-                                                        })
-                                                    }}
-                                                >
+                                                <>
                                                     <Rect
-                                                        width={100} height={60} x={-50} y={-30}
-                                                        fill="rgba(255,255,255,0.01)"
-                                                        listening={true}
+                                                        width={32 / zoom}
+                                                        height={16 / zoom}
+                                                        fill="white"
+                                                        stroke="#0ea5e9"
+                                                        strokeWidth={0.5 / zoom}
+                                                        cornerRadius={2 / zoom}
+                                                        offsetX={16 / zoom}
+                                                        offsetY={8 / zoom}
+                                                        shadowBlur={2 / zoom}
+                                                        shadowOpacity={0.2}
                                                     />
-                                                    {/* HALO TEXT for Shunts */}
                                                     <Text
-                                                        text={`${surfaceDist.toFixed(1).replace('.', ',')}`}
-                                                        width={60 / zoom} x={-30 / zoom} y={-5 / zoom} align="center"
-                                                        fontSize={11 / zoom} fontStyle="bold" fill="white"
-                                                        stroke="white" strokeWidth={3 / zoom}
-                                                        listening={false}
+                                                        text={`${finalDist.toFixed(1).replace('.', ',')}`}
+                                                        fontSize={10 / zoom}
+                                                        fill="#0ea5e9"
+                                                        fontStyle="bold"
+                                                        align="center"
+                                                        width={32 / zoom}
+                                                        offsetX={16 / zoom}
+                                                        offsetY={5 / zoom}
                                                     />
-                                                    <Text
-                                                        text={`${surfaceDist.toFixed(1).replace('.', ',')}`}
-                                                        width={60 / zoom} x={-30 / zoom} y={-5 / zoom} align="center"
-                                                        fontSize={11 / zoom} fontStyle="bold" fill="#000000"
-                                                    />
-                                                </Group>
+                                                </>
                                             )}
                                         </Group>
-                                    )
-                                }
-                                return null
+                                    </Group>
+                                )
                             })
-                        })}
+                        })()}
 
                         {/* Shunts (Nodes) - Memoized for smooth drag */}
                         {shunts.map(shunt => (
@@ -3092,6 +3312,7 @@ export const CanvasEngine = ({
                                 setDragShuntState={setDragShuntState}
                                 onSelect={() => onSelectElement({ type: "shunt", id: shunt.id })}
                                 onDragEnd={(id, x, y) => onDragElement("shunt", id, { x, y })}
+                                showAllQuotes={showAllQuotes}
                                 isEditing={editInputState?.id === `shunt-dimensions-${shunt.id}`}
                                 onEditDimensions={(e) => {
                                     const absPos = e.target.getAbsolutePosition()
@@ -3109,7 +3330,7 @@ export const CanvasEngine = ({
                             />
                         ))}
 
-                        {/* Renderizar etiquetas de habitación (CAPA SUPERIOR - Encima de shunts) */}
+                        {/* Renderizar etiquetas de habitaciÃ³n (CAPA SUPERIOR - Encima de shunts) */}
                         {rooms.map((room: Room) => {
                             const centroid = {
                                 x: room.polygon.reduce((sum: number, p: Point) => sum + p.x, 0) / room.polygon.length,
@@ -3141,30 +3362,36 @@ export const CanvasEngine = ({
                                     onTap={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
                                     listening={false}
                                 >
-                                    <Text
-                                        name="room-label-text"
-                                        y={-10 * scale}
-                                        text={room.name}
-                                        fontSize={18 * scale}
-                                        fill="#1e293b"
-                                        fontStyle="bold"
-                                        align="center"
-                                        offsetX={50 * scale}
-                                        width={100 * scale}
-                                    />
-                                    <Text
-                                        name="room-label-text"
-                                        y={5 * scale}
-                                        text={`${room.area.toFixed(2).replace('.', ',')} m²`}
-                                        fontSize={14 * scale}
-                                        fill="#64748b"
-                                        align="center"
-                                        offsetX={50 * scale}
-                                        width={100 * scale}
-                                    />
+                                    {showRoomNames && (
+                                        <Text
+                                            name="room-label-text"
+                                            y={-14 * scale}
+                                            text={room.name}
+                                            fontSize={18 * scale}
+                                            fill="#1e293b"
+                                            fontStyle="bold"
+                                            align="center"
+                                            offsetX={50 * scale}
+                                            width={100 * scale}
+                                        />
+                                    )}
+                                    {showAreas && (
+                                        <Text
+                                            name="room-label-text"
+                                            y={10 * scale}
+                                            text={`${room.area.toFixed(2).replace('.', ',')} m²`}
+                                            fontSize={14 * scale}
+                                            fill="#64748b"
+                                            align="center"
+                                            offsetX={50 * scale}
+                                            width={100 * scale}
+                                        />
+                                    )}
                                 </Group>
                             )
                         })}
+
+
 
 
 
@@ -3180,7 +3407,7 @@ export const CanvasEngine = ({
 
                             return (
                                 <Group>
-                                    {/* Guías de alineación */}
+                                    {/* GuÃ­as de alineaciÃ³n */}
                                     {isVertical && (
                                         <Line
                                             points={[currentWall.start.x, -5000, currentWall.start.x, 5000]}
@@ -3239,7 +3466,7 @@ export const CanvasEngine = ({
                             )
                         })()}
 
-                        {/* Guías inteligentes de alineación */}
+                        {/* GuÃ­as inteligentes de alineaciÃ³n */}
                         {alignmentGuides && mousePos && (
                             <Group listening={false}>
                                 {alignmentGuides.x !== undefined && (
@@ -3272,7 +3499,7 @@ export const CanvasEngine = ({
 
                             if (!snappingEnabled || (!isWallTool && !isDragging)) return null
 
-                            // 1. Prioridad: Vértice
+                            // 1. Prioridad: VÃ©rtice
                             const vertex = findNearestVertex(p, 15 / zoom)
                             if (vertex) {
                                 return (
@@ -3303,16 +3530,16 @@ export const CanvasEngine = ({
                                 const ne = nearestEdge as Point
                                 return (
                                     <Rect
-                                        x={ne.x - 5 / zoom}
-                                        y={ne.y - 5 / zoom}
+                                        x={ne.x}
+                                        y={ne.y}
                                         width={10 / zoom}
                                         height={10 / zoom}
                                         stroke="#0ea5e9"
                                         strokeWidth={2 / zoom}
                                         fill="white"
                                         rotation={45}
-                                        offsetX={0}
-                                        offsetY={0}
+                                        offsetX={5 / zoom}
+                                        offsetY={5 / zoom}
                                         opacity={0.8}
                                         listening={false}
                                     />
@@ -3372,11 +3599,11 @@ export const CanvasEngine = ({
                         )}
 
                         {/* ================================================================== */}
-                        {/* CAPA FINAL: TIRADORES Y CALIBRACIÓN (SIEMPRE ENCIMA DE TODO) */}
+                        {/* CAPA FINAL: TIRADORES Y CALIBRACIÃ“N (SIEMPRE ENCIMA DE TODO) */}
                         {/* ================================================================== */}
 
-                        {/* 1. Tiradores de selección de muros */}
-                        {/* 1. Tiradores de selección de muros (Agrupados y con mejor hit-area) */}
+                        {/* 1. Tiradores de selecciÃ³n de muros */}
+                        {/* 1. Tiradores de selecciÃ³n de muros (Agrupados y con mejor hit-area) */}
                         {(() => {
                             const vertexGroups: { point: Point, connections: { wallId: string, type: 's' | 'e' }[] }[] = [];
                             const UI_MERGE_TOLERANCE = 3;
@@ -3467,7 +3694,7 @@ export const CanvasEngine = ({
                             });
                         })()}
 
-                        {/* 2. Herramienta de Calibración (Ultima posición para máxima visibilidad) */}
+                        {/* 2. Herramienta de CalibraciÃ³n (Ultima posiciÃ³n para mÃ¡xima visibilidad) */}
                         {isCalibrating && calibrationPoints && (
                             <Group>
                                 {calibrationPoints.p1 && calibrationPoints.p2 && (
@@ -3893,7 +4120,7 @@ export const CanvasEngine = ({
                                                     <MenuButton
                                                         icon={<Copy className="h-3 w-3" />}
                                                         onClick={() => onCloneRoom(selectedRoomId)}
-                                                        title="Clonar Habitación"
+                                                        title="Clonar HabitaciÃ³n"
                                                     />
                                                     <div className="w-px h-4 bg-slate-100 mx-0.5" />
                                                 </>
@@ -3902,7 +4129,7 @@ export const CanvasEngine = ({
                                                 icon={<Trash2 className="h-3 w-3" />}
                                                 onClick={() => onDeleteRoom(selectedRoomId)}
                                                 variant="danger"
-                                                title="Eliminar Habitación"
+                                                title="Eliminar HabitaciÃ³n"
                                             />
                                             <div className="w-px h-4 bg-slate-100 mx-0.5" />
                                         </>
@@ -3934,7 +4161,7 @@ export const CanvasEngine = ({
                             ) : editMode === "room" || editMode === "room-custom" ? (
                                 <div className="flex flex-col gap-2 p-2 min-w-[180px]">
                                     <div className="flex items-center justify-between mb-1">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase">{editMode === "room-custom" ? "Nombre Personalizado" : "Tipo de Habitación"}</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase">{editMode === "room-custom" ? "Nombre Personalizado" : "Tipo de HabitaciÃ³n"}</span>
                                         <button onClick={() => setEditMode("menu")} className="text-slate-400 hover:text-slate-600">
                                             <X className="h-2.5 w-2.5" />
                                         </button>
@@ -4040,7 +4267,7 @@ export const CanvasEngine = ({
                                             onClick={() => setEditMode("menu")}
                                             className="mt-1 text-[11px] font-medium text-sky-600 hover:text-sky-700 underline text-center"
                                         >
-                                            Volver al menú
+                                            Volver al menÃº
                                         </button>
                                     )}
                                 </div>
@@ -4129,7 +4356,7 @@ export const CanvasEngine = ({
                                                     }}
                                                     className="p-1.5 bg-slate-100 text-slate-600 hover:bg-sky-100 hover:text-sky-600 rounded-md transition-all"
                                                 >
-                                                    {Math.abs(selectedWall.start.y - selectedWall.end.y) < 1 ? "←" : "↑"}
+                                                    {Math.abs(selectedWall.start.y - selectedWall.end.y) < 1 ? "â†" : "â†‘"}
                                                 </button>
                                                 <div className="flex items-center gap-1 bg-white border-2 border-slate-100 rounded-lg px-2 py-1">
                                                     <NumericInput
@@ -4217,7 +4444,7 @@ export const CanvasEngine = ({
                                                     }}
                                                     className="p-1.5 bg-slate-100 text-slate-600 hover:bg-sky-100 hover:text-sky-600 rounded-md transition-all"
                                                 >
-                                                    {Math.abs(selectedWall.start.y - selectedWall.end.y) < 1 ? "→" : "↓"}
+                                                    {Math.abs(selectedWall.start.y - selectedWall.end.y) < 1 ? "â†’" : "â†“"}
                                                 </button>
                                             </div>
                                         </>

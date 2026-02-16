@@ -3,21 +3,30 @@ import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Separator } from "@/components/ui/separator"
-import { Room, Wall, isPointOnSegment } from "@/lib/utils/geometry"
-import { Ruler, DoorOpen, Maximize, Boxes } from "lucide-react"
+import { Room, Wall, isPointOnSegment, isPointInPolygon, calculateRoomStats } from "@/lib/utils/geometry"
+import { Ruler, DoorOpen, Maximize } from "lucide-react"
 
-// Helper for point in polygon
-function isPointInPolygon(p: { x: number, y: number }, polygon: { x: number, y: number }[]) {
-    let inside = false
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        const xi = polygon[i].x, yi = polygon[i].y
-        const xj = polygon[j].x, yj = polygon[j].y
-        const intersect = ((yi > p.y) !== (yj > p.y)) &&
-            (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi)
-        if (intersect) inside = !inside
-    }
-    return inside
-}
+// Custom Window Icon: Simplified clean design with central division and sill
+const CustomWindowIcon = ({ className }: { className?: string }) => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={className}
+    >
+        {/* Marco principal de la ventana */}
+        <rect x="3" y="4" width="18" height="15" rx="1" />
+        {/* DivisiÃ³n central vertical */}
+        <line x1="12" y1="4" x2="12" y2="19" />
+        {/* Base / Repisa inferior (mÃ¡s ancha para carÃ¡cter arquitectÃ³nico) */}
+        <line x1="1" y1="21" x2="23" y2="21" strokeWidth="2.5" />
+    </svg>
+)
+
+
 
 interface Door { id: string; wallId: string; width: number, openType?: "single" | "double" | "sliding" }
 interface Window { id: string; wallId: string; width: number, openType?: "single" | "double" }
@@ -52,40 +61,10 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts }: Floor
 
     // 2. Per Room Stats
     const roomStats = rooms.map(room => {
-        // Calculate Wall Perimeter
-        let wallPerimeter = 0
-        for (let i = 0; i < room.polygon.length; i++) {
-            const p1 = room.polygon[i]
-            const p2 = room.polygon[(i + 1) % room.polygon.length]
-            const segmentLen = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2))
-
-            // Check if this segment corresponds to an invisible wall
-            const midX = (p1.x + p2.x) / 2
-            const midY = (p1.y + p2.y) / 2
-
-            const isOnInvisible = walls.some(w => {
-                if (!w.isInvisible) return false
-                return isPointOnSegment({ x: midX, y: midY }, w.start, w.end)
-            })
-
-            if (!isOnInvisible) {
-                wallPerimeter += segmentLen
-            }
-        }
-
-        // Calculate Column (Shunt) Perimeter
-        // A shunt is inside if its center is inside the room polygon
-        const roomShunts = shunts.filter(s => isPointInPolygon({ x: s.x, y: s.y }, room.polygon))
-        const columnPerimeter = roomShunts.reduce((acc, s) => acc + (s.width * 2 + s.height * 2), 0)
-
-        const wallPerimM = wallPerimeter / 100
-        const colPerimM = columnPerimeter / 100
-
+        const stats = calculateRoomStats(room, walls, shunts)
         return {
             ...room,
-            wallPerimeter: wallPerimM,
-            columnPerimeter: colPerimM,
-            totalPerimeter: wallPerimM + colPerimM
+            ...stats
         }
     })
 
@@ -99,7 +78,7 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts }: Floor
                         <Maximize className="h-3 w-3 text-muted-foreground" />
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
-                        <div className="text-xl font-bold">{totalArea.toFixed(2)} m²</div>
+                        <div className="text-xl font-bold">{totalArea.toFixed(2).replace('.', ',')} m²</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -108,7 +87,7 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts }: Floor
                         <Ruler className="h-3 w-3 text-muted-foreground" />
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
-                        <div className="text-xl font-bold">{totalWallsLength.toFixed(2)} ml</div>
+                        <div className="text-xl font-bold">{totalWallsLength.toFixed(2).replace('.', ',')} ml</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -137,7 +116,7 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts }: Floor
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
                         <CardTitle className="text-xs font-medium">Ventanas</CardTitle>
-                        <Boxes className="h-3 w-3 text-muted-foreground" />
+                        <CustomWindowIcon className="h-3 w-3 text-muted-foreground" />
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
                         <div className="text-xl font-bold">{totalWindows}</div>
@@ -174,10 +153,10 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts }: Floor
                             {roomStats.map((room) => (
                                 <TableRow key={room.id} className="h-9">
                                     <TableCell className="font-medium text-xs py-1 truncate max-w-[100px]" title={room.name}>{room.name || "-"}</TableCell>
-                                    <TableCell className="text-xs text-right py-1">{room.area.toFixed(2)}</TableCell>
-                                    <TableCell className="text-xs text-right py-1">{room.wallPerimeter.toFixed(2)}</TableCell>
-                                    <TableCell className="text-xs text-right py-1 text-orange-600 font-medium">{room.columnPerimeter > 0 ? room.columnPerimeter.toFixed(2) : "-"}</TableCell>
-                                    <TableCell className="text-xs text-right py-1 font-bold">{room.totalPerimeter.toFixed(2)}</TableCell>
+                                    <TableCell className="text-xs text-right py-1">{room.area.toFixed(2).replace('.', ',')}</TableCell>
+                                    <TableCell className="text-xs text-right py-1">{room.wallPerimeter.toFixed(2).replace('.', ',')}</TableCell>
+                                    <TableCell className="text-xs text-right py-1 text-orange-600 font-medium">{room.columnPerimeter > 0 ? room.columnPerimeter.toFixed(2).replace('.', ',') : "-"}</TableCell>
+                                    <TableCell className="text-xs text-right py-1 font-bold">{room.totalPerimeter.toFixed(2).replace('.', ',')}</TableCell>
                                 </TableRow>
                             ))}
                             {roomStats.length === 0 && (
