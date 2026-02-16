@@ -3227,12 +3227,12 @@ export const CanvasEngine = ({
                                                 const absPos = e.target.getAbsolutePosition()
                                                 setEditInputState({
                                                     id: labelId,
-                                                    x: absPos.x,
-                                                    y: absPos.y,
-                                                    value: finalDist.toFixed(1),
-                                                    onConfirm: (val) => {
+                                                    type: 'shunt-ray',
+                                                    val: finalDist.toFixed(1),
+                                                    screenPos: { x: absPos.x, y: absPos.y },
+                                                    onCommit: (val: any) => {
                                                         const num = parseFloat(val.replace(',', '.'))
-                                                        if (!isNaN(num)) {
+                                                        if (!isNaN(num) && onUpdateShunt) {
                                                             const delta = num - finalDist
                                                             // Move shunt AWAY from target by delta
                                                             onUpdateShunt(shunt.id, {
@@ -3241,8 +3241,7 @@ export const CanvasEngine = ({
                                                             })
                                                         }
                                                         setEditInputState(null)
-                                                    },
-                                                    onCancel: () => setEditInputState(null)
+                                                    }
                                                 })
                                             }}
                                             onTap={(e) => {
