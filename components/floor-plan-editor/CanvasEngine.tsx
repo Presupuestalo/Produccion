@@ -416,7 +416,9 @@ export const CanvasEngine = ({
     hideFloatingUI = false,
     showAllQuotes = false,
     showRoomNames = true,
-    showAreas = true
+    showAreas = true,
+    onDblClick,
+    onDblTap
 }: CanvasEngineProps) => {
     const stageRef = React.useRef<any>(null)
     const gridRef = React.useRef<any>(null)
