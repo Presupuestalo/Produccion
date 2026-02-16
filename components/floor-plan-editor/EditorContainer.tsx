@@ -131,14 +131,34 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
         if (!document.fullscreenElement) {
             editorWrapperRef.current.requestFullscreen()
-                .then(() => setIsFullscreen(true))
                 .catch((e: any) => console.error(e))
         } else {
             document.exitFullscreen()
-                .then(() => setIsFullscreen(false))
                 .catch((e: any) => console.error(e))
         }
     }
+
+    // Sync fullscreen state and handle view reset on exit
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            const isNowFullscreen = !!document.fullscreenElement
+            setIsFullscreen(isNowFullscreen)
+
+            if (!isNowFullscreen) {
+                // Reset view to normal when exiting fullscreen (fixes user reported "zoom" issue)
+                handleResetView()
+
+                // Final safety for mobile viewport zoom behavior
+                const viewport = document.querySelector("meta[name=viewport]");
+                if (viewport) {
+                    viewport.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1");
+                }
+            }
+        }
+
+        document.addEventListener("fullscreenchange", handleFullscreenChange)
+        return () => document.removeEventListener("fullscreenchange", handleFullscreenChange)
+    }, [])
 
     useImperativeHandle(ref, () => ({
         clearPlan: executeClearPlan,
