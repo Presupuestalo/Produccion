@@ -1132,11 +1132,11 @@ export const CanvasEngine = ({
     }
 
     const getFaceOffsetAt = (wall: Wall, point: Point, faceNormal: Point, ignoreIds: Set<string> = new Set(), isEnd: boolean) => {
-        const TOL = 5.0
+        const TOL_NEIGHBOR = 10.0
         const neighbors = walls.filter(w => !ignoreIds.has(w.id) && w.id !== wall.id && (() => {
             const closestObj = getClosestPointOnSegment(point, w.start, w.end)
             const dist = Math.sqrt(Math.pow(closestObj.point.x - point.x, 2) + Math.pow(closestObj.point.y - point.y, 2))
-            return dist < TOL
+            return dist < TOL_NEIGHBOR
         })())
 
         const dx = wall.end.x - wall.start.x
@@ -1164,8 +1164,8 @@ export const CanvasEngine = ({
                 return
             }
 
-            const isAtStart = Math.sqrt(Math.pow(nw.start.x - point.x, 2) + Math.pow(nw.start.y - point.y, 2)) < TOL
-            const isAtEnd = Math.sqrt(Math.pow(nw.end.x - point.x, 2) + Math.pow(nw.end.y - point.y, 2)) < TOL
+            const isAtStart = Math.sqrt(Math.pow(nw.start.x - point.x, 2) + Math.pow(nw.start.y - point.y, 2)) < TOL_NEIGHBOR
+            const isAtEnd = Math.sqrt(Math.pow(nw.end.x - point.x, 2) + Math.pow(nw.end.y - point.y, 2)) < TOL_NEIGHBOR
 
             let blocksFace = false
             let localDotFace = 0
@@ -1198,8 +1198,8 @@ export const CanvasEngine = ({
         })
 
         if (retractions.length > 0) return isEnd ? Math.min(...retractions) : Math.max(...retractions)
-        if (hasContinuation) return 0
         if (extensions.length > 0) return isEnd ? Math.max(...extensions) : Math.min(...extensions)
+        if (hasContinuation) return 0
         return 0
     }
 
@@ -1302,18 +1302,7 @@ export const CanvasEngine = ({
                 if (selectedRoom.area < 2) {
                     isVisible = false
                 } else {
-                    // In-line checks for simplicity or use existing helpers
-                    // Ray-casting for Point in Polygon
-                    let inside = false
-                    const polygon = selectedRoom.polygon
-                    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-                        const xi = polygon[i].x, yi = polygon[i].y
-                        const xj = polygon[j].x, yj = polygon[j].y
-                        const intersect = ((yi > testP.y) !== (yj > testP.y)) &&
-                            (testP.x < (xj - xi) * (testP.y - yi) / (yj - yi) + xi)
-                        if (intersect) inside = !inside
-                    }
-                    if (inside) isVisible = true
+                    isVisible = isPointInPolygon(testP, selectedRoom.polygon)
                 }
             }
         }
@@ -1321,9 +1310,11 @@ export const CanvasEngine = ({
         if (!isVisible) return null
 
         const isInteractive = forceInteractive ?? isAnyInChainSelected
+        const isActuallyInterior = isInterior // Calculated earlier via testP
+
         const defaultColor = isInteractive
-            ? (faceType === "interior" ? "#0ea5e9" : "#f59e0b")
-            : "#64748b"
+            ? (isActuallyInterior ? "#0ea5e9" : "#f59e0b")
+            : (isActuallyInterior ? "#334155" : "#94a3b8")
         const color = forceColor || defaultColor
 
         // LEADER LOGIC: Exactly one label per chain.
@@ -1368,12 +1359,11 @@ export const CanvasEngine = ({
         const capP2A = { x: p2x + nx * capSize, y: p2y + ny * capSize }
         const capP2B = { x: p2x - nx * capSize, y: p2y - ny * capSize }
 
-        const geomKeyBase = [
-            Math.round(back.terminal.x),
-            Math.round(back.terminal.y),
-            Math.round(forward.terminal.x),
-            Math.round(forward.terminal.y)
-        ].sort((a, b) => a - b).join(',')
+        const p1 = back.terminal
+        const p2 = forward.terminal
+        const geomKeyBase = (p1.x < p2.x || (p1.x === p2.x && p1.y < p2.y))
+            ? `${Math.round(p1.x)},${Math.round(p1.y)}-${Math.round(p2.x)},${Math.round(p2.y)}`
+            : `${Math.round(p2.x)},${Math.round(p2.y)}-${Math.round(p1.x)},${Math.round(p1.y)}`
 
         const geomKeyWithFace = `${geomKeyBase}-${faceType}`
 

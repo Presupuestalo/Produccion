@@ -1124,12 +1124,15 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 w.end.x = Math.round(w.end.x * 10) / 10; w.end.y = Math.round(w.end.y * 10) / 10
             })
 
-            const TOL = 1.0
+            const TOL = 5.0
             const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
             const processedWalls = new Set<string>([id])
             const snapshotWalls = JSON.parse(JSON.stringify(workingWalls)) as Wall[]
 
-            const recursiveMove = (currOldP: Point, currDelta: Point, currNextP: Point) => {
+            const recursiveMove = (currOldP: Point, currDelta: Point, newVertexPos: Point, depth: number = 0) => {
+                // Highly restricted recursion to avoid "displacing" the entire plan.
+                if (depth > 1) return
+
                 workingWalls.forEach(w => {
                     if (processedWalls.has(w.id)) return
                     const snapW = snapshotWalls.find(sw => sw.id === w.id)!
@@ -1140,176 +1143,33 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     if (sharedVertex) {
                         const otherVertex: "start" | "end" = sharedVertex === "start" ? "end" : "start"
                         const wallVec = { x: snapW.end.x - snapW.start.x, y: snapW.end.y - snapW.start.y }
-                        const wallLen = Math.sqrt(wallVec.x * wallVec.x + wallVec.y * wallVec.y)
-                        const dLen = Math.sqrt(currDelta.x * currDelta.x + currDelta.y * currDelta.y)
+                        const wallLen = Math.max(0.1, Math.sqrt(wallVec.x * wallVec.x + wallVec.y * wallVec.y))
+                        const dLen = Math.max(0.1, Math.sqrt(currDelta.x * currDelta.x + currDelta.y * currDelta.y))
 
-                        // FIX: In a length modification, PERPENDICULAR walls should SLIDE to maintain angles.
-                        // PARALLEL and slanted walls should STRETCH to absorb the length change (and stop recursion).
-                        const dot = wallLen > 0 && dLen > 0 ? Math.abs(wallVec.x * currDelta.x + wallVec.y * currDelta.y) / (wallLen * dLen) : 1
-                        const isPerpendicular = dot < 0.1
+                        const dot = Math.abs(wallVec.x * currDelta.x + wallVec.y * currDelta.y) / (wallLen * dLen)
+                        const isPerpendicular = dot < 0.2
+                        const isParallel = dot > 0.8
 
-                        let shouldSlide = isPerpendicular
-                        // Simplified logic: Perpendicular walls slide, others stretch.
-                        // We removed the faceNormal check because it was aggressively locking walls
-                        // that pointed "inward" when measuring "outward", causing gaps.
-
-                        // JUNCTION PROTECTION: If the "other" end of this wall is connected to
-                        // MORE than just this wall (i.e. it's a T-junction or shared corner),
-                        // we must NOT slide it, because that would deform the neighbor room.
-                        // Instead, we let it tilt (stretch logic will take over below if we set slide=false?)
-                        // If it's perpendicular, moving ONE vertex creates a slant. This is desired.
-
-                        if (shouldSlide) {
-                            let referenceOldP = { x: snapW[otherVertex].x, y: snapW[otherVertex].y }
-                            let forceBridge = false
-
-                            // AUTO-SPLIT LOGIC:
-                            // Check if any other wall splits this wall (T-Junction).
-                            // If so, we must SPLIT this wall into two:
-                            // 1. The segment connected to the "pusher" (sharedVertex) - which MOVES.
-                            // 2. The segment connected to the "far side" - which STAYS (orphaned).
-
-                            const splitters: { point: { x: number, y: number }, wall: any }[] = []
-                            const wVec = { x: snapW.end.x - snapW.start.x, y: snapW.end.y - snapW.start.y }
-                            const wLenSq = wVec.x * wVec.x + wVec.y * wVec.y
-
-                            snapshotWalls.forEach(sw => {
-                                if (sw.id === w.id) return
-                                // Check if sw.start or sw.end lies on w segment (strictly interior)
-                                const checkPoint = (p: { x: number, y: number }) => {
-                                    const vp = { x: p.x - snapW.start.x, y: p.y - snapW.start.y }
-                                    const dot = vp.x * wVec.x + vp.y * wVec.y
-                                    const cross = vp.x * wVec.y - vp.y * wVec.x
-                                    if (Math.abs(cross) < 100 && dot > 0.1 && dot < wLenSq - 0.1) {
-                                        // Found a splitter!
-                                        splitters.push({ point: p, wall: sw })
-                                    }
-                                }
-                                checkPoint(sw.start)
-                                checkPoint(sw.end)
-                            })
-
-                            if (splitters.length > 0) {
-                                // Sort by distance from Start
-                                splitters.sort((a, b) => {
-                                    const da = Math.pow(a.point.x - snapW.start.x, 2) + Math.pow(a.point.y - snapW.start.y, 2)
-                                    const db = Math.pow(b.point.x - snapW.start.x, 2) + Math.pow(b.point.y - snapW.start.y, 2)
-                                    return da - db
-                                })
-
-                                const splitter = splitters[0]
-                                const splitPoint = { x: splitter.point.x, y: splitter.point.y }
-
-                                // Update reference for bridging
-                                referenceOldP = { x: splitPoint.x, y: splitPoint.y }
-                                forceBridge = true
-
-                                // If we are pushing from START (sharedVertex=start), we keep Start->Splitter.
-                                // If we are pushing from END (sharedVertex=end), we keep Splitter->End.
-                                // We keep the segment connected to `sharedVertex`.
-
-                                if (sharedVertex === "start") {
-                                    // Keep Start -> Splitter. Orphan Splitter -> End.
-                                    // 1. Create Orphan (Splitter -> End)
-                                    const orphanWall = {
-                                        ...w,
-                                        id: `wall-${Date.now()}-${Math.random()}`,
-                                        start: { x: splitPoint.x, y: splitPoint.y },
-                                        end: { ...w.end } // Original End
-                                    }
-                                    newWalls.push(orphanWall)
-
-                                    // 2. Shrink w (Start -> Splitter)
-                                    w.end.x = splitPoint.x; w.end.y = splitPoint.y
-
-                                } else {
-                                    // Keep Splitter -> End. Orphan Start -> Splitter.
-                                    // 1. Create Orphan (Start -> Splitter)
-                                    const orphanWall = {
-                                        ...w,
-                                        id: `wall-${Date.now()}-${Math.random()}`,
-                                        start: { ...w.start }, // Original Start
-                                        end: { x: splitPoint.x, y: splitPoint.y }
-                                    }
-                                    newWalls.push(orphanWall)
-
-                                    // 2. Shrink w (Splitter -> End)
-                                    w.start.x = splitPoint.x; w.start.y = splitPoint.y
-                                }
-                            }
-
-                            // SLIDE side walls - preserves angle and rectangularity
+                        if (isPerpendicular && depth === 0) {
+                            // SIDE WALLS of the current room: SLIDE to push opposite face
                             w.start.x += currDelta.x; w.start.y += currDelta.y
                             w.end.x += currDelta.x; w.end.y += currDelta.y
                             processedWalls.add(w.id)
 
-                            // Recurse from the OTHER end to push parallel walls
-                            // CORNER DETACHMENT / AUTO-SPLIT CONTINUATION:
-
-                            const currentOtherP = w[otherVertex] // New endpoint (Split Point or Original)
-
-                            // Count connections at the current (possibly new) endpoint.
-                            const connectionCount = snapshotWalls.filter(sw =>
-                                sw.id !== w.id &&
-                                (isSame(sw.start, currentOtherP) || isSame(sw.end, currentOtherP))
-                            ).length
-
-                            // Check collision/bridging logic
-                            if (forceBridge || connectionCount > 1) {
-                                // DETACHED! We must bridge the gap to maintain room topology.
-                                // Create a wall from referenceOldP (Static) to currentOtherP (Moved).
-
-                                const bridgeWall = {
-                                    id: `wall-bridge-${Date.now()}-${Math.random()}`,
-                                    start: { x: referenceOldP.x, y: referenceOldP.y },
-                                    end: { x: currentOtherP.x, y: currentOtherP.y },
-                                    thickness: w.thickness,
-                                    color: w.color, // Inherit usage/styles?
-                                    traits: [], // Simple wall
-                                }
-                                newWalls.push(bridgeWall)
-
-                            } else if (connectionCount === 1) {
-                                // Connected ONLY to the next wall -> Recurse (Standard slide)
-                                const newOtherP = { x: w[otherVertex].x, y: w[otherVertex].y }
-                                const oldOtherP = { x: snapW[otherVertex].x, y: snapW[otherVertex].y }
-                                recursiveMove(oldOtherP, currDelta, newOtherP)
-                            }
-                        } else {
-                            // STRETCH parallel or slanted walls (changes their length)
-
-                            // NEW: Deep Recursion for Simple Rooms (Rectangularity Preservation)
-                            // If this wall is "parallel" (dot > 0.9) and its OTHER vertex is a "simple corner",
-                            // we should probably PUSH that corner too, effectively sliding this wall 
-                            // instead of just stretching it.
-                            const isParallel = dot > 0.9
-
-                            if (sharedVertex === "start") { w.start.x = currNextP.x; w.start.y = currNextP.y }
-                            else { w.end.x = currNextP.x; w.end.y = currNextP.y }
+                            // Recurse to depth 1 from the new far-end of the side wall
+                            const oldOtherP = { x: snapW[otherVertex].x, y: snapW[otherVertex].y }
+                            const newOtherP = { x: w[otherVertex].x, y: w[otherVertex].y }
+                            recursiveMove(oldOtherP, currDelta, newOtherP, depth + 1)
+                        } else if (isParallel) {
+                            // OPPOSITE FACE segments or extensions: STRETCH only
+                            // Moving the shared vertex keeps them parallel and lengthens them.
+                            if (sharedVertex === "start") { w.start.x = newVertexPos.x; w.start.y = newVertexPos.y }
+                            else { w.end.x = newVertexPos.x; w.end.y = newVertexPos.y }
                             processedWalls.add(w.id)
-
-                            if (isParallel) {
-                                const otherP = snapW[otherVertex]
-                                // Check if the OTHER end is a simple corner (only connected to 1 other wall - the next perpendicular one)
-                                const connectionCount = snapshotWalls.filter(sw =>
-                                    sw.id !== w.id &&
-                                    (isSame(sw.start, otherP) || isSame(sw.end, otherP))
-                                ).length
-
-                                // If it's a simple corner, propagate the move!
-                                if (connectionCount === 1) {
-                                    // We apply the SAME delta to the other end (sliding the parallel wall)
-                                    const newOtherP = { x: w[otherVertex].x + currDelta.x, y: w[otherVertex].y + currDelta.y }
-
-                                    // Actually update the wall point
-                                    if (otherVertex === "start") { w.start.x = newOtherP.x; w.start.y = newOtherP.y }
-                                    else { w.end.x = newOtherP.x; w.end.y = newOtherP.y }
-
-                                    // Continue recursion from that far corner
-                                    const oldOtherP = { x: snapW[otherVertex].x, y: snapW[otherVertex].y }
-                                    recursiveMove(oldOtherP, currDelta, newOtherP)
-                                }
-                            }
+                        } else {
+                            // SLANT PROTECTION:
+                            // If it's perpendicular but at depth > 0 (side walls of neighboring rooms),
+                            // we DO NOT move it. This detaches the neighbor and leaves it stationary.
                         }
                     }
                 })
