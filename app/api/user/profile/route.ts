@@ -42,7 +42,7 @@ export async function GET() {
 
     return NextResponse.json({
       ...profile,
-      company_name: companySettings?.company_name || profile?.company_name,
+      company_name: companySettings?.company_name,
       company_address: companySettings?.company_address,
       company_phone: companySettings?.company_phone,
       company_email: companySettings?.company_email,
