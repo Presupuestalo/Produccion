@@ -98,6 +98,7 @@ interface CanvasEngineProps {
     onUpdateCalibrationPoint?: (id: "p1" | "p2", point: Point) => void
     phantomArc?: { start: Point, end: Point, depth: number }
     touchOffset?: number
+    showGrid?: boolean
     forceTouchOffset?: boolean
     snappingEnabled?: boolean
     rulerPoints?: { start: Point, end: Point } | null
@@ -417,6 +418,7 @@ export const CanvasEngine = ({
     showAllQuotes = false,
     showRoomNames = true,
     showAreas = true,
+    showGrid = true,
     onDblClick,
     onDblTap
 }: CanvasEngineProps) => {
@@ -441,6 +443,8 @@ export const CanvasEngine = ({
     const lastClickedWallForEdit = React.useRef<string | null>(null)
     const touchStartPos = React.useRef<{ x: number, y: number } | null>(null)
     const currentDynamicOffset = React.useRef<number>(0)
+
+    // Unified exposure of methods to parent via onReady is handled below by getSnapshot useCallback
 
     // Calculate the geometric center of all floor plan content
     const calculateFloorPlanCenter = React.useCallback(() => {
@@ -627,7 +631,7 @@ export const CanvasEngine = ({
         return chains
     }, [walls, wallSnapshot, rooms])
 
-    const getSnapshot = React.useCallback(() => {
+    const getSnapshot = React.useCallback((options?: { hideBackground?: boolean }) => {
         console.log("DEBUG: getSnapshot called")
         const stage = stageRef.current
         if (!stage) {
@@ -687,8 +691,12 @@ export const CanvasEngine = ({
         // A. Set white background on container (more reliable than Rect)
         container.style.backgroundColor = 'white'
 
-        // B. Hide Grid
-        if (gridRef.current) gridRef.current.visible(false)
+        // C. Hide Background Image if requested
+        const bgNode = stage.findOne('.background-image')
+        const wasBgVisible = bgNode?.visible()
+        if (options?.hideBackground && bgNode) {
+            bgNode.visible(false)
+        }
 
         // FORCE SYNCHRONOUS DRAW to apply changes before data extraction
         stage.batchDraw()
@@ -707,6 +715,7 @@ export const CanvasEngine = ({
         // --- RESTORE STATE ---
         container.style.backgroundColor = originalBg
         if (gridRef.current && wasGridVisible !== undefined) gridRef.current.visible(wasGridVisible)
+        if (options?.hideBackground && bgNode && wasBgVisible !== undefined) bgNode.visible(wasBgVisible)
         stage.batchDraw()
 
         return dataUrl
@@ -721,8 +730,22 @@ export const CanvasEngine = ({
     React.useEffect(() => {
         if (bgImage) {
             const img = new Image()
-            img.src = bgImage
+            img.crossOrigin = "Anonymous"
+
+            // If it's a remote URL (not a data URL), add a cache-buster
+            // to bypass potential non-CORS cached versions in the browser
+            if (bgImage.startsWith('http')) {
+                const separator = bgImage.includes('?') ? '&' : '?'
+                img.src = `${bgImage}${separator}t=${new Date().getTime()}`
+            } else {
+                img.src = bgImage
+            }
+
             img.onload = () => setImage(img)
+            img.onerror = (err) => {
+                console.error("Error loading background image:", err)
+                setImage(null)
+            }
         } else {
             setImage(null)
         }
@@ -2236,24 +2259,14 @@ export const CanvasEngine = ({
                 style={{ cursor: isPanningState ? 'grabbing' : (activeTool === "wall" || activeTool === "arc" || activeTool === "ruler") ? 'crosshair' : 'default', touchAction: 'none' }}
             >
                 <Layer>
-                    <Group
-                        ref={gridRef}
-                        x={floorPlanCenter.x * zoom + offset.x}
-                        y={floorPlanCenter.y * zoom + offset.y}
-                        offsetX={floorPlanCenter.x * zoom + offset.x}
-                        offsetY={floorPlanCenter.y * zoom + offset.y}
-                        rotation={gridRotation}
-                    >
-                        <Grid
-                            width={width}
-                            height={height}
-                            cellSize={cellSize}
-                            zoom={zoom}
-                            offsetX={offset.x}
-                            offsetY={offset.y}
-                        />
-                    </Group>
+                    {/* Clean background white/gray */}
+                    <Rect x={-50000} y={-50000} width={100000} height={100000} fill="#f8fafc" />
+                </Layer>
+                <Layer>
                     <Group x={offset.x} y={offset.y} scaleX={zoom} scaleY={zoom}>
+                        {/* Grid - now properly transformed with the floor plan */}
+                        {showGrid && <Grid width={width / zoom} height={height / zoom} zoom={1} offset={{ x: 0, y: 0 }} rotation={gridRotation} />}
+
                         {/* Imagen de fondo / Plantilla */}
                         {image && bgConfig && (
                             <Rect
@@ -2267,6 +2280,7 @@ export const CanvasEngine = ({
                                 rotation={bgConfig.rotation || 0}
                                 opacity={bgConfig.opacity}
                                 listening={false}
+                                name="background-image"
                             />
                         )}
 

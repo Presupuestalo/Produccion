@@ -1,100 +1,85 @@
 "use client"
 import React from "react"
-import { Line, Group, Rect } from "react-konva"
+import { Line, Group } from "react-konva"
 
 interface GridProps {
     width: number
     height: number
-    cellSize: number
+    cellSize?: number
     zoom: number
-    offsetX: number
-    offsetY: number
+    offset: { x: number; y: number }
+    rotation?: number
 }
 
-export const Grid: React.FC<GridProps> = ({ width, height, cellSize, zoom, offsetX, offsetY }) => {
-    const scaledCellSize = cellSize * zoom
-
-    // Calcular el número de líneas necesarias para cubrir el área visible
-    const numLinesX = Math.ceil(width / scaledCellSize) + 2
-    const numLinesY = Math.ceil(height / scaledCellSize) + 2
-
-    // Calcular el desfase inicial para que la rejilla se mueva con el pan
-    const startX = (offsetX % scaledCellSize) - scaledCellSize
-    const startY = (offsetY % scaledCellSize) - scaledCellSize
+export const Grid: React.FC<GridProps> = ({ width, height, cellSize = 100, zoom, offset, rotation = 0 }) => {
+    // Calcular área extendida para evitar bordes blancos
+    const extendedArea = 10000 // Área muy grande para simular infinito
+    const extendedWidth = width + extendedArea * 2
+    const extendedHeight = height + extendedArea * 2
 
     const lines = []
-    const showSubdivisions = zoom > 1.5
-    const majorCellSize = cellSize // 100
-    const minorCellSize = cellSize / 10 // 10
 
-    // 1. Minor Lines (10cm) - Only if zoomed in
-    if (showSubdivisions) {
-        const scaledMinorSize = minorCellSize * zoom
-        const numMinorX = Math.ceil(width / scaledMinorSize) + 2
-        const numMinorY = Math.ceil(height / scaledMinorSize) + 2
-        const minorStartX = (offsetX % scaledMinorSize) - scaledMinorSize
-        const minorStartY = (offsetY % scaledMinorSize) - scaledMinorSize
+    // Niveles de subdivisión basados en el zoom
+    const showCm = zoom >= 8       // Mostrar 1cm cuando zoom >= 8
+    const show10cm = zoom >= 1.5    // Mostrar 10cm cuando zoom >= 1.5
+    const show1m = true             // Siempre mostrar 1m
 
-        for (let i = 0; i <= numMinorX; i++) {
-            const x = minorStartX + i * scaledMinorSize
-            // Skip if it coincides with a major line to avoid double rendering
-            if (Math.round((i * minorCellSize) % majorCellSize) === 0) continue
+    // Tamaños de celda en unidades del modelo (cm)
+    const size1m = 100
+    const size10cm = 10
+    const size1cm = 1
 
+    // Función helper para crear líneas de grid
+    const createGridLines = (cellSize: number, color: string, strokeWidth: number, opacity: number, key: string) => {
+        const numLinesX = Math.ceil(extendedWidth / cellSize) + 4
+        const numLinesY = Math.ceil(extendedHeight / cellSize) + 4
+        const startX = -extendedArea + ((-extendedArea) % cellSize)
+        const startY = -extendedArea + ((-extendedArea) % cellSize)
+
+        // Líneas verticales
+        for (let i = 0; i <= numLinesX; i++) {
+            const x = startX + i * cellSize
             lines.push(
                 <Line
-                    key={`v-minor-${i}`}
-                    points={[x, 0, x, height]}
-                    stroke="#e2e8f0"
-                    strokeWidth={0.5}
-                    opacity={0.4}
+                    key={`v-${key}-${i}`}
+                    points={[x, -extendedArea, x, height + extendedArea]}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    opacity={opacity}
                     listening={false}
                 />
             )
         }
-        for (let i = 0; i <= numMinorY; i++) {
-            const y = minorStartY + i * scaledMinorSize
-            if (Math.round((i * minorCellSize) % majorCellSize) === 0) continue
 
+        // Líneas horizontales
+        for (let i = 0; i <= numLinesY; i++) {
+            const y = startY + i * cellSize
             lines.push(
                 <Line
-                    key={`h-minor-${i}`}
-                    points={[0, y, width, y]}
-                    stroke="#e2e8f0"
-                    strokeWidth={0.5}
-                    opacity={0.4}
+                    key={`h-${key}-${i}`}
+                    points={[-extendedArea, y, width + extendedArea, y]}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    opacity={opacity}
                     listening={false}
                 />
             )
         }
     }
 
-    // 2. Major Lines (1m)
-    for (let i = 0; i <= numLinesX; i++) {
-        const x = startX + i * scaledCellSize
-        lines.push(
-            <Line
-                key={`v-major-${i}`}
-                points={[x, 0, x, height]}
-                stroke="#cbd5e1"
-                strokeWidth={1}
-                opacity={0.6}
-                listening={false}
-            />
-        )
+    // 1. Líneas de 1cm (las más finas, solo con mucho zoom)
+    if (showCm) {
+        createGridLines(size1cm, "#e8edf2", 0.3, 0.35, "1cm")
     }
 
-    for (let i = 0; i <= numLinesY; i++) {
-        const y = startY + i * scaledCellSize
-        lines.push(
-            <Line
-                key={`h-major-${i}`}
-                points={[0, y, width, y]}
-                stroke="#cbd5e1"
-                strokeWidth={1}
-                opacity={0.6}
-                listening={false}
-            />
-        )
+    // 2. Líneas de 10cm (medianas, aparecen con zoom medio)
+    if (show10cm) {
+        createGridLines(size10cm, "#d1dae3", 0.5, 0.5, "10cm")
+    }
+
+    // 3. Líneas de 1m (principales, siempre visibles)
+    if (show1m) {
+        createGridLines(size1m, "#94a3b8", 1.2, 0.7, "1m")
     }
 
     return (

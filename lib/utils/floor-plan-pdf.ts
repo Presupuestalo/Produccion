@@ -9,15 +9,43 @@ interface ExportOptions {
     orientation: "portrait" | "landscape"
 }
 
+interface CompanyInfo {
+    name?: string
+    address?: string
+    phone?: string
+    email?: string
+    cif?: string
+    website?: string
+    logo?: string
+}
+
 export async function generateFloorPlanPDF(
     imageDataUrl: string,
     options: ExportOptions,
     projectName: string = "Plano",
     rooms: any[] = [],
     walls: Wall[] = [],
-    shunts: any[] = []
+    shunts: any[] = [],
+    companyInfo?: CompanyInfo
 ) {
     try {
+        // Preload logo if exists to get it as base64 or ensure it's loaded
+        let logoData = null;
+        if (companyInfo?.logo) {
+            try {
+                const logoImg = new Image();
+                logoImg.crossOrigin = "Anonymous";
+                await new Promise((resolve, reject) => {
+                    logoImg.onload = resolve;
+                    logoImg.onerror = reject;
+                    logoImg.src = companyInfo.logo!;
+                });
+                logoData = logoImg;
+            } catch (e) {
+                console.error("Error preloading logo:", e);
+            }
+        }
+
         const doc = new jsPDF({
             orientation: options.orientation,
             unit: "mm",
@@ -27,22 +55,102 @@ export async function generateFloorPlanPDF(
         const pageWidth = doc.internal.pageSize.getWidth()
         const pageHeight = doc.internal.pageSize.getHeight()
 
-        // 1. Add Header info (Only if NOT portrait, as per user request to avoid deform/clutter in vertical)
-        if (options.orientation === "landscape") {
-            doc.setFontSize(16)
+        // 1. Add Header info with Company Data
+        const hasCompanyInfo = companyInfo && (companyInfo.name || companyInfo.address || companyInfo.phone || companyInfo.email || companyInfo.cif || companyInfo.website)
+        let headerSpace = 10
+
+        if (hasCompanyInfo || options.orientation === "landscape") {
+            const marginX = 15
+            let currentY = 15
+            const logoSize = 25
+            const hasLogo = !!logoData
+
+            // Add Logo if exists
+            if (hasLogo && logoData) {
+                try {
+                    doc.addImage(logoData, 'PNG', marginX, 10, logoSize, logoSize, undefined, 'FAST')
+                } catch (e) {
+                    console.error("Error adding logo to PDF:", e)
+                }
+            }
+
+            const headerTextX = hasLogo ? marginX + logoSize + 5 : marginX
+
+            // Company Name
+            doc.setFontSize(14)
             doc.setFont("helvetica", "bold")
             doc.setTextColor(234, 88, 12) // orange-600
-            doc.text("PRESUPUÉSTALO", 15, 20)
+            doc.text(companyInfo?.name || "PRESUPUÉSTALO", headerTextX, currentY)
+            currentY += 6
 
-            doc.setFontSize(12)
+            // Company Details
+            doc.setFontSize(8)
+            doc.setFont("helvetica", "normal")
             doc.setTextColor(100, 116, 139) // slate-500
-            doc.text(projectName, 15, 28)
-        }
 
-        // 2. Add the Image with ASPECT RATIO FIX
-        const margin = 10
-        const headerSpace = options.orientation === "landscape" ? 35 : 10
+            if (options.orientation === "landscape") {
+                const midPage = pageWidth / 2
+                let leftColY = currentY
+                let rightColY = currentY
+
+                if (companyInfo?.address) {
+                    doc.text(`Dirección: ${companyInfo.address}`, headerTextX, leftColY)
+                    leftColY += 4
+                }
+                if (companyInfo?.phone) {
+                    doc.text(`Tel: ${companyInfo.phone}`, headerTextX, leftColY)
+                    leftColY += 4
+                }
+
+                if (companyInfo?.email) {
+                    doc.text(`Email: ${companyInfo.email}`, midPage, rightColY)
+                    rightColY += 4
+                }
+                if (companyInfo?.cif) {
+                    doc.text(`CIF: ${companyInfo.cif}`, midPage, rightColY)
+                    rightColY += 4
+                }
+                if (companyInfo?.website) {
+                    doc.setTextColor(37, 99, 235) // blue-600
+                    doc.text(`Web: ${companyInfo.website}`, midPage, rightColY)
+                    rightColY += 4
+                }
+                currentY = Math.max(leftColY, rightColY, hasLogo ? 35 : 0)
+            } else {
+                // Portrait: Stacked info
+                if (companyInfo?.address) {
+                    doc.text(`Dirección: ${companyInfo.address}`, headerTextX, currentY)
+                    currentY += 4
+                }
+                if (companyInfo?.phone) {
+                    doc.text(`Tel: ${companyInfo.phone}`, headerTextX, currentY)
+                    currentY += 4
+                }
+                if (companyInfo?.email) {
+                    doc.text(`Email: ${companyInfo.email}`, headerTextX, currentY)
+                    currentY += 4
+                }
+                if (companyInfo?.cif) {
+                    doc.text(`CIF: ${companyInfo.cif}`, headerTextX, currentY)
+                    currentY += 4
+                }
+                if (companyInfo?.website) {
+                    doc.setTextColor(37, 99, 235) // blue-600
+                    doc.text(`Web: ${companyInfo.website}`, headerTextX, currentY)
+                    currentY += 4
+                }
+                currentY = Math.max(currentY, hasLogo ? 35 : 0)
+            }
+
+            // Project Name
+            doc.setFontSize(12)
+            doc.setFont("helvetica", "bold")
+            doc.setTextColor(51, 65, 85) // slate-700
+            doc.text(projectName, marginX, currentY + 5)
+            headerSpace = currentY + 15
+        }
         const footerSpace = 15
+        const margin = 10
 
         const maxWidth = pageWidth - (margin * 2)
         const maxHeight = pageHeight - headerSpace - footerSpace
