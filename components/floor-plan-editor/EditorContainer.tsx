@@ -103,7 +103,6 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [selectedElement, setSelectedElement] = useState<{ type: "door" | "window" | "shunt", id: string } | null>(null)
     const [shunts, setShunts] = useState<Shunt[]>(props.initialData?.shunts || [])
     const [activeTool, _setActiveTool] = useState<"select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt">("wall")
-    const [showBgSettings, setShowBgSettings] = useState(false) // Toggle for Background Image Settings Card
     // ... (rest of state)
     const [gridRotation, setGridRotation] = useState<number>(props.initialData?.gridRotation || 0)
     // Toolbar visibility
@@ -325,12 +324,25 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const toggleFullscreen = () => {
         if (!editorWrapperRef.current) return
 
-        if (!document.fullscreenElement) {
-            editorWrapperRef.current.requestFullscreen()
-                .catch((e: any) => console.error(e))
+        const doc = document as any
+        const el = editorWrapperRef.current as any
+
+        const isFull = doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement
+
+        if (!isFull) {
+            const requestMethod = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen
+            if (requestMethod) {
+                requestMethod.call(el).catch((e: any) => {
+                    console.warn("Fullscreen request denied or failed:", e)
+                })
+            }
         } else {
-            document.exitFullscreen()
-                .catch((e: any) => console.error(e))
+            const exitMethod = doc.exitFullscreen || doc.webkitExitFullscreen || doc.mozCancelFullScreen || doc.msExitFullscreen
+            if (exitMethod) {
+                exitMethod.call(doc).catch((e: any) => {
+                    console.warn("Error exiting fullscreen:", e)
+                })
+            }
         }
     }
 
@@ -1485,7 +1497,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     // ... existing handleMouseDown ...
     const handleMouseDown = (point: Point) => {
-        if (showBgSettings) setShowBgSettings(false)
+        if (isSettingsOpen) setIsSettingsOpen(false)
         if (isCalibrating) {
             // ... existing calibration logic ...
             if (!calibrationPoints.p1) {
@@ -1670,8 +1682,24 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             setBgConfig((prev: any) => ({ ...prev, scale: newScale }))
             setIsCalibrating(false)
             setCalibrationPoints({ p1: null, p2: null })
-            setShowBgSettings(false) // Close the window after calibration
+            setIsSettingsOpen(false) // Close the window after calibration
         }
+    }
+
+    const handleStartCalibration = () => {
+        setIsSettingsOpen(false)
+
+        // Calculate viewport center in canvas coordinates
+        const centerX = (dimensions.width / 2 - offset.x) / zoom
+        const centerY = (dimensions.height / 2 - offset.y) / zoom
+
+        // Place points 100cm (pixels) apart around the center
+        setCalibrationPoints({
+            p1: { x: centerX - 100, y: centerY },
+            p2: { x: centerX + 100, y: centerY }
+        })
+
+        setIsCalibrating(true)
     }
 
     const deleteOldBgImage = async (url: string | null) => {
@@ -1730,9 +1758,14 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 y: 0,
                 rotation: 0
             })
-            setShowBgSettings(true)
-            // Reset calibration
-            setCalibrationPoints({ p1: { x: 200, y: 200 }, p2: { x: 500, y: 200 } })
+            setIsSettingsOpen(true)
+            // Reset calibration to center of current view
+            const centerX = (dimensions.width / 2 - offset.x) / zoom
+            const centerY = (dimensions.height / 2 - offset.y) / zoom
+            setCalibrationPoints({
+                p1: { x: centerX - 100, y: centerY },
+                p2: { x: centerX + 100, y: centerY }
+            })
             setIsCalibrating(false)
             setActiveTool("select") // Reset tool to avoid accidental drawing
         }
@@ -2081,54 +2114,31 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             )}
 
             <div ref={containerRef} className="flex-1 relative border-t border-slate-200 overflow-hidden bg-slate-50">
+                {/* Top Right Floating Settings Gear (Primary Access) */}
+                {!isSettingsOpen && (
+                    <div className="absolute top-4 right-4 z-50">
+                        <Button
+                            size="icon"
+                            variant="secondary"
+                            className="w-12 h-12 rounded-full shadow-lg bg-white/90 backdrop-blur border border-slate-200 text-slate-700 hover:bg-white transition-all active:scale-95"
+                            onClick={() => setIsSettingsOpen(true)}
+                            title="Ajustes"
+                        >
+                            <Settings className="h-6 w-6" />
+                        </Button>
+                    </div>
+                )}
                 {/* Vertical Collapsible Toolbar */}
                 {!isCalibrating && (
                     <div className={`absolute left-0 bottom-0 ${isFullscreen ? "top-0" : "top-[50px]"} z-40 transition-all duration-300 ease-in-out flex flex-col items-start translate-x-0`}>
                         <Card className="p-2 flex flex-col items-center justify-between gap-1 bg-white/95 backdrop-blur-md border-slate-200 shadow-xl pointer-events-auto rounded-none border-l-0 border-t-0 border-b-0 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
                             {!isFullscreen && (
-                                <>
-                                    <Button variant="ghost" size="icon" onClick={handleBack} title="Volver" className="w-12 h-12 hover:bg-slate-100 hover:text-slate-900 transition-colors">
-                                        <ArrowLeft className="h-5 w-5" />
-                                    </Button>
-
-                                    {!isMobile && (
-                                        <div className="relative group">
-                                            <Button
-                                                size="icon"
-                                                variant="ghost"
-                                                className="w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                                                onClick={handleSave}
-                                                disabled={isSaving}
-                                                title="Guardar (Ctrl+S)"
-                                            >
-                                                {isSaving ? "..." : <Save className="h-5 w-5" />}
-                                            </Button>
-                                            <DropdownMenu open={activeMenu === 'save'} onOpenChange={(open) => setActiveMenu(open ? 'save' : null)}>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="absolute bottom-1 right-1 w-4 h-4 p-0 opacity-0 group-hover:opacity-100 hover:bg-slate-200 transition-all rounded-sm z-50 text-slate-400 hover:text-slate-600"
-                                                    >
-                                                        <ChevronRight className="h-3 w-3" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
-                                                    <DropdownMenuItem onSelect={handleSave} className="gap-3 py-2 cursor-pointer">
-                                                        <Save className="h-4 w-4" /> <span>Guardar (Ctrl+S)</span>
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onSelect={handleOpenExportDialog} className="gap-3 py-2 cursor-pointer">
-                                                        <FileDown className="h-4 w-4" /> <span>Exportar PDF</span>
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </div>
-                                    )}
-
-                                    <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
-                                </>
+                                <Button variant="ghost" size="icon" onClick={handleBack} title="Volver" className="w-12 h-12 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+                                    <ArrowLeft className="h-5 w-5" />
+                                </Button>
                             )}
 
+                            {/* 1. SELECT */}
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -2139,13 +2149,13 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 <MousePointer2 className="h-5 w-5" />
                             </Button>
 
-                            {/* PENCIL: Walls, Arcs, Facades + Column + Mobile Tools */}
+                            {/* 2. PENCIL Submenu: Walls, Doors, Windows, Arc, Facade, Column */}
                             <div className="relative group">
                                 <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => setActiveTool("wall")}
-                                    title={isMobile ? "Dibujar" : "Dibujar (M)"}
+                                    title={isMobile ? "Herramientas de Dibujo" : "Dibujar (M)"}
                                     className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${["wall", "arc", "door", "window", "shunt"].includes(activeTool) ? "bg-slate-200 text-slate-900" : ""}`}
                                 >
                                     <Pencil className="h-5 w-5" />
@@ -2155,7 +2165,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="absolute bottom-1 right-1 w-4 h-4 p-0 opacity-0 group-hover:opacity-100 hover:bg-slate-200 transition-all rounded-sm z-50 text-slate-400 hover:text-slate-600"
+                                            className="absolute bottom-1 right-1 w-4 h-4 p-0 opacity-100 hover:bg-slate-200 transition-all rounded-sm z-50 text-slate-400 hover:text-slate-600"
                                         >
                                             <ChevronRight className="h-3 w-3" />
                                         </Button>
@@ -2163,6 +2173,12 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                     <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
                                         <DropdownMenuItem onSelect={() => setActiveTool("wall")} className="gap-3 py-2 cursor-pointer">
                                             <Pencil className="h-4 w-4" /> <span>Muros (M)</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("single") }} className="gap-3 py-2 cursor-pointer">
+                                            <DoorOpen className="h-4 w-4" /> <span>Puerta (D)</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("single") }} className="gap-3 py-2 cursor-pointer">
+                                            <RectangleVertical className="h-4 w-4" /> <span>Ventana (V)</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => setActiveTool("arc")} className="gap-3 py-2 cursor-pointer">
                                             <Spline className="h-4 w-4" /> <span>Arco (A)</span>
@@ -2173,15 +2189,11 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                         <DropdownMenuItem onSelect={() => setActiveTool("shunt")} className="gap-3 py-2 cursor-pointer">
                                             <Square className="h-4 w-4" /> <span>Columna (C)</span>
                                         </DropdownMenuItem>
-
                                         {isMobile && (
                                             <>
                                                 <div className="h-px bg-slate-100 my-1" />
-                                                <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("single") }} className="gap-3 py-2 cursor-pointer">
-                                                    <DoorOpen className="h-4 w-4" /> <span>Puerta (D)</span>
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("single") }} className="gap-3 py-2 cursor-pointer">
-                                                    <RectangleVertical className="h-4 w-4" /> <span>Ventana (V)</span>
+                                                <DropdownMenuItem onSelect={() => setActiveTool("ruler")} className="gap-3 py-2 cursor-pointer">
+                                                    <Ruler className="h-4 w-4" /> <span>Regla (R)</span>
                                                 </DropdownMenuItem>
                                             </>
                                         )}
@@ -2189,63 +2201,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 </DropdownMenu>
                             </div>
 
-                            {/* DOOR: Single, Double, Sliding - Desktop Only */}
-                            {!isMobile && (
-                                <DropdownMenu open={activeMenu === 'door'} onOpenChange={(open) => setActiveMenu(open ? 'door' : null)}>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            title={isMobile ? "Puertas" : "Puertas (D)"}
-                                            className={`w-12 h-12 relative group text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "door" ? "bg-slate-200 text-slate-900" : ""}`}
-                                        >
-                                            <DoorOpen className="h-5 w-5" />
-                                            <ChevronRight className={`h-3 w-3 absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-all duration-300`} />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
-                                        <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("single") }} className="gap-3 py-2 cursor-pointer">
-                                            <DoorOpen className="h-4 w-4" /> <span>Simple (D)</span>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("double") }} className="gap-3 py-2 cursor-pointer">
-                                            <Columns className="h-4 w-4" /> <span>Doble</span>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("sliding") }} className="gap-3 py-2 cursor-pointer">
-                                            <ArrowRightLeft className="h-4 w-4" /> <span>Corredera</span>
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            )}
-
-                            {/* WINDOW: Single, Double - Desktop Only */}
-                            {!isMobile && (
-                                <DropdownMenu open={activeMenu === 'window'} onOpenChange={(open) => setActiveMenu(open ? 'window' : null)}>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            title={isMobile ? "Ventanas" : "Ventanas (W)"}
-                                            className={`w-12 h-12 relative group text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "window" ? "bg-slate-200 text-slate-900" : ""}`}
-                                        >
-                                            <CustomWindowIcon className="h-5 w-5" />
-                                            <ChevronRight className={`h-3 w-3 absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-all duration-300`} />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
-                                        <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("double") }} className="gap-3 py-2 cursor-pointer">
-                                            <CustomWindowIcon className="h-4 w-4" /> <span>Doble (W)</span>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("single") }} className="gap-3 py-2 cursor-pointer">
-                                            <RectangleVertical className="h-4 w-4" /> <span>Sencilla (V)</span>
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            )}
-
-
-
-                            <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
-
+                            {/* 3. UNDO / REDO */}
                             <div className="relative group">
                                 <Button
                                     variant="ghost"
@@ -2263,78 +2219,38 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                             variant="ghost"
                                             size="icon"
                                             disabled={history.length === 0 && redoHistory.length === 0}
-                                            className="absolute bottom-1 right-1 w-4 h-4 p-0 opacity-0 group-hover:opacity-100 hover:bg-slate-200 transition-all rounded-sm z-50 text-slate-400 hover:text-slate-600"
+                                            className="absolute bottom-1 right-1 w-4 h-4 p-0 opacity-100 hover:bg-slate-200 transition-all rounded-sm z-50 text-slate-400 hover:text-slate-600"
                                         >
                                             <ChevronRight className="h-3 w-3" />
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
                                         <DropdownMenuItem onSelect={handleUndo} disabled={history.length === 0} className="gap-3 py-2 cursor-pointer">
-                                            <Undo2 className="h-4 w-4" /> <span>Deshacer {isMobile ? "" : "(Ctrl+Z)"}</span>
+                                            <Undo2 className="h-4 w-4" /> <span>Deshacer</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onSelect={handleRedo} disabled={redoHistory.length === 0} className="gap-3 py-2 cursor-pointer">
-                                            <Redo2 className="h-4 w-4" /> <span>Rehacer {isMobile ? "" : "(Ctrl+Y)"}</span>
+                                            <Redo2 className="h-4 w-4" /> <span>Rehacer</span>
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </div>
 
-                            <div className="relative group">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setActiveTool("ruler")}
-                                    title={isMobile ? "Regla y Cotas" : "Regla (R)"}
-                                    className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "ruler" ? "bg-slate-200 text-slate-900" : ""}`}
-                                >
-                                    <Ruler className="h-5 w-5" />
-                                </Button>
-                                <DropdownMenu open={activeMenu === 'ruler'} onOpenChange={(open) => setActiveMenu(open ? 'ruler' : null)}>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="absolute bottom-1 right-1 w-4 h-4 p-0 opacity-0 group-hover:opacity-100 hover:bg-slate-200 transition-all rounded-sm z-50 text-slate-400 hover:text-slate-600"
-                                        >
-                                            <ChevronRight className="h-3 w-3" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
-                                        <DropdownMenuItem onSelect={() => setActiveTool("ruler")} className="gap-3 py-2 cursor-pointer">
-                                            <Ruler className="h-4 w-4" /> <span>Usar Regla (R)</span>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => setShowAllQuotes(!showAllQuotes)} className="gap-3 py-2 cursor-pointer">
-                                            <LayoutGrid className={`h-4 w-4 ${showAllQuotes ? "text-sky-500" : ""}`} />
-                                            <span>{showAllQuotes ? "Ocultar Cotas (Q)" : "Mostrar Cotas (Q)"}</span>
-                                            {showAllQuotes && <Check className="h-3 w-3 ml-auto text-sky-500" />}
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
-
-                            <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
-
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => {
-                                    if (bgImage) {
-                                        setShowBgSettings(!showBgSettings)
-                                    } else {
-                                        document.getElementById("bg-import")?.click()
-                                    }
-                                }}
-                                title={bgImage ? "Configuración Imagen Fondo" : "Subir Imagen de Fondo"}
-                                className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${showBgSettings && bgImage ? "bg-slate-200 text-slate-900" : ""}`}
-                            >
-                                <ImagePlus className="h-5 w-5" />
-                            </Button>
+                            {!isMobile && (
+                                <div className="relative group">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setActiveTool("ruler")}
+                                        title="Regla (R)"
+                                        className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "ruler" ? "bg-slate-200 text-slate-900" : ""}`}
+                                    >
+                                        <Ruler className="h-5 w-5" />
+                                    </Button>
+                                </div>
+                            )}
 
 
-
-                            <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
-
-                            {/* Trash directly on bar */}
+                            {/* 5. TRASH (Clear Plan) */}
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button variant="ghost" size="icon" className="w-12 h-12 text-slate-700 hover:bg-red-50 hover:text-red-600 transition-colors" title="Limpiar Plano">
@@ -2355,6 +2271,43 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
                             <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
 
+                            {/* 6. SAVE / EXPORT Submenu */}
+                            <div className="relative group">
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                                    onClick={handleSave}
+                                    disabled={isSaving}
+                                    title="Guardar"
+                                >
+                                    {isSaving ? "..." : <Save className="h-5 w-5" />}
+                                </Button>
+                                <DropdownMenu open={activeMenu === 'save'} onOpenChange={(open) => setActiveMenu(open ? 'save' : null)}>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="absolute bottom-1 right-1 w-4 h-4 p-0 opacity-100 hover:bg-slate-200 transition-all rounded-sm z-50 text-slate-400 hover:text-slate-600"
+                                        >
+                                            <ChevronRight className="h-3 w-3" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
+                                        <DropdownMenuItem onSelect={handleSave} className="gap-3 py-2 cursor-pointer">
+                                            <Save className="h-4 w-4" /> <span>Guardar</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={handleOpenExportDialog} className="gap-3 py-2 cursor-pointer">
+                                            <FileDown className="h-4 w-4" /> <span>Exportar PDF</span>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+
+                            <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
+
+
+                            {/* 8. SUMMARY */}
                             <Sheet onOpenChange={setShowSummary} open={showSummary}>
                                 <SheetTrigger asChild>
                                     <Button variant="ghost" size="icon" title="Resumen" className="w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors">
@@ -2375,22 +2328,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 </SheetContent>
                             </Sheet>
 
-
-                            {isMobile && (
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                                    onClick={handleSave}
-                                    disabled={isSaving}
-                                    title="Guardar"
-                                >
-                                    {isSaving ? "..." : <Save className="h-5 w-5" />}
-                                </Button>
-                            )}
-
-                            <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
-
+                            {/* 9. FULLSCREEN */}
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -2399,16 +2337,6 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 title="Pantalla Completa"
                             >
                                 <Maximize2 className="h-5 w-5" />
-                            </Button>
-
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                                onClick={() => setIsSettingsOpen(true)}
-                                title="Configuración del Plano"
-                            >
-                                <Settings className="h-5 w-5" />
                             </Button>
                         </Card>
 
@@ -2419,12 +2347,12 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
 
                 <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Configuración del Plano</DialogTitle>
-                            <DialogDescription>Ajusta los parámetros generales del proyecto.</DialogDescription>
+                    <DialogContent container={fullscreenContainer} className="max-h-[85vh] overflow-y-auto w-[95vw] max-w-lg p-4 sm:p-6 sm:overflow-y-visible">
+                        <DialogHeader className="mb-2 sm:mb-4">
+                            <DialogTitle className="text-lg">Configuración del Plano</DialogTitle>
+                            <DialogDescription className="text-xs sm:text-sm">Ajusta los parámetros generales del proyecto.</DialogDescription>
                         </DialogHeader>
-                        <div className="grid gap-4 py-4">
+                        <div className="grid gap-3 py-2 sm:gap-4 sm:py-4">
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="planName" className="text-right">Nombre</Label>
                                 <Input
@@ -2467,13 +2395,99 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                     onCheckedChange={setShowGrid}
                                 />
                             </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="autoSave" className="text-right">Autoguardado</Label>
+                            <div className="grid grid-cols-4 items-center gap-3 sm:gap-4">
+                                <Label htmlFor="autoSave" className="text-right text-sm">Autoguardado</Label>
                                 <Switch
                                     id="autoSave"
                                     checked={autoSaveEnabled}
                                     onCheckedChange={setAutoSaveEnabled}
                                 />
+                            </div>
+
+                            <Separator className="my-2" />
+
+                            <div className="space-y-4 pt-2">
+                                <div className="flex items-center gap-2">
+                                    <ImagePlus className="w-5 h-5 text-sky-500" />
+                                    <h3 className="text-sm font-bold text-slate-900">Imagen de Fondo</h3>
+                                </div>
+
+                                {!bgImage ? (
+                                    <Button
+                                        variant="outline"
+                                        className="w-full h-12 border-dashed border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 hover:border-sky-300 transition-all font-bold"
+                                        onClick={() => {
+                                            setIsSettingsOpen(false)
+                                            setTimeout(() => document.getElementById("bg-import")?.click(), 100)
+                                        }}
+                                    >
+                                        <ImagePlus className="w-5 h-5 mr-2" />
+                                        Importar Imagen de Fondo
+                                    </Button>
+                                ) : (
+                                    <div className="space-y-4 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between items-center text-xs font-semibold text-slate-700">
+                                                <span className="flex items-center gap-1.5">
+                                                    Opacidad
+                                                </span>
+                                                <span className="font-mono bg-white border border-slate-200 px-1.5 py-0.5 rounded text-sky-600 shadow-sm">
+                                                    {Math.round(bgConfig.opacity * 100)}%
+                                                </span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="0.1"
+                                                max="1"
+                                                step="0.05"
+                                                value={bgConfig.opacity}
+                                                onChange={(e) => setBgConfig({ ...bgConfig, opacity: parseFloat(e.target.value) })}
+                                                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-sky-500 hover:accent-sky-600 transition-all"
+                                                title="Ajustar opacidad del plano"
+                                                aria-label="Opacidad del plano"
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-9 text-xs font-bold border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all shadow-sm"
+                                                onClick={handleStartCalibration}
+                                            >
+                                                <Ruler className="w-3.5 h-3.5 mr-1.5" />
+                                                Calibrar
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-9 text-xs font-medium text-slate-600 border-slate-200 hover:bg-slate-50 transition-all shadow-sm"
+                                                onClick={() => {
+                                                    setIsSettingsOpen(false)
+                                                    setTimeout(() => document.getElementById("bg-import")?.click(), 100)
+                                                }}
+                                            >
+                                                <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                                                Cambiar
+                                            </Button>
+                                        </div>
+
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="w-full h-8 text-[10px] font-medium text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
+                                            onClick={() => {
+                                                if (confirm("¿Estás seguro de que quieres eliminar la imagen de fondo?")) {
+                                                    setBgImage(null)
+                                                    setBgConfig({ x: 0, y: 0, scale: 1, rotation: 0, opacity: 0.5 })
+                                                }
+                                            }}
+                                        >
+                                            <Trash2 className="w-3 h-3 mr-1.5" />
+                                            Eliminar imagen de fondo
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <DialogFooter>
@@ -2599,7 +2613,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
                 {bgImage && (
                     <>
-                        {isCalibrating ? (
+                        {isCalibrating && (
                             <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 flex gap-2 w-full justify-center px-4 pointer-events-none">
                                 <Card className="relative p-2 shadow-xl bg-orange-50 border-orange-200 border flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 pointer-events-auto max-w-full overflow-x-auto">
                                     <div className="flex flex-col ml-1 min-w-[100px]">
@@ -2631,105 +2645,6 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                     </div>
                                 </Card>
                             </div>
-                        ) : (
-                            showBgSettings ? (
-                                <div className="absolute top-20 right-4 z-30 flex flex-col gap-2 pointer-events-none">
-                                    <Card className="p-4 w-72 shadow-2xl bg-white/95 backdrop-blur-md pointer-events-auto border-slate-200 animate-in fade-in slide-in-from-top-2">
-                                        <div className="space-y-4">
-                                            {/* Header with Title and Close Button */}
-                                            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                                                <h4 className="font-bold text-xs text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                                                    <ImagePlus className="w-3.5 h-3.5 text-sky-500" />
-                                                    Ajustes de Fondo
-                                                </h4>
-                                                <Button
-                                                    variant="secondary"
-                                                    size="icon"
-                                                    className="h-7 w-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 transition-colors"
-                                                    onClick={() => setShowBgSettings(false)}
-                                                    title="Cerrar ajustes"
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                </Button>
-                                            </div>
-
-                                            {/* Opacity Section */}
-                                            <div className="space-y-2">
-                                                <div className="flex justify-between items-center text-xs font-semibold text-slate-700">
-                                                    <span>Opacidad del Plano</span>
-                                                    <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-sky-600">
-                                                        {Math.round(bgConfig.opacity * 100)}%
-                                                    </span>
-                                                </div>
-                                                <input
-                                                    type="range"
-                                                    min="0.1"
-                                                    max="1"
-                                                    step="0.05"
-                                                    value={bgConfig.opacity}
-                                                    onChange={(e) => setBgConfig({ ...bgConfig, opacity: parseFloat(e.target.value) })}
-                                                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-sky-500 hover:accent-sky-600 transition-all"
-                                                    title="Ajustar opacidad del plano"
-                                                />
-                                            </div>
-
-                                            {/* Calibration Section */}
-                                            <div className="pt-2 border-t border-slate-100 space-y-2">
-                                                <h5 className="text-[11px] font-bold text-slate-800 uppercase tracking-tight flex items-center gap-1.5">
-                                                    <Ruler className="w-3 h-3 text-amber-500" />
-                                                    Calibración
-                                                </h5>
-                                                <p className="text-[10px] text-slate-500 leading-relaxed italic">
-                                                    Si las medidas no coinciden, calibra el plano usando una distancia conocida (ej. una puerta de 80cm).
-                                                </p>
-
-                                                <div className="grid grid-cols-2 gap-2 pt-1">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-9 text-xs font-bold border-amber-200 bg-amber-50/50 text-amber-700 hover:bg-amber-100 hover:border-amber-300 transition-all w-full"
-                                                        onClick={() => setIsCalibrating(true)}
-                                                        title="Calibrar escala con una medida real"
-                                                    >
-                                                        <Ruler className="w-3.5 h-3.5 mr-1.5" />
-                                                        Calibrar
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-9 text-xs font-medium w-full text-slate-600 hover:text-slate-900 border-slate-200"
-                                                        onClick={() => document.getElementById("bg-import")?.click()}
-                                                        title="Reemplazar imagen actual"
-                                                    >
-                                                        <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                                                        Cambiar
-                                                    </Button>
-                                                </div>
-                                            </div>
-
-                                            {/* Delete Action */}
-                                            <div className="pt-2 border-t border-slate-100">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-8 text-[10px] font-medium w-full text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                                                    onClick={() => {
-                                                        if (confirm("¿Estás seguro de que quieres eliminar la imagen de fondo?")) {
-                                                            deleteOldBgImage(bgImage)
-                                                            setBgImage(null)
-                                                            setBgConfig({ x: 0, y: 0, scale: 1, rotation: 0, opacity: 0.5 })
-                                                        }
-                                                    }}
-                                                    title="Eliminar imagen de fondo"
-                                                >
-                                                    <Trash2 className="w-3 h-3 mr-1.5" />
-                                                    Eliminar imagen de fondo
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </Card>
-                                </div>
-                            ) : null
                         )}
                     </>
                 )}
