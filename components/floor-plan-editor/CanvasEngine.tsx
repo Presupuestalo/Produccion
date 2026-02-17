@@ -115,7 +115,7 @@ interface CanvasEngineProps {
 }
 
 export interface CanvasEngineRef {
-    getSnapshot: () => string
+    getSnapshot: (options?: { hideBackground?: boolean }) => string
 }
 
 
