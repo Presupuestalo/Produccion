@@ -17,7 +17,7 @@ export const Grid: React.FC<GridProps> = ({ width, height, cellSize = 100, zoom,
     const extendedWidth = width + extendedArea * 2
     const extendedHeight = height + extendedArea * 2
 
-    const lines = []
+    const lines: React.ReactNode[] = []
 
     // Niveles de subdivisión basados en el zoom
     const showCm = zoom >= 8       // Mostrar 1cm cuando zoom >= 8
