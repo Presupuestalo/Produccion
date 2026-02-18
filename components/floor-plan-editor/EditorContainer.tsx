@@ -2222,8 +2222,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             )}
 
             <div ref={containerRef} className="flex-1 relative border-t border-slate-200 overflow-hidden bg-slate-50">
-                {/* Top Right Floating Settings Gear (Primary Access) */}
-                {!isSettingsOpen && (
+                {/* Top Right Floating Settings Gear (Desktop only) */}
+                {!isSettingsOpen && !isMobile && (
                     <div className="absolute top-4 right-4 z-50">
                         <Button
                             size="icon"
@@ -2280,29 +2280,29 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
                                         <DropdownMenuItem onSelect={() => setActiveTool("wall")} className="gap-3 py-2 cursor-pointer">
-                                            <Pencil className="h-4 w-4" /> <span>Muros (M)</span>
+                                            <Pencil className="h-4 w-4" /> <span>Muros{!isMobile && " (M)"}</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => setActiveTool("arc")} className="gap-3 py-2 cursor-pointer">
-                                            <Spline className="h-4 w-4" /> <span>Arco (A)</span>
+                                            <Spline className="h-4 w-4" /> <span>Arco{!isMobile && " (A)"}</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => { setActiveTool("wall"); applyFacadeHighlight(); toast({ title: "Fachada", description: "Dibujar muro de fachada" }) }} className="gap-3 py-2 cursor-pointer">
-                                            <Building2 className="h-4 w-4" /> <span>Fachada (F)</span>
+                                            <Building2 className="h-4 w-4" /> <span>Fachada{!isMobile && " (F)"}</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => setActiveTool("shunt")} className="gap-3 py-2 cursor-pointer">
-                                            <Square className="h-4 w-4" /> <span>Columna (C)</span>
+                                            <Square className="h-4 w-4" /> <span>Columna{!isMobile && " (C)"}</span>
                                         </DropdownMenuItem>
                                         {isMobile && (
                                             <>
                                                 <div className="h-px bg-slate-100 my-1" />
                                                 <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("single") }} className="gap-3 py-2 cursor-pointer">
-                                                    <DoorOpen className="h-4 w-4" /> <span>Puerta (D)</span>
+                                                    <DoorOpen className="h-4 w-4" /> <span>Puerta</span>
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("single") }} className="gap-3 py-2 cursor-pointer">
-                                                    <RectangleVertical className="h-4 w-4" /> <span>Ventana (V)</span>
+                                                    <RectangleVertical className="h-4 w-4" /> <span>Ventana</span>
                                                 </DropdownMenuItem>
                                                 <div className="h-px bg-slate-100 my-1" />
                                                 <DropdownMenuItem onSelect={() => setActiveTool("ruler")} className="gap-3 py-2 cursor-pointer">
-                                                    <Ruler className="h-4 w-4" /> <span>Regla (R)</span>
+                                                    <Ruler className="h-4 w-4" /> <span>Regla</span>
                                                 </DropdownMenuItem>
                                             </>
                                         )}
@@ -2532,6 +2532,19 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                         />
                                     </SheetContent>
                                 </Sheet>
+                            )}
+
+                            {/* SETTINGS (Mobile only - in toolbar) */}
+                            {isMobile && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                                    onClick={() => setIsSettingsOpen(true)}
+                                    title="Ajustes"
+                                >
+                                    <Settings className="h-5 w-5" />
+                                </Button>
                             )}
 
                             {/* 9. FULLSCREEN */}
@@ -2806,9 +2819,9 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     <>
                         {isCalibrating && (
                             <div
-                                className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-3 w-full max-w-sm px-4 pointer-events-none"
+                                className="absolute top-20 right-4 z-30 flex flex-col items-center gap-3 w-full max-w-sm px-4 pointer-events-none"
                                 style={{
-                                    transform: `translate(calc(-50% + ${calibrationMenuPos.x}px), ${calibrationMenuPos.y}px)`,
+                                    transform: `translate(${calibrationMenuPos.x}px, ${calibrationMenuPos.y}px)`,
                                     transition: isDraggingCalibrationMenu ? 'none' : 'transform 0.1s ease-out'
                                 }}
                             >

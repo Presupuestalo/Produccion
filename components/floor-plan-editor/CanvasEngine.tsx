@@ -1763,6 +1763,16 @@ export const CanvasEngine = ({
         pointerDownTime.current = Date.now()
 
         const isTouchInteraction = (e.evt as any).pointerType === "touch" || forceTouchOffset
+        const isDrawingToolEarly = activeTool === "wall" || activeTool === "door" || activeTool === "window" || activeTool === "ruler" || activeTool === "arc" || activeTool === "shunt"
+
+        // SAFETY: Force-clear stale panning state for drawing tools on touch
+        // This prevents isPanning getting stuck from a missed pointerUp
+        if (isTouchInteraction && isDrawingToolEarly) {
+            isPanning.current = false
+            isPotentialSustainedPan.current = false
+            didSustainedPanOccur.current = false
+            setIsPanningState(false)
+        }
 
         // IMPROVED: If we tapped exactly on a "protected" element (like a measurement label), 
         // use it directly instead of applying the 80px offset.
@@ -1838,7 +1848,7 @@ export const CanvasEngine = ({
             targetName === "measurement-label" ||
             targetName.startsWith("room-")
 
-        if (isRightClick || isMiddleClick || isBackground || spacePressed.current || (activeTool === "select" && (!isProtected || isRoom))) {
+        if (isRightClick || isMiddleClick || (isBackground && !isDrawingToolEarly) || spacePressed.current || (activeTool === "select" && (!isProtected || isRoom))) {
             // Only deselect if we are NOT interacting with a room (unless it's a right/middle click which might imply context menu or pan anywhere)
             if (!isRoom || isRightClick || isMiddleClick || spacePressed.current) {
                 if (!isRoom) { // Don't deselect everything if we clicked a room (let room onClick handle selection)
