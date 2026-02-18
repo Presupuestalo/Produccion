@@ -2318,10 +2318,6 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                                 <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("single") }} className="gap-3 py-2 cursor-pointer">
                                                     <RectangleVertical className="h-4 w-4" /> <span>Ventana</span>
                                                 </DropdownMenuItem>
-                                                <div className="h-px bg-slate-100 my-1" />
-                                                <DropdownMenuItem onSelect={() => setActiveTool("ruler")} className="gap-3 py-2 cursor-pointer">
-                                                    <Ruler className="h-4 w-4" /> <span>Regla</span>
-                                                </DropdownMenuItem>
                                             </>
                                         )}
                                     </DropdownMenuContent>
@@ -2436,40 +2432,38 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 </DropdownMenu>
                             </div>
 
-                            {!isMobile && (
-                                <div className="relative group">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => setActiveTool("ruler")}
-                                        title="Regla (R)"
-                                        className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "ruler" ? "bg-slate-200 text-slate-900" : ""}`}
-                                    >
-                                        <Ruler className="h-5 w-5" />
-                                    </Button>
-                                    <DropdownMenu open={activeMenu === 'ruler'} onOpenChange={(open) => setActiveMenu(open ? 'ruler' : null)}>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="absolute bottom-1 right-1 w-4 h-4 p-0 opacity-100 hover:bg-slate-200 transition-all rounded-sm z-50 text-slate-400 hover:text-slate-600"
-                                            >
-                                                <ChevronRight className="h-3 w-3" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-56 ml-2 p-3">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <Label htmlFor="show-all-quotes" className="text-xs font-medium text-slate-600 cursor-pointer">Ver todas las cotas</Label>
-                                                <Switch
-                                                    id="show-all-quotes"
-                                                    checked={showAllQuotes}
-                                                    onCheckedChange={setShowAllQuotes}
-                                                />
-                                            </div>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </div>
-                            )}
+                            <div className="relative group">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setActiveTool("ruler")}
+                                    title={isMobile ? "Regla" : "Regla (R)"}
+                                    className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "ruler" ? "bg-slate-200 text-slate-900" : ""}`}
+                                >
+                                    <Ruler className="h-5 w-5" />
+                                </Button>
+                                <DropdownMenu open={activeMenu === 'ruler'} onOpenChange={(open) => setActiveMenu(open ? 'ruler' : null)}>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="absolute bottom-1 right-1 w-4 h-4 p-0 opacity-100 hover:bg-slate-200 transition-all rounded-sm z-50 text-slate-400 hover:text-slate-600"
+                                        >
+                                            <ChevronRight className="h-3 w-3" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-56 ml-2 p-3">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <Label htmlFor="show-all-quotes" className="text-xs font-medium text-slate-600 cursor-pointer">Ver todas las cotas</Label>
+                                            <Switch
+                                                id="show-all-quotes"
+                                                checked={showAllQuotes}
+                                                onCheckedChange={setShowAllQuotes}
+                                            />
+                                        </div>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
 
 
                             {/* 5. TRASH (Clear Plan) */}
@@ -2552,18 +2546,6 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 </Sheet>
                             )}
 
-                            {/* 8.5 COTAS TOGGLE (Mobile only) */}
-                            {isMobile && (
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setShowAllQuotes(prev => !prev)}
-                                    title="Mostrar Cotas"
-                                    className={`w-12 h-12 transition-colors ${showAllQuotes ? "text-blue-600 bg-blue-50" : "text-slate-700 hover:bg-slate-100"}`}
-                                >
-                                    <Ruler className="h-5 w-5" />
-                                </Button>
-                            )}
 
                             {/* 9. FULLSCREEN */}
                             <Button

@@ -157,7 +157,7 @@ const ShuntItem = React.memo(({
                     let bestDist = 20
                     let bestSnap: { x: number, y: number } | null = null
 
-                    walls.forEach(w => {
+                    walls.filter(w => !w.isInvisible).forEach(w => {
                         const p = { x, y }
                         const { point: proj, t } = getClosestPointOnSegment(p, w.start, w.end)
                         if (t >= 0 && t <= 1) {
@@ -1294,7 +1294,7 @@ export const CanvasEngine = ({
 
     const getFaceOffsetAt = (wall: Wall, point: Point, faceNormal: Point, ignoreIds: Set<string> = new Set(), isEnd: boolean) => {
         const TOL_NEIGHBOR = 10.0
-        const neighbors = walls.filter(w => !ignoreIds.has(w.id) && w.id !== wall.id && (() => {
+        const neighbors = walls.filter(w => !ignoreIds.has(w.id) && w.id !== wall.id && !w.isInvisible && (() => {
             const closestObj = getClosestPointOnSegment(point, w.start, w.end)
             const dist = Math.sqrt(Math.pow(closestObj.point.x - point.x, 2) + Math.pow(closestObj.point.y - point.y, 2))
             return dist < TOL_NEIGHBOR
@@ -2576,29 +2576,48 @@ export const CanvasEngine = ({
                             }
 
                             const wallLen = Math.sqrt(Math.pow(wall.end.x - wall.start.x, 2) + Math.pow(wall.end.y - wall.start.y, 2))
-                            // Helper to get connected wall thickness at a vertex
-                            const getNeighborThickness = (p: { x: number, y: number }) => {
-                                const neighbor = walls.find(w => w.id !== wall.id && (
+
+                            // --- CHAIN MEASUREMENT LOGIC ---
+                            // Find the true visible terminals of the wall chain to jump over invisible dividers
+                            const dx = wall.end.x - wall.start.x
+                            const dy = wall.end.y - wall.start.y
+                            const centerLength = Math.max(0.1, Math.sqrt(dx * dx + dy * dy))
+                            const nx_local = -dy / centerLength
+                            const ny_local = dx / centerLength
+                            const midP = { x: (wall.start.x + wall.end.x) / 2, y: (wall.start.y + wall.end.y) / 2 }
+                            // Determine if we are measuring on an interior-pointing face for proper terminal traversal
+                            const testP = { x: midP.x + nx_local * (wall.thickness / 2 + 10), y: midP.y + ny_local * (wall.thickness / 2 + 10) }
+                            const isInterior = isPointInAnyRoom(testP)
+                            const faceNormal = { x: nx_local, y: ny_local }
+
+                            const chainIds = new Set([wall.id])
+                            const back = findTerminal(wall, wall.start, chainIds, faceNormal, isInterior)
+                            const forward = findTerminal(wall, wall.end, chainIds, faceNormal, isInterior)
+
+                            // Helper to get connected wall thickness at a vertex (IGNORING INVISIBLE WALLS)
+                            const getNeighborThickness = (p: { x: number, y: number }, wallId: string) => {
+                                const neighbor = walls.find(w => w.id !== wallId && !w.isInvisible && (
                                     (Math.abs(w.start.x - p.x) < 1 && Math.abs(w.start.y - p.y) < 1) ||
                                     (Math.abs(w.end.x - p.x) < 1 && Math.abs(w.end.y - p.y) < 1)
                                 ))
                                 return neighbor ? neighbor.thickness : 0
                             }
-                            const startThick = getNeighborThickness(wall.start)
-                            const endThick = getNeighborThickness(wall.end)
 
-                            // Distancias desde los bordes de la puerta
-                            // FIX: Restar mitad del grosor del muro vecino para medir hasta la cara interior
-                            const d1Val = Math.max(0, (door.t * wallLen) - (door.width / 2) - (startThick / 2))
-                            const d2Val = Math.max(0, ((1 - door.t) * wallLen) - (door.width / 2) - (endThick / 2))
+                            const terminalStartThick = getNeighborThickness(back.terminal, back.terminalWallId)
+                            const terminalEndThick = getNeighborThickness(forward.terminal, forward.terminalWallId)
+
+                            // Calculate distances relative to the full chain
+                            const d1Val = Math.max(0, back.addedLen + (door.t * wallLen) - (door.width / 2) - (terminalStartThick / 2))
+                            const d2Val = Math.max(0, forward.addedLen + ((1 - door.t) * wallLen) - (door.width / 2) - (terminalEndThick / 2))
                             const d1 = d1Val.toFixed(1).replace('.', ',')
                             const d2 = d2Val.toFixed(1).replace('.', ',')
 
                             const isSelected = selectedElement?.id === door.id && selectedElement?.type === "door"
 
                             // Posiciones locales centradas en los huecos de pared a los lados de la puerta
-                            const gap1CenterLocalX = (-door.t * wallLen - door.width / 2) / 2
-                            const gap2CenterLocalX = ((1 - door.t) * wallLen + door.width / 2) / 2
+                            // Important: these are used for label placement, we adjust them to reflect the total chain gap
+                            const gap1CenterLocalX = (-(back.addedLen + door.t * wallLen) - door.width / 2) / 2
+                            const gap2CenterLocalX = ((forward.addedLen + (1 - door.t) * wallLen) + door.width / 2) / 2
 
                             return (
                                 <Group
@@ -2918,29 +2937,47 @@ export const CanvasEngine = ({
                             }
 
                             const wallLen = Math.sqrt(Math.pow(wall.end.x - wall.start.x, 2) + Math.pow(wall.end.y - wall.start.y, 2))
-                            // Helper to get connected wall thickness at a vertex
-                            const getNeighborThickness = (p: { x: number, y: number }) => {
-                                const neighbor = walls.find(w => w.id !== wall.id && (
+
+                            // --- CHAIN MEASUREMENT LOGIC ---
+                            // Find the true visible terminals of the wall chain to jump over invisible dividers
+                            const dx = wall.end.x - wall.start.x
+                            const dy = wall.end.y - wall.start.y
+                            const centerLength = Math.max(0.1, Math.sqrt(dx * dx + dy * dy))
+                            const nx_local = -dy / centerLength
+                            const ny_local = dx / centerLength
+                            const midP = { x: (wall.start.x + wall.end.x) / 2, y: (wall.start.y + wall.end.y) / 2 }
+                            // Determine if we are measuring on an interior-pointing face for proper terminal traversal
+                            const testP = { x: midP.x + nx_local * (wall.thickness / 2 + 10), y: midP.y + ny_local * (wall.thickness / 2 + 10) }
+                            const isInterior = isPointInAnyRoom(testP)
+                            const faceNormal = { x: nx_local, y: ny_local }
+
+                            const chainIds = new Set([wall.id])
+                            const back = findTerminal(wall, wall.start, chainIds, faceNormal, isInterior)
+                            const forward = findTerminal(wall, wall.end, chainIds, faceNormal, isInterior)
+
+                            // Helper to get connected wall thickness at a vertex (IGNORING INVISIBLE WALLS)
+                            const getNeighborThickness = (p: { x: number, y: number }, wallId: string) => {
+                                const neighbor = walls.find(w => w.id !== wallId && !w.isInvisible && (
                                     (Math.abs(w.start.x - p.x) < 1 && Math.abs(w.start.y - p.y) < 1) ||
                                     (Math.abs(w.end.x - p.x) < 1 && Math.abs(w.end.y - p.y) < 1)
                                 ))
                                 return neighbor ? neighbor.thickness : 0
                             }
-                            const startThick = getNeighborThickness(wall.start)
-                            const endThick = getNeighborThickness(wall.end)
 
-                            // Distancias desde los bordes de la ventana
-                            // FIX: Restar mitad del grosor del muro vecino para medir hasta la cara interior
-                            const d1Val = Math.max(0, (window.t * wallLen) - (window.width / 2) - (startThick / 2))
-                            const d2Val = Math.max(0, ((1 - window.t) * wallLen) - (window.width / 2) - (endThick / 2))
+                            const terminalStartThick = getNeighborThickness(back.terminal, back.terminalWallId)
+                            const terminalEndThick = getNeighborThickness(forward.terminal, forward.terminalWallId)
+
+                            // Calculate distances relative to the full chain
+                            const d1Val = Math.max(0, back.addedLen + (window.t * wallLen) - (window.width / 2) - (terminalStartThick / 2))
+                            const d2Val = Math.max(0, forward.addedLen + ((1 - window.t) * wallLen) - (window.width / 2) - (terminalEndThick / 2))
                             const d1 = d1Val.toFixed(1).replace('.', ',')
                             const d2 = d2Val.toFixed(1).replace('.', ',')
 
                             const isSelected = selectedElement?.id === window.id && selectedElement?.type === "window"
 
-                            // Posiciones locales centradas en los huecos de pared
-                            const gap1CenterLocalX = (-window.t * wallLen - window.width / 2) / 2
-                            const gap2CenterLocalX = ((1 - window.t) * wallLen + window.width / 2) / 2
+                            // Posiciones locales centradas en los huecos de pared a los lados de la ventana
+                            const gap1CenterLocalX = (-(back.addedLen + window.t * wallLen) - window.width / 2) / 2
+                            const gap2CenterLocalX = ((forward.addedLen + (1 - window.t) * wallLen) + window.width / 2) / 2
 
                             return (
                                 <Group
