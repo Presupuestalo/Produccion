@@ -119,6 +119,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const editorWrapperRef = useRef<HTMLDivElement>(null)
     const [fullscreenContainer, setFullscreenContainer] = useState<HTMLElement | null>(null)
     const [isFullscreen, setIsFullscreen] = useState(false)
+    const [suppressFullscreenPrompt, setSuppressFullscreenPrompt] = useState(false)
     const canvasEngineRef = useRef<CanvasEngineRef>(null)
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
     const [zoom, setZoom] = useState(1)
@@ -405,6 +406,12 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         }
 
         document.addEventListener("fullscreenchange", handleFullscreenChange)
+
+        if (typeof window !== 'undefined') {
+            const suppressed = sessionStorage.getItem('suppressFullscreenPrompt') === 'true'
+            if (suppressed) setSuppressFullscreenPrompt(true)
+        }
+
         return () => document.removeEventListener("fullscreenchange", handleFullscreenChange)
     }, [])
 
@@ -2206,15 +2213,26 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             <MobileOrientationGuard onEnterFullscreen={toggleFullscreen} />
 
             {/* Prompt for fullscreen if in landscape but not active (Mobile only) */}
-            {isMobile && !document.fullscreenElement && window.innerWidth > window.innerHeight && (
+            {isMobile && !document.fullscreenElement && window.innerWidth > window.innerHeight && !suppressFullscreenPrompt && (
                 <div className="absolute inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <Card className="p-6 max-w-sm w-full space-y-4 text-center">
+                    <Card className="p-6 max-w-sm w-full space-y-4 text-center relative">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute top-2 right-2 h-8 w-8 text-slate-400 hover:text-slate-600"
+                            onClick={() => {
+                                setSuppressFullscreenPrompt(true)
+                                sessionStorage.setItem("suppressFullscreenPrompt", "true")
+                            }}
+                        >
+                            <X className="h-4 w-4" />
+                        </Button>
                         <div className="flex justify-center">
                             <Maximize2 className="h-12 w-12 text-blue-500 animate-pulse" />
                         </div>
                         <h3 className="text-lg font-bold">Modo Editor Pantalla Completa</h3>
                         <p className="text-sm text-slate-500">Para una mejor experiencia y ocultar las barras del navegador, activa la pantalla completa.</p>
-                        <Button className="w-full bg-blue-600 hover:bg-blue-700 h-12 text-lg" onClick={toggleFullscreen}>
+                        <Button className="w-full bg-blue-600 hover:bg-blue-700 h-10 text-md" onClick={toggleFullscreen}>
                             Entrar en Pantalla Completa
                         </Button>
                     </Card>
@@ -2222,8 +2240,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             )}
 
             <div ref={containerRef} className="flex-1 relative border-t border-slate-200 overflow-hidden bg-slate-50">
-                {/* Top Right Floating Settings Gear (Desktop only) */}
-                {!isSettingsOpen && !isMobile && (
+                {/* Top Right Floating Settings Gear */}
+                {!isSettingsOpen && (
                     <div className="absolute top-4 right-4 z-50">
                         <Button
                             size="icon"
@@ -2534,16 +2552,16 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 </Sheet>
                             )}
 
-                            {/* SETTINGS (Mobile only - in toolbar) */}
+                            {/* 8.5 COTAS TOGGLE (Mobile only) */}
                             {isMobile && (
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                                    onClick={() => setIsSettingsOpen(true)}
-                                    title="Ajustes"
+                                    onClick={() => setShowAllQuotes(prev => !prev)}
+                                    title="Mostrar Cotas"
+                                    className={`w-12 h-12 transition-colors ${showAllQuotes ? "text-blue-600 bg-blue-50" : "text-slate-700 hover:bg-slate-100"}`}
                                 >
-                                    <Settings className="h-5 w-5" />
+                                    <Ruler className="h-5 w-5" />
                                 </Button>
                             )}
 

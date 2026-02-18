@@ -167,6 +167,22 @@ export const PRICE_CATALOG: PriceCatalogItem[] = [
     base_price: 28.8,
   },
   {
+    id: "01-D-21",
+    category: "01. DERRIBOS",
+    concept: "DESMONTAJE PUERTA DOBLE ABATIBLE",
+    description: "Desmontaje de puerta doble abatible y posterior retirada.",
+    unit: "Ud",
+    base_price: 57.6,
+  },
+  {
+    id: "01-D-22",
+    category: "01. DERRIBOS",
+    concept: "DESMONTAJE PUERTA CORREDERA EXTERIOR",
+    description: "Desmontaje de puerta corredera exterior y posterior retirada.",
+    unit: "Ud",
+    base_price: 45.0,
+  },
+  {
     id: "01-D-13",
     category: "01. DERRIBOS",
     concept: "PREPARACIÓN PAREDES (Gotelé/Papel)",
@@ -579,6 +595,14 @@ export const PRICE_CATALOG: PriceCatalogItem[] = [
     description: "Instalación de puerta abatible en block.",
     unit: "Ud",
     base_price: 144,
+  },
+  {
+    id: "05-C-20",
+    category: "05. CARPINTERÍA",
+    concept: "COLOCACIÓN PUERTA ABATIBLE DOBLE HOJA (MO)",
+    description: "Instalación de puerta abatible de doble hoja en block.",
+    unit: "Ud",
+    base_price: 288,
   },
   {
     id: "05-C-08",

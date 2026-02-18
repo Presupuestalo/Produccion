@@ -63,7 +63,9 @@ export type ReformHeatingType = "No" | "Caldera + Radiadores" | "Eléctrica" | "
 // Nuevo tipo para los tipos de puertas (Corredera doble cambiada a Corredera doble empotrada)
 export type DoorType =
   | "Abatible"
+  | "Doble abatible"
   | "Corredera empotrada"
+  | "Corredera exterior"
   | "Corredera exterior con carril"
   | "Corredera doble empotrada"
 

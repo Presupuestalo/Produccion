@@ -497,10 +497,16 @@ export class BudgetGenerator {
         }
       }
 
-      // Retirada de puertas
+      // Retirada de puertas (Desglosado por tipos)
       if (room.hasDoors && room.doorList && room.doorList.length > 0) {
         room.doorList?.forEach((door: any) => {
-          totalDoorsRemoval += 1
+          if (door.type === "Doble abatible") {
+            this.totalDoubleDoorsRemoval = (this.totalDoubleDoorsRemoval || 0) + 1
+          } else if (door.type === "Corredera exterior" || door.type === "Corredera exterior con carril") {
+            this.totalExteriorSlidingDoorsRemoval = (this.totalExteriorSlidingDoorsRemoval || 0) + 1
+          } else {
+            totalDoorsRemoval += 1
+          }
         })
       }
 
@@ -612,8 +618,16 @@ export class BudgetGenerator {
     if (totalDoorsRemoval > 0) {
       console.log(`[v0] BudgetGenerator - Generando partida: Desmontaje de puertas y marcos ${totalDoorsRemoval} ud`)
       this.addLineItem("01-D-12", totalDoorsRemoval, "Desmontaje de puertas y marcos")
-    } else {
-      console.log("[v0] BudgetGenerator - NO se genera partida de desmontaje de puertas (total = 0)")
+    }
+
+    if (this.totalDoubleDoorsRemoval > 0) {
+      console.log(`[v0] BudgetGenerator - Generando partida: Desmontaje de puertas dobles ${this.totalDoubleDoorsRemoval} ud`)
+      this.addLineItem("01-D-21", this.totalDoubleDoorsRemoval, "Desmontaje de puerta doble abatible")
+    }
+
+    if (this.totalExteriorSlidingDoorsRemoval > 0) {
+      console.log(`[v0] BudgetGenerator - Generando partida: Desmontaje de puertas correderas exteriores ${this.totalExteriorSlidingDoorsRemoval} ud`)
+      this.addLineItem("01-D-22", this.totalExteriorSlidingDoorsRemoval, "Desmontaje de puerta corredera exterior")
     }
 
     // Retirada de elementos de baño
@@ -1299,8 +1313,13 @@ export class BudgetGenerator {
     if (exteriorSlidingDoors > 0) {
       console.log(`[v0] BudgetGenerator - Generando partida: Puertas correderas exteriores ${exteriorSlidingDoors} ud`)
       this.addLineItem("05-C-18", exteriorSlidingDoors)
-    } else {
-      console.log("[v0] BudgetGenerator - NO se genera partida de puertas correderas exteriores (total doors = 0)")
+    }
+
+    // Puertas abatibles dobles
+    const doubleSwingDoors = this.countDoubleSwingDoors()
+    if (doubleSwingDoors > 0) {
+      console.log(`[v0] BudgetGenerator - Generando partida: Puertas abatibles dobles ${doubleSwingDoors} ud`)
+      this.addLineItem("05-C-20", doubleSwingDoors)
     }
 
     const hasEntryDoor =
@@ -2376,7 +2395,7 @@ export class BudgetGenerator {
     reform.rooms.forEach((room: any) => {
       if (room.doorList && room.doorList.length > 0) {
         room.doorList.forEach((door: any) => {
-          if (door.type === "Corredera" && door.isExterior) {
+          if (door.type === "Corredera exterior" || door.type === "Corredera exterior con carril" || (door.type === "Corredera" && door.isExterior)) {
             exteriorSlidingDoors += 1
           }
         })
@@ -2385,6 +2404,26 @@ export class BudgetGenerator {
 
     console.log(`[v0] BudgetGenerator - Exterior sliding doors counted: ${exteriorSlidingDoors}`)
     return exteriorSlidingDoors
+  }
+
+  private countDoubleSwingDoors(): number {
+    const { reform } = this.calculatorData
+    if (!reform || !reform.rooms) return 0
+
+    let doubleSwingDoors = 0
+
+    reform.rooms.forEach((room: any) => {
+      if (room.doorList && room.doorList.length > 0) {
+        room.doorList.forEach((door: any) => {
+          if (door.type === "Doble abatible") {
+            doubleSwingDoors += 1
+          }
+        })
+      }
+    })
+
+    console.log(`[v0] BudgetGenerator - Double swing doors counted: ${doubleSwingDoors}`)
+    return doubleSwingDoors
   }
 
   private estimatePowerLines(): number {

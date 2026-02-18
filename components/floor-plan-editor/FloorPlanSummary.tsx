@@ -41,8 +41,10 @@ interface FloorPlanSummaryProps {
 }
 
 export function FloorPlanSummary({ rooms, walls, doors, windows, shunts }: FloorPlanSummaryProps) {
+    const filteredRooms = rooms.filter(r => r.area >= 1.0)
+
     // 1. Global Stats
-    const totalArea = rooms.reduce((acc, r) => acc + r.area, 0)
+    const totalArea = filteredRooms.reduce((acc, r) => acc + r.area, 0)
     const totalWallsLength = walls.reduce((acc, w) => {
         if (w.isInvisible) return acc
         const len = Math.sqrt(Math.pow(w.end.x - w.start.x, 2) + Math.pow(w.end.y - w.start.y, 2))
@@ -52,7 +54,8 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts }: Floor
     // Global Breakdown
     const doorsSimple = doors.filter(d => !d.openType || d.openType === "single").length
     const doorsDouble = doors.filter(d => d.openType === "double").length
-    const doorsSlidingRail = doors.filter(d => d.openType === "sliding_rail").length
+    const doorsDoubleSwing = doors.filter(d => d.openType === "double_swing").length
+    const doorsSlidingRail = doors.filter(d => d.openType === "sliding_rail" || d.openType === "exterior_sliding").length
     const doorsSlidingPocket = doors.filter(d => d.openType === "sliding_pocket" || d.openType === "sliding").length
     const totalDoors = doors.length
 
@@ -61,7 +64,7 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts }: Floor
     const totalWindows = windows.length
 
     // 2. Per Room Stats
-    const roomStats = rooms.map(room => {
+    const roomStats = filteredRooms.map(room => {
         const stats = calculateRoomStats(room, walls, shunts)
         return {
             ...room,
@@ -104,15 +107,21 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts }: Floor
                                 <span className="font-medium text-foreground">{doorsSimple}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span>Dobles</span>
+                                <span>Abatibles Dobles</span>
                                 <span className="font-medium text-foreground">{doorsDouble}</span>
                             </div>
+                            {doorsDoubleSwing > 0 && (
+                                <div className="flex justify-between items-center">
+                                    <span>Doble Abatible</span>
+                                    <span className="font-medium text-foreground">{doorsDoubleSwing}</span>
+                                </div>
+                            )}
                             <div className="flex justify-between items-center">
-                                <span>C. Exterior</span>
+                                <span>Corredera Exterior</span>
                                 <span className="font-medium text-foreground">{doorsSlidingRail}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span>C. Cajón</span>
+                                <span>Corredera Empotrada</span>
                                 <span className="font-medium text-foreground">{doorsSlidingPocket}</span>
                             </div>
                         </div>

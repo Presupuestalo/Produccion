@@ -963,6 +963,7 @@ export const CanvasEngine = ({
     // Pinch-to-zoom refs
     const lastDist = React.useRef<number>(0)
     const lastCenter = React.useRef<Point | null>(null)
+    const wasPinching = React.useRef(false)
 
     const getDistance = (p1: Point, p2: Point) => {
         return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2))
@@ -1769,6 +1770,7 @@ export const CanvasEngine = ({
         // This prevents isPanning getting stuck from a missed pointerUp
         if (isTouchInteraction && isDrawingToolEarly) {
             isPanning.current = false
+            wasPinching.current = false
             isPotentialSustainedPan.current = false
             didSustainedPanOccur.current = false
             setIsPanningState(false)
@@ -2107,7 +2109,10 @@ export const CanvasEngine = ({
             if (isTouchOrPen) {
                 // For touch/pen, releasing the pointer should confirm the placement (2nd click)
                 // We execute onMouseUp which handles the "Confirm" step in EditorContainer
-                onMouseUp(pos)
+                // BUT we skip it if we were just pinching (zooming)
+                if (!wasPinching.current) {
+                    onMouseUp(pos)
+                }
             }
         }
 
@@ -2192,6 +2197,7 @@ export const CanvasEngine = ({
 
         if (touch1 && touch2) {
             e.evt.preventDefault() // Stop browser zoom
+            wasPinching.current = true
 
             if (stageRef.current.isDragging()) {
                 stageRef.current.stopDrag()
@@ -2617,6 +2623,7 @@ export const CanvasEngine = ({
                                         }
                                     }}
                                     onDragMove={(e) => {
+                                        if (wasPinching.current) return
                                         const stage = e.target.getStage()
                                         if (!stage || !dragOffsetRef.current) return
                                         const transform = stage.getAbsoluteTransform().copy()
@@ -2957,6 +2964,7 @@ export const CanvasEngine = ({
                                         }
                                     }}
                                     onDragMove={(e) => {
+                                        if (wasPinching.current) return
                                         const stage = e.target.getStage()
                                         if (!stage || !dragOffsetRef.current) return
                                         const transform = stage.getAbsoluteTransform().copy()

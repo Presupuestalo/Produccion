@@ -46,7 +46,7 @@ export function FloorPlanExportDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent container={container} className="sm:max-w-[425px]">
+            <DialogContent container={container} className="sm:max-w-[425px] max-h-[95vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <FileDown className="h-5 w-5 text-blue-600" />

@@ -188,7 +188,8 @@ export async function generateFloorPlanPDF(
         doc.text("presupuestalo.com", pageWidth / 2, pageHeight - 8, { align: "center" })
 
         // 4. Optional Summary Page
-        if (options.showSummary && rooms.length > 0) {
+        const finalRooms = rooms.filter(r => r.area >= 1.0)
+        if (options.showSummary && finalRooms.length > 0) {
             doc.addPage()
 
             // Header for second page
@@ -217,7 +218,7 @@ export async function generateFloorPlanPDF(
             let totalArea = 0
 
             // SORT ROOMS ALPHABETICALLY (Numeric sensitivity for H1, H2, H10...)
-            const sortedRooms = [...rooms].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+            const sortedRooms = [...finalRooms].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
 
             sortedRooms.forEach((room) => {
                 const stats = calculateRoomStats(room, walls, shunts)
