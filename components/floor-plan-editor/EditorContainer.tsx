@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Minimize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, LayoutGrid, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, RefreshCw, FileText, ClipboardList, Spline, Menu, Square, ChevronDown, ChevronRight, ChevronLeft, DoorOpen, GalleryVerticalEnd, AppWindow, Columns, X, ArrowRightLeft, RectangleVertical, Check, Settings } from "lucide-react"
+import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Minimize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, LayoutGrid, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, RefreshCw, FileText, ClipboardList, Spline, Menu, Square, ChevronDown, ChevronRight, ChevronLeft, DoorOpen, GalleryVerticalEnd, AppWindow, Columns, X, ArrowRightLeft, RectangleVertical, Check, Settings, GripHorizontal } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import {
     DropdownMenu,
@@ -35,6 +35,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Switch } from "@/components/ui/switch"
+import { Slider } from "@/components/ui/slider"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { FloorPlanSummary } from "./FloorPlanSummary"
@@ -55,9 +56,43 @@ import { ToastProvider } from "@/components/ui/toast-provider"
 interface Point { x: number; y: number }
 interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward' }
 interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point }
-interface Door { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" }
+interface Door { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" | "sliding_pocket" | "sliding_rail" }
 interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean; openType?: "single" | "double" }
 interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number }
+
+// Custom Icons for Doors & Windows
+const DoubleDoorIcon = ({ className }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <rect x="5" y="5" width="14" height="14" rx="1" />
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <path d="M10 12h-1" />
+        <path d="M14 12h1" />
+    </svg>
+)
+
+const SlidingRailIcon = ({ className }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M7 3h15v3H7z" fill="currentColor" fillOpacity="0.1" /> {/* Top Rail Box */}
+        <path d="M5 4v17h2" /> {/* Left support */}
+        <rect x="8" y="6" width="12" height="15" /> {/* Door panel */}
+        <path d="M10 12v3h1" /> {/* Handle */}
+    </svg>
+)
+
+const SlidingPocketIcon = ({ className }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <rect x="3" y="4" width="18" height="16" rx="1" /> {/* Outer Frame */}
+        <line x1="10" y1="4" x2="10" y2="20" /> {/* Divider */}
+        <path d="M13 12h5m-2-2l2 2-2 2" /> {/* Arrow pointing right/open */}
+        <path d="M5 11v2" /> {/* Handle */}
+    </svg>
+)
+
+const SingleDoorIcon = ({ className }: { className?: string }) => (
+    <DoorOpen className={className} />
+)
+
+
 
 // Custom Window Icon: Simplified clean design with central division and sill
 const CustomWindowIcon = ({ className }: { className?: string }) => (
@@ -181,6 +216,11 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         website?: string
         logo?: string
     } | null>(null)
+
+    // Estado para menu de calibración desplazable
+    const [calibrationMenuPos, setCalibrationMenuPos] = useState({ x: 0, y: 0 })
+    const [isDraggingCalibrationMenu, setIsDraggingCalibrationMenu] = useState(false)
+    const dragStartPos = useRef({ x: 0, y: 0 })
 
     // State Ref Pattern to solve Event Listener Stale State & Dependency Changes
     const stateRef = useRef({
@@ -517,8 +557,11 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             if (key === 'm') setActiveTool("wall") // Muros
             if (key === 's') setActiveTool("select")
             if (key === 'd') { setActiveTool("door"); setCreationDoorType("single") }
-            if (key === 'w') { setActiveTool("window"); setCreationWindowType("double") } // Ventana Doble (default)
-            if (key === 'v') { setActiveTool("window"); setCreationWindowType("single") } // Keep V for Single
+            if (key === 'k') { setActiveTool("door"); setCreationDoorType("sliding_pocket") }
+            if (key === 'x') { setActiveTool("door"); setCreationDoorType("sliding_rail") }
+            if (key === 'g') { setActiveTool("door"); setCreationDoorType("double") }
+            if (key === 'w') { setActiveTool("window"); setCreationWindowType("single") }
+            if (key === 'v') { setActiveTool("window"); setCreationWindowType("double") }
             if (key === 'a') setActiveTool("arc")
             if (key === 'c') setActiveTool("shunt")
             if (key === 'r') setActiveTool("ruler")
@@ -855,7 +898,69 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     const handleUpdateRoom = (id: string, updates: Partial<Room>) => {
         saveStateToHistory()
-        setRooms(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r))
+        setRooms(prev => {
+            // 1. Initial Apply
+            let nextRooms = prev.map(r => r.id === id ? { ...r, ...updates } : r)
+
+            // 2. Renormalize Naming if name changed
+            if (updates.name) {
+                const targetRoom = nextRooms.find(r => r.id === id)
+                if (targetRoom) {
+                    // Extract base name (remove trailing numbers)
+                    // e.g. "H 1" -> "H", "Cocina" -> "Cocina"
+                    const nameRegex = /^(.*?)(?:\s+\d+)?$/
+                    const match = targetRoom.name.trim().match(nameRegex)
+                    const baseName = match ? match[1] : targetRoom.name.trim()
+
+                    if (baseName) {
+                        // Find all rooms that share this base name
+                        const group = nextRooms.filter(r => {
+                            const m = r.name.trim().match(nameRegex)
+                            const b = m ? m[1] : r.name.trim()
+                            return b === baseName
+                        })
+
+                        // Only renumber if we have multiple rooms of this type
+                        // OR if the user explicitly used a numbered format (to clean up holes)
+                        if (group.length > 1) {
+                            // Sort spatially: Top-to-Bottom, then Left-to-Right
+                            group.sort((a, b) => {
+                                // Simple centroid calculation
+                                const getCentroid = (pts: Point[]) => {
+                                    const sum = pts.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 })
+                                    return { x: sum.x / pts.length, y: sum.y / pts.length }
+                                }
+                                const cA = getCentroid(a.polygon)
+                                const cB = getCentroid(b.polygon)
+
+                                // Tolerance for "same row" (e.g. 50 logical units)
+                                if (Math.abs(cA.y - cB.y) < 50) {
+                                    return cA.x - cB.x
+                                }
+                                return cA.y - cB.y
+                            })
+
+                            // Apply distinct sequential names
+                            const updatesMap = new Map<string, string>()
+                            group.forEach((r, idx) => {
+                                const newName = `${baseName} ${idx + 1}`
+                                if (r.name !== newName) {
+                                    updatesMap.set(r.id, newName)
+                                }
+                            })
+
+                            // Batch update nextRooms
+                            if (updatesMap.size > 0) {
+                                nextRooms = nextRooms.map(r =>
+                                    updatesMap.has(r.id) ? { ...r, name: updatesMap.get(r.id)! } : r
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            return nextRooms
+        })
     }
 
 
@@ -1492,7 +1597,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     }
 
     // Tool Creation State
-    const [creationDoorType, setCreationDoorType] = useState<"single" | "double" | "sliding">("single")
+    const [creationDoorType, setCreationDoorType] = useState<"single" | "double" | "sliding" | "sliding_pocket" | "sliding_rail">("single")
     const [creationWindowType, setCreationWindowType] = useState<"single" | "double">("single")
 
     // ... existing handleMouseDown ...
@@ -1576,7 +1681,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                         id: newId,
                         wallId: closest.wallId,
                         t: closest.t,
-                        width: creationDoorType === "double" ? 120 : (creationDoorType === "sliding" ? 150 : 82),
+                        width: creationDoorType === "double" ? 120 : (["sliding", "sliding_pocket", "sliding_rail"].includes(creationDoorType) ? 150 : 82),
                         height: 205,
                         flipX: false,
                         flipY: false,
@@ -1688,6 +1793,9 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     const handleStartCalibration = () => {
         setIsSettingsOpen(false)
+
+        // Reset menu position when starting new calibration
+        setCalibrationMenuPos({ x: 0, y: 0 })
 
         // Calculate viewport center in canvas coordinates
         const centerX = (dimensions.width / 2 - offset.x) / zoom
@@ -1891,7 +1999,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
         setIsExportingPDF(true)
         try {
-            const imageData = canvasEngineRef.current.getSnapshot({ hideBackground: true })
+            const imageData = canvasEngineRef.current.getSnapshot({ hideBackground: true, hideGrid: true })
             if (!imageData) return
 
             await generateFloorPlanPDF(
@@ -2149,14 +2257,14 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 <MousePointer2 className="h-5 w-5" />
                             </Button>
 
-                            {/* 2. PENCIL Submenu: Walls, Doors, Windows, Arc, Facade, Column */}
+                            {/* 2. PENCIL Submenu: Walls, Arc, Facade, Column */}
                             <div className="relative group">
                                 <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => setActiveTool("wall")}
-                                    title={isMobile ? "Herramientas de Dibujo" : "Dibujar (M)"}
-                                    className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${["wall", "arc", "door", "window", "shunt"].includes(activeTool) ? "bg-slate-200 text-slate-900" : ""}`}
+                                    title={isMobile ? "Herramientas de Dibujo" : "Muros (M)"}
+                                    className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${(isMobile ? ["wall", "arc", "door", "window", "shunt"] : ["wall", "arc", "shunt"]).includes(activeTool) ? "bg-slate-200 text-slate-900" : ""}`}
                                 >
                                     <Pencil className="h-5 w-5" />
                                 </Button>
@@ -2174,12 +2282,6 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                         <DropdownMenuItem onSelect={() => setActiveTool("wall")} className="gap-3 py-2 cursor-pointer">
                                             <Pencil className="h-4 w-4" /> <span>Muros (M)</span>
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("single") }} className="gap-3 py-2 cursor-pointer">
-                                            <DoorOpen className="h-4 w-4" /> <span>Puerta (D)</span>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("single") }} className="gap-3 py-2 cursor-pointer">
-                                            <RectangleVertical className="h-4 w-4" /> <span>Ventana (V)</span>
-                                        </DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => setActiveTool("arc")} className="gap-3 py-2 cursor-pointer">
                                             <Spline className="h-4 w-4" /> <span>Arco (A)</span>
                                         </DropdownMenuItem>
@@ -2192,6 +2294,13 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                         {isMobile && (
                                             <>
                                                 <div className="h-px bg-slate-100 my-1" />
+                                                <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("single") }} className="gap-3 py-2 cursor-pointer">
+                                                    <DoorOpen className="h-4 w-4" /> <span>Puerta (D)</span>
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("single") }} className="gap-3 py-2 cursor-pointer">
+                                                    <RectangleVertical className="h-4 w-4" /> <span>Ventana (V)</span>
+                                                </DropdownMenuItem>
+                                                <div className="h-px bg-slate-100 my-1" />
                                                 <DropdownMenuItem onSelect={() => setActiveTool("ruler")} className="gap-3 py-2 cursor-pointer">
                                                     <Ruler className="h-4 w-4" /> <span>Regla (R)</span>
                                                 </DropdownMenuItem>
@@ -2200,6 +2309,80 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </div>
+
+                            {!isMobile && (
+                                <>
+                                    {/* DOORS Submenu */}
+                                    <div className="relative group">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => { setActiveTool("door"); setCreationDoorType("single") }}
+                                            title="Puertas (D)"
+                                            className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "door" ? "bg-slate-200 text-slate-900" : ""}`}
+                                        >
+                                            <DoorOpen className="h-5 w-5" />
+                                        </Button>
+                                        <DropdownMenu open={activeMenu === 'door'} onOpenChange={(open) => setActiveMenu(open ? 'door' : null)}>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="absolute bottom-1 right-1 w-4 h-4 p-0 opacity-100 hover:bg-slate-200 transition-all rounded-sm z-50 text-slate-400 hover:text-slate-600"
+                                                >
+                                                    <ChevronRight className="h-3 w-3" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-64 ml-2 flex flex-col gap-1">
+                                                <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("single") }} className="gap-3 py-2 cursor-pointer">
+                                                    <SingleDoorIcon className="h-4 w-4" /> <span>Puerta Sencilla (D)</span>
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("sliding_pocket") }} className="gap-3 py-2 cursor-pointer">
+                                                    <SlidingPocketIcon className="h-4 w-4" /> <span>Corredera Cajón (K)</span>
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("sliding_rail") }} className="gap-3 py-2 cursor-pointer">
+                                                    <SlidingRailIcon className="h-4 w-4" /> <span className="truncate">Corredera Exterior (X)</span>
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("double") }} className="gap-3 py-2 cursor-pointer">
+                                                    <DoubleDoorIcon className="h-4 w-4" /> <span>P. Doble Abatible (G)</span>
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
+
+                                    {/* WINDOWS Submenu */}
+                                    <div className="relative group">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => { setActiveTool("window"); setCreationWindowType("single") }}
+                                            title="Ventanas (W)"
+                                            className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "window" ? "bg-slate-200 text-slate-900" : ""}`}
+                                        >
+                                            <CustomWindowIcon className="h-5 w-5" />
+                                        </Button>
+                                        <DropdownMenu open={activeMenu === 'window'} onOpenChange={(open) => setActiveMenu(open ? 'window' : null)}>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="absolute bottom-1 right-1 w-4 h-4 p-0 opacity-100 hover:bg-slate-200 transition-all rounded-sm z-50 text-slate-400 hover:text-slate-600"
+                                                >
+                                                    <ChevronRight className="h-3 w-3" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
+                                                <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("single") }} className="gap-3 py-2 cursor-pointer">
+                                                    <RectangleVertical className="h-4 w-4" /> <span>Ventana Sencilla (W)</span>
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("double") }} className="gap-3 py-2 cursor-pointer">
+                                                    <CustomWindowIcon className="h-4 w-4" /> <span>Ventana Doble (V)</span>
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
+                                </>
+                            )}
 
                             {/* 3. UNDO / REDO */}
                             <div className="relative group">
@@ -2246,6 +2429,27 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                     >
                                         <Ruler className="h-5 w-5" />
                                     </Button>
+                                    <DropdownMenu open={activeMenu === 'ruler'} onOpenChange={(open) => setActiveMenu(open ? 'ruler' : null)}>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="absolute bottom-1 right-1 w-4 h-4 p-0 opacity-100 hover:bg-slate-200 transition-all rounded-sm z-50 text-slate-400 hover:text-slate-600"
+                                            >
+                                                <ChevronRight className="h-3 w-3" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-56 ml-2 p-3">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <Label htmlFor="show-all-quotes" className="text-xs font-medium text-slate-600 cursor-pointer">Ver todas las cotas</Label>
+                                                <Switch
+                                                    id="show-all-quotes"
+                                                    checked={showAllQuotes}
+                                                    onCheckedChange={setShowAllQuotes}
+                                                />
+                                            </div>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
                             )}
 
@@ -2307,26 +2511,28 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                             <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
 
 
-                            {/* 8. SUMMARY */}
-                            <Sheet onOpenChange={setShowSummary} open={showSummary}>
-                                <SheetTrigger asChild>
-                                    <Button variant="ghost" size="icon" title="Resumen" className="w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors">
-                                        <FileText className="h-5 w-5" />
-                                    </Button>
-                                </SheetTrigger>
-                                <SheetContent container={fullscreenContainer} side="right" className="overflow-y-auto w-[400px] sm:w-[540px]">
-                                    <SheetHeader className="mb-4">
-                                        <SheetTitle>Resumen del Plano</SheetTitle>
-                                    </SheetHeader>
-                                    <FloorPlanSummary
-                                        walls={walls}
-                                        doors={doors}
-                                        windows={windows}
-                                        rooms={rooms}
-                                        shunts={shunts}
-                                    />
-                                </SheetContent>
-                            </Sheet>
+                            {/* 8. SUMMARY (Mobile only icon) */}
+                            {isMobile && (
+                                <Sheet onOpenChange={setShowSummary} open={showSummary}>
+                                    <SheetTrigger asChild>
+                                        <Button variant="ghost" size="icon" title="Resumen" className="w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+                                            <FileText className="h-5 w-5" />
+                                        </Button>
+                                    </SheetTrigger>
+                                    <SheetContent container={fullscreenContainer} side="right" className="overflow-y-auto w-[400px] sm:w-[540px]">
+                                        <SheetHeader className="mb-4">
+                                            <SheetTitle>Resumen del Plano</SheetTitle>
+                                        </SheetHeader>
+                                        <FloorPlanSummary
+                                            walls={walls}
+                                            doors={doors}
+                                            windows={windows}
+                                            rooms={rooms}
+                                            shunts={shunts}
+                                        />
+                                    </SheetContent>
+                                </Sheet>
+                            )}
 
                             {/* 9. FULLSCREEN */}
                             <Button
@@ -2347,7 +2553,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
 
                 <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-                    <DialogContent container={fullscreenContainer} className="max-h-[85vh] overflow-y-auto w-[95vw] max-w-lg p-4 sm:p-6 sm:overflow-y-visible">
+                    <DialogContent container={fullscreenContainer} className="max-h-[85vh] overflow-y-auto w-[95vw] max-w-lg p-4 sm:p-6">
                         <DialogHeader className="mb-2 sm:mb-4">
                             <DialogTitle className="text-lg">Configuración del Plano</DialogTitle>
                             <DialogDescription className="text-xs sm:text-sm">Ajusta los parámetros generales del proyecto.</DialogDescription>
@@ -2426,33 +2632,18 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                     </Button>
                                 ) : (
                                     <div className="space-y-4 p-3 bg-slate-50 rounded-lg border border-slate-100">
-                                        <div className="space-y-3">
-                                            <div className="flex justify-between items-center text-xs font-semibold text-slate-700">
-                                                <span className="flex items-center gap-1.5">
-                                                    Opacidad
-                                                </span>
-                                                <span className="font-mono bg-white border border-slate-200 px-1.5 py-0.5 rounded text-sky-600 shadow-sm">
-                                                    {Math.round(bgConfig.opacity * 100)}%
-                                                </span>
+                                        <div className="flex items-center gap-2 p-1 bg-sky-50 rounded border border-sky-100 mb-2">
+                                            <div className="flex flex-col flex-1 pl-1">
+                                                <span className="text-[10px] font-bold text-sky-700 uppercase">Estado</span>
+                                                <span className="text-xs text-sky-900 font-medium">Imagen cargada ({Math.round(bgConfig.opacity * 100)}% opacidad)</span>
                                             </div>
-                                            <input
-                                                type="range"
-                                                min="0.1"
-                                                max="1"
-                                                step="0.05"
-                                                value={bgConfig.opacity}
-                                                onChange={(e) => setBgConfig({ ...bgConfig, opacity: parseFloat(e.target.value) })}
-                                                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-sky-500 hover:accent-sky-600 transition-all"
-                                                title="Ajustar opacidad del plano"
-                                                aria-label="Opacidad del plano"
-                                            />
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-2">
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                className="h-9 text-xs font-bold border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all shadow-sm"
+                                                className="h-9 text-xs font-bold border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-900 transition-all shadow-sm"
                                                 onClick={handleStartCalibration}
                                             >
                                                 <Ruler className="w-3.5 h-3.5 mr-1.5" />
@@ -2461,7 +2652,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                className="h-9 text-xs font-medium text-slate-600 border-slate-200 hover:bg-slate-50 transition-all shadow-sm"
+                                                className="h-9 text-xs font-medium text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-800 transition-all shadow-sm"
                                                 onClick={() => {
                                                     setIsSettingsOpen(false)
                                                     setTimeout(() => document.getElementById("bg-import")?.click(), 100)
@@ -2614,34 +2805,136 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 {bgImage && (
                     <>
                         {isCalibrating && (
-                            <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 flex gap-2 w-full justify-center px-4 pointer-events-none">
-                                <Card className="relative p-2 shadow-xl bg-orange-50 border-orange-200 border flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 pointer-events-auto max-w-full overflow-x-auto">
-                                    <div className="flex flex-col ml-1 min-w-[100px]">
-                                        <span className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Calibrando</span>
-                                        <span className="text-sm font-mono font-bold text-orange-900 leading-none">{calibrationTargetValue ? `${calibrationTargetValue}cm` : 'Selecciona 2 puntos'}</span>
-                                    </div>
-                                    <div className="h-8 w-px bg-orange-200 shrink-0" />
-                                    <div className="flex gap-2 shrink-0 pr-1">
-                                        <Button
-                                            size="sm"
-                                            className="bg-orange-600 hover:bg-orange-700 text-white h-8 px-4 font-bold"
-                                            disabled={!calibrationPoints.p1 || !calibrationPoints.p2 || !calibrationTargetValue}
-                                            onClick={handleApplyCalibration}
-                                        >
-                                            Aplicar
-                                        </Button>
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="text-orange-700 hover:bg-orange-200 h-8 w-8"
-                                            onClick={() => {
-                                                setIsCalibrating(false)
-                                                setCalibrationPoints({ p1: null, p2: null })
+                            <div
+                                className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-3 w-full max-w-sm px-4 pointer-events-none"
+                                style={{
+                                    transform: `translate(calc(-50% + ${calibrationMenuPos.x}px), ${calibrationMenuPos.y}px)`,
+                                    transition: isDraggingCalibrationMenu ? 'none' : 'transform 0.1s ease-out'
+                                }}
+                            >
+                                <Card className="w-full p-4 shadow-2xl bg-white border-orange-200 border-2 animate-in fade-in slide-in-from-bottom-4 pointer-events-auto">
+                                    <div className="flex flex-col gap-4">
+                                        {/* Status Header & Drag Handle */}
+                                        <div
+                                            className="flex justify-between items-center border-b border-orange-100 pb-2 cursor-move select-none"
+                                            onPointerDown={(e) => {
+                                                e.stopPropagation();
+                                                setIsDraggingCalibrationMenu(true);
+                                                dragStartPos.current = { x: e.clientX - calibrationMenuPos.x, y: e.clientY - calibrationMenuPos.y };
+                                                (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
                                             }}
-                                            title="Cancelar calibración"
+                                            onPointerMove={(e) => {
+                                                if (!isDraggingCalibrationMenu) return;
+                                                e.stopPropagation();
+                                                setCalibrationMenuPos({
+                                                    x: e.clientX - dragStartPos.current.x,
+                                                    y: e.clientY - dragStartPos.current.y
+                                                });
+                                            }}
+                                            onPointerUp={(e) => {
+                                                setIsDraggingCalibrationMenu(false);
+                                                (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+                                            }}
                                         >
-                                            <X className="h-4 w-4" />
-                                        </Button>
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-1.5">
+                                                    <GripHorizontal className="w-3 h-3 text-orange-400" />
+                                                    <span className="text-[10px] font-bold text-orange-600 uppercase tracking-wider">Modo Calibración</span>
+                                                </div>
+                                                <span className="text-xs text-slate-500">Ajusta la imagen para alinearla</span>
+                                            </div>
+                                            <div className="bg-orange-50 px-2 py-1 rounded border border-orange-100">
+                                                <span className="text-sm font-mono font-bold text-orange-900 leading-none">
+                                                    {calibrationTargetValue ? `${calibrationTargetValue}cm` : 'Selecciona 2 puntos'}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Background Controls during Calibration */}
+                                        <div className="space-y-4">
+                                            {/* Opacity Slider */}
+                                            <div className="space-y-1.5">
+                                                <div className="flex justify-between items-center text-[10px] font-bold text-slate-600 uppercase">
+                                                    <span>Opacidad</span>
+                                                    <span className="text-sky-600">{Math.round(bgConfig.opacity * 100)}%</span>
+                                                </div>
+                                                <div onPointerDown={(e) => e.stopPropagation()} onPointerMove={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} className="px-1">
+                                                    <Slider
+                                                        min={0.1}
+                                                        max={1}
+                                                        step={0.05}
+                                                        value={[bgConfig.opacity]}
+                                                        onValueChange={([val]) => setBgConfig({ ...bgConfig, opacity: val })}
+                                                        className="py-1"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Rotation Slider */}
+                                            <div className="space-y-1.5">
+                                                <div className="flex justify-between items-center text-[10px] font-bold text-slate-600 uppercase">
+                                                    <span>Rotación</span>
+                                                    <span className="text-sky-600">{bgConfig.rotation || 0}°</span>
+                                                </div>
+                                                <div onPointerDown={(e) => e.stopPropagation()} onPointerMove={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} className="px-1">
+                                                    <Slider
+                                                        min={-180}
+                                                        max={180}
+                                                        step={1}
+                                                        value={[bgConfig.rotation || 0]}
+                                                        onValueChange={([val]) => setBgConfig({ ...bgConfig, rotation: val })}
+                                                        className="py-1"
+                                                    />
+                                                </div>
+                                                <div className="flex gap-1.5 pt-1">
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        className="flex-1 h-7 text-[10px] font-bold bg-slate-100 text-slate-700"
+                                                        onClick={(e) => { e.stopPropagation(); setBgConfig({ ...bgConfig, rotation: (bgConfig.rotation || 0) - 90 }) }}
+                                                    >
+                                                        -90°
+                                                    </Button>
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        className="flex-1 h-7 text-[10px] font-bold bg-slate-100 text-slate-700"
+                                                        onClick={(e) => { e.stopPropagation(); setBgConfig({ ...bgConfig, rotation: (bgConfig.rotation || 0) + 90 }) }}
+                                                    >
+                                                        +90°
+                                                    </Button>
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        className="flex-1 h-7 text-[10px] font-bold bg-slate-100 text-slate-700"
+                                                        onClick={(e) => { e.stopPropagation(); setBgConfig({ ...bgConfig, rotation: 0 }) }}
+                                                    >
+                                                        Reset
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Action Buttons */}
+                                        <div className="flex gap-2 pt-2 border-t border-slate-100">
+                                            <Button
+                                                variant="ghost"
+                                                className="flex-1 h-9 font-bold text-slate-600"
+                                                onClick={() => {
+                                                    setIsCalibrating(false)
+                                                    setCalibrationPoints({ p1: null, p2: null })
+                                                }}
+                                            >
+                                                Cancelar
+                                            </Button>
+                                            <Button
+                                                className="flex-1 h-9 bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-lg"
+                                                disabled={!calibrationPoints.p1 || !calibrationPoints.p2 || !calibrationTargetValue}
+                                                onClick={handleApplyCalibration}
+                                            >
+                                                Aplicar
+                                            </Button>
+                                        </div>
                                     </div>
                                 </Card>
                             </div>
@@ -2672,6 +2965,37 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                         <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} title="Alejar" className="w-8 h-8 rounded-md hover:bg-slate-200/50">
                             <ZoomOut className="h-4 w-4 text-slate-600" />
                         </Button>
+                    </div>
+                )}
+
+                {/* Right Vertical Tab for Summary (Desktop only) */}
+                {!isMobile && (
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 z-40">
+                        <Sheet onOpenChange={setShowSummary} open={showSummary}>
+                            <SheetTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    className="h-32 w-8 bg-white/90 backdrop-blur-md border border-slate-200 border-r-0 shadow-sm rounded-l-xl flex items-center justify-center p-0 transition-all hover:bg-slate-50 hover:w-10 group"
+                                >
+                                    <div className="flex flex-col items-center gap-2 [writing-mode:vertical-lr] rotate-180 font-bold text-[10px] tracking-widest text-slate-500 group-hover:text-blue-600 transition-colors">
+                                        <FileText className="h-4 w-4 rotate-90 mb-2 group-hover:scale-110 transition-transform" />
+                                        RESUMEN
+                                    </div>
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent container={fullscreenContainer} side="right" className="overflow-y-auto w-[400px] sm:w-[540px]">
+                                <SheetHeader className="mb-4">
+                                    <SheetTitle>Resumen del Plano</SheetTitle>
+                                </SheetHeader>
+                                <FloorPlanSummary
+                                    walls={walls}
+                                    doors={doors}
+                                    windows={windows}
+                                    rooms={rooms}
+                                    shunts={shunts}
+                                />
+                            </SheetContent>
+                        </Sheet>
                     </div>
                 )}
             </div>

@@ -28,7 +28,7 @@ const CustomWindowIcon = ({ className }: { className?: string }) => (
 
 
 
-interface Door { id: string; wallId: string; width: number, openType?: "single" | "double" | "sliding" }
+interface Door { id: string; wallId: string; width: number, openType?: "single" | "double" | "sliding_rail" | "sliding_pocket" | "sliding" }
 interface Window { id: string; wallId: string; width: number, openType?: "single" | "double" }
 interface Shunt { id: string; x: number; y: number; width: number; height: number }
 
@@ -52,7 +52,8 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts }: Floor
     // Global Breakdown
     const doorsSimple = doors.filter(d => !d.openType || d.openType === "single").length
     const doorsDouble = doors.filter(d => d.openType === "double").length
-    const doorsSliding = doors.filter(d => d.openType === "sliding").length
+    const doorsSlidingRail = doors.filter(d => d.openType === "sliding_rail").length
+    const doorsSlidingPocket = doors.filter(d => d.openType === "sliding_pocket" || d.openType === "sliding").length
     const totalDoors = doors.length
 
     const winSimple = windows.filter(w => !w.openType || w.openType === "single").length
@@ -107,8 +108,12 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts }: Floor
                                 <span className="font-medium text-foreground">{doorsDouble}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span>Correderas</span>
-                                <span className="font-medium text-foreground">{doorsSliding}</span>
+                                <span>C. Exterior</span>
+                                <span className="font-medium text-foreground">{doorsSlidingRail}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span>C. Cajón</span>
+                                <span className="font-medium text-foreground">{doorsSlidingPocket}</span>
                             </div>
                         </div>
                     </CardContent>

@@ -13,7 +13,7 @@ interface Wall { id: string; start: Point; end: Point; thickness: number; isInvi
 
 interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point }
 
-interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" }
+interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding_rail" | "sliding_pocket" | "sliding" }
 interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean; openType?: "single" | "double" }
 interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number }
 
@@ -115,7 +115,7 @@ interface CanvasEngineProps {
 }
 
 export interface CanvasEngineRef {
-    getSnapshot: (options?: { hideBackground?: boolean }) => string
+    getSnapshot: (options?: { hideBackground?: boolean; hideGrid?: boolean }) => string
 }
 
 
@@ -423,8 +423,9 @@ export const CanvasEngine = ({
     onDblTap
 }: CanvasEngineProps) => {
     const stageRef = React.useRef<any>(null)
-    const gridRef = React.useRef<any>(null)
+    const gridRef = React.useRef<Konva.Group>(null)
     const [dragShuntState, setDragShuntState] = React.useState<{ id: string, x: number, y: number } | null>(null)
+    const [draggedWallId, setDraggedWallId] = React.useState<string | null>(null)
     const [image, setImage] = React.useState<HTMLImageElement | null>(null)
 
     // Generic Input State for Inline Editing (Shunts, Doors, Windows, Measures)
@@ -631,7 +632,7 @@ export const CanvasEngine = ({
         return chains
     }, [walls, wallSnapshot, rooms])
 
-    const getSnapshot = React.useCallback((options?: { hideBackground?: boolean }) => {
+    const getSnapshot = React.useCallback((options?: { hideBackground?: boolean; hideGrid?: boolean }) => {
         console.log("DEBUG: getSnapshot called")
         const stage = stageRef.current
         if (!stage) {
@@ -696,6 +697,11 @@ export const CanvasEngine = ({
         const wasBgVisible = bgNode?.visible()
         if (options?.hideBackground && bgNode) {
             bgNode.visible(false)
+        }
+
+        // D. Hide Grid if requested
+        if (options?.hideGrid && gridRef.current) {
+            gridRef.current.visible(false)
         }
 
         // FORCE SYNCHRONOUS DRAW to apply changes before data extraction
@@ -1013,10 +1019,12 @@ export const CanvasEngine = ({
     const selectedWall = selectedWallIds.length === 1 ? walls.find(w => w.id === selectedWallIds[0]) : null
     const selectedRoom = rooms.find(r => r.id === selectedRoomId)
 
-    const roomTypes = [
-        "SalÃ³n", "Cocina", "Cocina Abierta", "Cocina Americana",
-        "BaÃ±o", "Dormitorio", "Pasillo", "Hall", "Terraza",
-        "Trastero", "Vestidor", "Otro"
+    const ROOM_TYPES = [
+        "Salón", "Cocina", "Cocina Abierta", "Cocina Americana",
+        "Baño", "Dormitorio",
+        "Pasillo", "Hall",
+        "Terraza", "Trastero",
+        "Vestidor", "Otro"
     ]
 
     React.useEffect(() => {
@@ -1446,7 +1454,7 @@ export const CanvasEngine = ({
 
         // CHAIN SELECTION & COLOR LOGIC
         const isAnyInChainSelected = Array.from(chainIds).some(id => selectedWallIds.includes(id))
-        const isDragging = dragStartPos.current !== null
+        const isDragging = draggedWallId && chainIds.has(draggedWallId)
 
         // NEW VISIBILITY LOGIC
         let isVisible = false
@@ -2260,20 +2268,47 @@ export const CanvasEngine = ({
             >
                 <Layer>
                     {/* Clean background white/gray */}
-                    <Rect x={-50000} y={-50000} width={100000} height={100000} fill="#f8fafc" />
+                    <Rect
+                        name="grid-rect"
+                        x={-50000}
+                        y={-50000}
+                        width={100000}
+                        height={100000}
+                        fill="#f8fafc"
+                        onClick={() => {
+                            if (activeTool === "select") {
+                                onSelectWall(null)
+                                onSelectRoom(null)
+                                onSelectElement(null)
+                                setEditMode(null)
+                            }
+                        }}
+                        onTap={() => {
+                            if (activeTool === "select") {
+                                onSelectWall(null)
+                                onSelectRoom(null)
+                                onSelectElement(null)
+                                setEditMode(null)
+                            }
+                        }}
+                    />
                 </Layer>
                 <Layer>
                     <Group x={offset.x} y={offset.y} scaleX={zoom} scaleY={zoom}>
                         {/* Grid - now properly transformed with the floor plan */}
-                        {showGrid && <Grid width={width / zoom} height={height / zoom} zoom={1} offset={{ x: 0, y: 0 }} rotation={gridRotation} />}
+                        <Group ref={gridRef}>
+                            {showGrid && <Grid width={width / zoom} height={height / zoom} zoom={1} offset={{ x: 0, y: 0 }} rotation={gridRotation} />}
+                        </Group>
 
                         {/* Imagen de fondo / Plantilla */}
                         {image && bgConfig && (
                             <Rect
-                                x={bgConfig.x}
-                                y={bgConfig.y}
+                                x={bgConfig.x + (image.width * bgConfig.scale) / 2}
+                                y={bgConfig.y + (image.height * bgConfig.scale) / 2}
                                 width={image.width * bgConfig.scale}
                                 height={image.height * bgConfig.scale}
+                                offsetX={(image.width * bgConfig.scale) / 2}
+                                offsetY={(image.height * bgConfig.scale) / 2}
                                 fillPatternImage={image}
                                 fillPatternScaleX={bgConfig.scale}
                                 fillPatternScaleY={bgConfig.scale}
@@ -2401,6 +2436,7 @@ export const CanvasEngine = ({
                                         onDragStart={(e) => {
                                             const stage = e.target.getStage()
                                             if (stage) dragStartPos.current = getRelativePointerPosition(stage)
+                                            setDraggedWallId(wall.id)
                                             onStartDragWall()
                                         }}
                                         onDragMove={(e) => {
@@ -2424,6 +2460,7 @@ export const CanvasEngine = ({
                                         }}
                                         onDragEnd={() => {
                                             dragStartPos.current = null
+                                            setDraggedWallId(null)
                                             onDragEnd()
                                         }}
                                     />
@@ -2701,7 +2738,7 @@ export const CanvasEngine = ({
                                             />
                                         </>
                                     )}
-                                    {door.openType === "sliding" && (
+                                    {(door.openType === "sliding_rail" || door.openType === "sliding") && (
                                         <Rect
                                             width={door.width}
                                             height={6} // Thin panel
@@ -2713,6 +2750,32 @@ export const CanvasEngine = ({
                                             cornerRadius={1}
                                             listening={false}
                                         />
+                                    )}
+                                    {door.openType === "sliding_pocket" && (
+                                        <Group listening={false}>
+                                            {/* Pocket panel (inside the wall) */}
+                                            <Rect
+                                                width={door.width}
+                                                height={wall.thickness - 4}
+                                                x={-door.width / 2}
+                                                y={-(wall.thickness - 4) / 2}
+                                                fill={isSelected ? "#e0f2fe" : "#ffffff"}
+                                                stroke={isSelected ? "#0ea5e9" : "#334155"}
+                                                strokeWidth={1}
+                                                cornerRadius={1}
+                                            />
+                                            {/* Indicators that it's a sliding door inside the wall */}
+                                            <Line
+                                                points={[-door.width / 2 + 5, -wall.thickness / 4, -door.width / 2 + 5, wall.thickness / 4]}
+                                                stroke={isSelected ? "#0ea5e9" : "#334155"}
+                                                strokeWidth={2}
+                                            />
+                                            <Line
+                                                points={[door.width / 2 - 5, -wall.thickness / 4, door.width / 2 - 5, wall.thickness / 4]}
+                                                stroke={isSelected ? "#0ea5e9" : "#334155"}
+                                                strokeWidth={2}
+                                            />
+                                        </Group>
                                     )}
 
                                     {/* Etiqueta de Dimensiones (Ancho) - Al pie/base del hueco */}
@@ -4175,7 +4238,7 @@ export const CanvasEngine = ({
                             ) : editMode === "room" || editMode === "room-custom" ? (
                                 <div className="flex flex-col gap-2 p-2 min-w-[180px]">
                                     <div className="flex items-center justify-between mb-1">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase">{editMode === "room-custom" ? "Nombre Personalizado" : "Tipo de HabitaciÃ³n"}</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase">{editMode === "room-custom" ? "Nombre Personalizado" : "Tipo de Habitación"}</span>
                                         <button onClick={() => setEditMode("menu")} className="text-slate-400 hover:text-slate-600">
                                             <X className="h-2.5 w-2.5" />
                                         </button>
@@ -4183,7 +4246,7 @@ export const CanvasEngine = ({
 
                                     {editMode === "room" ? (
                                         <div className="grid grid-cols-2 gap-1">
-                                            {roomTypes.map(type => (
+                                            {ROOM_TYPES.map(type => (
                                                 <button
                                                     key={type}
                                                     onClick={() => {
@@ -4281,7 +4344,7 @@ export const CanvasEngine = ({
                                             onClick={() => setEditMode("menu")}
                                             className="mt-1 text-[11px] font-medium text-sky-600 hover:text-sky-700 underline text-center"
                                         >
-                                            Volver al menÃº
+                                            Volver al menú
                                         </button>
                                     )}
                                 </div>
@@ -4370,7 +4433,7 @@ export const CanvasEngine = ({
                                                     }}
                                                     className="p-1.5 bg-slate-100 text-slate-600 hover:bg-sky-100 hover:text-sky-600 rounded-md transition-all"
                                                 >
-                                                    {Math.abs(selectedWall.start.y - selectedWall.end.y) < 1 ? "â†" : "â†‘"}
+                                                    {Math.abs(selectedWall.start.y - selectedWall.end.y) < 1 ? <ArrowLeft className="h-3.5 w-3.5" /> : <ArrowUp className="h-3.5 w-3.5" />}
                                                 </button>
                                                 <div className="flex items-center gap-1 bg-white border-2 border-slate-100 rounded-lg px-2 py-1">
                                                     <NumericInput
@@ -4458,7 +4521,7 @@ export const CanvasEngine = ({
                                                     }}
                                                     className="p-1.5 bg-slate-100 text-slate-600 hover:bg-sky-100 hover:text-sky-600 rounded-md transition-all"
                                                 >
-                                                    {Math.abs(selectedWall.start.y - selectedWall.end.y) < 1 ? "â†’" : "â†“"}
+                                                    {Math.abs(selectedWall.start.y - selectedWall.end.y) < 1 ? <ArrowRight className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}
                                                 </button>
                                             </div>
                                         </>
@@ -4485,10 +4548,12 @@ export const CanvasEngine = ({
                                             </div>
                                             {(selectedElement.type === "window" || selectedElement.type === "shunt") && (
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-[9px] font-bold text-slate-400 uppercase w-8">Alto / Largo</span>
+                                                    <span className="text-[9px] font-bold text-slate-400 uppercase w-8">
+                                                        {selectedElement.type === "window" ? "Alto" : "Alto / Largo"}
+                                                    </span>
                                                     <NumericInput
                                                         isMobile={isMobile}
-                                                        label="Alto / Largo"
+                                                        label={selectedElement.type === "window" ? "Alto" : "Alto / Largo"}
                                                         value={editHeight}
                                                         setter={setEditHeight}
                                                         onEnter={(val) => {
