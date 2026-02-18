@@ -1763,14 +1763,16 @@ export const CanvasEngine = ({
         pointerDownPos.current = { ...stagePos }
         pointerDownTime.current = Date.now()
 
-        const isTouchInteraction = (e.evt as any).pointerType === "touch" || forceTouchOffset
+        const isTouchInteraction = (e.evt as any).pointerType === "touch" || (e.evt as any).pointerType === "pen" || forceTouchOffset
         const isDrawingToolEarly = activeTool === "wall" || activeTool === "door" || activeTool === "window" || activeTool === "ruler" || activeTool === "arc" || activeTool === "shunt"
 
-        // SAFETY: Force-clear stale panning state for drawing tools on touch
+        // SAFETY: Force-clear stale panning state for drawing tools on touch/pen
         // This prevents isPanning getting stuck from a missed pointerUp
         if (isTouchInteraction && isDrawingToolEarly) {
             isPanning.current = false
             wasPinching.current = false
+            lastDist.current = 0
+            lastCenter.current = null
             isPotentialSustainedPan.current = false
             didSustainedPanOccur.current = false
             setIsPanningState(false)
@@ -1872,6 +1874,7 @@ export const CanvasEngine = ({
         const isDrawingTool = activeTool === "wall" || activeTool === "door" || activeTool === "window" || activeTool === "ruler" || activeTool === "arc" || activeTool === "shunt"
 
         // SPECIAL CASE: Sustained Click-to-Pan while drawing
+        // ONLY for mouse, to avoid interfering with mobile/stylus chained drawing
         if (isDrawingTool && isPrimaryClick && !isTouchInteraction) {
             // If we are drawing a wall (currentWall exists) or using ruler/arc tool
             if (currentWall || activeTool === "ruler" || activeTool === "arc") {
@@ -2113,6 +2116,8 @@ export const CanvasEngine = ({
                 if (!wasPinching.current) {
                     onMouseUp(pos)
                 }
+                // Reset pinch state after the interaction sequence finishes
+                wasPinching.current = false
             }
         }
 
