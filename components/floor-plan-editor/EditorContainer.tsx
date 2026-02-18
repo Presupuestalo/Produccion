@@ -56,8 +56,8 @@ import { ToastProvider } from "@/components/ui/toast-provider"
 interface Point { x: number; y: number }
 interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward' }
 interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point }
-interface Door { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" | "sliding_pocket" | "sliding_rail" }
-interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean; openType?: "single" | "double" }
+interface Door { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" | "sliding_pocket" | "sliding_rail" | "double_swing" | "exterior_sliding" }
+interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean; openType?: "single" | "double" | "sliding" }
 interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number }
 
 // Custom Icons for Doors & Windows

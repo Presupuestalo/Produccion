@@ -13,8 +13,8 @@ interface Wall { id: string; start: Point; end: Point; thickness: number; isInvi
 
 interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point }
 
-interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding_rail" | "sliding_pocket" | "sliding" }
-interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean; openType?: "single" | "double" }
+interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding_rail" | "sliding_pocket" | "sliding" | "double_swing" | "exterior_sliding" }
+interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean; openType?: "single" | "double" | "sliding" }
 interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number }
 
 function calculatePolygonCentroid(points: Point[]): Point {
