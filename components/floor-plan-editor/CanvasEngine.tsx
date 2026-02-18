@@ -423,7 +423,7 @@ export const CanvasEngine = ({
     onDblTap
 }: CanvasEngineProps) => {
     const stageRef = React.useRef<any>(null)
-    const gridRef = React.useRef<Konva.Group>(null)
+    const gridRef = React.useRef<any>(null)
     const [dragShuntState, setDragShuntState] = React.useState<{ id: string, x: number, y: number } | null>(null)
     const [draggedWallId, setDraggedWallId] = React.useState<string | null>(null)
     const [image, setImage] = React.useState<HTMLImageElement | null>(null)
