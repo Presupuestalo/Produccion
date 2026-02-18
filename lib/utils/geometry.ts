@@ -19,6 +19,8 @@ export interface Room {
     area: number
     color: string
     visualCenter?: Point
+    hasCeramicFloor?: boolean
+    hasCeramicWalls?: boolean
 }
 
 export function rotatePoint(point: Point, center: Point, angleDegrees: number): Point {

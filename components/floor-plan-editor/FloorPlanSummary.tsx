@@ -164,15 +164,17 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts }: Floor
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {roomStats.map((room) => (
-                                <TableRow key={room.id} className="h-9">
-                                    <TableCell className="font-medium text-xs py-1 truncate max-w-[100px]" title={room.name}>{room.name || "-"}</TableCell>
-                                    <TableCell className="text-xs text-right py-1">{room.area.toFixed(2).replace('.', ',')}</TableCell>
-                                    <TableCell className="text-xs text-right py-1">{room.wallPerimeter.toFixed(2).replace('.', ',')}</TableCell>
-                                    <TableCell className="text-xs text-right py-1 text-orange-600 font-medium">{room.columnPerimeter > 0 ? room.columnPerimeter.toFixed(2).replace('.', ',') : "-"}</TableCell>
-                                    <TableCell className="text-xs text-right py-1 font-bold">{room.totalPerimeter.toFixed(2).replace('.', ',')}</TableCell>
-                                </TableRow>
-                            ))}
+                            {roomStats
+                                .sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: 'base' }))
+                                .map((room) => (
+                                    <TableRow key={room.id} className="h-9">
+                                        <TableCell className="font-medium text-xs py-1 truncate max-w-[100px]" title={room.name}>{room.name || "-"}</TableCell>
+                                        <TableCell className="text-xs text-right py-1">{room.area.toFixed(2).replace('.', ',')}</TableCell>
+                                        <TableCell className="text-xs text-right py-1">{room.wallPerimeter.toFixed(2).replace('.', ',')}</TableCell>
+                                        <TableCell className="text-xs text-right py-1 text-orange-600 font-medium">{room.columnPerimeter > 0 ? room.columnPerimeter.toFixed(2).replace('.', ',') : "-"}</TableCell>
+                                        <TableCell className="text-xs text-right py-1 font-bold">{room.totalPerimeter.toFixed(2).replace('.', ',')}</TableCell>
+                                    </TableRow>
+                                ))}
                             {roomStats.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center h-16 text-xs text-muted-foreground">

@@ -235,7 +235,8 @@ export class BudgetGenerator {
         color: price.color,
         brand: price.brand,
         model: price.model,
-      })
+        source: "master" as const,
+      } as PriceItem & { source: string })
     })
 
     // 2. Cargar precios personalizados del usuario (sobrescriben los master)
@@ -268,7 +269,8 @@ export class BudgetGenerator {
           color: userPrice.color,
           brand: userPrice.brand,
           model: userPrice.model,
-        })
+          source: "user" as const,
+        } as PriceItem & { source: string })
       })
     }
 
@@ -352,13 +354,15 @@ export class BudgetGenerator {
       total_price: totalPrice,
       is_custom: false,
       sort_order: this.sortOrder++,
+      // Only set base_price_id for price_master records (FK constraint references price_master)
       base_price_id:
-        priceItem.id &&
+        (priceItem as any).source === "master" &&
+          priceItem.id &&
           typeof priceItem.id === "string" &&
           priceItem.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
           ? priceItem.id
           : undefined,
-      price_type: "master", // Origen: catálogo maestro
+      price_type: (priceItem as any).source === "user" ? "custom" : "master",
       notes: customNotes || priceItem.notes, // Usar customNotes si se proporciona, sino el del catálogo
     })
   }

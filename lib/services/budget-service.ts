@@ -135,25 +135,46 @@ export class BudgetService {
     console.log("[v0] Inserting", lineItemsToInsert.length, "line items...")
     if (lineItemsToInsert.length > 0) {
       console.log("[v0] Sample line item to insert:", JSON.stringify(lineItemsToInsert[0], null, 2))
-      console.log("[v0] base_price_id validation:", {
-        original: lineItems[0].base_price_id,
-        cleaned: lineItemsToInsert[0].base_price_id,
-        isValid: lineItemsToInsert[0].base_price_id !== null,
+      console.log("[v0] All line items keys:", Object.keys(lineItemsToInsert[0]))
+      console.log("[v0] First item concept_code:", lineItemsToInsert[0].concept_code)
+      // Log all items for debugging
+      lineItemsToInsert.forEach((item, idx) => {
+        const issues: string[] = []
+        if (item.quantity === undefined || item.quantity === null || isNaN(item.quantity)) issues.push("invalid quantity")
+        if (item.unit_price === undefined || item.unit_price === null || isNaN(item.unit_price)) issues.push("invalid unit_price")
+        if (item.total_price === undefined || item.total_price === null || isNaN(item.total_price)) issues.push("invalid total_price")
+        if (!item.category) issues.push("missing category")
+        if (!item.concept) issues.push("missing concept")
+        if (!item.unit) issues.push("missing unit")
+        if (issues.length > 0) {
+          console.error(`[v0] LINE ITEM ${idx} HAS ISSUES:`, issues.join(", "), JSON.stringify(item))
+        }
       })
     }
 
-    const { error: lineItemsError } = await supabase.from("budget_line_items").insert(lineItemsToInsert)
+    // Try inserting in batches to isolate failures
+    let lineItemsError: any = null
+    const BATCH_SIZE = 20
+    for (let i = 0; i < lineItemsToInsert.length; i += BATCH_SIZE) {
+      const batch = lineItemsToInsert.slice(i, i + BATCH_SIZE)
+      console.log(`[v0] Inserting batch ${Math.floor(i / BATCH_SIZE) + 1} (items ${i}-${i + batch.length - 1})...`)
+      const { error: batchError } = await supabase.from("budget_line_items").insert(batch)
+      if (batchError) {
+        console.error(`[v0] Error in batch ${Math.floor(i / BATCH_SIZE) + 1}:`, JSON.stringify(batchError))
+        console.error("[v0] Failed batch items:", JSON.stringify(batch, null, 2))
+        console.error("[v0] Error message:", batchError.message)
+        console.error("[v0] Error code:", batchError.code)
+        console.error("[v0] Error details:", batchError.details)
+        console.error("[v0] Error hint:", batchError.hint)
+        lineItemsError = batchError
+        break
+      }
+    }
 
     if (lineItemsError) {
-      console.error("[v0] Error creating line items:", lineItemsError)
-      console.error("[v0] Line items error details:", {
-        message: lineItemsError.message,
-        details: lineItemsError.details,
-        hint: lineItemsError.hint,
-        code: lineItemsError.code,
-      })
+      console.error("[v0] Error creating line items (stringified):", JSON.stringify(lineItemsError))
       await supabase.from("budgets").delete().eq("id", budget.id)
-      throw new Error("Error al crear las partidas del presupuesto: " + lineItemsError.message)
+      throw new Error("Error al crear las partidas del presupuesto: " + (lineItemsError.message || JSON.stringify(lineItemsError)))
     }
 
     console.log("[v0] Line items inserted successfully")
@@ -286,7 +307,7 @@ export class BudgetService {
     const lineItemsToInsert = originalBudget.line_items.map((item) => ({
       budget_id: newBudget.id,
       category: item.category,
-      code: item.concept_code,
+      concept_code: item.concept_code,
       concept: item.concept,
       description: item.description,
       color: item.color,
@@ -297,6 +318,7 @@ export class BudgetService {
       unit_price: item.unit_price,
       total_price: item.total_price,
       is_custom: item.is_custom,
+      base_price_id: item.base_price_id,
       price_type: item.price_type || "master",
       sort_order: item.sort_order,
     }))
@@ -386,7 +408,7 @@ export class BudgetService {
     const insertData = {
       budget_id: budgetId,
       category: finalCategory,
-      concept_code: finalCode, // Changed from 'code' to 'concept_code'
+      concept_code: finalCode,
       concept: lineItemWithoutOwnerFlag.concept,
       description: lineItemWithoutOwnerFlag.description || null,
       unit: lineItemWithoutOwnerFlag.unit,
@@ -395,6 +417,7 @@ export class BudgetService {
       total_price: added_by_owner ? 0 : lineItemWithoutOwnerFlag.total_price,
       is_custom: true,
       price_type: "custom",
+
       sort_order: lineItemWithoutOwnerFlag.sort_order || 999,
     }
 

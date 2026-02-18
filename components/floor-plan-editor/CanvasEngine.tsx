@@ -3,7 +3,7 @@ import React from "react"
 import { Stage, Layer, Group, Line, Rect, Text, Circle, Arc as KonvaArc, Arrow } from "react-konva"
 import { Grid } from "./Grid"
 import { getClosestPointOnSegment, generateArcPoints, getLineIntersection } from "@/lib/utils/geometry"
-import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical, SquareDashed, Spline, Check, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from "lucide-react"
+import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical, SquareDashed, Spline, Check, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Grid3X3 } from "lucide-react"
 import { NumericInput } from "./NumericInput"
 import { UnifiedWallEditor } from "./UnifiedWallEditor"
 
@@ -11,7 +11,16 @@ import { UnifiedWallEditor } from "./UnifiedWallEditor"
 interface Point { x: number; y: number }
 interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward' }
 
-interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point }
+interface Room {
+    id: string
+    name: string
+    polygon: Point[]
+    area: number
+    color: string
+    visualCenter?: Point
+    hasCeramicFloor?: boolean
+    hasCeramicWalls?: boolean
+}
 
 interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding_rail" | "sliding_pocket" | "sliding" | "double_swing" | "exterior_sliding" }
 interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean; openType?: "single" | "double" | "sliding" }
@@ -757,6 +766,54 @@ export const CanvasEngine = ({
         }
     }, [bgImage])
     const [mousePos, setMousePos] = React.useState<Point | null>(null)
+    const [ceramicGridImage, setCeramicGridImage] = React.useState<HTMLImageElement | null>(null)
+    const [wallHatchingImage, setWallHatchingImage] = React.useState<HTMLImageElement | null>(null)
+
+    React.useEffect(() => {
+        if (typeof document === 'undefined') return
+        const canvas = document.createElement('canvas')
+        const size = 60 // 60cm tiles
+        canvas.width = size
+        canvas.height = size
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+            // Fill background with slightly more opacity for better visibility
+            ctx.fillStyle = 'rgba(241, 245, 249, 0.5)'
+            ctx.fillRect(0, 0, size, size)
+
+            // Draw grid lines (Darker for better contrast)
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.3)'
+            ctx.lineWidth = 1.5 // Slightly thicker lines
+            ctx.beginPath()
+            ctx.moveTo(size, 0)
+            ctx.lineTo(size, size)
+            ctx.lineTo(0, size)
+            ctx.stroke()
+        }
+        const img = new Image()
+        img.src = canvas.toDataURL()
+        img.onload = () => setCeramicGridImage(img)
+    }, [])
+
+    React.useEffect(() => {
+        if (typeof document === 'undefined') return
+        const canvas = document.createElement('canvas')
+        const size = 20
+        canvas.width = size
+        canvas.height = size
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+            ctx.strokeStyle = 'rgba(100, 116, 139, 0.4)' // Slate-500 with opacity
+            ctx.lineWidth = 1
+            ctx.beginPath()
+            ctx.moveTo(0, size)
+            ctx.lineTo(size, 0)
+            ctx.stroke()
+        }
+        const img = new Image()
+        img.src = canvas.toDataURL()
+        img.onload = () => setWallHatchingImage(img)
+    }, [])
     const [alignmentGuides, setAlignmentGuides] = React.useState<{ x?: number, y?: number } | null>(null)
     const [editMode, setEditMode] = React.useState<"menu" | "length" | "thickness" | "room" | "room-custom" | null>(null)
     const [editLength, setEditLength] = React.useState<string>("")
@@ -2347,7 +2404,7 @@ export const CanvasEngine = ({
 
                             return (
                                 <Group key={room.id}>
-                                    {/* Capa base blanca para ocultar el grid - SOLO si NO hay imagen de fondo */}
+                                    {/* 1. Capa base blanca para ocultar el grid global */}
                                     {!bgImage && (
                                         <Line
                                             points={points}
@@ -2357,13 +2414,13 @@ export const CanvasEngine = ({
                                             listening={false}
                                         />
                                     )}
-                                    {/* Capa de color original */}
-                                    {/* Si hay bgImage, bajamos aÃºn mÃ¡s la opacidad para que se vea el plano debajo */}
+
+                                    {/* 2. Capa de color original (Sombreado) */}
                                     <Line
                                         name="room-poly"
                                         points={points}
                                         fill={bgImage
-                                            ? (selectedRoomId === room.id ? room.color + "30" : room.color + "15")
+                                            ? (selectedRoomId === room.id ? room.color + "40" : room.color + "20")
                                             : (selectedRoomId === room.id ? room.color + "60" : room.color + "40")
                                         }
                                         stroke={selectedRoomId === room.id ? "#0ea5e9" : "transparent"}
@@ -2372,6 +2429,56 @@ export const CanvasEngine = ({
                                         onClick={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
                                         onTap={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
                                     />
+
+                                    {/* 3. Ceramic Floor Visualization (ON TOP) */}
+                                    {room.hasCeramicFloor && ceramicGridImage && (
+                                        <Line
+                                            points={points}
+                                            fillPatternImage={ceramicGridImage}
+                                            fillPatternRepeat="repeat"
+                                            fillPatternScaleX={1}
+                                            fillPatternScaleY={1}
+                                            opacity={0.7}
+                                            closed={true}
+                                            listening={false}
+                                        />
+                                    )}
+
+                                    {/* 4. Ceramic Walls Visualization (Dashed Internal Border) */}
+                                    {room.hasCeramicWalls && (
+                                        <Group listening={false}>
+                                            <Group
+                                                clipFunc={(ctx) => {
+                                                    ctx.beginPath();
+                                                    for (let i = 0; i < room.polygon.length; i++) {
+                                                        const p = room.polygon[i];
+                                                        if (i === 0) ctx.moveTo(p.x, p.y);
+                                                        else ctx.lineTo(p.x, p.y);
+                                                    }
+                                                    ctx.closePath();
+                                                    ctx.clip();
+                                                }}
+                                            >
+                                                {/* Dashed line slightly inset by drawing a thick line and clipping it */}
+                                                <Line
+                                                    points={points}
+                                                    stroke="#475569" // Dark slate for professional look
+                                                    strokeWidth={12 / zoom} // Shows 6 units inside
+                                                    dash={[10 / zoom, 5 / zoom]} // Dashed pattern
+                                                    closed={true}
+                                                    opacity={0.6}
+                                                />
+                                                {/* Masking the outermost part of the dash to create the "inset" look */}
+                                                <Line
+                                                    points={points}
+                                                    stroke="#ffffff"
+                                                    strokeWidth={4 / zoom}
+                                                    closed={true}
+                                                    opacity={1}
+                                                />
+                                            </Group>
+                                        </Group>
+                                    )}
                                 </Group>
                             )
                         })}
@@ -4252,12 +4359,23 @@ export const CanvasEngine = ({
                                     <div className="w-px h-4 bg-slate-100 mx-0.5" />
                                     {selectedRoomId && (
                                         <>
+                                            <MenuButton
+                                                icon={<Grid3X3 className={`h-3.5 w-3.5 ${selectedRoom?.hasCeramicFloor ? "text-sky-600" : "text-slate-400"}`} />}
+                                                onClick={() => onUpdateRoom(selectedRoomId, { hasCeramicFloor: !selectedRoom?.hasCeramicFloor })}
+                                                title="Suelo cerámico"
+                                            />
+                                            <MenuButton
+                                                icon={<SquareDashed className={`h-3.5 w-3.5 ${selectedRoom?.hasCeramicWalls ? "text-sky-600" : "text-slate-400"}`} />}
+                                                onClick={() => onUpdateRoom(selectedRoomId, { hasCeramicWalls: !selectedRoom?.hasCeramicWalls })}
+                                                title="Paredes cerámicas"
+                                            />
+                                            <div className="w-px h-4 bg-slate-100 mx-0.5" />
                                             {isAdvancedEnabled && (
                                                 <>
                                                     <MenuButton
                                                         icon={<Copy className="h-3 w-3" />}
                                                         onClick={() => onCloneRoom(selectedRoomId)}
-                                                        title="Clonar HabitaciÃ³n"
+                                                        title="Clonar Habitación"
                                                     />
                                                     <div className="w-px h-4 bg-slate-100 mx-0.5" />
                                                 </>

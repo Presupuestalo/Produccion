@@ -192,7 +192,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [touchOffset, setTouchOffset] = useState(40)
     const [forceTouchOffset, setForceTouchOffset] = useState(false)
     const [rulerState, setRulerState] = useState<{ start: Point | null, end: Point | null, active: boolean }>({ start: null, end: null, active: false })
-    const [activeMenu, setActiveMenu] = useState<'pencil' | 'door' | 'window' | 'save' | 'undo' | 'ruler' | null>(null)
+    const [activeMenu, setActiveMenu] = useState<'pencil' | 'door' | 'window' | 'save' | 'undo' | null>(null)
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
     const [isExportingPDF, setIsExportingPDF] = useState(false)
     const [exportRoomNames, setExportRoomNames] = useState(true)
@@ -350,13 +350,16 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             if (key === 'm') setActiveTool("wall") // Muros
             if (key === 's') setActiveTool("select")
             if (key === 'd') { setActiveTool("door"); setCreationDoorType("single") }
-            if (key === 'w') { setActiveTool("window"); setCreationWindowType("double") } // Ventana Doble (default)
-            if (key === 'v') { setActiveTool("window"); setCreationWindowType("single") } // Keep V for Single
+            if (key === 'k') { setActiveTool("door"); setCreationDoorType("sliding_pocket") }
+            if (key === 'x') { setActiveTool("door"); setCreationDoorType("sliding_rail") }
+            if (key === 'g') { setActiveTool("door"); setCreationDoorType("double") }
+            if (key === 'w') { setActiveTool("window"); setCreationWindowType("double") }
+            if (key === 'v') { setActiveTool("window"); setCreationWindowType("single") }
             if (key === 'a') setActiveTool("arc")
             if (key === 'c') setActiveTool("shunt")
             if (key === 'r') setActiveTool("ruler")
             if (key === 'q') setShowAllQuotes(prev => !prev)
-            if (key === 'f') { setActiveTool("wall"); applyFacadeHighlight() } // applyFacadeHighlight also captures closure
+            if (key === 'f') { setActiveTool("wall"); applyFacadeHighlight() }
         }
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
@@ -521,63 +524,6 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         redoHistoryRef.current = newRedoHistory
         setRedoHistory(newRedoHistory)
     }
-
-    // Atajos de teclado
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return
-
-            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-                e.preventDefault()
-                if (e.shiftKey) handleRedo()
-                else handleUndo()
-            }
-            if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-                e.preventDefault()
-                handleRedo()
-            }
-            if (e.key === 'Escape') {
-                setCurrentWall(null)
-                setSelectedWallIds([])
-                setSelectedRoomId(null)
-                setSelectedElement(null)
-                setRulerState({ start: null, end: null, active: false })
-            }
-            if (e.key === '[') {
-                handleRotatePlan(-15)
-            }
-            if (e.key === ']') {
-                handleRotatePlan(15)
-            }
-            if (e.key === 'Delete' || e.key === 'Backspace') {
-                if (selectedWallIds.length > 0) {
-                    selectedWallIds.forEach(id => deleteWall(id))
-                } else if (selectedRoomId) {
-                    deleteRoom(selectedRoomId)
-                } else if (selectedElement) {
-                    handleDeleteElement(selectedElement.type, selectedElement.id)
-                }
-            }
-
-            // Herramientas rápidas
-            const key = e.key.toLowerCase()
-            if (key === 'm') setActiveTool("wall") // Muros
-            if (key === 's') setActiveTool("select")
-            if (key === 'd') { setActiveTool("door"); setCreationDoorType("single") }
-            if (key === 'k') { setActiveTool("door"); setCreationDoorType("sliding_pocket") }
-            if (key === 'x') { setActiveTool("door"); setCreationDoorType("sliding_rail") }
-            if (key === 'g') { setActiveTool("door"); setCreationDoorType("double") }
-            if (key === 'w') { setActiveTool("window"); setCreationWindowType("single") }
-            if (key === 'v') { setActiveTool("window"); setCreationWindowType("double") }
-            if (key === 'a') setActiveTool("arc")
-            if (key === 'c') setActiveTool("shunt")
-            if (key === 'r') setActiveTool("ruler")
-            if (key === 'q') setShowAllQuotes(prev => !prev)
-            if (key === 'f') { setActiveTool("wall"); applyFacadeHighlight() }
-        }
-        window.addEventListener('keydown', handleKeyDown)
-        return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [selectedWallIds, selectedElement, walls, doors, windows, redoHistory, activeTool, rulerState])
 
     const calculateArea = (points: Point[]) => {
         let total = 0
@@ -913,6 +859,18 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             if (updates.name) {
                 const targetRoom = nextRooms.find(r => r.id === id)
                 if (targetRoom) {
+                    const roomName = targetRoom.name.trim().toLowerCase()
+                    const ceramicKeywords = ["baño", "baÃ±o", "cocina", "aseo", "lavadero"]
+                    const isCeramicDefault = ceramicKeywords.some(keyword => roomName.includes(keyword))
+
+                    if (isCeramicDefault) {
+                        nextRooms = nextRooms.map(r => r.id === id ? {
+                            ...r,
+                            hasCeramicFloor: true,
+                            hasCeramicWalls: true
+                        } : r)
+                    }
+
                     // Extract base name (remove trailing numbers)
                     // e.g. "H 1" -> "H", "Cocina" -> "Cocina"
                     const nameRegex = /^(.*?)(?:\s+\d+)?$/
@@ -2432,38 +2390,25 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 </DropdownMenu>
                             </div>
 
-                            <div className="relative group">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setActiveTool("ruler")}
-                                    title={isMobile ? "Regla" : "Regla (R)"}
-                                    className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "ruler" ? "bg-slate-200 text-slate-900" : ""}`}
-                                >
-                                    <Ruler className="h-5 w-5" />
-                                </Button>
-                                <DropdownMenu open={activeMenu === 'ruler'} onOpenChange={(open) => setActiveMenu(open ? 'ruler' : null)}>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="absolute bottom-1 right-1 w-4 h-4 p-0 opacity-100 hover:bg-slate-200 transition-all rounded-sm z-50 text-slate-400 hover:text-slate-600"
-                                        >
-                                            <ChevronRight className="h-3 w-3" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-56 ml-2 p-3">
-                                        <div className="flex items-center justify-between gap-2">
-                                            <Label htmlFor="show-all-quotes" className="text-xs font-medium text-slate-600 cursor-pointer">Ver todas las cotas</Label>
-                                            <Switch
-                                                id="show-all-quotes"
-                                                checked={showAllQuotes}
-                                                onCheckedChange={setShowAllQuotes}
-                                            />
-                                        </div>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setActiveTool("ruler")}
+                                title={isMobile ? "Regla" : "Regla (R)"}
+                                className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "ruler" ? "bg-slate-200 text-slate-900" : ""}`}
+                            >
+                                <Ruler className="h-5 w-5" />
+                            </Button>
+
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setShowAllQuotes(!showAllQuotes)}
+                                title={isMobile ? "Cotas" : "Ver Cotas (Q)"}
+                                className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${showAllQuotes ? "bg-sky-100 text-sky-600" : ""}`}
+                            >
+                                <Maximize className="h-5 w-5" />
+                            </Button>
 
 
                             {/* 5. TRASH (Clear Plan) */}

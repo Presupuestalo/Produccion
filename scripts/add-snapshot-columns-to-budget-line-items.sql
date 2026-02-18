@@ -19,14 +19,22 @@ CHECK (price_type IN ('master', 'custom', 'imported'));
 CREATE INDEX IF NOT EXISTS idx_budget_line_items_base_price_id 
 ON budget_line_items(base_price_id);
 
--- Añadir foreign key a price_master (opcional, permite null)
-ALTER TABLE budget_line_items
-ADD CONSTRAINT fk_budget_line_items_price_master
-FOREIGN KEY (base_price_id) 
-REFERENCES price_master(id)
-ON DELETE SET NULL;
+-- FK constraint to price_master omitted — price_master may not have a unique constraint on id.
+-- base_price_id is kept as an optional UUID reference without enforcement.
 
 -- Comentarios para documentar
-COMMENT ON COLUMN budget_line_items.code IS 'Código del precio (ej: 01-D-01) copiado de price_master en el momento de creación';
-COMMENT ON COLUMN budget_line_items.base_price_id IS 'Referencia al precio original en price_master (null si es custom o importado)';
-COMMENT ON COLUMN budget_line_items.price_type IS 'Origen del precio: master (de catálogo), custom (personalizado por usuario), imported (importado de archivo)';
+COMMENT ON COLUMN budget_line_items.code IS 'Código del precio (ej: 01-D-01)';
+COMMENT ON COLUMN budget_line_items.base_price_id IS 'Referencia al precio original en price_master';
+-- Origen del precio: master, custom, imported
+COMMENT ON COLUMN budget_line_items.price_type IS 'Origen del precio: master, custom, imported';
+
+-- Añadir columnas de detalles de producto (color, marca, modelo)
+ALTER TABLE budget_line_items 
+ADD COLUMN IF NOT EXISTS color TEXT,
+ADD COLUMN IF NOT EXISTS brand TEXT,
+ADD COLUMN IF NOT EXISTS model TEXT;
+
+COMMENT ON COLUMN budget_line_items.color IS 'Color o acabado del producto';
+COMMENT ON COLUMN budget_line_items.brand IS 'Marca del producto';
+COMMENT ON COLUMN budget_line_items.model IS 'Modelo del producto';
+
