@@ -2,8 +2,8 @@
 import React from "react"
 import { Stage, Layer, Group, Line, Rect, Text, Circle, Arc as KonvaArc, Arrow } from "react-konva"
 import { Grid } from "./Grid"
-import { getClosestPointOnSegment, generateArcPoints, getLineIntersection } from "@/lib/utils/geometry"
-import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical, SquareDashed, Spline, Check, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Grid3X3 } from "lucide-react"
+import { getClosestPointOnSegment, generateArcPoints, getLineIntersection, isPointOnSegment } from "@/lib/utils/geometry"
+import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical, SquareDashed, Spline, Check, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Grid3X3, Eraser } from "lucide-react"
 import { NumericInput } from "./NumericInput"
 import { UnifiedWallEditor } from "./UnifiedWallEditor"
 
@@ -20,6 +20,7 @@ interface Room {
     visualCenter?: Point
     hasCeramicFloor?: boolean
     hasCeramicWalls?: boolean
+    disabledCeramicWalls?: string[]
 }
 
 interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding_rail" | "sliding_pocket" | "sliding" | "double_swing" | "exterior_sliding" }
@@ -431,6 +432,7 @@ export const CanvasEngine = ({
     onDblClick,
     onDblTap
 }: CanvasEngineProps) => {
+    const [isCeramicEraserActive, setIsCeramicEraserActive] = React.useState(false)
     const stageRef = React.useRef<any>(null)
     const gridRef = React.useRef<any>(null)
     const [dragShuntState, setDragShuntState] = React.useState<{ id: string, x: number, y: number } | null>(null)
@@ -777,18 +779,26 @@ export const CanvasEngine = ({
         canvas.height = size
         const ctx = canvas.getContext('2d')
         if (ctx) {
-            // Fill background with slightly more opacity for better visibility
-            ctx.fillStyle = 'rgba(241, 245, 249, 0.5)'
-            ctx.fillRect(0, 0, size, size)
+            // Checkerboard pattern (chess) para máxima diferenciación
+            const half = size / 2
 
-            // Draw grid lines (Darker for better contrast)
-            ctx.strokeStyle = 'rgba(15, 23, 42, 0.3)'
-            ctx.lineWidth = 1.5 // Slightly thicker lines
+            // Baldosas alternas (Estilo ajedrez exagerado)
+            ctx.fillStyle = '#cbd5e1' // Slate-200 (Gris azulado definido)
+            ctx.fillRect(0, 0, half, half)
+            ctx.fillRect(half, half, half, half)
+
+            ctx.fillStyle = '#ffffff' // Blanco puro
+            ctx.fillRect(half, 0, half, half)
+            ctx.fillRect(0, half, half, half)
+
+            // Líneas de unión negras para resaltar el despiece
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.4)'
+            ctx.lineWidth = 1.5
             ctx.beginPath()
-            ctx.moveTo(size, 0)
-            ctx.lineTo(size, size)
-            ctx.lineTo(0, size)
+            ctx.moveTo(half, 0); ctx.lineTo(half, size)
+            ctx.moveTo(0, half); ctx.lineTo(size, half)
             ctx.stroke()
+            ctx.strokeRect(0, 0, size, size)
         }
         const img = new Image()
         img.src = canvas.toDataURL()
@@ -803,8 +813,8 @@ export const CanvasEngine = ({
         canvas.height = size
         const ctx = canvas.getContext('2d')
         if (ctx) {
-            ctx.strokeStyle = 'rgba(100, 116, 139, 0.4)' // Slate-500 with opacity
-            ctx.lineWidth = 1
+            ctx.strokeStyle = 'rgba(100, 116, 139, 0.8)' // More opaque hatching
+            ctx.lineWidth = 1.5
             ctx.beginPath()
             ctx.moveTo(0, size)
             ctx.lineTo(size, 0)
@@ -1943,6 +1953,51 @@ export const CanvasEngine = ({
 
         if (e.evt.button !== 0 && (e.evt as any).pointerType === 'mouse') return
 
+        // CERAMIC ERASER LOGIC
+        if (isCeramicEraserActive && selectedRoomId) {
+            const room = rooms.find(r => r.id === selectedRoomId);
+            if (room) {
+                const pointer = stage.getPointerPosition();
+                if (pointer) {
+                    const pos = getRelativePointerPosition(stage, { x: pointer.x, y: pointer.y });
+                    let bestSegWallId: string | null = null;
+                    let minDist = Infinity;
+
+                    room.polygon.forEach((p1, k) => {
+                        const p2 = room.polygon[(k + 1) % room.polygon.length];
+                        const { point: proj } = getClosestPointOnSegment(pos, p1, p2);
+                        const d = Math.sqrt((pos.x - proj.x) ** 2 + (pos.y - proj.y) ** 2);
+                        if (d < 25 / zoom && d < minDist) {
+                            const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+                            const foundWall = walls.find(w => {
+                                const dx_w = w.end.x - w.start.x;
+                                const dy_w = w.end.y - w.start.y;
+                                const lengthSq = dx_w * dx_w + dy_w * dy_w;
+                                if (lengthSq === 0) return false;
+                                const t = Math.max(0, Math.min(1, ((midP.x - w.start.x) * dx_w + (midP.y - w.start.y) * dy_w) / lengthSq));
+                                const projX = w.start.x + t * dx_w;
+                                const projY = w.start.y + t * dy_w;
+                                return Math.sqrt((midP.x - projX) ** 2 + (midP.y - projY) ** 2) < 4.0;
+                            });
+                            if (foundWall) {
+                                bestSegWallId = foundWall.id;
+                                minDist = d;
+                            }
+                        }
+                    });
+
+                    if (bestSegWallId) {
+                        const currentDisabled = room.disabledCeramicWalls || [];
+                        const newDisabled = currentDisabled.includes(bestSegWallId)
+                            ? currentDisabled.filter(id => id !== bestSegWallId)
+                            : [...currentDisabled, bestSegWallId];
+                        onUpdateRoom(room.id, { disabledCeramicWalls: newDisabled });
+                        return; // Prevent further action
+                    }
+                }
+            }
+        }
+
         // Si pinchamos en algo (o cerca por el offset) y es tÃ¡ctil, disparamos su lÃ³gica
         if (isTouchInteraction && !isBackground) {
             if (activeTool === "select") {
@@ -2438,7 +2493,7 @@ export const CanvasEngine = ({
                                             fillPatternRepeat="repeat"
                                             fillPatternScaleX={1}
                                             fillPatternScaleY={1}
-                                            opacity={0.7}
+                                            opacity={1.0}
                                             closed={true}
                                             listening={false}
                                         />
@@ -2459,23 +2514,33 @@ export const CanvasEngine = ({
                                                     ctx.clip();
                                                 }}
                                             >
-                                                {/* Dashed line slightly inset by drawing a thick line and clipping it */}
-                                                <Line
-                                                    points={points}
-                                                    stroke="#475569" // Dark slate for professional look
-                                                    strokeWidth={12 / zoom} // Shows 6 units inside
-                                                    dash={[10 / zoom, 5 / zoom]} // Dashed pattern
-                                                    closed={true}
-                                                    opacity={0.6}
-                                                />
-                                                {/* Masking the outermost part of the dash to create the "inset" look */}
-                                                <Line
-                                                    points={points}
-                                                    stroke="#ffffff"
-                                                    strokeWidth={4 / zoom}
-                                                    closed={true}
-                                                    opacity={1}
-                                                />
+                                                {room.polygon.map((p1, i) => {
+                                                    const p2 = room.polygon[(i + 1) % room.polygon.length];
+                                                    const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+                                                    const wall = walls.find(w => isPointOnSegment(midP, w.start, w.end, 4.0));
+                                                    const segmentId = wall?.id || `seg-${i}`;
+                                                    if (room.disabledCeramicWalls?.includes(segmentId)) return null;
+
+                                                    return (
+                                                        <React.Fragment key={`${room.id}-${segmentId}-${i}`}>
+                                                            {/* Dashed line slightly inset by drawing a thick line and clipping it */}
+                                                            <Line
+                                                                points={[p1.x, p1.y, p2.x, p2.y]}
+                                                                stroke="#1e293b" // Even darker slate
+                                                                strokeWidth={16 / zoom} // Thicker dashes
+                                                                dash={[12 / zoom, 6 / zoom]} // Larger dashed pattern
+                                                                opacity={0.8}
+                                                            />
+                                                            {/* Masking the outermost part of the dash to create the "inset" look */}
+                                                            <Line
+                                                                points={[p1.x, p1.y, p2.x, p2.y]}
+                                                                stroke="#ffffff"
+                                                                strokeWidth={4 / zoom}
+                                                                opacity={1}
+                                                            />
+                                                        </React.Fragment>
+                                                    );
+                                                })}
                                             </Group>
                                         </Group>
                                     )}
@@ -4366,9 +4431,23 @@ export const CanvasEngine = ({
                                             />
                                             <MenuButton
                                                 icon={<SquareDashed className={`h-3.5 w-3.5 ${selectedRoom?.hasCeramicWalls ? "text-sky-600" : "text-slate-400"}`} />}
-                                                onClick={() => onUpdateRoom(selectedRoomId, { hasCeramicWalls: !selectedRoom?.hasCeramicWalls })}
+                                                onClick={() => {
+                                                    const newState = !selectedRoom?.hasCeramicWalls;
+                                                    onUpdateRoom(selectedRoomId, {
+                                                        hasCeramicWalls: newState,
+                                                        disabledCeramicWalls: [] // Reset when toggling
+                                                    });
+                                                    if (!newState) setIsCeramicEraserActive(false);
+                                                }}
                                                 title="Paredes cerámicas"
                                             />
+                                            {selectedRoom?.hasCeramicWalls && (
+                                                <MenuButton
+                                                    icon={<Eraser className={`h-3.5 w-3.5 ${isCeramicEraserActive ? "text-sky-600" : "text-slate-400"}`} />}
+                                                    onClick={() => setIsCeramicEraserActive(!isCeramicEraserActive)}
+                                                    title="Goma de borrar cerámica"
+                                                />
+                                            )}
                                             <div className="w-px h-4 bg-slate-100 mx-0.5" />
                                             {isAdvancedEnabled && (
                                                 <>

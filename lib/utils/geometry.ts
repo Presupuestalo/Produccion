@@ -21,6 +21,7 @@ export interface Room {
     visualCenter?: Point
     hasCeramicFloor?: boolean
     hasCeramicWalls?: boolean
+    disabledCeramicWalls?: string[]
 }
 
 export function rotatePoint(point: Point, center: Point, angleDegrees: number): Point {
@@ -228,11 +229,31 @@ export function calculateRoomStats(room: Room, walls: Wall[], shunts: { x: numbe
     const colPerimM = columnPerimeterContribution / 100
     const colPerimDisplayM = columnPerimeterDisplay / 100
 
+    // 4. Ceramic Wall Length
+    let ceramicWallLength = 0
+    if (room.hasCeramicWalls) {
+        room.polygon.forEach((p1, i) => {
+            const p2 = room.polygon[(i + 1) % room.polygon.length]
+            const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+            const wall = walls.find(w => isPointOnSegment(midP, w.start, w.end, 4.0))
+
+            // Skip if wall is invisible or segment is disabled
+            if (wall?.isInvisible) return
+            const segmentId = wall?.id || `seg-${i}`
+            if (room.disabledCeramicWalls?.includes(segmentId)) return
+
+            const len = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2))
+            ceramicWallLength += len
+        })
+    }
+
     return {
         wallPerimeter: wallPerimM,
         columnPerimeter: colPerimDisplayM, // Orange display
         totalPerimeter: wallPerimM + colPerimM, // Net perimeter
-        area: room.area
+        area: room.area,
+        ceramicWallLength: ceramicWallLength / 100,
+        hasCeramicFloor: !!room.hasCeramicFloor
     }
 }
 
@@ -583,11 +604,12 @@ export function detectRoomsGeometrically(walls: Wall[], previousRooms: Room[] = 
             const bm = bestMatch as Room
             usedPrevIds.add(bm.id)
             finalRooms.push({
-                ...room,
-                id: bm.id,
-                name: bm.name,
-                color: bm.color,
-                visualCenter: room.visualCenter // Will be refined later
+                ...bm,         // Preserve previous metadata (ceramics, etc.)
+                ...room,       // Update with new geometry
+                id: bm.id,     // Ensure ID stability
+                name: bm.name, // Ensure Name stability
+                color: bm.color, // Ensure Color stability
+                visualCenter: room.visualCenter // Important to use the NEW visual center
             })
         } else {
             finalRooms.push({ ...room, id: `room-${Date.now()}-${Math.random()}`, name: "" })

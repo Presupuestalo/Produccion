@@ -55,7 +55,7 @@ import { ToastProvider } from "@/components/ui/toast-provider"
 
 interface Point { x: number; y: number }
 interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward' }
-interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point }
+interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point; hasCeramicFloor?: boolean; hasCeramicWalls?: boolean; disabledCeramicWalls?: string[] }
 interface Door { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" | "sliding_pocket" | "sliding_rail" | "double_swing" | "exterior_sliding" }
 interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean; openType?: "single" | "double" | "sliding" }
 interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number }
@@ -207,6 +207,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
     const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
     const hasUnsavedChanges = useRef(false)
+    const isInitialLoad = useRef(true)
     const handleSaveRef = useRef<() => Promise<void>>(async () => { })
     const [companyInfo, setCompanyInfo] = useState<{
         name?: string
@@ -245,11 +246,25 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     // Track unsaved changes
     useEffect(() => {
-        // Initial load might trigger this if we don't guard, but it's fine as first save is cheap
-        if (walls.length > 0 || rooms.length > 0) {
-            hasUnsavedChanges.current = true
+        if (isInitialLoad.current) {
+            isInitialLoad.current = false
+            return
         }
-    }, [walls, rooms, doors, windows, shunts, bgConfig, planName, gridRotation, calibrationPoints, calibrationTargetValue])
+        hasUnsavedChanges.current = true
+    }, [walls, rooms, doors, windows, shunts, bgConfig, planName, gridRotation, calibrationPoints, calibrationTargetValue, ceilingHeight, defaultWallThickness])
+
+    // Browser navigation guard
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (hasUnsavedChanges.current) {
+                e.preventDefault()
+                e.returnValue = ""
+                return ""
+            }
+        }
+        window.addEventListener("beforeunload", handleBeforeUnload)
+        return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+    }, [])
 
     // Fetch company info from profile
     useEffect(() => {
@@ -2078,8 +2093,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     }, [])
 
     const handleBack = (e: React.MouseEvent) => {
-        // If there are changes in history, warn the user
-        if (history.length > 0) {
+        // If there are unsaved changes, warn the user
+        if (hasUnsavedChanges.current) {
             e.preventDefault()
             const confirmLeave = window.confirm("Tienes cambios sin guardar. ¿Seguro que quieres salir sin guardar?")
             if (confirmLeave) {
@@ -2486,6 +2501,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                             windows={windows}
                                             rooms={rooms}
                                             shunts={shunts}
+                                            ceilingHeight={ceilingHeight}
                                         />
                                     </SheetContent>
                                 </Sheet>
@@ -2951,6 +2967,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                     windows={windows}
                                     rooms={rooms}
                                     shunts={shunts}
+                                    ceilingHeight={ceilingHeight}
                                 />
                             </SheetContent>
                         </Sheet>
