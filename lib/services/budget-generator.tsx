@@ -52,6 +52,9 @@ export class BudgetGenerator {
   // Project data populated from calculator data
   private project: Partial<ProjectData> = {}
 
+  private totalDoubleDoorsRemoval = 0
+  private totalExteriorSlidingDoorsRemoval = 0
+
   constructor(
     private calculatorData: CalculatorData | any, // Keep fallback for now
     private supabase: SupabaseClient,
@@ -109,6 +112,8 @@ export class BudgetGenerator {
     this.lineItems = []
     this.sortOrder = 0
     this.electricHeaterOutlets = 0 // Reset on each generation
+    this.totalDoubleDoorsRemoval = 0
+    this.totalExteriorSlidingDoorsRemoval = 0
 
     console.log("[v0] BudgetGenerator - Starting generation...")
 
