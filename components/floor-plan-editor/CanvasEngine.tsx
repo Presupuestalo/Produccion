@@ -36,7 +36,7 @@ function calculatePolygonCentroid(points: Point[]): Point {
 interface MenuButtonProps {
     icon: React.ReactNode
     label?: string
-    onClick: () => void
+    onClick: (e: React.MouseEvent<HTMLButtonElement>) => void
     variant?: "default" | "danger"
     title?: string
 }
