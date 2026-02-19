@@ -977,9 +977,10 @@ export const CanvasEngine = ({
             e.preventDefault()
 
             const stage = stageRef.current
+            const rect = stage.content.getBoundingClientRect()
             const pos = {
-                x: clientX - rect.left,
-                y: clientY - rect.top
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
             }
 
             // Manual transform to account for zoom/pan
