@@ -262,7 +262,7 @@ const ShuntItem = React.memo(({
                 // Define the 4 faces: [x1,y1,x2,y2] relative to shunt centre (offsetX/Y already set by Group)
                 const faces = [
                     { pts: [-hw, -hh, hw, -hh], mid: { x: 0, y: -hh } },   // top
-                    { pts: [-hw, hh, hw, hh], mid: { x: 0, hh } },       // bottom
+                    { pts: [-hw, hh, hw, hh], mid: { x: 0, y: hh } },       // bottom
                     { pts: [-hw, -hh, -hw, hh], mid: { x: -hw, y: 0 } },    // left
                     { pts: [hw, -hh, hw, hh], mid: { x: hw, y: 0 } },    // right
                 ]

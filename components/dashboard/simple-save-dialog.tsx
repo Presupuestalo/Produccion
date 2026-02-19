@@ -129,7 +129,7 @@ export function SimpleSaveDialog({
                             <Button
                                 type="submit"
                                 size="icon"
-                                disabled={!name.trim() || isLoading || (showProjectSelector && selectedProjectId && isVariantTaken)}
+                                disabled={!name.trim() || isLoading || (showProjectSelector && !!selectedProjectId && isVariantTaken)}
                                 className="lg:hidden h-10 w-10 shrink-0 bg-orange-600 hover:bg-orange-700"
                             >
                                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-5 w-5" />}
