@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import Calculator, { type CalculatorHandle } from "@/components/calculator/calculator"
 import { useToast } from "@/components/ui/use-toast"
-import { AlertTriangle, ArrowLeft, Settings } from "lucide-react"
+import { AlertTriangle, ArrowLeft, Settings, PencilRuler } from "lucide-react"
 import Link from "next/link"
 import { DualFloorPlanAnalyzer } from "@/components/floor-plan/dual-floor-plan-analyzer"
 import { ProjectGallery } from "@/components/calculator/project-gallery"
@@ -27,6 +27,7 @@ export default function ProjectPage() {
   const [error, setError] = useState<string | null>(null)
   const [shouldOpenAnalyzer, setShouldOpenAnalyzer] = useState(false)
   const [isMaster, setIsMaster] = useState(false)
+  const [linkedPlans, setLinkedPlans] = useState<{ id: string, variant: string }[]>([])
 
   const calculatorRef = useRef<CalculatorHandle>(null)
 
@@ -105,6 +106,27 @@ export default function ProjectPage() {
       fetchProject()
     }
   }, [projectId, toast])
+
+  // Fetch linked floor plans
+  useEffect(() => {
+    const fetchLinkedPlans = async () => {
+      try {
+        const supabase = await getSupabase()
+        if (!supabase) return
+        const { data } = await supabase
+          .from("project_floor_plans")
+          .select("id, variant")
+          .eq("project_id", projectId)
+        setLinkedPlans(data || [])
+      } catch (e) {
+        console.error("Error fetching linked plans:", e)
+      }
+    }
+    if (projectId) fetchLinkedPlans()
+  }, [projectId])
+
+  const beforePlan = linkedPlans.find(p => p.variant === 'current')
+  const afterPlan = linkedPlans.find(p => p.variant === 'proposal')
 
   if (loading) {
     return (
@@ -232,6 +254,35 @@ export default function ProjectPage() {
                   <Settings className="mr-2 h-4 w-4" />
                   <span className="hidden sm:inline">Ajustes</span>
                   <span className="sm:hidden sr-only">Ajustes</span>
+                </Link>
+              </Button>
+            )}
+
+            {/* Floor Plan Buttons */}
+            {beforePlan ? (
+              <Button asChild variant="outline" size="sm" className="h-9 border-amber-200 text-amber-700 hover:bg-amber-50">
+                <Link href={`/dashboard/editor-planos/editar/${beforePlan.id}`}>
+                  <PencilRuler className="mr-1.5 h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Plano Antes</span>
+                  <span className="sm:hidden">Antes</span>
+                </Link>
+              </Button>
+            ) : null}
+            {afterPlan ? (
+              <Button asChild variant="outline" size="sm" className="h-9 border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                <Link href={`/dashboard/editor-planos/editar/${afterPlan.id}`}>
+                  <PencilRuler className="mr-1.5 h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Plano Después</span>
+                  <span className="sm:hidden">Después</span>
+                </Link>
+              </Button>
+            ) : null}
+            {linkedPlans.length === 0 && (
+              <Button asChild variant="outline" size="sm" className="h-9 border-blue-200 text-blue-700 hover:bg-blue-50">
+                <Link href="/dashboard/editor-planos/nuevo">
+                  <PencilRuler className="mr-1.5 h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Crear Plano</span>
+                  <span className="sm:hidden">Plano</span>
                 </Link>
               </Button>
             )}

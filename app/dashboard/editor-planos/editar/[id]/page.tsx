@@ -66,5 +66,6 @@ export default async function EditPlanPage(props: { params: Promise<{ id: string
         planId={plan.id}
         projectId={plan.project_id}
         planName={plan.name}
+        variant={plan.variant}
     />
 }

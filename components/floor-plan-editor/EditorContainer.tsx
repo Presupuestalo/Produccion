@@ -57,8 +57,8 @@ interface Point { x: number; y: number }
 interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward' }
 interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point; hasCeramicFloor?: boolean; hasCeramicWalls?: boolean; disabledCeramicWalls?: string[] }
 interface Door { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" | "sliding_pocket" | "sliding_rail" | "double_swing" | "exterior_sliding" }
-interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean; openType?: "single" | "double" | "sliding" }
-interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number }
+interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean; openType?: "single" | "double" | "sliding" | "balcony"; isFixed?: boolean }
+interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number; hasCeramic?: boolean }
 
 // Custom Icons for Doors & Windows
 const DoubleDoorIcon = ({ className }: { className?: string }) => (
@@ -72,10 +72,18 @@ const DoubleDoorIcon = ({ className }: { className?: string }) => (
 
 const SlidingRailIcon = ({ className }: { className?: string }) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <path d="M7 3h15v3H7z" fill="currentColor" fillOpacity="0.1" /> {/* Top Rail Box */}
-        <path d="M5 4v17h2" /> {/* Left support */}
-        <rect x="8" y="6" width="12" height="15" /> {/* Door panel */}
-        <path d="M10 12v3h1" /> {/* Handle */}
+        <rect x="3" y="3" width="18" height="18" rx="2" /> {/* Frame */}
+        <line x1="12" y1="3" x2="12" y2="21" /> {/* Central division */}
+        <line x1="3" y1="21" x2="21" y2="21" strokeWidth="3" /> {/* Thicker threshold for Balcony */}
+        <path d="M15 12h-2" /> {/* Minimal Handle */}
+    </svg>
+)
+
+const BalconyWindowIcon = ({ className }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <rect x="5" y="3" width="14" height="16" rx="1" /> {/* Taller narrow frame */}
+        <line x1="3" y1="21" x2="21" y2="21" strokeWidth="2" /> {/* Floor line */}
+        <line x1="12" y1="3" x2="12" y2="21" strokeWidth="1" /> {/* Middle glass division */}
     </svg>
 )
 
@@ -138,7 +146,9 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [windows, setWindows] = useState<Window[]>(props.initialData?.windows || [])
     const [selectedElement, setSelectedElement] = useState<{ type: "door" | "window" | "shunt", id: string } | null>(null)
     const [shunts, setShunts] = useState<Shunt[]>(props.initialData?.shunts || [])
-    const [activeTool, _setActiveTool] = useState<"select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt">("wall")
+    // Si el plano ya tiene datos (está guardado), arranca con 'select' para no dibujar líneas accidentales
+    const hasExistingData = (props.initialData?.walls?.length > 0) || (props.initialData?.rooms?.length > 0)
+    const [activeTool, _setActiveTool] = useState<"select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt">(hasExistingData ? "select" : "wall")
     // ... (rest of state)
     const [gridRotation, setGridRotation] = useState<number>(props.initialData?.gridRotation || 0)
     // Toolbar visibility
@@ -858,6 +868,11 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             const p1: Wall = { ...wall, id: p1Id, end: splitPoint }
             const p2: Wall = { ...wall, id: p2Id, start: splitPoint }
             const newWalls = prev.filter(w => w.id !== id).concat([p1, p2])
+
+            // FIX: Rebind doors and windows to new split walls
+            setDoors(currentDoors => rebindElementsToWalls(currentDoors, prev, newWalls))
+            setWindows(currentWindows => rebindElementsToWalls(currentWindows, prev, newWalls))
+
             setRooms(detectAndNameRooms(newWalls, rooms))
             return newWalls
         })
@@ -875,14 +890,22 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 const targetRoom = nextRooms.find(r => r.id === id)
                 if (targetRoom) {
                     const roomName = targetRoom.name.trim().toLowerCase()
-                    const ceramicKeywords = ["baño", "baÃ±o", "cocina", "aseo", "lavadero"]
-                    const isCeramicDefault = ceramicKeywords.some(keyword => roomName.includes(keyword))
+                    const ceramicKeywords = ["baño", "aseo", "lavadero"]
+                    const isFullCeramic = ceramicKeywords.some(keyword => roomName.includes(keyword))
+                        || (roomName.includes("cocina") && !roomName.includes("abierta") && !roomName.includes("americana"))
+                    const isFloorOnlyCeramic = roomName.includes("terraza")
 
-                    if (isCeramicDefault) {
+                    if (isFullCeramic) {
                         nextRooms = nextRooms.map(r => r.id === id ? {
                             ...r,
                             hasCeramicFloor: true,
                             hasCeramicWalls: true
+                        } : r)
+                    } else if (isFloorOnlyCeramic) {
+                        nextRooms = nextRooms.map(r => r.id === id ? {
+                            ...r,
+                            hasCeramicFloor: true,
+                            hasCeramicWalls: false
                         } : r)
                     }
 
@@ -952,6 +975,18 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             setRooms(detectAndNameRooms(next, rooms))
             return next
         })
+        // Si la pared se vuelve invisible (separador), eliminar puertas y ventanas que estén en ella
+        if (isInvisible) {
+            setDoors(prev => prev.filter(d => d.wallId !== id))
+            setWindows(prev => prev.filter(w => w.wallId !== id))
+            // Si el elemento seleccionado era una puerta/ventana de esa pared, deseleccionarlo
+            setSelectedElement(prev => {
+                if (!prev) return null
+                if (prev.type === "door" && doors.some(d => d.id === prev.id && d.wallId === id)) return null
+                if (prev.type === "window" && windows.some(w => w.id === prev.id && w.wallId === id)) return null
+                return prev
+            })
+        }
     }
 
     const handleUpdateWallThickness = (id: string, thickness: number) => {
@@ -959,10 +994,24 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         setWalls(prev => prev.map(w => w.id === id ? { ...w, thickness } : w))
     }
 
+    // Helper: ray-casting para saber si un punto está dentro de un polígono
+    const isPointInRoom = (p: Point, polygon: Point[]): boolean => {
+        let inside = false
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+            const xi = polygon[i].x, yi = polygon[i].y
+            const xj = polygon[j].x, yj = polygon[j].y
+            const intersect = ((yi > p.y) !== (yj > p.y)) && (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi)
+            if (intersect) inside = !inside
+        }
+        return inside
+    }
+
     const handleDragElement = (type: "door" | "window" | "shunt", id: string, pointer: Point) => {
-        saveStateToHistory()
+        // saveStateToHistory() -> Removed to prevent max update depth error. Saved onDragEnd.
         if (type === "shunt") {
-            setShunts(prev => prev.map(s => s.id === id ? { ...s, x: pointer.x, y: pointer.y } : s))
+            // Re-evaluar si la columna cae en una habitación con paredes cerámicas
+            const roomWithCeramic = rooms.find(r => r.hasCeramicWalls && isPointInRoom(pointer, r.polygon))
+            setShunts(prev => prev.map(s => s.id === id ? { ...s, x: pointer.x, y: pointer.y, hasCeramic: !!roomWithCeramic } : s))
             return
         }
 
@@ -987,13 +1036,17 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     const handleAddShunt = () => {
         const { center } = calculateBoundingBox(walls, rooms)
+        const shuntPos = { x: center.x || 300, y: center.y || 300 }
+        // Auto-detectar si la posición inicial cae en una habitación con paredes cerámicas
+        const roomWithCeramic = rooms.find(r => r.hasCeramicWalls && isPointInRoom(shuntPos, r.polygon))
         const newShunt: Shunt = {
             id: `shunt-${Date.now()}`,
-            x: center.x || 300,
-            y: center.y || 300,
+            x: shuntPos.x,
+            y: shuntPos.y,
             width: 50,
             height: 50,
-            rotation: 0
+            rotation: 0,
+            hasCeramic: !!roomWithCeramic
         }
         setShunts(prev => [...prev, newShunt])
         setSelectedElement({ type: "shunt", id: newShunt.id })
@@ -1313,42 +1366,9 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             }))
             const splitResult = fragmentWalls(processed)
 
-            // Re-vincular puertas y ventanas
-            setDoors(prevDoors => prevDoors.map(door => {
-                const oldWall = processed.find(w => w.id === door.wallId)
-                if (!oldWall) return door
-                const p = {
-                    x: oldWall.start.x + door.t * (oldWall.end.x - oldWall.start.x),
-                    y: oldWall.start.y + door.t * (oldWall.end.y - oldWall.start.y)
-                }
-                const bestWall = splitResult.find(nw => isPointOnSegment(p, nw.start, nw.end, 2.0))
-                if (bestWall) {
-                    const dx = bestWall.end.x - bestWall.start.x
-                    const dy = bestWall.end.y - bestWall.start.y
-                    const lenSq = dx * dx + dy * dy
-                    const t = lenSq === 0 ? 0 : ((p.x - bestWall.start.x) * dx + (p.y - bestWall.start.y) * dy) / lenSq
-                    return { ...door, wallId: bestWall.id, t: Math.max(0, Math.min(1, t)) }
-                }
-                return door
-            }))
-
-            setWindows(prevWindows => prevWindows.map(win => {
-                const oldWall = processed.find(w => w.id === win.wallId)
-                if (!oldWall) return win
-                const p = {
-                    x: oldWall.start.x + win.t * (oldWall.end.x - oldWall.start.x),
-                    y: oldWall.start.y + win.t * (oldWall.end.y - oldWall.start.y)
-                }
-                const bestWall = splitResult.find(nw => isPointOnSegment(p, nw.start, nw.end, 2.0))
-                if (bestWall) {
-                    const dx = bestWall.end.x - bestWall.start.x
-                    const dy = bestWall.end.y - bestWall.start.y
-                    const lenSq = dx * dx + dy * dy
-                    const t = lenSq === 0 ? 0 : ((p.x - bestWall.start.x) * dx + (p.y - bestWall.start.y) * dy) / lenSq
-                    return { ...win, wallId: bestWall.id, t: Math.max(0, Math.min(1, t)) }
-                }
-                return win
-            }))
+            // Re-vincular puertas y ventanas usando la lógica centralizada
+            setDoors(prevDoors => rebindElementsToWalls(prevDoors, processed, splitResult))
+            setWindows(prevWindows => rebindElementsToWalls(prevWindows, processed, splitResult))
 
             setSelectedWallIds(swIds => swIds.map(oldId => {
                 const found = splitResult.find(nw => nw.id === oldId || nw.id === `${oldId}-s0`)
@@ -1359,6 +1379,55 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             return splitResult
         })
         saveStateToHistory()
+    }
+
+    // Helper to rebind elements (doors/windows) to new walls after walls are split or modified
+    const rebindElementsToWalls = <T extends { id: string, wallId: string, t: number }>(
+        elements: T[],
+        oldWalls: Wall[],
+        newWalls: Wall[]
+    ): T[] => {
+        return elements.map(element => {
+            // Find the wall it used to be on
+            const oldWall = oldWalls.find(w => w.id === element.wallId)
+            // If the wall still exists with the same ID in newWalls, we might keep it, but
+            // if the wall ID implies it's the same wall object, we usually don't need to do anything.
+            // However, often oldWalls and newWalls have different IDs if fragmentation occurred.
+            // If the wall ID exists in newWalls, we assume it's valid.
+            if (newWalls.some(nw => nw.id === element.wallId)) return element
+
+            // If old wall is gone or we need to re-verify position:
+            if (!oldWall) return element // Should not happen if strictly tracking, but safe fallback
+
+            // Calculate absolute position
+            const p = {
+                x: oldWall.start.x + element.t * (oldWall.end.x - oldWall.start.x),
+                y: oldWall.start.y + element.t * (oldWall.end.y - oldWall.start.y)
+            }
+
+            // Find closest wall in new set
+            const bestWall = newWalls.find(nw => isPointOnSegment(p, nw.start, nw.end, 2.0))
+
+            if (bestWall) {
+                const dx = bestWall.end.x - bestWall.start.x
+                const dy = bestWall.end.y - bestWall.start.y
+                const lenSq = dx * dx + dy * dy
+                const t = lenSq === 0 ? 0 : ((p.x - bestWall.start.x) * dx + (p.y - bestWall.start.y) * dy) / lenSq
+                return { ...element, wallId: bestWall.id, t: Math.max(0, Math.min(1, t)) }
+            }
+
+            // Check if element is effectively deleted because no wall is near enough?
+            // Or keep it looking for a wall? For now, if no wall found, it becomes an orphan or removed.
+            // The original logic returned 'element' which leaves it pointing to a non-existent wall ID.
+            // Better to filter them out? The original code kept them.
+            // "Ghost" elements happen when they keep a wallId that no longer exists in 'walls'.
+            // So we MUST filter them out if no replacement found?
+            // Or return element with empty wallId?
+            // Returning element with old ID creates the ghost.
+            // Let's trying to find *any* closest wall if specific segment check fails?
+            // No, strictly remove if no wall is under it.
+            return { ...element, wallId: "orphan" }
+        }).filter(e => e.wallId !== "orphan" && newWalls.some(nw => nw.id === e.wallId))
     }
 
     const applyFacadeHighlight = () => {
@@ -1386,11 +1455,17 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
             // 2. Aplicar grosor solo a muros exteriores, SIN ortogonalizar
             // Marcamos como 'outward' para que crezcan hacia afuera
-            return fragmented.map(w => ({
+            const newWalls = fragmented.map(w => ({
                 ...w,
                 thickness: outerWallIds.has(w.id) ? 20 : w.thickness,
                 offsetMode: outerWallIds.has(w.id) ? 'outward' : w.offsetMode
-            }))
+            })) as Wall[]
+
+            // FIX: Rebind doors and windows to new fragmented walls
+            setDoors(currentDoors => rebindElementsToWalls(currentDoors, prevWalls, newWalls))
+            setWindows(currentWindows => rebindElementsToWalls(currentWindows, prevWalls, newWalls))
+
+            return newWalls
         })
     }
 
@@ -1578,7 +1653,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     // Tool Creation State
     const [creationDoorType, setCreationDoorType] = useState<"single" | "double" | "sliding" | "sliding_pocket" | "sliding_rail">("single")
-    const [creationWindowType, setCreationWindowType] = useState<"single" | "double">("single")
+    const [creationWindowType, setCreationWindowType] = useState<"single" | "double" | "balcony">("single")
 
     // ... existing handleMouseDown ...
     const handleMouseDown = (point: Point) => {
@@ -1682,7 +1757,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                         id: newId,
                         wallId: closest.wallId,
                         t: closest.t,
-                        width: creationWindowType === "double" ? 120 : 100,
+                        width: creationWindowType === "double" ? 120 : 60,
                         height: 100,
                         flipY: false,
                         openType: creationWindowType
@@ -2082,10 +2157,9 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [isMobile, setIsMobile] = useState(false)
     useEffect(() => {
         const checkMobile = () => {
-            // Broaden check to include landscape phones and tablets
-            // Also check for touch capability
-            const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0)
-            setIsMobile(window.innerWidth <= 1100 || isTouch)
+            // Mobile state now depends strictly on screen width, not touch capability.
+            // This prevents touch laptops from getting forced into mobile layout.
+            setIsMobile(window.innerWidth <= 1024)
         }
         checkMobile()
         window.addEventListener("resize", checkMobile)
@@ -2291,6 +2365,9 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                                 <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("single") }} className="gap-3 py-2 cursor-pointer">
                                                     <RectangleVertical className="h-4 w-4" /> <span>Ventana</span>
                                                 </DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("balcony") }} className="gap-3 py-2 cursor-pointer">
+                                                    <BalconyWindowIcon className="h-4 w-4" /> <span>Balconera</span>
+                                                </DropdownMenuItem>
                                             </>
                                         )}
                                     </DropdownMenuContent>
@@ -2365,6 +2442,9 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                                 <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("double") }} className="gap-3 py-2 cursor-pointer">
                                                     <CustomWindowIcon className="h-4 w-4" /> <span>Ventana Doble (V)</span>
                                                 </DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("balcony") }} className="gap-3 py-2 cursor-pointer">
+                                                    <BalconyWindowIcon className="h-4 w-4" /> <span>Balconera (B)</span>
+                                                </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </div>
@@ -2405,25 +2485,43 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 </DropdownMenu>
                             </div>
 
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setActiveTool("ruler")}
-                                title={isMobile ? "Regla" : "Regla (R)"}
-                                className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "ruler" ? "bg-slate-200 text-slate-900" : ""}`}
-                            >
-                                <Ruler className="h-5 w-5" />
-                            </Button>
-
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setShowAllQuotes(!showAllQuotes)}
-                                title={isMobile ? "Cotas" : "Ver Cotas (Q)"}
-                                className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${showAllQuotes ? "bg-sky-100 text-sky-600" : ""}`}
-                            >
-                                <Maximize className="h-5 w-5" />
-                            </Button>
+                            <div className="relative group">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setActiveTool("ruler")}
+                                    title={isMobile ? "Herramientas de Medición" : "Medición (R)"}
+                                    className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "ruler" ? "bg-slate-200 text-slate-900" : ""}`}
+                                >
+                                    <Ruler className="h-5 w-5" />
+                                </Button>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="absolute bottom-1 right-1 w-4 h-4 p-0 opacity-100 hover:bg-slate-200 transition-all rounded-sm z-50 text-slate-400 hover:text-slate-600"
+                                        >
+                                            <ChevronRight className="h-3 w-3" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent side="right" align="start" sideOffset={10} className="w-56 ml-2">
+                                        <DropdownMenuItem onSelect={() => setActiveTool("ruler")} className={`gap-3 py-2 cursor-pointer ${activeTool === "ruler" ? "bg-slate-100" : ""}`}>
+                                            <Ruler className="h-4 w-4" /> <span>Herramienta Regla</span>
+                                        </DropdownMenuItem>
+                                        <div className="p-2 flex items-center justify-between hover:bg-slate-50 rounded-sm cursor-pointer" onClick={(e) => { e.preventDefault(); setShowAllQuotes(!showAllQuotes) }}>
+                                            <div className="flex items-center gap-3">
+                                                <Maximize className={`h-4 w-4 ${showAllQuotes ? "text-sky-600" : "text-slate-500"}`} />
+                                                <span className="text-sm">Ver Cotas</span>
+                                            </div>
+                                            <Switch
+                                                checked={showAllQuotes}
+                                                onCheckedChange={setShowAllQuotes}
+                                            />
+                                        </div>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
 
 
                             {/* 5. TRASH (Clear Plan) */}
@@ -2919,10 +3017,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 {/* Properties Panel for Selected Element */}
                 {selectedElement && !showSummary && (
                     <div className="absolute top-20 right-4 z-30">
-                        {(() => {
-                            // Shunt properties removed as per user request (inline editing)
-                            return null
-                        })()}
+                        {/* Shunt properties moved to context menu */}
                     </div>
                 )}
 

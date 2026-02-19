@@ -103,7 +103,7 @@ export function isPointInPolygon(p: Point, polygon: Point[]) {
     return inside
 }
 
-export function calculateRoomStats(room: Room, walls: Wall[], shunts: { x: number, y: number, width: number, height: number }[]) {
+export function calculateRoomStats(room: Room, walls: Wall[], shunts: { x: number, y: number, width: number, height: number, hasCeramic?: boolean }[]) {
     // 1. Identify wall properties for each segment of the polygon
     const segments = room.polygon.map((p1, i) => {
         const p2 = room.polygon[(i + 1) % room.polygon.length]
@@ -229,30 +229,102 @@ export function calculateRoomStats(room: Room, walls: Wall[], shunts: { x: numbe
     const colPerimM = columnPerimeterContribution / 100
     const colPerimDisplayM = columnPerimeterDisplay / 100
 
-    // 4. Ceramic Wall Length
+    // 4. Ceramic Wall Length (same corner-reduction logic as wallPerimeter, but respects disabled walls)
     let ceramicWallLength = 0
     if (room.hasCeramicWalls) {
-        room.polygon.forEach((p1, i) => {
-            const p2 = room.polygon[(i + 1) % room.polygon.length]
-            const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+        for (let i = 0; i < segments.length; i++) {
+            const seg = segments[i]
+
+            // Skip invisible walls
+            if (seg.isInvisible) continue
+
+            // Find the matching wall to check disabledCeramicWalls
+            const midP = { x: (seg.p1.x + seg.p2.x) / 2, y: (seg.p1.y + seg.p2.y) / 2 }
             const wall = walls.find(w => isPointOnSegment(midP, w.start, w.end, 4.0))
-
-            // Skip if wall is invisible or segment is disabled
-            if (wall?.isInvisible) return
             const segmentId = wall?.id || `seg-${i}`
-            if (room.disabledCeramicWalls?.includes(segmentId)) return
+            if (room.disabledCeramicWalls?.includes(segmentId)) continue
 
-            const len = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2))
-            ceramicWallLength += len
-        })
+            const prev = segments[(i - 1 + segments.length) % segments.length]
+            const next = segments[(i + 1) % segments.length]
+
+            const getReduction = (sA: any, sB: any, commonP: Point) => {
+                if (sB.isInvisible) return 0
+                const pA = (isSamePoint(sA.p1, commonP)) ? sA.p2 : sA.p1
+                const pB = (isSamePoint(sB.p1, commonP)) ? sB.p2 : sB.p1
+                const va = { x: pA.x - commonP.x, y: pA.y - commonP.y }
+                const vb = { x: pB.x - commonP.x, y: pB.y - commonP.y }
+                const magA = Math.sqrt(va.x ** 2 + va.y ** 2)
+                const magB = Math.sqrt(vb.x ** 2 + vb.y ** 2)
+                if (magA < 0.1 || magB < 0.1) return 0
+                const dot = (va.x * vb.x + va.y * vb.y) / (magA * magB)
+                if (dot < -0.99) return 0
+                return sB.thickness / 2
+            }
+
+            const red1 = getReduction(seg, prev, seg.p1)
+            const red2 = getReduction(seg, next, seg.p2)
+            ceramicWallLength += Math.max(0, seg.len - red1 - red2)
+        }
     }
+
+    // 5. Ceramic Column Logic:
+    // - Subtract wall length hidden by ANY column (tiled or not)
+    // - Add exposed face length of TILED columns
+    let ceramicColumnExposedLength = 0
+    let ceramicWallHiddenLength = 0
+
+    roomShunts.forEach(s => {
+        const faces = [
+            { p1: { x: s.x - s.width / 2, y: s.y - s.height / 2 }, p2: { x: s.x + s.width / 2, y: s.y - s.height / 2 }, len: s.width },
+            { p1: { x: s.x - s.width / 2, y: s.y + s.height / 2 }, p2: { x: s.x + s.width / 2, y: s.y + s.height / 2 }, len: s.width },
+            { p1: { x: s.x - s.width / 2, y: s.y - s.height / 2 }, p2: { x: s.x - s.width / 2, y: s.y + s.height / 2 }, len: s.height },
+            { p1: { x: s.x + s.width / 2, y: s.y - s.height / 2 }, p2: { x: s.x + s.width / 2, y: s.y + s.height / 2 }, len: s.height }
+        ]
+
+        faces.forEach(face => {
+            const midF = { x: (face.p1.x + face.p2.x) / 2, y: (face.p1.y + face.p2.y) / 2 }
+
+            // Check if face is pressing against a wall
+            const isSupportedByWall = walls.some(w => {
+                if (w.isInvisible) return false
+                const { point: proj } = getClosestPointOnSegment(midF, w.start, w.end)
+                const dist = Math.sqrt((midF.x - proj.x) ** 2 + (midF.y - proj.y) ** 2)
+                return dist < (w.thickness / 2) + 2.0
+            })
+
+            // Check if face is touching another shunt
+            const isSupportedByShunt = shunts.some(os => {
+                if (os === s) return false
+                const osHalfW = os.width / 2, osHalfH = os.height / 2
+                const inX = midF.x >= os.x - osHalfW - 1 && midF.x <= os.x + osHalfW + 1
+                const inY = midF.y >= os.y - osHalfH - 1 && midF.y <= os.y + osHalfH + 1
+                if (!inX || !inY) return false
+                const distL = Math.abs(midF.x - (os.x - osHalfW))
+                const distR = Math.abs(midF.x - (os.x + osHalfW))
+                const distT = Math.abs(midF.y - (os.y - osHalfH))
+                const distB = Math.abs(midF.y - (os.y + osHalfH))
+                return Math.min(distL, distR, distT, distB) < 2.0
+            })
+
+            if (isSupportedByWall) {
+                // This face hides the wall -> Subtract from wall area
+                ceramicWallHiddenLength += face.len
+            } else if (!isSupportedByShunt) {
+                // Exposed face -> Add to column area IF the column is ceramic
+                if ((s as any).hasCeramic) {
+                    ceramicColumnExposedLength += face.len
+                }
+            }
+        })
+    })
 
     return {
         wallPerimeter: wallPerimM,
         columnPerimeter: colPerimDisplayM, // Orange display
         totalPerimeter: wallPerimM + colPerimM, // Net perimeter
         area: room.area,
-        ceramicWallLength: ceramicWallLength / 100,
+        // Formula: Initial Wall Length - Hidden by Columns + Exposed Column Surfaces
+        ceramicWallLength: Math.max(0, ceramicWallLength - ceramicWallHiddenLength + ceramicColumnExposedLength) / 100,
         hasCeramicFloor: !!room.hasCeramicFloor
     }
 }

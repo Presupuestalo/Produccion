@@ -2,8 +2,8 @@
 import React from "react"
 import { Stage, Layer, Group, Line, Rect, Text, Circle, Arc as KonvaArc, Arrow } from "react-konva"
 import { Grid } from "./Grid"
-import { getClosestPointOnSegment, generateArcPoints, getLineIntersection, isPointOnSegment } from "@/lib/utils/geometry"
-import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical, SquareDashed, Spline, Check, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Grid3X3, Eraser } from "lucide-react"
+import { getClosestPointOnSegment, generateArcPoints, getLineIntersection, isPointOnSegment, isPointInPolygon } from "@/lib/utils/geometry"
+import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical, SquareDashed, Spline, Check, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ArrowLeftRight, Grid3X3, Eraser } from "lucide-react"
 import { NumericInput } from "./NumericInput"
 import { UnifiedWallEditor } from "./UnifiedWallEditor"
 
@@ -24,8 +24,8 @@ interface Room {
 }
 
 interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding_rail" | "sliding_pocket" | "sliding" | "double_swing" | "exterior_sliding" }
-interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean; openType?: "single" | "double" | "sliding" }
-interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number }
+interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean; openType?: "single" | "double" | "sliding" | "balcony"; isFixed?: boolean }
+interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number; hasCeramic?: boolean }
 
 function calculatePolygonCentroid(points: Point[]): Point {
     let sx = 0, sy = 0
@@ -133,7 +133,7 @@ export interface CanvasEngineRef {
 const ShuntItem = React.memo(({
     shunt, isSelected, activeTool, walls, snappingEnabled, zoom, shunts,
     setDragShuntState, onSelect, onDragEnd, onEditDimensions, isEditing,
-    showAllQuotes
+    showAllQuotes, ceramicGridImage
 }: {
     shunt: Shunt, isSelected: boolean, activeTool: string,
     walls: Wall[], snappingEnabled: boolean, zoom: number, shunts: Shunt[],
@@ -142,7 +142,8 @@ const ShuntItem = React.memo(({
     onDragEnd: (id: string, x: number, y: number) => void,
     onEditDimensions: (e: any) => void,
     isEditing: boolean,
-    showAllQuotes?: boolean
+    showAllQuotes?: boolean,
+    ceramicGridImage?: HTMLImageElement | null
 }) => {
     return (
         <Group
@@ -254,6 +255,59 @@ const ShuntItem = React.memo(({
                 stroke={isSelected ? "#0ea5e9" : "#334155"}
                 strokeWidth={2}
             />
+            {/* Ceramic dashed lines — only on exposed (non-wall-touching) faces */}
+            {shunt.hasCeramic && (() => {
+                const hw = shunt.width / 2
+                const hh = shunt.height / 2
+                // Define the 4 faces: [x1,y1,x2,y2] relative to shunt centre (offsetX/Y already set by Group)
+                const faces = [
+                    { pts: [-hw, -hh, hw, -hh], mid: { x: 0, y: -hh } },   // top
+                    { pts: [-hw, hh, hw, hh], mid: { x: 0, hh } },       // bottom
+                    { pts: [-hw, -hh, -hw, hh], mid: { x: -hw, y: 0 } },    // left
+                    { pts: [hw, -hh, hw, hh], mid: { x: hw, y: 0 } },    // right
+                ]
+                const WALL_TOL = 4.0
+                return faces
+                    .filter(face => {
+                        // World-space midpoint of this face
+                        const wx = shunt.x + face.mid.x
+                        const wy = shunt.y + face.mid.y
+                        // A face is "supported" (hidden) if it lies on a visible wall surface
+                        return !walls.some(w => {
+                            if (w.isInvisible) return false
+                            const dx = w.end.x - w.start.x
+                            const dy = w.end.y - w.start.y
+                            const lenSq = dx * dx + dy * dy
+                            if (lenSq < 0.01) return false
+                            const t = Math.max(0, Math.min(1, ((wx - w.start.x) * dx + (wy - w.start.y) * dy) / lenSq))
+                            const px = w.start.x + t * dx
+                            const py = w.start.y + t * dy
+                            const dist = Math.sqrt((wx - px) ** 2 + (wy - py) ** 2)
+                            return dist < (w.thickness / 2) + WALL_TOL
+                        })
+                    })
+                    .map((face, i) => (
+                        <React.Fragment key={`ceramic-face-${i}`}>
+                            {/* Thick dark dashed line - Reduced width for cleaner look on small columns */}
+                            <Line
+                                points={face.pts}
+                                stroke="#1e293b"
+                                strokeWidth={8 / zoom}
+                                dash={[8 / zoom, 4 / zoom]}
+                                opacity={0.8}
+                                listening={false}
+                            />
+                            {/* White mask to create the inset effect */}
+                            <Line
+                                points={face.pts}
+                                stroke="#ffffff"
+                                strokeWidth={2 / zoom}
+                                opacity={1}
+                                listening={false}
+                            />
+                        </React.Fragment>
+                    ))
+            })()}
             {((isSelected || showAllQuotes) && !isEditing) && (
                 <Text
                     x={0}
@@ -277,14 +331,15 @@ const ShuntItem = React.memo(({
     )
 }, (prev, next) => {
     // Only re-render if data changes (ignore parent render caused by drag state)
-    // We treat walls as static for this purpose (or if they change we re-render)
     return prev.shunt.x === next.shunt.x &&
         prev.shunt.y === next.shunt.y &&
         prev.isSelected === next.isSelected &&
         prev.activeTool === next.activeTool &&
-        prev.zoom === next.zoom && // zoom affects threshold logic
+        prev.zoom === next.zoom &&
         prev.shunts === next.shunts &&
-        prev.isEditing === next.isEditing
+        prev.walls === next.walls && // walls affect exposed-face computation
+        prev.isEditing === next.isEditing &&
+        prev.shunt.hasCeramic === next.shunt.hasCeramic
 })
 
 // Helper Components outside main component to avoid re-mounting on every render
@@ -922,25 +977,16 @@ export const CanvasEngine = ({
             e.preventDefault()
 
             const stage = stageRef.current
-            const transform = stage.getAbsoluteTransform().copy()
-            transform.invert()
-
-            const container = stage.container()
-            const rect = container.getBoundingClientRect()
-
-            let clientX = e.clientX
-            let clientY = e.clientY
-
-            // Apply vertical offset for touch to avoid finger covering the vertex
-            if (e.pointerType === "touch" || forceTouchOffset) {
-                clientY -= touchOffset
-            }
-
             const pos = {
                 x: clientX - rect.left,
                 y: clientY - rect.top
             }
-            const pointer = transform.point(pos)
+
+            // Manual transform to account for zoom/pan
+            const pointer = {
+                x: (pos.x - offset.x) / zoom,
+                y: (pos.y - offset.y) / zoom
+            }
 
             let totalDelta = {
                 x: pointer.x - dragStartPointerPos.current.x,
@@ -1960,6 +2006,20 @@ export const CanvasEngine = ({
                 const pointer = stage.getPointerPosition();
                 if (pointer) {
                     const pos = getRelativePointerPosition(stage, { x: pointer.x, y: pointer.y });
+
+                    // 1. Check if click is on a shunt (column) inside the selected room
+                    const clickedShunt = shunts.find(s => {
+                        const halfW = s.width / 2;
+                        const halfH = s.height / 2;
+                        return pos.x >= s.x - halfW && pos.x <= s.x + halfW &&
+                            pos.y >= s.y - halfH && pos.y <= s.y + halfH;
+                    });
+                    if (clickedShunt && onUpdateShunt) {
+                        onUpdateShunt(clickedShunt.id, { hasCeramic: !(clickedShunt as any).hasCeramic });
+                        return;
+                    }
+
+                    // 2. Check if click is on a room wall segment
                     let bestSegWallId: string | null = null;
                     let minDist = Infinity;
 
@@ -2367,7 +2427,7 @@ export const CanvasEngine = ({
     }
 
     return (
-        <div className="w-full h-full bg-slate-50 overflow-hidden" style={{ touchAction: 'none' }}>
+        <div className="w-full h-full bg-slate-50 overflow-hidden" style={{ touchAction: 'none', cursor: isCeramicEraserActive ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230ea5e9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21'/%3E%3Cpath d='M22 21H7'/%3E%3Cpath d='m5 11 9 9'/%3E%3C/svg%3E") 12 12, pointer` : undefined }}>
             <Stage
                 ref={stageRef}
                 width={width}
@@ -2518,6 +2578,8 @@ export const CanvasEngine = ({
                                                     const p2 = room.polygon[(i + 1) % room.polygon.length];
                                                     const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
                                                     const wall = walls.find(w => isPointOnSegment(midP, w.start, w.end, 4.0));
+                                                    // Skip invisible walls - they are partition boundaries, not ceramic surfaces
+                                                    if (wall?.isInvisible) return null;
                                                     const segmentId = wall?.id || `seg-${i}`;
                                                     if (room.disabledCeramicWalls?.includes(segmentId)) return null;
 
@@ -2726,7 +2788,7 @@ export const CanvasEngine = ({
 
                                     {/* MEDIDAS PERPENDICULARES DINÃMICAS */}
                                     {(isSelected || dragStartPos.current) && (
-                                        walls.filter(otherW => isConnectedPerpendicular(wall, otherW)).map(perpWall => (
+                                        walls.filter(otherW => isConnectedPerpendicular(wall, otherW) && !selectedWallIds.includes(otherW.id)).map(perpWall => (
                                             <React.Fragment key={`perp-${perpWall.id}`}>
                                                 {renderWallMeasurement(perpWall, 25 / zoom, "#0284c7")}
                                             </React.Fragment>
@@ -2803,18 +2865,18 @@ export const CanvasEngine = ({
                                     onDragStart={(e) => {
                                         onSelectElement({ type: "door", id: door.id })
                                         const stage = e.target.getStage()
-                                        if (stage) {
-                                            const transform = stage.getAbsoluteTransform().copy()
-                                            transform.invert()
-                                            const sp = stage.getPointerPosition()
-                                            if (sp) {
-                                                if (((e.evt as any).pointerType === 'touch' || forceTouchOffset) && touchOffset) sp.y -= touchOffset;
-                                                const cursorPos = transform.point(sp)
-                                                // Store offset: Vector from Cursor to Element Center
-                                                dragOffsetRef.current = {
-                                                    x: pos.x - cursorPos.x,
-                                                    y: pos.y - cursorPos.y
-                                                }
+                                        const sp = stage?.getPointerPosition()
+                                        if (sp) {
+                                            if (((e.evt as any).pointerType === 'touch' || forceTouchOffset) && touchOffset) sp.y -= touchOffset;
+                                            // Manual transform to account for zoom/pan
+                                            const cursorPos = {
+                                                x: (sp.x - offset.x) / zoom,
+                                                y: (sp.y - offset.y) / zoom
+                                            }
+                                            // Store offset: Vector from Cursor to Element Center
+                                            dragOffsetRef.current = {
+                                                x: pos.x - cursorPos.x,
+                                                y: pos.y - cursorPos.y
                                             }
                                         }
                                     }}
@@ -2822,12 +2884,16 @@ export const CanvasEngine = ({
                                         if (wasPinching.current) return
                                         const stage = e.target.getStage()
                                         if (!stage || !dragOffsetRef.current) return
-                                        const transform = stage.getAbsoluteTransform().copy()
-                                        transform.invert()
+
                                         const sp = stage.getPointerPosition()
                                         if (!sp) return
                                         if (((e.evt as any).pointerType === 'touch' || forceTouchOffset) && touchOffset) sp.y -= touchOffset;
-                                        const cursorPos = transform.point(sp)
+
+                                        // Manual transform to account for zoom/pan
+                                        const cursorPos = {
+                                            x: (sp.x - offset.x) / zoom,
+                                            y: (sp.y - offset.y) / zoom
+                                        }
 
                                         // 1. Desired Center (perfectly tracking cursor + offset)
                                         const virtualCenterX = cursorPos.x + dragOffsetRef.current.x
@@ -2886,6 +2952,7 @@ export const CanvasEngine = ({
                                         dragOffsetRef.current = null
                                         // Ensure final state alignment
                                         e.target.position({ x: pos.x, y: pos.y })
+                                        onDragEnd()
                                     }}
                                 >
                                     {/* Hit Area Rect - Increased size for mobile */}
@@ -3163,17 +3230,17 @@ export const CanvasEngine = ({
                                     onDragStart={(e) => {
                                         onSelectElement({ type: "window", id: window.id })
                                         const stage = e.target.getStage()
-                                        if (stage) {
-                                            const transform = stage.getAbsoluteTransform().copy()
-                                            transform.invert()
-                                            const sp = stage.getPointerPosition()
-                                            if (sp) {
-                                                if (((e.evt as any).pointerType === 'touch' || forceTouchOffset) && touchOffset) sp.y -= touchOffset;
-                                                const cursorPos = transform.point(sp)
-                                                dragOffsetRef.current = {
-                                                    x: pos.x - cursorPos.x,
-                                                    y: pos.y - cursorPos.y
-                                                }
+                                        const sp = stage?.getPointerPosition()
+                                        if (sp) {
+                                            if (((e.evt as any).pointerType === 'touch' || forceTouchOffset) && touchOffset) sp.y -= touchOffset;
+                                            // Manual transform to account for zoom/pan
+                                            const cursorPos = {
+                                                x: (sp.x - offset.x) / zoom,
+                                                y: (sp.y - offset.y) / zoom
+                                            }
+                                            dragOffsetRef.current = {
+                                                x: pos.x - cursorPos.x,
+                                                y: pos.y - cursorPos.y
                                             }
                                         }
                                     }}
@@ -3181,12 +3248,16 @@ export const CanvasEngine = ({
                                         if (wasPinching.current) return
                                         const stage = e.target.getStage()
                                         if (!stage || !dragOffsetRef.current) return
-                                        const transform = stage.getAbsoluteTransform().copy()
-                                        transform.invert()
+
                                         const sp = stage.getPointerPosition()
                                         if (!sp) return
                                         if (((e.evt as any).pointerType === 'touch' || forceTouchOffset) && touchOffset) sp.y -= touchOffset;
-                                        const cursorPos = transform.point(sp)
+
+                                        // Manual transform to account for zoom/pan
+                                        const cursorPos = {
+                                            x: (sp.x - offset.x) / zoom,
+                                            y: (sp.y - offset.y) / zoom
+                                        }
 
                                         // 1. Desired Center
                                         const virtualCenterX = cursorPos.x + dragOffsetRef.current.x
@@ -3240,6 +3311,7 @@ export const CanvasEngine = ({
                                     onDragEnd={(e) => {
                                         dragOffsetRef.current = null
                                         e.target.position({ x: pos.x, y: pos.y })
+                                        onDragEnd()
                                     }}
                                 >
                                     {/* Hit Area Rect - Increased size for mobile */}
@@ -3263,16 +3335,48 @@ export const CanvasEngine = ({
                                     />
 
                                     {/* Visual Representation based on Leaves */}
-                                    {(!window.openType || window.openType === "single") ? (
-                                        // Single Leaf (1 Hoja) - Continuous Line
-                                        <Line
-                                            points={[-window.width / 2, 0, window.width / 2, 0]}
-                                            stroke={isSelected ? "#0ea5e9" : "#38bdf8"}
+                                    {window.openType === "balcony" ? (
+                                        // Balcony Door (Narrower angle, specific color)
+                                        <KonvaArc
+                                            x={-window.width / 2}
+                                            y={window.flipY ? (wall.thickness + 4) / 2 : -(wall.thickness + 4) / 2}
+                                            innerRadius={0}
+                                            outerRadius={window.width}
+                                            angle={60} // Narrower angle for balcony
+                                            rotation={window.flipY ? 0 : -60}
+                                            stroke={isSelected ? "#0ea5e9" : "#0891b2"} // Cyan-600 for distinction
                                             strokeWidth={isSelected ? 2 : 1.5}
+                                            fill={isSelected ? "#0ea5e920" : "transparent"}
                                             listening={false}
                                         />
+                                    ) : (!window.openType || window.openType === "single") ? (
+                                        // Single Leaf (1 Hoja)
+                                        <Group>
+                                            {/* Glass Line */}
+                                            <Line
+                                                points={[-window.width / 2, 0, window.width / 2, 0]}
+                                                stroke={isSelected ? "#0ea5e9" : "#38bdf8"}
+                                                strokeWidth={isSelected ? 2 : 1.5}
+                                                listening={false}
+                                            />
+                                            {/* Opening Arc (only if not fixed) */}
+                                            {!window.isFixed && (
+                                                <KonvaArc
+                                                    x={-window.width / 2}
+                                                    y={window.flipY ? (wall.thickness + 4) / 2 : -(wall.thickness + 4) / 2}
+                                                    innerRadius={0}
+                                                    outerRadius={window.width}
+                                                    angle={90}
+                                                    rotation={window.flipY ? 0 : -90}
+                                                    stroke={isSelected ? "#0ea5e9" : "#38bdf8"}
+                                                    strokeWidth={1}
+                                                    dash={[3, 3]}
+                                                    listening={false}
+                                                />
+                                            )}
+                                        </Group>
                                     ) : (
-                                        // Double Leaf (2 Hojas) - Split Line with Tick
+                                        // Double Leaf (2 Hojas) - Split Line with Tick AND Arcs
                                         <Group>
                                             <Line
                                                 points={[-window.width / 2, 0, window.width / 2, 0]}
@@ -3280,24 +3384,64 @@ export const CanvasEngine = ({
                                                 strokeWidth={isSelected ? 2 : 1.5}
                                                 listening={false}
                                             />
-                                            {/* Mid tick - Full Switch */}
+                                            {/* Mid tick */}
                                             <Line
                                                 points={[0, -(wall.thickness + 4) / 2, 0, (wall.thickness + 4) / 2]}
                                                 stroke={isSelected ? "#0ea5e9" : "#38bdf8"}
                                                 strokeWidth={isSelected ? 2 : 1.5}
                                                 listening={false}
                                             />
-                                            {/* Quarter ticks for detail */}
-                                            <Line
-                                                points={[-window.width / 2, -2, -window.width / 2, 2]}
+                                            {/* Left Arc */}
+                                            <KonvaArc
+                                                x={-window.width / 2}
+                                                y={window.flipY ? (wall.thickness + 4) / 2 : -(wall.thickness + 4) / 2}
+                                                innerRadius={0}
+                                                outerRadius={window.width / 2}
+                                                angle={45}
+                                                rotation={window.flipY ? 0 : -45}
                                                 stroke={isSelected ? "#0ea5e9" : "#38bdf8"}
                                                 strokeWidth={1}
+                                                dash={[3, 3]}
                                                 listening={false}
                                             />
-                                            <Line
-                                                points={[window.width / 2, -2, window.width / 2, 2]}
+                                            {/* Right Arc - Mirrored */}
+                                            <KonvaArc
+                                                x={window.width / 2}
+                                                y={window.flipY ? (wall.thickness + 4) / 2 : -(wall.thickness + 4) / 2}
+                                                innerRadius={0}
+                                                outerRadius={window.width / 2}
+                                                angle={45}
+                                                rotation={window.flipY ? 0 + 135 : -45 - 135} // Adjusted for correct sweep direction? No, let's think.
+                                            // Left one starts at 0 (if flipY) and updates +45.
+                                            // Right one needs to start at 180 and go to 135?
+                                            // Actually let's keep it simple.
+                                            // Right side opens to the right.
+                                            // Center is at window.width/2.
+                                            // Arc starts from Left (180deg) relative to center?
+                                            // Wait, standard double window opens from center outwards.
+                                            // Left leaf opens Left. Right leaf opens Right.
+                                            // Left Pivot is at -width/2. Right Pivot is at width/2.
+                                            />
+                                            <KonvaArc
+                                                x={window.width / 2}
+                                                y={window.flipY ? (wall.thickness + 4) / 2 : -(wall.thickness + 4) / 2}
+                                                innerRadius={0}
+                                                outerRadius={window.width / 2}
+                                                angle={45}
+                                                rotation={window.flipY ? 135 : 180} // Starts at 180 (left) goes down? 
+                                                // Math: 0 is Right (East). 90 is Down (South). -90 is Up (North). 180 is Left (West).
+                                                // If flipY is false (top), wall is horizontal.
+                                                // Inside is DOWN (y increases).
+                                                // Left leaf pivot: -w/2. Arc from 0 to 45 (Down-Right).
+                                                // Right leaf pivot: w/2. Arc from 180 to 135 (Down-Left).
+                                                // If flipY is true (bottom), wall is horizontal.
+                                                // Inside is UP (y decreases).
+                                                // Left leaf pivot: -w/2. Arc from 0 to -45 (Up-Right).
+                                                // Right leaf pivot: w/2. Arc from 180 to 225 (Up-Left).
+
                                                 stroke={isSelected ? "#0ea5e9" : "#38bdf8"}
                                                 strokeWidth={1}
+                                                dash={[3, 3]}
                                                 listening={false}
                                             />
                                         </Group>
@@ -3620,8 +3764,12 @@ export const CanvasEngine = ({
                                 shunts={shunts}
                                 setDragShuntState={setDragShuntState}
                                 onSelect={() => onSelectElement({ type: "shunt", id: shunt.id })}
-                                onDragEnd={(id, x, y) => onDragElement("shunt", id, { x, y })}
+                                onDragEnd={(id, x, y) => {
+                                    onDragElement("shunt", id, { x, y })
+                                    onDragEnd()
+                                }}
                                 showAllQuotes={showAllQuotes}
+                                ceramicGridImage={ceramicGridImage}
                                 isEditing={editInputState?.id === `shunt-dimensions-${shunt.id}`}
                                 onEditDimensions={(e) => {
                                     const absPos = e.target.getAbsolutePosition()
@@ -3960,8 +4108,6 @@ export const CanvasEngine = ({
                                                 isDraggingVertexRef.current = true
                                                 dragStartPos.current = { ...point }
 
-                                                const transform = stage.getAbsoluteTransform().copy()
-                                                transform.invert()
                                                 const pos = stage.getPointerPosition()
 
                                                 // PointerEvent available in e.evt for react-konva
@@ -3978,7 +4124,11 @@ export const CanvasEngine = ({
                                                     }
 
                                                     // Use adjusted position for start to maintain distance from finger
-                                                    dragStartPointerPos.current = transform.point({ x: pos.x, y: adjustedY })
+                                                    // Manual transform to account for zoom/pan
+                                                    dragStartPointerPos.current = {
+                                                        x: (pos.x - offset.x) / zoom,
+                                                        y: (adjustedY - offset.y) / zoom
+                                                    }
                                                 }
 
                                                 // Determine walls to move
@@ -4372,16 +4522,20 @@ export const CanvasEngine = ({
                                             )}
                                             {selectedElement.type === "window" && (
                                                 <MenuButton
-                                                    icon={<Spline className="h-3 w-3" />}
+                                                    icon={<ArrowLeftRight className="h-3 w-3" />}
                                                     onClick={() => {
                                                         const el = windows.find(w => w.id === selectedElement.id)
                                                         if (el) {
-                                                            const nextType = (!el.openType || el.openType === "single") ? "double" : "single"
+                                                            const types = ["single", "double", "balcony"] as const
+                                                            // @ts-ignore
+                                                            const currentIdx = types.indexOf(el.openType || "single")
+                                                            const nextType = types[(currentIdx + 1) % types.length]
+
                                                             // @ts-ignore
                                                             onUpdateElement("window", el.id, { openType: nextType })
                                                         }
                                                     }}
-                                                    title="Cambiar hojas (1 o 2)"
+                                                    title="Cambiar tipo de ventana"
                                                 />
                                             )}
                                         </>
@@ -4469,15 +4623,37 @@ export const CanvasEngine = ({
                                         </>
                                     )}
                                     {(selectedWall || selectedElement) && (
-                                        <MenuButton
-                                            icon={<Trash2 className="h-3 w-3" />}
-                                            onClick={() => {
-                                                if (selectedWall) onDeleteWall(selectedWall.id)
-                                                else if (selectedElement) onDeleteElement(selectedElement.type, selectedElement.id)
-                                            }}
-                                            variant="danger"
-                                            title="Eliminar"
-                                        />
+                                        <>
+                                            {selectedElement?.type === "shunt" && (() => {
+                                                const shunt = shunts.find(s => s.id === selectedElement.id)
+                                                if (!shunt) return null
+                                                const inCeramicRoom = rooms.some(r => r.hasCeramicWalls && isPointInPolygon({ x: shunt.x, y: shunt.y }, r.polygon))
+                                                if (!inCeramicRoom) return null
+                                                return (
+                                                    <>
+                                                        <MenuButton
+                                                            icon={<SquareDashed className={`h-3.5 w-3.5 ${shunt.hasCeramic ? "text-sky-600" : "text-slate-400"}`} />}
+                                                            onClick={(e) => {
+                                                                // Prevent event propagation to avoid deselecting or other side effects
+                                                                if (e && e.stopPropagation) e.stopPropagation();
+                                                                onUpdateElement("shunt", shunt.id, { hasCeramic: !shunt.hasCeramic })
+                                                            }}
+                                                            title={shunt.hasCeramic ? "Quitar alicatado" : "Alicatar columna"}
+                                                        />
+                                                        <div className="w-px h-4 bg-slate-100 mx-0.5" />
+                                                    </>
+                                                )
+                                            })()}
+                                            <MenuButton
+                                                icon={<Trash2 className="h-3 w-3" />}
+                                                onClick={() => {
+                                                    if (selectedWall) onDeleteWall(selectedWall.id)
+                                                    else if (selectedElement) onDeleteElement(selectedElement.type, selectedElement.id)
+                                                }}
+                                                variant="danger"
+                                                title="Eliminar"
+                                            />
+                                        </>
                                     )}
                                     <div className="w-px h-4 bg-slate-100 mx-0.5" />
                                     <button

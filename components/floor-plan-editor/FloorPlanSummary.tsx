@@ -29,8 +29,8 @@ const CustomWindowIcon = ({ className }: { className?: string }) => (
 
 
 interface Door { id: string; wallId: string; width: number, openType?: "single" | "double" | "sliding_rail" | "sliding_pocket" | "sliding" | "double_swing" | "exterior_sliding" }
-interface Window { id: string; wallId: string; width: number, openType?: "single" | "double" | "sliding" }
-interface Shunt { id: string; x: number; y: number; width: number; height: number }
+interface Window { id: string; wallId: string; width: number, openType?: "single" | "double" | "sliding" | "balcony"; isFixed?: boolean }
+interface Shunt { id: string; x: number; y: number; width: number; height: number; hasCeramic?: boolean }
 
 interface FloorPlanSummaryProps {
     rooms: Room[]
@@ -52,16 +52,56 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts, ceiling
         return acc + len
     }, 0) / 100 // Convert cm to meters
 
+    // HELPER: Detect Exterior Doors (Entrance Doors)
+    // A door is an entrance if its wall is part of ONLY ONE room.
+    const wallRoomCounts = new Map<string, number>()
+
+    // We need to check every wall against every room to see if it forms part of the boundary
+    // The calculateRoomStats or isPointOnSegment logic helps, but we can do a simpler check here:
+    // For each wall, how many rooms have a segment that corresponds to it?
+
+    // Iterate all rooms and their polygon segments
+    filteredRooms.forEach(room => {
+        const polygon = room.polygon
+        for (let i = 0; i < polygon.length; i++) {
+            const p1 = polygon[i]
+            const p2 = polygon[(i + 1) % polygon.length]
+            const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+
+            // Find which wall this segment belongs to
+            const wall = walls.find(w => isPointOnSegment(midP, w.start, w.end, 1.0))
+            if (wall) {
+                wallRoomCounts.set(wall.id, (wallRoomCounts.get(wall.id) || 0) + 1)
+            }
+        }
+    })
+
+    const entranceDoorIds = new Set<string>()
+    doors.forEach(d => {
+        // If the wall has 1 room (or 0 if something is weird, but typically 1 for exterior), it's an entrance
+        // Ideally 1. If 2, it's a partition between rooms.
+        const roomCount = wallRoomCounts.get(d.wallId) || 0
+        if (roomCount <= 1) {
+            entranceDoorIds.add(d.id)
+        }
+    })
+
     // Global Breakdown
-    const doorsSimple = doors.filter(d => !d.openType || d.openType === "single").length
-    const doorsDouble = doors.filter(d => d.openType === "double").length
-    const doorsDoubleSwing = doors.filter(d => d.openType === "double_swing").length
-    const doorsSlidingRail = doors.filter(d => d.openType === "sliding_rail" || d.openType === "exterior_sliding").length
-    const doorsSlidingPocket = doors.filter(d => d.openType === "sliding_pocket" || d.openType === "sliding").length
+    const entranceDoorsCount = entranceDoorIds.size
+
+    // Filter out entrance doors from other counts
+    const internalDoors = doors.filter(d => !entranceDoorIds.has(d.id))
+
+    const doorsSimple = internalDoors.filter(d => !d.openType || d.openType === "single").length
+    const doorsDouble = internalDoors.filter(d => d.openType === "double").length
+    const doorsDoubleSwing = internalDoors.filter(d => d.openType === "double_swing").length
+    const doorsSlidingRail = internalDoors.filter(d => d.openType === "sliding_rail" || d.openType === "exterior_sliding").length
+    const doorsSlidingPocket = internalDoors.filter(d => d.openType === "sliding_pocket" || d.openType === "sliding").length
     const totalDoors = doors.length
 
     const winSimple = windows.filter(w => !w.openType || w.openType === "single").length
     const winDouble = windows.filter(w => w.openType === "double").length
+    const winBalcony = windows.filter(w => w.openType === "balcony").length
     const totalWindows = windows.length
 
     // 2. Per Room Stats
@@ -106,6 +146,12 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts, ceiling
                     <CardContent className="p-4 pt-0">
                         <div className="text-xl font-bold">{totalDoors}</div>
                         <div className="text-[10px] text-muted-foreground mt-2 space-y-1">
+                            {entranceDoorsCount > 0 && (
+                                <div className="flex justify-between items-center font-semibold text-orange-600">
+                                    <span>Entrada</span>
+                                    <span>{entranceDoorsCount}</span>
+                                </div>
+                            )}
                             <div className="flex justify-between items-center">
                                 <span>Abatibles</span>
                                 <span className="font-medium text-foreground">{doorsSimple}</span>
@@ -146,6 +192,10 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts, ceiling
                             <div className="flex justify-between items-center">
                                 <span>Dobles</span>
                                 <span className="font-medium text-foreground">{winDouble}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span>Balconeras</span>
+                                <span className="font-medium text-foreground">{winBalcony}</span>
                             </div>
                         </div>
                     </CardContent>

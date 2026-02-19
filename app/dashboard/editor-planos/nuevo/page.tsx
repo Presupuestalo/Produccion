@@ -19,8 +19,8 @@ export default function NuevoPlanoPage() {
     setShowSaveDialog(true)
   }
 
-  // 2. Handle simple save (just Name)
-  const handleDialogSave = async (planName: string) => {
+  // 2. Handle save with optional project and variant
+  const handleDialogSave = async (planName: string, projectId: string | null, variant: string) => {
     if (!pendingPlanData) return
     setIsSaving(true)
 
@@ -29,13 +29,10 @@ export default function NuevoPlanoPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // Project Wrapper defaults will be handled by API
           name: planName,
-
-          // Plan Data
           ...pendingPlanData,
-          projectId: null, // Force new creation
-          variant: 'current'
+          projectId: projectId || null,
+          variant: variant || 'current'
         }),
       })
 
@@ -61,7 +58,7 @@ export default function NuevoPlanoPage() {
     <div className="h-[calc(100vh-4rem+2rem)] md:h-[calc(100vh-4rem+3rem)] -mx-4 -my-4 md:-mx-6 md:-my-6 bg-slate-50 overflow-hidden">
       <EditorContainer
         ref={editorRef}
-        onSave={handleEditorSave} // Intercept save
+        onSave={handleEditorSave}
       />
 
       <SimpleSaveDialog

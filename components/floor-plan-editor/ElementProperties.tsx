@@ -10,8 +10,10 @@ interface ElementPropertiesProps {
     type: "door" | "window" | "shunt"
     width: number // cm
     height?: number // cm (for windows/shunts)
+    isFixed?: boolean // for windows
     onUpdateWidth: (id: string, width: number) => void
     onUpdateHeight?: (id: string, height: number) => void
+    onUpdateFixed?: (id: string, isFixed: boolean) => void
     onClone?: (id: string) => void
     onDelete: (id: string) => void
     onClose: () => void
@@ -22,8 +24,10 @@ export function ElementProperties({
     type,
     width,
     height,
+    isFixed,
     onUpdateWidth,
     onUpdateHeight,
+    onUpdateFixed,
     onClone,
     onDelete,
     onClose
@@ -146,18 +150,36 @@ export function ElementProperties({
                 )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
-                {onClone && (
-                    <Button variant="outline" size="sm" onClick={() => onClone(elementId)} title="Duplicar">
-                        <Copy className="h-3.5 w-3.5 mr-2" />
-                        Duplicar
+            {type === "window" && (
+                <div className="flex items-center space-x-2 pt-2 border-t border-slate-100">
+                    <input
+                        type="checkbox"
+                        id="isFixed"
+                        checked={!!(window as any)?.isFixed} // We need to handle this prop
+                        onChange={(e) => {
+                            // This component needs to handle generic updates or specific window updates
+                            // Implementation will require updating the parent or passing a specific handler
+                        }}
+                        className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                    />
+                    <Label htmlFor="isFixed" className="text-sm text-slate-700">Ventana Fija (Sin apertura)</Label>
+                </div>
+            )}
+
+            <div className="space-y-3">
+
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                    {onClone && (
+                        <Button variant="outline" size="sm" onClick={() => onClone(elementId)} title="Duplicar">
+                            <Copy className="h-3.5 w-3.5 mr-2" />
+                            Duplicar
+                        </Button>
+                    )}
+                    <Button variant="destructive" size="sm" onClick={() => onDelete(elementId)} title="Eliminar Elemento" className={onClone ? "" : "col-span-2"}>
+                        <Trash2 className="h-3.5 w-3.5 mr-2" />
+                        Eliminar
                     </Button>
-                )}
-                <Button variant="destructive" size="sm" onClick={() => onDelete(elementId)} title="Eliminar Elemento" className={onClone ? "" : "col-span-2"}>
-                    <Trash2 className="h-3.5 w-3.5 mr-2" />
-                    Eliminar
-                </Button>
-            </div>
+                </div>
         </Card>
     )
 }

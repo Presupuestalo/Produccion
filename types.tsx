@@ -27,6 +27,7 @@ export type Window = {
   dimensions: {
     width: number
     height: number
+    isFixed?: boolean
   }
 }
 

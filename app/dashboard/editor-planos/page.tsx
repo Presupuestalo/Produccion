@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { PencilRuler, Upload, Plus, FileText, ArrowRight, Trash2, Eye, Maximize2 } from "lucide-react"
+import { PencilRuler, Upload, Plus, FileText, ArrowRight, Trash2, Eye, Maximize2, FolderOpen } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/components/ui/use-toast"
 import {
@@ -29,6 +29,9 @@ interface FloorPlan {
   name: string
   created_at: string
   thumbnail?: string
+  projectId?: string | null
+  projectName?: string | null
+  variant?: string | null
 }
 
 export default function EditorPlanosPage() {
@@ -191,6 +194,23 @@ export default function EditorPlanosPage() {
                         <p className="text-sm text-gray-500 flex items-center gap-1">
                           📅 {new Date(plan.created_at).toLocaleDateString("es-ES", { day: 'numeric', month: 'long', year: 'numeric' })}
                         </p>
+                        {/* Project & Variant Badges */}
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {plan.projectName ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5">
+                              <FolderOpen className="h-2.5 w-2.5" />
+                              {plan.projectName}
+                            </span>
+                          ) : null}
+                          {plan.variant && plan.projectName ? (
+                            <span className={`inline-flex items-center text-[10px] font-medium rounded-full px-2 py-0.5 ${plan.variant === 'current'
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              }`}>
+                              {plan.variant === 'current' ? '📐 Antes' : '🏗️ Después'}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                       <div className="mt-4 pt-3 border-t flex justify-end">
                         <span className="text-xs font-medium text-blue-600 group-hover:underline">Abrir editor →</span>
