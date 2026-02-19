@@ -180,6 +180,7 @@ export function ElementProperties({
                         Eliminar
                     </Button>
                 </div>
+            </div>
         </Card>
     )
 }
