@@ -2,7 +2,7 @@
 
 import React from "react"
 import { useState, useEffect, type ChangeEvent, type FormEvent } from "react"
-import { Plus, Loader2, Sparkles, Lock, Crown, ArrowRight } from "lucide-react"
+import { Plus, Loader2, Sparkles, Lock, Crown, ArrowRight, PencilRuler } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -97,7 +97,7 @@ const TIPOS_ESTRUCTURA = ["Hormigón", "Ladrillo", "Acero", "Mixta", "Madera", "
 export function CreateProjectButton({ className }: { className?: string }) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [creationMode, setCreationMode] = useState<"select" | "manual" | "ai">("select")
+  const [creationMode, setCreationMode] = useState<"select" | "manual" | "ai" | "floor-plan">("select")
   const [activeTab, setActiveTab] = useState<string>("project")
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: boolean }>({})
   const [isCheckingLimits, setIsCheckingLimits] = useState(false)
@@ -347,6 +347,8 @@ export function CreateProjectButton({ className }: { className?: string }) {
 
       if (creationMode === "ai") {
         router.push(`/dashboard/projects/${projectId}?openFloorPlanAnalyzer=true`)
+      } else if (creationMode === "floor-plan") {
+        router.push(`/dashboard/editor-planos/nuevo?projectId=${projectId}&variant=current`)
       } else {
         router.push(`/dashboard/projects/${projectId}`)
       }
@@ -376,7 +378,7 @@ export function CreateProjectButton({ className }: { className?: string }) {
         dueDate: new Date().toISOString().split("T")[0],
       })
       setAlturaInput("")
-      setCreationMode("select")
+      setCreationMode("select" as const)
       setActiveTab("project")
     } catch (error: any) {
       console.error("[v0] ❌ Error completo al crear el proyecto:", error)
@@ -490,17 +492,33 @@ export function CreateProjectButton({ className }: { className?: string }) {
                 <DialogDescription>Elige cómo quieres crear el proyecto</DialogDescription>
               </DialogHeader>
               <div className="grid grid-cols-1 gap-4 py-6">
+                {/* Con Plano */}
+                {isMaster && (
+                  <button
+                    onClick={() => setCreationMode("floor-plan")}
+                    className="flex flex-col items-center gap-4 p-8 border-2 border-border rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors group"
+                  >
+                    <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <PencilRuler className="w-8 h-8 text-blue-600" />
+                    </div>
+                    <div className="text-center">
+                      <h3 className="font-semibold text-lg mb-2">Con plano</h3>
+                      <p className="text-sm text-muted-foreground">Crea el proyecto y dibuja el plano directamente</p>
+                    </div>
+                  </button>
+                )}
+
+                {/* Con IA */}
                 {isMaster && (
                   <button
                     onClick={handleAIOptionClick}
                     className={`relative flex flex-col items-center gap-4 p-8 border-2 rounded-lg transition-all ${isProUser
-                      ? "border-border hover:border-orange-300 hover:bg-orange-50"
+                      ? "border-border hover:border-orange-300 hover:bg-orange-50 group"
                       : "border-gray-200 bg-gray-50/50 cursor-pointer group"
                       }`}
                   >
-                    {/* ... rest of the button content ... */}
                     <div
-                      className={`w-16 h-16 rounded-full flex items-center justify-center ${isProUser ? "bg-orange-100" : "bg-gray-100"
+                      className={`w-16 h-16 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform ${isProUser ? "bg-orange-100" : "bg-gray-100"
                         }`}
                     >
                       {isProUser ? (
@@ -512,14 +530,12 @@ export function CreateProjectButton({ className }: { className?: string }) {
                         </div>
                       )}
                     </div>
-
                     <div className="text-center">
-                      <h3 className={`font-semibold text-lg mb-2 ${!isProUser && "text-gray-600"}`}>Crear con IA</h3>
+                      <h3 className={`font-semibold text-lg mb-2 ${!isProUser && "text-gray-600"}`}>Con IA</h3>
                       <p className={`text-sm ${isProUser ? "text-muted-foreground" : "text-gray-400"}`}>
-                        Completa los datos y luego analiza el plano automáticamente
+                        Completa los datos y analiza el plano automáticamente
                       </p>
                     </div>
-
                     {!isProUser && (
                       <div className="mt-2 flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-medium rounded-lg group-hover:shadow-md transition-shadow">
                         <span>Desbloquear con Plan Pro</span>
@@ -529,11 +545,12 @@ export function CreateProjectButton({ className }: { className?: string }) {
                   </button>
                 )}
 
+                {/* En blanco */}
                 <button
                   onClick={() => setCreationMode("manual")}
-                  className="flex flex-col items-center gap-4 p-8 border-2 border-border rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-colors"
+                  className="flex flex-col items-center gap-4 p-8 border-2 border-border rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-colors group"
                 >
-                  <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                     <svg className="w-8 h-8 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path
                         strokeLinecap="round"
@@ -544,7 +561,7 @@ export function CreateProjectButton({ className }: { className?: string }) {
                     </svg>
                   </div>
                   <div className="text-center">
-                    <h3 className="font-semibold text-lg mb-2">Crear en blanco</h3>
+                    <h3 className="font-semibold text-lg mb-2">En blanco</h3>
                     <p className="text-sm text-muted-foreground">Introduce la información del proyecto manualmente</p>
                   </div>
                 </button>
@@ -552,14 +569,18 @@ export function CreateProjectButton({ className }: { className?: string }) {
             </>
           )}
 
-          {(creationMode === "manual" || creationMode === "ai") && (
+          {(creationMode === "manual" || creationMode === "ai" || creationMode === "floor-plan") && (
             <form onSubmit={handleSubmit}>
               <DialogHeader>
-                <DialogTitle>{creationMode === "ai" ? "Crear proyecto con IA" : "Crear nuevo proyecto"}</DialogTitle>
+                <DialogTitle>
+                  {creationMode === "ai" ? "Crear proyecto con IA" : creationMode === "floor-plan" ? "Crear proyecto con plano" : "Crear nuevo proyecto"}
+                </DialogTitle>
                 <DialogDescription>
                   {creationMode === "ai"
                     ? "Completa los datos del proyecto. Después podrás analizar el plano automáticamente."
-                    : "Completa la información detallada para crear un nuevo proyecto de reforma."}
+                    : creationMode === "floor-plan"
+                      ? "Completa los datos del proyecto. A continuación abrirás el editor de planos."
+                      : "Completa la información detallada para crear un nuevo proyecto de reforma."}
                 </DialogDescription>
               </DialogHeader>
 

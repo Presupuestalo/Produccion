@@ -2,19 +2,23 @@
 
 import React, { useRef, useState } from "react"
 import { EditorContainer } from "@/components/floor-plan-editor/EditorContainer"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { SimpleSaveDialog } from "@/components/dashboard/simple-save-dialog"
 
 export default function NuevoPlanoPage() {
   const editorRef = useRef<any>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [pendingPlanData, setPendingPlanData] = useState<any>(null)
   const [isSaving, setIsSaving] = useState(false)
 
+  // URL-based pre-linking (from "Con Plano" project creation flow)
+  const urlProjectId = searchParams.get("projectId")
+  const urlVariant = searchParams.get("variant") || "current"
+
   // 1. Intercept save request from Editor
   const handleEditorSave = (data: any, image: string) => {
-    // Store both data and the image
     setPendingPlanData({ ...data, image })
     setShowSaveDialog(true)
   }
@@ -24,6 +28,10 @@ export default function NuevoPlanoPage() {
     if (!pendingPlanData) return
     setIsSaving(true)
 
+    // URL params take precedence when coming from project creation flow
+    const finalProjectId = urlProjectId || projectId || null
+    const finalVariant = urlProjectId ? urlVariant : (variant || "current")
+
     try {
       const response = await fetch("/api/editor-planos/save", {
         method: "POST",
@@ -31,15 +39,20 @@ export default function NuevoPlanoPage() {
         body: JSON.stringify({
           name: planName,
           ...pendingPlanData,
-          projectId: projectId || null,
-          variant: variant || 'current'
+          projectId: finalProjectId,
+          variant: finalVariant,
         }),
       })
 
       if (response.ok) {
         const result = await response.json()
         setShowSaveDialog(false)
-        router.push(`/dashboard/editor-planos/editar/${result.id}`)
+        // If linked to a project, go back to the project page after save
+        if (urlProjectId) {
+          router.push(`/dashboard/projects/${urlProjectId}`)
+        } else {
+          router.push(`/dashboard/editor-planos/editar/${result.id}`)
+        }
         router.refresh()
       } else {
         const errorText = await response.text()
@@ -67,7 +80,10 @@ export default function NuevoPlanoPage() {
         onOpenChange={setShowSaveDialog}
         onSave={handleDialogSave}
         isLoading={isSaving}
+        initialProjectId={urlProjectId || undefined}
+        initialVariant={urlProjectId ? urlVariant : undefined}
       />
     </div>
   )
 }
+

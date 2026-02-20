@@ -20,7 +20,7 @@ export async function GET() {
 
     const { data: plans, error } = await supabase
       .from("project_floor_plans")
-      .select("id, name, updated_at, image_url, variant, project_id, user_id")
+      .select("id, name, updated_at, image_url, variant, project_id, user_id, projects(title)")
       .eq("user_id", session.user.id)
       .order("updated_at", { ascending: false })
       .limit(20)
@@ -34,7 +34,7 @@ export async function GET() {
     const formattedPlans = (plans || []).map((plan: any) => ({
       id: plan.id,
       projectId: plan.project_id,
-      projectName: null,
+      projectName: plan.projects?.title || null,
       name: plan.name || "Sin nombre",
       created_at: plan.updated_at || new Date().toISOString(),
       thumbnail: plan.image_url,

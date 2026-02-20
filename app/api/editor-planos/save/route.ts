@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse Body
-    const { id, name, walls, doors, windows, rooms, projectId, variant, image, bgConfig, bgImage, gridRotation, calibration, shunts } = await request.json()
+    const { id, name, walls, doors, windows, rooms, projectId, variant, image, bgConfig, bgImage, gridRotation, calibration, shunts, ceilingHeight, defaultWallThickness } = await request.json()
 
     // Handle Image Upload if base64 provided (Thumbnail)
     let imageUrl = null;
@@ -105,7 +105,9 @@ export async function POST(request: NextRequest) {
         bgConfig: finalBgConfig,
         gridRotation,
         calibration,
-        shunts
+        shunts,
+        ceilingHeight,
+        defaultWallThickness
       },
       updated_at: new Date().toISOString(),
       // Only update image if a new one was uploaded

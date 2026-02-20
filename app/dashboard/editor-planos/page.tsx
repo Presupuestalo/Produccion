@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { PencilRuler, Upload, Plus, FileText, ArrowRight, Trash2, Eye, Maximize2, FolderOpen } from "lucide-react"
+import { PencilRuler, Upload, Plus, FileText, ArrowRight, Trash2, Eye, Maximize2, FolderOpen, Link as LinkIcon } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/components/ui/use-toast"
 import {
@@ -24,6 +24,8 @@ import {
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
+import { LinkToProjectDialog } from "@/components/floor-plan-editor/link-to-project-dialog"
+
 interface FloorPlan {
   id: string
   name: string
@@ -40,6 +42,7 @@ export default function EditorPlanosPage() {
   const [planToDelete, setPlanToDelete] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [selectedPlanForLinking, setSelectedPlanForLinking] = useState<FloorPlan | null>(null)
 
   const router = useRouter()
   const { toast } = useToast()
@@ -187,6 +190,19 @@ export default function EditorPlanosPage() {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
+                      <div className="absolute top-2 left-2 flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="secondary" size="icon" className="h-8 w-8 bg-blue-600 hover:bg-blue-700 text-white shadow-sm border-none"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setSelectedPlanForLinking(plan)
+                          }}
+                          title="Vincular a proyecto"
+                        >
+                          <LinkIcon className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="p-4 flex-1 flex flex-col justify-between">
                       <div>
@@ -204,8 +220,8 @@ export default function EditorPlanosPage() {
                           ) : null}
                           {plan.variant && plan.projectName ? (
                             <span className={`inline-flex items-center text-[10px] font-medium rounded-full px-2 py-0.5 ${plan.variant === 'current'
-                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                               }`}>
                               {plan.variant === 'current' ? '📐 Antes' : '🏗️ Después'}
                             </span>
@@ -283,6 +299,21 @@ export default function EditorPlanosPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Link to Project Dialog */}
+      {selectedPlanForLinking && (
+        <LinkToProjectDialog
+          open={!!selectedPlanForLinking}
+          onOpenChange={(open) => !open && setSelectedPlanForLinking(null)}
+          planId={selectedPlanForLinking.id}
+          currentProjectId={selectedPlanForLinking.projectId}
+          currentVariant={selectedPlanForLinking.variant}
+          onSuccess={() => {
+            fetchRecentPlans()
+            setSelectedPlanForLinking(null)
+          }}
+        />
+      )}
     </div>
   )
 }

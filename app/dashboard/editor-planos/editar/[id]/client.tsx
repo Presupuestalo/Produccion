@@ -58,6 +58,10 @@ export default function EditPlanClient({
                 ref={editorRef}
                 initialData={initialData}
                 onSave={handleSave}
+                planId={planId}
+                projectId={projectId}
+                planName={planName}
+                variant={variant}
             />
         </div>
     )

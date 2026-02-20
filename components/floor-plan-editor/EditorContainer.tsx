@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Minimize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, LayoutGrid, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, RefreshCw, FileText, ClipboardList, Spline, Menu, Square, ChevronDown, ChevronRight, ChevronLeft, DoorOpen, GalleryVerticalEnd, AppWindow, Columns, X, ArrowRightLeft, RectangleVertical, Check, Settings, GripHorizontal } from "lucide-react"
+import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Minimize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, LayoutGrid, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, RefreshCw, FileText, ClipboardList, Spline, Menu, Square, ChevronDown, ChevronRight, ChevronLeft, DoorOpen, GalleryVerticalEnd, AppWindow, Columns, X, ArrowRightLeft, RectangleVertical, Check, Settings, GripHorizontal, Link2 } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import {
     DropdownMenu,
@@ -52,6 +52,7 @@ import { detectRoomsGeometrically, fragmentWalls, getClosestPointOnSegment, isPo
 
 import { useToast } from "@/hooks/use-toast"
 import { ToastProvider } from "@/components/ui/toast-provider"
+import { LinkToProjectDialog } from "./link-to-project-dialog"
 
 interface Point { x: number; y: number }
 interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward' }
@@ -177,6 +178,14 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [selectedWallIds, setSelectedWallIds] = useState<string[]>([])
     const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
     const [showSummary, setShowSummary] = useState(false)
+    const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false)
+    const [currentProjectId, setCurrentProjectId] = useState<string | null>(props.projectId || null)
+    const [currentVariant, setCurrentVariant] = useState<string | null>(props.variant || null)
+
+    useEffect(() => {
+        setCurrentProjectId(props.projectId || null)
+        setCurrentVariant(props.variant || null)
+    }, [props.projectId, props.variant])
     const [isSaving, setIsSaving] = useState(false)
     const [showAllQuotes, setShowAllQuotes] = useState(false)
 
@@ -209,10 +218,14 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [exportAreas, setExportAreas] = useState(true)
 
     // Configuración del Plano
-    const [planName, setPlanName] = useState(props.initialData?.name || "Plano Sin Título")
+    const [planName, setPlanName] = useState(props.planName || props.initialData?.name || "Plano Sin Título")
     const [ceilingHeight, setCeilingHeight] = useState(props.initialData?.ceilingHeight || 250)
     const [defaultWallThickness, setDefaultWallThickness] = useState(props.initialData?.defaultWallThickness || 10)
     const [showGrid, setShowGrid] = useState(true)
+
+    useEffect(() => {
+        if (props.planName) setPlanName(props.planName)
+    }, [props.planName])
 
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
     const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
@@ -1921,7 +1934,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 y: 0,
                 rotation: 0
             })
-            setIsSettingsOpen(true)
+            setIsSettingsOpen(false)
             // Reset calibration to center of current view
             const centerX = (dimensions.width / 2 - offset.x) / zoom
             const centerY = (dimensions.height / 2 - offset.y) / zoom
@@ -1929,7 +1942,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 p1: { x: centerX - 100, y: centerY },
                 p2: { x: centerX + 100, y: centerY }
             })
-            setIsCalibrating(false)
+            setIsCalibrating(true)
             setActiveTool("select") // Reset tool to avoid accidental drawing
         }
         reader.readAsDataURL(file)
@@ -2100,7 +2113,10 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     p2: calibrationPoints.p2,
                     distance: calibrationTargetValue
                 },
-                shunts
+                shunts,
+                name: planName,
+                ceilingHeight,
+                defaultWallThickness
             }
 
             if (props.onSave) {
@@ -2111,14 +2127,11 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 await props.onSave(dataToSave, imageUrl)
                 hasUnsavedChanges.current = false
             } else {
-                // Legacy API call
+                // Legacy API call (standalone create)
                 const response = await fetch("/api/editor-planos/save", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        name: planName,
-                        ceilingHeight,
-                        defaultWallThickness,
                         ...dataToSave
                     }),
                 })
@@ -2578,6 +2591,17 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 </DropdownMenu>
                             </div>
 
+                            {/* 7. LINK TO PROJECT */}
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setIsLinkDialogOpen(true)}
+                                title={currentProjectId ? "Cambiar vinculación" : "Vincular a proyecto"}
+                                className={`w-12 h-12 transition-colors ${currentProjectId ? "text-blue-600 bg-blue-50 hover:bg-blue-100" : "text-slate-700 hover:bg-slate-100"}`}
+                            >
+                                <Link2 className="h-5 w-5" />
+                            </Button>
+
                             <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
 
 
@@ -2765,6 +2789,24 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     onExport={handleExportPDF}
                     isExporting={isExportingPDF}
                     container={fullscreenContainer}
+                />
+
+                <LinkToProjectDialog
+                    open={isLinkDialogOpen}
+                    onOpenChange={setIsLinkDialogOpen}
+                    planId={props.planId} // Must be provided in props
+                    currentProjectId={currentProjectId}
+                    currentVariant={currentVariant}
+                    onSuccess={() => {
+                        // We don't have an easy way to get the new project name here,
+                        // but we can at least update the local project ID and variant state
+                        // to reflect the new association.
+                        // Ideally the dialog should return the new data or we should refetch.
+                        // For now, let's just trigger a reload of the page to be sure
+                        router.refresh()
+                        // And optimistic update (dialog doesn't return data currently)
+                        // Maybe wait for refresh or just close? Success toast is already in dialog.
+                    }}
                 />
                 <CanvasEngine
                     onReady={(api) => { canvasEngineRef.current = api }}
