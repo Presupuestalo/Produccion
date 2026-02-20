@@ -1,7 +1,8 @@
 "use client"
 import Link from "next/link"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Calendar, MapPin, User, MoreHorizontal, Eye, Edit, FileText, Trash2, Loader2, LayoutDashboard, FileCheck } from "lucide-react"
+import { Calendar, MapPin, User, MoreHorizontal, Eye, Edit, FileText, Trash2, Loader2, LayoutDashboard, FileCheck, PencilRuler, ShieldCheck, CheckCircle2 } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
 import type { Project } from "@/types/project"
 import { Button } from "@/components/ui/button"
 import {
@@ -79,6 +80,7 @@ const getMostAdvancedStatus = (statuses: string[]): string | null => {
 export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
   const router = useRouter()
   const [budgetStatus, setBudgetStatus] = useState<string | null>(null)
+  const [hasPlans, setHasPlans] = useState(false)
   const [acceptedBudget, setAcceptedBudget] = useState<{
     id: string
     amount: number
@@ -88,7 +90,7 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
   const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
-    const fetchBudgetStatus = async () => {
+    const fetchProjectData = async () => {
       try {
         const supabase = await getSupabase()
         if (!supabase) {
@@ -96,6 +98,7 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
           return
         }
 
+        // Fetch budget status
         const budgets = await BudgetService.getBudgetsByProject(project.id, supabase)
 
         if (budgets.length > 0) {
@@ -114,12 +117,23 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
             })
           }
         }
+
+        // Fetch if project has floor plans
+        const { count, error: planError } = await supabase
+          .from("project_floor_plans")
+          .select("id", { count: "exact", head: true })
+          .eq("project_id", project.id)
+
+        if (!planError && count && count > 0) {
+          setHasPlans(true)
+        }
+
       } catch (error) {
-        console.error("[ProjectCard] Error fetching budget status:", error)
+        console.error("[ProjectCard] Error fetching project data:", error)
       }
     }
 
-    fetchBudgetStatus()
+    fetchProjectData()
   }, [project.id])
 
   const formatDate = (dateString: string) => {
@@ -181,9 +195,17 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
                   </h3>
                 </Link>
                 {budgetStatus && (
-                  <Badge variant="secondary" className={`text-xs ${getStatusColor(budgetStatus)}`}>
-                    {getStatusLabel(budgetStatus)}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 h-4 ${getStatusColor(budgetStatus)}`}>
+                      {getStatusLabel(budgetStatus)}
+                    </Badge>
+                    {project.contract_signed && (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600" title="Contrato firmado" />
+                    )}
+                    {project.license_status === "Concedida" && (
+                      <ShieldCheck className="h-3.5 w-3.5 text-blue-600" title="Licencia concedida" />
+                    )}
+                  </div>
                 )}
                 {acceptedBudget && (
                   <div className="text-sm font-semibold text-green-700">
@@ -251,37 +273,57 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
                 <span className="text-xs">{formatDate((project.dueDate || project.duedate) as string)}</span>
                 <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
               </div>
+              {project.progress !== undefined && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>Progreso</span>
+                    <span>{project.progress}%</span>
+                  </div>
+                  <Progress value={project.progress} className="h-1" />
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <Button
               variant="outline"
               size="sm"
-              className="w-full text-xs h-9 bg-slate-50/50 hover:bg-slate-100 hover:text-orange-600 transition-all border-slate-200 gap-1.5"
+              className="w-full text-[11px] h-9 bg-slate-50/50 hover:bg-slate-100 hover:text-orange-600 transition-all border-slate-200 gap-1.5 px-2"
               onClick={() => router.push(`/dashboard/projects/${project.id}`)}
             >
-              <LayoutDashboard className="h-4 w-4 shrink-0" />
-              <span>Proyecto</span>
+              <LayoutDashboard className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Proyecto</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className="w-full text-xs h-9 bg-slate-50/50 hover:bg-slate-100 hover:text-orange-600 transition-all border-slate-200 gap-1.5"
+              className="w-full text-[11px] h-9 bg-slate-50/50 hover:bg-slate-100 hover:text-orange-600 transition-all border-slate-200 gap-1.5 px-2"
               onClick={handleBudgetClick}
             >
-              <FileText className="h-4 w-4 shrink-0" />
-              <span>Presupuestos</span>
+              <FileText className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Presupuestos</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className="w-full text-xs h-9 bg-slate-50/50 hover:bg-slate-100 hover:text-orange-600 transition-all border-slate-200 gap-1.5"
+              className="w-full text-[11px] h-9 bg-slate-50/50 hover:bg-slate-100 hover:text-orange-600 transition-all border-slate-200 gap-1.5 px-2"
               onClick={() => router.push(`/dashboard/projects/${project.id}/edit?tab=contract`)}
             >
-              <FileCheck className="h-4 w-4 shrink-0" />
-              <span>Contrato</span>
+              <FileCheck className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Contrato</span>
             </Button>
+            {hasPlans && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-[11px] h-9 bg-orange-50/50 text-orange-700 hover:bg-orange-100 hover:text-orange-800 transition-all border-orange-200 gap-1.5 px-2"
+                onClick={() => router.push(`/dashboard/projects/${project.id}/plano`)}
+              >
+                <PencilRuler className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">Planos</span>
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

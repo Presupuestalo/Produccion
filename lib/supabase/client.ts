@@ -81,7 +81,9 @@ export const checkSession = async () => {
     const { data, error } = await client.auth.getSession()
     if (error) {
       if (!error.message.includes("refresh_token_not_found")) {
-        console.error("Error checking session:", error)
+        if (typeof window !== "undefined") {
+          console.error("Error checking session:", error)
+        }
       }
       return null
     }
@@ -100,7 +102,9 @@ export const refreshSession = async () => {
     const { data, error } = await client.auth.refreshSession()
     if (error) {
       if (!error.message.includes("refresh_token_not_found")) {
-        console.error("Error refreshing session:", error)
+        if (typeof window !== "undefined") {
+          console.error("Error refreshing session:", error)
+        }
       }
       return null
     }

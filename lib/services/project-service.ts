@@ -154,15 +154,20 @@ export async function getProjects() {
 }
 
 // Modificar la función getProjectById para mejorar el manejo de errores
-export async function getProjectById(id: string) {
+export async function getProjectById(id: string, supabaseClient?: any) {
   try {
     // Verificar que el ID sea válido
     if (!id || typeof id !== "string") {
       return null
     }
 
-    // Obtener el cliente de Supabase
-    const supabase = await getSupabase()
+    // Usar el cliente proporcionado o inicializar uno nuevo
+    let supabase = supabaseClient
+
+    if (!supabase) {
+      // Obtener el cliente de Supabase (browser por defecto)
+      supabase = await getSupabase()
+    }
 
     if (!supabase) {
       console.error("[v0] getProjectById - Supabase client not available")

@@ -259,6 +259,16 @@ export default function ProjectPage() {
             )}
 
             {/* Floor Plan Buttons */}
+            {linkedPlans.length > 0 && (
+              <Button asChild variant="default" size="sm" className="h-9 bg-orange-600 hover:bg-orange-700 text-white shadow-sm">
+                <Link href={`/dashboard/projects/${projectId}/plano`}>
+                  <Eye className="mr-1.5 h-4 w-4" />
+                  <span className="hidden sm:inline">Ver Planos</span>
+                  <span className="sm:hidden">Ver</span>
+                </Link>
+              </Button>
+            )}
+
             {beforePlan ? (
               <Button asChild variant="outline" size="sm" className="h-9 border-amber-200 text-amber-700 hover:bg-amber-50">
                 <Link href={`/dashboard/editor-planos/editar/${beforePlan.id}`}>

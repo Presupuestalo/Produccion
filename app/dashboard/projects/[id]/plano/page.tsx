@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { createClient } from "@/lib/supabase/server"
 import { getProjectById } from "@/lib/services/project-service"
 import { FloorPlanViewer } from "@/components/calculator/floor-plan-viewer"
 
@@ -17,7 +18,8 @@ export default async function ProjectPlanPage({
 }) {
   const { id } = await params
   const { embedded } = await searchParams
-  const project = await getProjectById(id)
+  const supabase = await createClient()
+  const project = await getProjectById(id, supabase)
   const isEmbedded = embedded === "true"
 
   if (!project) {
