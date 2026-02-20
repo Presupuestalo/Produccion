@@ -200,10 +200,10 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
                       {getStatusLabel(budgetStatus)}
                     </Badge>
                     {project.contract_signed && (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600" title="Contrato firmado" />
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
                     )}
                     {project.license_status === "Concedida" && (
-                      <ShieldCheck className="h-3.5 w-3.5 text-blue-600" title="Licencia concedida" />
+                      <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
                     )}
                   </div>
                 )}
