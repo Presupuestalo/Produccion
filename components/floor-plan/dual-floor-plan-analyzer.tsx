@@ -512,20 +512,18 @@ export function DualFloorPlanAnalyzer({
           .replace(/[\u0300-\u036f]/g, "")
           .trim()
 
-        // Baños y cocinas siempre tienen cerámica
+        // Baños, cocinas y aseos siempre tienen cerámica
         if (
-          normalizedType.startsWith("bano") ||
           normalizedType.includes("bano") ||
-          normalizedType.startsWith("cocina") ||
           normalizedType.includes("cocina") ||
-          normalizedType.startsWith("aseo") ||
-          normalizedType.includes("aseo")
+          normalizedType.includes("aseo") ||
+          normalizedType.includes("ducha")
         ) {
-          return { floor: "Cerámico", wall: "Cerámica" }
+          return { floor: "Cerámica", wall: "Cerámica" }
         }
 
-        if (normalizedType.startsWith("terraza") || normalizedType.includes("terraza")) {
-          return { floor: "Cerámico", wall: "No se modifica" }
+        if (normalizedType.includes("terraza") || normalizedType.includes("balcon")) {
+          return { floor: "Cerámica", wall: "No se modifica" }
         }
 
         // Por defecto: madera y pintura
@@ -699,13 +697,14 @@ export function DualFloorPlanAnalyzer({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button onClick={handleOpenClick} variant="outline" size="sm" className="bg-transparent h-8">
-        <Sparkles className="h-4 w-4" />
-        <span className="hidden sm:inline ml-2">Analizar con IA</span>
+      <Button onClick={handleOpenClick} variant="default" size="sm" className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-sm border-none h-9 px-4 font-bold">
+        <Sparkles className="h-4 w-4 mr-2" />
+        <span className="hidden sm:inline">Sincronizar Maestro con IA</span>
+        <span className="sm:hidden">Sincronizar IA</span>
         {hasAiAccess === false && (
           <Badge
             variant="secondary"
-            className="ml-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white border-none py-0 px-2 h-5 text-[10px] font-bold"
+            className="ml-2 bg-white/20 text-white border-none py-0 px-2 h-5 text-[10px] font-bold"
           >
             PRO
           </Badge>
@@ -1149,8 +1148,8 @@ export function DualFloorPlanAnalyzer({
               <Button type="button" variant="outline" onClick={resetState}>
                 Volver a analizar
               </Button>
-              <Button type="button" onClick={confirmAndImport}>
-                Confirmar e importar
+              <Button type="button" className="bg-orange-600 hover:bg-orange-700 font-bold" onClick={confirmAndImport}>
+                Sincronizar con Calculadora
               </Button>
             </DialogFooter>
           </>

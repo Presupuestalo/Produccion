@@ -38,13 +38,26 @@ export default function ProjectPage() {
     }
     checkMaster()
 
-    const openAnalyzer = searchParams.get("openFloorPlanAnalyzer")
+    const importPlans = searchParams.get("importPlans")
+    if (importPlans === "true") {
+      const timer = setTimeout(() => {
+        if (calculatorRef.current && "handleManualFloorPlanSync" in calculatorRef.current) {
+          calculatorRef.current.handleManualFloorPlanSync()
+        }
+        const newUrl = window.location.pathname
+        window.history.replaceState({}, "", newUrl)
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+
+    // Keep backwards compatibility for any leftover links
+    const openAnalyzer = searchParams.get("openFloorPlanAnalyzer") || searchParams.get("sync")
     if (openAnalyzer === "true") {
       setShouldOpenAnalyzer(true)
       const newUrl = window.location.pathname
       window.history.replaceState({}, "", newUrl)
     }
-  }, [searchParams])
+  }, [searchParams, loading])
 
   // Efecto separado para manejar el cambio de pestaña inicial una vez que el calculador está listo
   useEffect(() => {
@@ -220,31 +233,6 @@ export default function ProjectPage() {
             {isMaster && (
               <>
                 <ProjectGallery projectId={projectId} />
-                <DualFloorPlanAnalyzer
-                  projectId={projectId}
-                  autoOpen={shouldOpenAnalyzer}
-                  onRoomsDetected={(demolitionRooms, reformRooms) => {
-                    console.log("[v0] Habitaciones detectadas:", { demolitionRooms, reformRooms })
-                    if (calculatorRef.current) {
-                      calculatorRef.current.handleRoomsDetectedFromFloorPlan(demolitionRooms, reformRooms)
-                      toast({
-                        title: "Habitaciones importadas",
-                        description: `Se han importado ${demolitionRooms.length} habitaciones a demolición y ${reformRooms.length} a reforma`,
-                      })
-                    }
-                  }}
-                  onPartitionsDetected={(partitions) => {
-                    console.log("[v0] Tabiques detectados:", partitions)
-                    if (calculatorRef.current) {
-                      calculatorRef.current.handlePartitionsDetectedFromFloorPlan(partitions)
-                    }
-                  }}
-                  onImportComplete={() => {
-                    if (calculatorRef.current && "setActiveTab" in calculatorRef.current) {
-                      calculatorRef.current.setActiveTab("demolition")
-                    }
-                  }}
-                />
               </>
             )}
             {project.user_type === "professional" && <PublishProjectButton project={project} />}

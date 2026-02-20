@@ -37,12 +37,14 @@ import {
   ensureCalculatorTableExists,
   saveAllProjectData,
   getElectricalConfig,
-  getPartitions, // Importar getPartitions
-  getWallLinings, // Importar getWallLinings
+  getPartitions,
+  getWallLinings,
 } from "@/lib/services/calculator-service"
+import { getProjectFloorPlanData, mapEditorRoomsToCalculator } from "@/lib/services/floor-plan-sync-service"
 import { getSupabase } from "@/lib/supabase/client"
 import { canAddRoom } from "@/lib/services/subscription-limits-service"
-import { InfoIcon } from "lucide-react"
+import { InfoIcon, Download } from "lucide-react"
+import { useUserProfile } from "@/hooks/use-user-profile"
 import { RoomsList } from "./rooms-list"
 import { checkRoomConflict } from "@/lib/room-validation"
 import { getProjectById } from "@/lib/services/project-service"
@@ -73,7 +75,6 @@ import { PaymentsSection } from "@/components/payments/payments-section"
 
 import { ChevronRight } from "lucide-react"
 import { FloorPlanDashboard } from "@/components/dashboard/floor-plan-dashboard"
-import { useUserProfile } from "@/hooks/use-user-profile"
 
 function InfoTooltip({ content }: { content: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -213,6 +214,7 @@ export interface CalculatorHandle {
   handleApplyDiff: (diff: any) => void // Callback for dashboard
   setActiveTab: (tab: string) => void // Añadiendo método para cambiar el tab activo desde fuera
   addStandaloneWindow: () => void // Nueva función para añadir ventanas independientes
+  handleManualFloorPlanSync: () => Promise<void>
 }
 
 const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calculator(
@@ -456,6 +458,11 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     totalDebris: 0,
     containersNeeded: 0,
   })
+
+  // Estados para diálogo de confirmación de importación de planos
+  const [showFloorPlanConfirm, setShowFloorPlanConfirm] = useState(false)
+  const [pendingDemolitionRooms, setPendingDemolitionRooms] = useState<Room[]>([])
+  const [pendingReformRooms, setPendingReformRooms] = useState<Room[]>([])
 
   // Calculate Demolition Summary and Debris
   useEffect(() => {
@@ -1901,85 +1908,169 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     }
   }
 
-  const handleRoomsDetectedFromFloorPlan = useCallback(
-    (demolitionRooms: Room[], reformRooms: Room[]) => {
-      const processedDemolitionRooms = demolitionRooms.map((room) => {
-        const normalizedType = room.type
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .trim()
+  const handleManualFloorPlanSync = async () => {
+    if (!projectId) return
 
-        const isBathroomOrKitchen =
-          normalizedType.includes("bano") || normalizedType.includes("cocina") || normalizedType.includes("aseo")
-        const isTerrace = normalizedType.includes("terraza")
+    try {
+      setIsSaving(true)
+      toast({ title: "Descargando planos...", description: "Cargando datos del editor..." })
 
-        return {
-          ...room,
-          id: uuidv4(),
-          floorMaterial: (isBathroomOrKitchen || isTerrace ? "Cerámica" : "Madera") as FloorMaterialType,
-          wallMaterial: (isTerrace ? "No se modifica" : isBathroomOrKitchen ? "Cerámica" : "Pintura") as WallMaterialType,
-          removeWallTiles: isBathroomOrKitchen ? true : false,
-          removeFloor: isBathroomOrKitchen ? true : false,
-          hasDoors: true,
-          doorList: room.doorList || [{ id: uuidv4(), type: "Abatible", width: 0.72, height: 2.03 }],
-          windows: room.windows || [],
-          name: room.name || `${room.type} ${room.number}`,
-          doors: room.doors || (room.doorList?.length || 1),
-          falseCeiling: room.falseCeiling || false,
-          moldings: room.moldings || false,
-          measurementMode: room.measurementMode || "rectangular",
-          wallArea: room.wallArea || 0,
-          ceilingArea: room.ceilingArea || 0,
-          ceilingMaterial: room.ceilingMaterial || "Pintura",
-          removeWallMaterial: room.removeWallMaterial || false,
-          removeCeilingMaterial: room.removeCeilingMaterial || false,
-        } as Room
-      })
+      const beforePlan = await getProjectFloorPlanData(projectId, "before")
+      const afterPlan = await getProjectFloorPlanData(projectId, "after")
 
-      const processedReformRooms = reformRooms.map((room) => {
-        const normalizedType = room.type
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .trim()
+      if (!beforePlan && !afterPlan) {
+        toast({
+          title: "Planos no encontrados",
+          description: "No se encontraron planos guardados para este proyecto.",
+          variant: "destructive",
+        })
+        return
+      }
 
-        const isBathroomOrKitchen =
-          normalizedType.includes("bano") || normalizedType.includes("cocina") || normalizedType.includes("aseo")
-        const isTerrace = normalizedType.includes("terraza")
+      const demolitionRooms = beforePlan?.data ? mapEditorRoomsToCalculator(beforePlan.data, true) : []
+      const reformRooms = afterPlan?.data ? mapEditorRoomsToCalculator(afterPlan.data, false) : []
 
-        return {
-          ...room,
-          id: uuidv4(),
-          floorMaterial: (isBathroomOrKitchen || isTerrace ? "Cerámico" : "Parquet flotante") as FloorMaterialType,
-          wallMaterial: (isTerrace ? "No se modifica" : isBathroomOrKitchen ? "Cerámica" : "Lucir y pintar") as WallMaterialType,
-          windows: room.windows || [],
-          name: room.name || `${room.type} ${room.number}`,
-          doors: room.doors || (room.doorList?.length || 0),
-          falseCeiling: room.falseCeiling || false,
-          moldings: room.moldings || false,
-          measurementMode: room.measurementMode || "rectangular",
-          wallArea: room.wallArea || 0,
-          ceilingArea: room.ceilingArea || 0,
-          ceilingMaterial: room.ceilingMaterial || "Pintura",
-          removeFloor: room.removeFloor || false,
-          removeWallMaterial: room.removeWallMaterial || false,
-          removeCeilingMaterial: room.removeCeilingMaterial || false,
-        } as Room
-      })
-      setRooms(processedDemolitionRooms)
-      setReformRooms(processedReformRooms)
+      if (demolitionRooms.length === 0 && reformRooms.length === 0) {
+        toast({
+          title: "Sin habitaciones",
+          description: "Los planos no contienen habitaciones definidas.",
+          variant: "default",
+        })
+        return
+      }
+
+      // Si ya hay datos, pedimos confirmación
+      if (rooms.length > 0 || reformRooms.length > 0) {
+        setPendingDemolitionRooms(demolitionRooms)
+        setPendingReformRooms(reformRooms)
+        setShowFloorPlanConfirm(true)
+      } else {
+        // Si no hay datos, procedemos directamente
+        confirmRoomsImport(demolitionRooms, reformRooms)
+      }
+    } catch (error: any) {
+      console.error("Error al sincronizar planos:", error)
       toast({
-        title: "Habitaciones detectadas",
-        description: `Se han añadido ${processedDemolitionRooms.length} habitaciones a demolición y ${processedReformRooms.length} a reforma.`,
+        title: "Error de sincronización",
+        description: error.message || "Ha ocurrido un error al importar los datos de los planos.",
+        variant: "destructive",
       })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleRoomsDetectedFromFloorPlan = useCallback(
+    (demolitionRooms: Room[], reformRoomsRooms: Room[]) => {
+      // Mantenemos la función original por retrocompatibilidad momentánea, pero ya no se usará
+      if (rooms.length > 0 || reformRooms.length > 0) {
+        setPendingDemolitionRooms(demolitionRooms)
+        setPendingReformRooms(reformRoomsRooms)
+        setShowFloorPlanConfirm(true)
+      } else {
+        confirmRoomsImport(demolitionRooms, reformRoomsRooms)
+      }
     },
-    [toast],
+    [rooms.length, reformRooms.length],
   )
+
+  const confirmRoomsImport = (dRooms?: Room[], rRooms?: Room[]) => {
+    const demolitionToProcess = dRooms || pendingDemolitionRooms
+    const reformToProcess = rRooms || pendingReformRooms
+
+    const processedDemolitionRooms = demolitionToProcess.map((room) => {
+      const normalizedType = (room.type || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+
+      const isBathroomOrKitchen =
+        normalizedType.includes("bano") || normalizedType.includes("cocina") || normalizedType.includes("aseo")
+      const isTerrace = normalizedType.includes("terraza")
+
+      // Detección mejorada de cerámica (si viene marcada en el plano o por tipo de estancia)
+      const hasCeramicDetected = room.removeWallTiles || isBathroomOrKitchen
+
+      return {
+        ...room,
+        id: uuidv4(),
+        floorMaterial: room.floorMaterial || ((isBathroomOrKitchen || isTerrace || room.removeFloor ? "Cerámica" : "Madera") as FloorMaterialType),
+        wallMaterial: room.wallMaterial || ((isTerrace ? "No se modifica" : hasCeramicDetected ? "Cerámica" : "Pintura") as WallMaterialType),
+        removeWallTiles: room.removeWallTiles !== undefined ? room.removeWallTiles : hasCeramicDetected,
+        removeFloor: room.removeFloor !== undefined ? room.removeFloor : (isBathroomOrKitchen || isTerrace || room.removeFloor ? true : false),
+        hasDoors: true,
+        doorList: room.doorList || [{ id: uuidv4(), type: "Abatible", width: 0.72, height: 2.03 }],
+        windows: room.windows || [],
+        name: room.name || `${room.type} ${room.number}`,
+        doors: room.doors || (room.doorList?.length || 1),
+        falseCeiling: room.falseCeiling || false,
+        moldings: room.moldings || false,
+        measurementMode: room.measurementMode || "rectangular",
+        area: room.area || 0,
+        perimeter: room.perimeter || 0,
+        wallArea: room.wallArea || 0,
+        ceilingArea: room.ceilingArea || 0,
+        ceilingMaterial: room.ceilingMaterial || "Pintura",
+        removeWallMaterial: room.removeWallMaterial || false,
+        removeCeilingMaterial: room.removeCeilingMaterial || false,
+        skirting: !isBathroomOrKitchen && !isTerrace,
+      } as Room
+    })
+
+    const processedReformRooms = reformToProcess.map((room) => {
+      const normalizedType = (room.type || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+
+      const isBathroomOrKitchen =
+        normalizedType.includes("bano") || normalizedType.includes("cocina") || normalizedType.includes("aseo")
+      const isTerrace = normalizedType.includes("terraza")
+
+      return {
+        ...room,
+        id: uuidv4(),
+        floorMaterial: room.floorMaterial || ((isBathroomOrKitchen || isTerrace ? "Cerámico" : "Parquet flotante") as FloorMaterialType),
+        wallMaterial: room.wallMaterial || ((isTerrace ? "No se modifica" : isBathroomOrKitchen ? "Cerámica" : "Lucir y pintar") as WallMaterialType),
+        windows: room.windows || [],
+        name: room.name || `${room.type} ${room.number}`,
+        doors: room.doors || (room.doorList?.length || 0),
+        falseCeiling: room.falseCeiling || false,
+        moldings: room.moldings || false,
+        measurementMode: room.measurementMode || "rectangular",
+        area: room.area || 0,
+        perimeter: room.perimeter || 0,
+        wallArea: room.wallArea || 0,
+        ceilingArea: room.ceilingArea || 0,
+        ceilingMaterial: room.ceilingMaterial || "Pintura",
+        removeFloor: room.removeFloor || false,
+        removeWallMaterial: room.removeWallMaterial || false,
+        removeCeilingMaterial: room.removeCeilingMaterial || false,
+        skirting: !isBathroomOrKitchen && !isTerrace,
+      } as Room
+    })
+
+    setRooms(processedDemolitionRooms)
+    setReformRooms(processedReformRooms)
+
+    setShowFloorPlanConfirm(false)
+    setPendingDemolitionRooms([])
+    setPendingReformRooms([])
+
+    toast({
+      title: "Sincronización Maestra completada",
+      description: `Se han importado ${processedDemolitionRooms.length} habitaciones a demolición y ${processedReformRooms.length} a reforma con sus medidas y materiales.`,
+    })
+  }
 
   useImperativeHandle(ref, () => ({
     saveCurrentData: async () => {
       await handleSave(true)
+    },
+    handleManualFloorPlanSync: async () => {
+      await handleManualFloorPlanSync()
     },
     handleRoomsDetectedFromFloorPlan: (demolitionRooms, reformRooms) => {
       handleRoomsDetectedFromFloorPlan(demolitionRooms, reformRooms)
@@ -2331,6 +2422,20 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                         <Plus className="h-4 w-4" /> Añadir
                       </Button>
 
+                      {projectId && (
+                        <Button
+                          variant="outline"
+                          onClick={handleManualFloorPlanSync}
+                          disabled={isSaving}
+                          className="flex-1 lg:flex-none h-10 bg-white hover:bg-blue-50 text-blue-600 hover:text-blue-700 border-blue-200 transition-colors tooltip-trigger"
+                          title="Importar medidas desde el plano guardado"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          <span className="hidden sm:inline">Importar de Plano</span>
+                          <span className="sm:hidden">Importar</span>
+                        </Button>
+                      )}
+
                       {/* Botón para copiar habitaciones a reforma en móvil - Integrado aquí */}
                       <Button
                         variant="outline"
@@ -2457,13 +2562,29 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button
-                      onClick={addRoom}
-                      className="gap-1 w-full sm:w-auto sm:min-w-[120px]"
-                      disabled={!allRoomsHaveMeasurements(visibleReformRooms)}
-                    >
-                      <Plus className="h-4 w-4" /> Añadir
-                    </Button>
+
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={addRoom}
+                        className="bg-[#1e293b] hover:bg-[#0f172a] text-white flex-1 lg:flex-none shadow-sm h-10 transition-colors"
+                      >
+                        <Plus className="mr-2 h-4 w-4" /> Añadir Nueva
+                      </Button>
+
+                      {projectId && (
+                        <Button
+                          variant="outline"
+                          onClick={handleManualFloorPlanSync}
+                          disabled={isSaving}
+                          className="flex-1 lg:flex-none h-10 bg-white hover:bg-blue-50 text-blue-600 hover:text-blue-700 border-blue-200 transition-colors tooltip-trigger"
+                          title="Importar medidas desde el plano guardado"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          <span className="hidden sm:inline">Importar de Plano</span>
+                          <span className="sm:hidden">Importar</span>
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
 

@@ -1,0 +1,4 @@
+﻿components/calculator/calculator.tsx(2429,28): error TS2552: Cannot find name 'Download'. Did you mean 'onload'?
+components/calculator/calculator.tsx(2564,34): error TS2552: Cannot find name 'addReformRoom'. Did you mean 'reformRooms'?
+components/calculator/calculator.tsx(2578,28): error TS2552: Cannot find name 'Download'. Did you mean 'onload'?
+components/dashboard/project-card.tsx(203,24): error TS2304: Cannot find name 'CheckCircle2'.
