@@ -1815,6 +1815,7 @@ export function RoomCard({
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="Abatible">Abatible</SelectItem>
+                                    <SelectItem value="Doble abatible">Puerta doble abatible</SelectItem>
                                     <SelectItem value="Corredera empotrada">Corredera empotrada</SelectItem>
                                     <SelectItem value="Corredera exterior con carril">
                                       Corredera exterior
@@ -2210,7 +2211,9 @@ export function RoomCard({
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="Abatible">Abatible</SelectItem>
+                                  <SelectItem value="Doble abatible">Puerta doble abatible</SelectItem>
                                   <SelectItem value="Corredera empotrada">Corredera empotrada</SelectItem>
+                                  <SelectItem value="Corredera exterior con carril">Corredera exterior</SelectItem>
                                 </SelectContent>
                               </Select>
                               {((room.newDoorList?.length ?? 0) > 1 || room.type !== "Baño") && (

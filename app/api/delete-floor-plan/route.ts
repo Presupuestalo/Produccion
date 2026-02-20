@@ -36,12 +36,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Proyecto no encontrado o no autorizado" }, { status: 403 })
     }
 
+    const variant = planType === 'before' ? 'current' : 'proposal'
+
     // Obtener la URL de la imagen para eliminarla del storage
     const { data: planData, error: planError } = await supabase
       .from("project_floor_plans")
       .select("image_url")
       .eq("project_id", projectId)
-      .eq("plan_type", planType)
+      .or(`plan_type.eq.${planType},variant.eq.${variant}`)
       .single()
 
     if (planError && planError.code !== "PGRST116") {
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
       .from("project_floor_plans")
       .delete()
       .eq("project_id", projectId)
-      .eq("plan_type", planType)
+      .or(`plan_type.eq.${planType},variant.eq.${variant}`)
 
     if (deleteError) {
       console.error("Error al eliminar el plano:", deleteError)

@@ -22,6 +22,7 @@ export interface Room {
     hasCeramicFloor?: boolean
     hasCeramicWalls?: boolean
     disabledCeramicWalls?: string[]
+    walls: string[] // Added to track associated walls
 }
 
 export function rotatePoint(point: Point, center: Point, angleDegrees: number): Point {
@@ -575,12 +576,12 @@ export function detectRoomsGeometrically(walls: Wall[], previousRooms: Room[] = 
         return id
     }
 
-    const edges: { u: number; v: number }[] = []
+    const edges: { u: number; v: number; wallId: string }[] = []
     processedWalls.forEach((e: Wall) => {
         const u = getPointId(e.start)
         const v = getPointId(e.end)
         if (u === v) return
-        edges.push({ u, v })
+        edges.push({ u, v, wallId: e.id })
     })
 
     const adj: number[][] = nodes.map(() => [])
@@ -589,11 +590,13 @@ export function detectRoomsGeometrically(walls: Wall[], previousRooms: Room[] = 
         if (!adj[v].includes(u)) adj[v].push(u)
     })
 
-    const directedEdges: { from: number; to: number; used: boolean; angle: number }[] = []
+    const directedEdges: { from: number; to: number; used: boolean; angle: number; wallId: string }[] = []
     nodes.forEach((_, u) => {
         (adj[u] || []).forEach(v => {
             const angle = Math.atan2(nodes[v].y - nodes[u].y, nodes[v].x - nodes[u].x)
-            directedEdges.push({ from: u, to: v, used: false, angle })
+            // Find the original wallId for this directed edge
+            const edge = edges.find(e => (e.u === u && e.v === v) || (e.u === v && e.v === u))
+            directedEdges.push({ from: u, to: v, used: false, angle, wallId: edge?.wallId || "" })
         })
     })
 
@@ -614,14 +617,16 @@ export function detectRoomsGeometrically(walls: Wall[], previousRooms: Room[] = 
         if (directedEdges[i].used) continue
 
         const cycle: number[] = []
+        const cycleWalls: string[] = []
         let currIdx = i
         let stepCount = 0
         const MAX_STEPS = 100
 
         while (!directedEdges[currIdx].used && stepCount < MAX_STEPS) {
             directedEdges[currIdx].used = true
-            const { from, to } = directedEdges[currIdx]
+            const { from, to, wallId } = directedEdges[currIdx]
             cycle.push(from)
+            if (wallId) cycleWalls.push(wallId)
 
             const neighbors = nodeOutgoing[to]
             let revIdx = neighbors.findIndex(e => e.to === from)
@@ -646,7 +651,8 @@ export function detectRoomsGeometrically(walls: Wall[], previousRooms: Room[] = 
                     polygon,
                     area: Math.abs(area),
                     color: "", // Temporary
-                    visualCenter: polylabel(polygon)
+                    visualCenter: polylabel(polygon),
+                    walls: cycleWalls
                 })
             }
         }

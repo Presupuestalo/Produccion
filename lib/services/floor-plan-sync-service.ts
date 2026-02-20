@@ -35,7 +35,7 @@ const CORRECCIONES_ORTOGRAFICAS: { [key: string]: string } = {
     dormitorio: "Dormitorio", trastero: "Trastero", vestidor: "Vestidor", pasillo: "Pasillo", otro: "Otro",
 }
 
-function normalizeRoomType(type: string): any {
+function normalizeRoomType(type: string | undefined): any {
     if (!type) return "Otro"
     const lowerType = type.toLowerCase().trim()
     if (lowerType.includes("bano")) return "Baño"
@@ -85,19 +85,31 @@ export async function getProjectFloorPlanData(projectId: string, planType: 'befo
         const supabase = await getSupabase()
         if (!supabase) throw new Error("No se pudo conectar a la base de datos")
 
-        const { data: planData, error } = await supabase
+        const variant = planType === 'before' ? 'current' : 'proposal'
+
+        // Intentar primero con la columna moderna 'variant'
+        let { data: planData, error } = await supabase
             .from("project_floor_plans")
             .select("id, name, data")
             .eq("project_id", projectId)
-            .eq("plan_type", planType)
+            .eq("variant", variant)
             .single()
 
-        if (error) {
-            if (error.code === 'PGRST116') {
-                // No plan found for this type
-                return null
+        // Si falla por columna inexistente o no encuentra datos, intentar con la columna legacy 'plan_type'
+        if (error || !planData) {
+            console.log(`[SYNC] No se encontró plano con variant='${variant}', intentando con plan_type='${planType}'...`)
+            const { data: legacyData, error: legacyError } = await supabase
+                .from("project_floor_plans")
+                .select("id, name, data")
+                .eq("project_id", projectId)
+                .eq("plan_type", planType)
+                .single()
+
+            if (legacyError) {
+                if (legacyError.code === 'PGRST116') return null
+                throw legacyError
             }
-            throw error
+            planData = legacyData
         }
 
         return planData
@@ -107,12 +119,22 @@ export async function getProjectFloorPlanData(projectId: string, planType: 'befo
     }
 }
 
-import { calculateRoomStats } from "@/lib/utils/geometry"
+import { calculateRoomStats, isPointOnSegment } from "@/lib/utils/geometry"
 
 export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boolean): Room[] {
     if (!editorData || !editorData.rooms || editorData.rooms.length === 0) return []
 
     const roomTypeCounts: { [key: string]: number } = {}
+
+    // 1. Mapear qué muros pertenecen a qué habitaciones (Pre-calculado para asignar puertas correctamente)
+    const wallToRoomsMap = new Map<string, string[]>()
+    editorData.rooms.forEach(r => {
+        r.walls?.forEach(wId => {
+            const roomIds = wallToRoomsMap.get(wId) || []
+            roomIds.push(r.id)
+            wallToRoomsMap.set(wId, roomIds)
+        })
+    })
 
     return editorData.rooms.map((editorRoom, i) => {
         roomTypeCounts[editorRoom.type] = (roomTypeCounts[editorRoom.type] || 0) + 1
@@ -171,18 +193,139 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
             if (isBefore) defaultMaterials.removeWallTiles = false
         }
 
-        // Calculate windows and doors for this specific room based on the walls it shares
-        let doorsCount = 0
-        let windowsCount = 0
+        const doorList: any[] = []
+        const windowList: any[] = []
 
-        if (editorRoom.walls && editorRoom.walls.length > 0) {
-            if (editorData.doors) {
-                doorsCount = editorData.doors.filter(d => editorRoom.walls.includes(d.wallId)).length
-            }
-            if (editorData.windows) {
-                windowsCount = editorData.windows.filter(w => editorRoom.walls.includes(w.wallId)).length
-            }
+        const roomWalls = [...(editorRoom.walls || [])]
+
+        // Fallback: Si no hay muros registrados, intentar identificarlos geométricamente usando el polígono
+        if (roomWalls.length === 0 && (editorRoom.polygon || editorRoom.points) && editorData.walls) {
+            const polygon = editorRoom.polygon || editorRoom.points || []
+            polygon.forEach((p, idx) => {
+                const p1 = p;
+                const p2 = polygon[(idx + 1) % polygon.length];
+                const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+
+                const wall = editorData.walls.find(w => isPointOnSegment(midP, w.start, w.end, 1.0));
+                if (wall && !roomWalls.includes(wall.id)) {
+                    roomWalls.push(wall.id);
+                }
+            });
         }
+
+        // Helper para verificar si un punto está en el perímetro de una habitación
+        const isPointOnRoomBoundary = (pt: { x: number, y: number }, room: EditorRoom) => {
+            const polygon = room.polygon || room.points || [];
+            if (polygon.length < 3) return false;
+            for (let i = 0; i < polygon.length; i++) {
+                const p1 = polygon[i];
+                const p2 = polygon[(i + 1) % polygon.length];
+                if (isPointOnSegment(pt, p1, p2, 5.0)) return true;
+            }
+            return false;
+        };
+
+        // --- INICIO MAPEO DE PUERTAS REFINADO ---
+        // 2. Determinar qué puertas pertenecen a ESTA habitación exclusivamente
+        if (editorData.doors) {
+            editorData.doors.forEach(d => {
+                if (roomWalls.includes(d.wallId)) {
+                    const wall = editorData.walls?.find(w => w.id === d.wallId);
+                    if (!wall || d.t === undefined) return;
+
+                    const doorCenter = {
+                        x: wall.start.x + (wall.end.x - wall.start.x) * d.t,
+                        y: wall.start.y + (wall.end.y - wall.start.y) * d.t
+                    };
+
+                    // Verificar numéricamente que la puerta está real y físicamente en el perímetro de ESTA habitación
+                    if ((editorRoom.polygon || editorRoom.points) && !isPointOnRoomBoundary(doorCenter, editorRoom)) {
+                        return; // La puerta comparte un id de muro continuo pero su posición física no toca esta habitación
+                    }
+
+                    // Encontrar las habitaciones que comparten este muro y están físicamente tocando la puerta
+                    const potentialRoomIds = wallToRoomsMap.get(d.wallId) || [];
+                    const trueHostRoomIds = potentialRoomIds.filter(roomId => {
+                        const r = editorData.rooms.find(room => room.id === roomId);
+                        if (!r) return false;
+                        if (!r.polygon && !r.points) return true; // Fallback
+                        return isPointOnRoomBoundary(doorCenter, r);
+                    });
+
+                    if (trueHostRoomIds.length > 1) {
+                        // Muro compartido real. Heurística: asignar a la habitación que NO sea pasillo/hall
+                        const otherRoomId = trueHostRoomIds.find(id => id !== editorRoom.id);
+                        const otherRoom = editorData.rooms.find(r => r.id === otherRoomId);
+                        const otherType = normalizeRoomType(otherRoom?.type);
+
+                        // Si la habitación actual es un pasillo/hall y la otra NO, la puerta suele pertenecer a la otra (abre hacia dentro)
+                        if ((normalizedType === "Hall" || normalizedType === "Pasillo") && (otherType !== "Hall" && otherType !== "Pasillo")) {
+                            return // No se la asignamos a esta (pasillo), se la asignamos a la otra
+                        }
+
+                        // Si ambas son pasillos o ambas son normales, simplemente la asignamos a la habitación con ID menor para evitar duplicados
+                        if (editorRoom.id > (otherRoomId || "")) {
+                            return // Se la asignará la otra habitación
+                        }
+                    }
+
+                    // Si llegamos aquí, la puerta se asigna a esta habitación
+                    let doorType: string = "Abatible"
+                    const openType = d.openType || "single"
+
+                    if (openType === "double" || openType === "double_swing") {
+                        doorType = "Doble abatible"
+                    } else if (openType === "sliding" || openType === "sliding_pocket") {
+                        doorType = "Corredera empotrada"
+                    } else if (openType === "sliding_rail") {
+                        doorType = "Corredera exterior con carril"
+                    } else if (openType === "exterior_sliding") {
+                        doorType = "Corredera exterior"
+                    }
+
+                    // Detección de puerta de Entrada:
+                    // Es puerta principal si físicamente solo da a 1 habitación (muro exterior) y NO es una corredera
+                    const isEntrance = trueHostRoomIds.length === 1 && (doorType === "Abatible" || doorType === "Doble abatible")
+
+                    doorList.push({
+                        id: crypto.randomUUID(),
+                        type: doorType,
+                        width: (d.width || 82) / 100, // cm to m
+                        height: (d.height || 205) / 100, // cm to m
+                        isEntrance: isEntrance
+                    })
+                }
+            })
+        }
+        // --- FIN MAPEO DE PUERTAS REFINADO ---
+
+        if (editorData.windows) {
+            editorData.windows.forEach(w => {
+                if (roomWalls.includes(w.wallId)) {
+                    const openType = w.openType || "single"
+                    const isBalcony = openType === "balcony"
+                    const isSingle = openType === "single"
+                    const isSliding = w.isOpenSliding || openType === "sliding"
+
+                    windowList.push({
+                        id: crypto.randomUUID(),
+                        type: w.isFixed ? "Fija" : (isSliding ? "Corredera" : "Oscilo-Batiente"),
+                        opening: w.isFixed ? "Fija" : (isSliding ? "Corredera" : "Oscilo-Batiente"),
+                        material: "PVC", // Default
+                        width: isBalcony ? 0.82 : isSingle && !w.width ? 1.00 : (w.width || 120) / 100,
+                        height: isBalcony ? 2.10 : isSingle && !w.height ? 1.00 : (w.height || 120) / 100,
+                        hasBlind: true,
+                        color: "Blanco",
+                        glassType: isBalcony ? "Puerta Balcón" : (isSingle ? "Sencillo" : "Doble"),
+                        hasMosquitera: false,
+                        description: `Ventana ${isSingle ? 'Sencilla' : (isBalcony ? 'Puerta Balcón' : 'Doble')} importada`
+                    })
+                }
+            })
+        }
+
+        let doorsCount = doorList.length
+        const windowsCount = windowList.length
 
         // Default to at least 1 door if not detected but it's not a terrace
         if (doorsCount === 0 && normalizedType !== "Terraza" && normalizedType !== "Balcón") {
@@ -199,7 +342,8 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
                     name: editorRoom.name,
                     polygon: roomPolygon,
                     area: editorRoom.area,
-                    color: ""
+                    color: "",
+                    walls: editorRoom.walls || []
                 }
                 const stats = calculateRoomStats(geoRoom, editorData.walls || [], editorData.shunts || [])
                 if (stats && stats.totalPerimeter && !isNaN(stats.totalPerimeter)) {
@@ -228,7 +372,8 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
             wallMaterial: defaultMaterials.wall,
             hasDoors: doorsCount > 0,
             doors: doorsCount,
-            windows: [], // Calculator expects an array of Window objects, not a number
+            doorList: doorList,
+            windows: windowList,
             falseCeiling: false,
             moldings: false,
             demolishWall: false,
@@ -243,6 +388,8 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
             measurementMode: "area-perimeter",
             name: roomName,
             customRoomType: normalizedType === "Otro" ? editorRoom.name : undefined,
+            newDoors: !isBefore && doorList.length > 0,
+            newDoorList: !isBefore && doorList.length > 0 ? doorList : undefined,
         }
     })
 }

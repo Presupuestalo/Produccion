@@ -24,7 +24,7 @@ interface Room {
 }
 
 interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding_rail" | "sliding_pocket" | "sliding" | "double_swing" | "exterior_sliding" }
-interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean; openType?: "single" | "double" | "sliding" | "balcony"; isFixed?: boolean }
+interface Window { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" | "balcony"; isFixed?: boolean }
 interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number; hasCeramic?: boolean }
 
 function calculatePolygonCentroid(points: Point[]): Point {
@@ -2397,8 +2397,8 @@ export const CanvasEngine = ({
             }
 
             const pointTo = {
-                x: (newCenter.x - stageRef.current.x()) / zoom,
-                y: (newCenter.y - stageRef.current.y()) / zoom,
+                x: (newCenter.x - offset.x) / zoom,
+                y: (newCenter.y - offset.y) / zoom,
             }
 
             const scale = dist / lastDist.current
@@ -3339,12 +3339,12 @@ export const CanvasEngine = ({
                                     {window.openType === "balcony" ? (
                                         // Balcony Door (Narrower angle, specific color)
                                         <KonvaArc
-                                            x={-window.width / 2}
+                                            x={window.flipX ? window.width / 2 : -window.width / 2}
                                             y={window.flipY ? (wall.thickness + 4) / 2 : -(wall.thickness + 4) / 2}
                                             innerRadius={0}
                                             outerRadius={window.width}
                                             angle={60} // Narrower angle for balcony
-                                            rotation={window.flipY ? 0 : -60}
+                                            rotation={window.flipY ? (window.flipX ? 120 : 0) : (window.flipX ? 180 : -60)}
                                             stroke={isSelected ? "#0ea5e9" : "#0891b2"} // Cyan-600 for distinction
                                             strokeWidth={isSelected ? 2 : 1.5}
                                             fill={isSelected ? "#0ea5e920" : "transparent"}
@@ -3363,18 +3363,44 @@ export const CanvasEngine = ({
                                             {/* Opening Arc (only if not fixed) */}
                                             {!window.isFixed && (
                                                 <KonvaArc
-                                                    x={-window.width / 2}
+                                                    x={window.flipX ? window.width / 2 : -window.width / 2}
                                                     y={window.flipY ? (wall.thickness + 4) / 2 : -(wall.thickness + 4) / 2}
                                                     innerRadius={0}
                                                     outerRadius={window.width}
                                                     angle={90}
-                                                    rotation={window.flipY ? 0 : -90}
+                                                    rotation={window.flipY ? (window.flipX ? 90 : 0) : (window.flipX ? 180 : -90)}
                                                     stroke={isSelected ? "#0ea5e9" : "#38bdf8"}
                                                     strokeWidth={1}
                                                     dash={[3, 3]}
                                                     listening={false}
                                                 />
                                             )}
+                                        </Group>
+                                    ) : window.openType === "sliding" ? (
+                                        // Sliding Window (Corredera) - Two offset panels
+                                        <Group>
+                                            <Rect
+                                                width={window.width / 2 + 2}
+                                                height={4}
+                                                x={-window.width / 2}
+                                                y={-4}
+                                                fill={isSelected ? "#e0f2fe" : "#ffffff"}
+                                                stroke={isSelected ? "#0ea5e9" : "#38bdf8"}
+                                                strokeWidth={1}
+                                                cornerRadius={1}
+                                                listening={false}
+                                            />
+                                            <Rect
+                                                width={window.width / 2 + 2}
+                                                height={4}
+                                                x={0}
+                                                y={0}
+                                                fill={isSelected ? "#e0f2fe" : "#ffffff"}
+                                                stroke={isSelected ? "#0ea5e9" : "#38bdf8"}
+                                                strokeWidth={1}
+                                                cornerRadius={1}
+                                                listening={false}
+                                            />
                                         </Group>
                                     ) : (
                                         // Double Leaf (2 Hojas) - Split Line with Tick AND Arcs
@@ -4522,22 +4548,47 @@ export const CanvasEngine = ({
                                                 </>
                                             )}
                                             {selectedElement.type === "window" && (
-                                                <MenuButton
-                                                    icon={<ArrowLeftRight className="h-3 w-3" />}
-                                                    onClick={() => {
-                                                        const el = windows.find(w => w.id === selectedElement.id)
-                                                        if (el) {
-                                                            const types = ["single", "double", "balcony"] as const
-                                                            // @ts-ignore
-                                                            const currentIdx = types.indexOf(el.openType || "single")
-                                                            const nextType = types[(currentIdx + 1) % types.length]
+                                                <>
+                                                    <MenuButton
+                                                        icon={<FlipHorizontal className="h-3 w-3" />}
+                                                        onClick={() => {
+                                                            const el = windows.find(w => w.id === selectedElement.id)
+                                                            if (el) onUpdateElement("window", el.id, { flipX: !el.flipX })
+                                                        }}
+                                                    />
+                                                    <MenuButton
+                                                        icon={<FlipVertical className="h-3 w-3" />}
+                                                        onClick={() => {
+                                                            const el = windows.find(w => w.id === selectedElement.id)
+                                                            if (el) onUpdateElement("window", el.id, { flipY: !el.flipY })
+                                                        }}
+                                                    />
+                                                    <MenuButton
+                                                        icon={<ArrowLeftRight className="h-3 w-3" />}
+                                                        onClick={() => {
+                                                            const el = windows.find(w => w.id === selectedElement.id)
+                                                            if (el) {
+                                                                const types = ["single", "double", "sliding", "balcony"] as const
+                                                                // @ts-ignore
+                                                                const currentIdx = types.indexOf(el.openType || "single")
+                                                                const nextType = types[(currentIdx + 1) % types.length]
 
-                                                            // @ts-ignore
-                                                            onUpdateElement("window", el.id, { openType: nextType })
-                                                        }
-                                                    }}
-                                                    title="Cambiar tipo de ventana"
-                                                />
+                                                                const updates: any = { openType: nextType }
+                                                                if (nextType === "balcony") {
+                                                                    updates.width = 82
+                                                                    updates.height = 210
+                                                                } else if (nextType === "sliding") {
+                                                                    updates.width = 150
+                                                                    updates.height = 120
+                                                                }
+
+                                                                // @ts-ignore
+                                                                onUpdateElement("window", el.id, updates)
+                                                            }
+                                                        }}
+                                                        title="Cambiar tipo de ventana"
+                                                    />
+                                                </>
                                             )}
                                         </>
                                     )}

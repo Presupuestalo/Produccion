@@ -62,7 +62,9 @@ interface SummaryData {
   windows: number
   nivelarTablon: number
   puertasAbatibles: number
+  puertasDobleAbatibles: number
   puertasCorrederas: number
+  puertasCorrederasExteriores: number
   premarcos: number
   puertaAcorazada: number
   rodapie: number // Añadir rodapié
@@ -132,7 +134,9 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
     windows: 0,
     nivelarTablon: 0,
     puertasAbatibles: 0,
+    puertasDobleAbatibles: 0,
     puertasCorrederas: 0,
+    puertasCorrederasExteriores: 0,
     premarcos: 0,
     puertaAcorazada: 0,
     rodapie: 0, // Añadir rodapié
@@ -222,7 +226,9 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
       windows: 0,
       nivelarTablon: 0,
       puertasAbatibles: 0,
+      puertasDobleAbatibles: 0,
       puertasCorrederas: 0,
+      puertasCorrederasExteriores: 0,
       premarcos: 0,
       puertaAcorazada: 0,
       rodapie: 0, // Añadir rodapié
@@ -357,9 +363,15 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
           if (door.type === "Abatible") {
             newSummary.puertasAbatibles += 1
             newSummary.premarcos += 1
+          } else if (door.type === "Doble abatible") {
+            newSummary.puertasDobleAbatibles += 1
+            newSummary.premarcos += 1
           } else if (door.type === "Corredera empotrada") {
             newSummary.puertasCorrederas += 1
             newSummary.cajonPuertaCorredera += 1
+            newSummary.premarcos += 1
+          } else if (door.type === "Corredera exterior" || door.type === "Corredera exterior con carril") {
+            newSummary.puertasCorrederasExteriores += 1
             newSummary.premarcos += 1
           }
         })
@@ -842,11 +854,25 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
                     <div className="text-right font-medium shrink-0">{summary.puertasAbatibles}</div>
                   </div>
                 )}
+                {summary.puertasDobleAbatibles > 0 && (
+                  <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-green-100 last:border-0">
+                    <div>Puertas dobles abatibles</div>
+                    <div className="text-muted-foreground text-right shrink-0">ud</div>
+                    <div className="text-right font-medium shrink-0">{summary.puertasDobleAbatibles}</div>
+                  </div>
+                )}
                 {summary.puertasCorrederas > 0 && (
                   <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-green-100 last:border-0">
                     <div>Puertas correderas</div>
                     <div className="text-muted-foreground text-right shrink-0">ud</div>
                     <div className="text-right font-medium shrink-0">{summary.puertasCorrederas}</div>
+                  </div>
+                )}
+                {summary.puertasCorrederasExteriores > 0 && (
+                  <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-green-100 last:border-0">
+                    <div>Puertas correderas exteriores</div>
+                    <div className="text-muted-foreground text-right shrink-0">ud</div>
+                    <div className="text-right font-medium shrink-0">{summary.puertasCorrederasExteriores}</div>
                   </div>
                 )}
                 {summary.premarcos > 0 && (

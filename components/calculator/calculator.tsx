@@ -459,10 +459,12 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     containersNeeded: 0,
   })
 
-  // Estados para diálogo de confirmación de importación de planos
   const [showFloorPlanConfirm, setShowFloorPlanConfirm] = useState(false)
   const [pendingDemolitionRooms, setPendingDemolitionRooms] = useState<Room[]>([])
   const [pendingReformRooms, setPendingReformRooms] = useState<Room[]>([])
+  const [pendingDoorsCount, setPendingDoorsCount] = useState(0)
+  const [pendingWindowsCount, setPendingWindowsCount] = useState(0)
+  const [importTarget, setImportTarget] = useState<"demolition" | "reform" | "both">("both")
 
   // Calculate Demolition Summary and Debris
   useEffect(() => {
@@ -1918,6 +1920,24 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       const beforePlan = await getProjectFloorPlanData(projectId, "before")
       const afterPlan = await getProjectFloorPlanData(projectId, "after")
 
+      // Si estamos en reforma y no hay plano de reforma, advertir
+      if (activeTab === "reform" && !afterPlan) {
+        if (beforePlan) {
+          toast({
+            title: "Plano de reforma no encontrado",
+            description: "No hay un plano 'Reforma' guardado. Se usarán los datos del plano 'Actual' como base.",
+            variant: "default",
+          })
+        } else {
+          toast({
+            title: "Planos no encontrados",
+            description: "No se encontró ningún plano guardado para este proyecto.",
+            variant: "destructive",
+          })
+          return
+        }
+      }
+
       if (!beforePlan && !afterPlan) {
         toast({
           title: "Planos no encontrados",
@@ -1927,26 +1947,47 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         return
       }
 
-      const demolitionRooms = beforePlan?.data ? mapEditorRoomsToCalculator(beforePlan.data, true) : []
-      const reformRooms = afterPlan?.data ? mapEditorRoomsToCalculator(afterPlan.data, false) : []
+      const demolitionRooms = beforePlan?.data && (activeTab === "demolition" || activeTab === "summary" || activeTab === "presupuesto")
+        ? mapEditorRoomsToCalculator(beforePlan.data, true)
+        : []
+      const reformRoomsResult = afterPlan?.data && (activeTab === "reform" || activeTab === "summary" || activeTab === "presupuesto")
+        ? mapEditorRoomsToCalculator(afterPlan.data, false)
+        : []
 
-      if (demolitionRooms.length === 0 && reformRooms.length === 0) {
+      // Calculate counts for doors and windows in the relevant plan
+      let doorsCount = 0
+      let windowsCount = 0
+
+      if (activeTab === "reform" && afterPlan?.data) {
+        doorsCount = afterPlan.data.doors?.length || 0
+        windowsCount = afterPlan.data.windows?.length || 0
+      } else if (beforePlan?.data) {
+        doorsCount = beforePlan.data.doors?.length || 0
+        windowsCount = beforePlan.data.windows?.length || 0
+      }
+
+      setPendingDoorsCount(doorsCount)
+      setPendingWindowsCount(windowsCount)
+      setImportTarget(activeTab === "reform" ? "reform" : activeTab === "demolition" ? "demolition" : "both")
+
+      if (demolitionRooms.length === 0 && reformRoomsResult.length === 0) {
         toast({
           title: "Sin habitaciones",
-          description: "Los planos no contienen habitaciones definidas.",
+          description: "No se encontraron habitaciones en el plano seleccionado para importar.",
           variant: "default",
         })
         return
       }
 
       // Si ya hay datos, pedimos confirmación
-      if (rooms.length > 0 || reformRooms.length > 0) {
+      const currentRooms = activeTab === "reform" ? reformRooms : rooms
+      if (currentRooms.length > 0) {
         setPendingDemolitionRooms(demolitionRooms)
-        setPendingReformRooms(reformRooms)
+        setPendingReformRooms(reformRoomsResult)
         setShowFloorPlanConfirm(true)
       } else {
         // Si no hay datos, procedemos directamente
-        confirmRoomsImport(demolitionRooms, reformRooms)
+        confirmRoomsImport(demolitionRooms, reformRoomsResult)
       }
     } catch (error: any) {
       console.error("Error al sincronizar planos:", error)
@@ -2052,8 +2093,26 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       } as Room
     })
 
-    setRooms(processedDemolitionRooms)
-    setReformRooms(processedReformRooms)
+    if (importTarget === "demolition" || importTarget === "both") {
+      setRooms(processedDemolitionRooms)
+    }
+
+    if (importTarget === "reform" || importTarget === "both") {
+      setReformRooms(processedReformRooms)
+    }
+
+    // Detección automática de puerta de entrada para activar el check en Reforma
+    const hasEntranceDoor = [...processedDemolitionRooms, ...processedReformRooms].some(room =>
+      room.doorList?.some(door => door.isEntrance)
+    )
+
+    if (hasEntranceDoor) {
+      console.log("[v0] Entrance door detected - enabling entrance door change in Reform configuration")
+      setReformConfig((prev) => ({
+        ...prev,
+        entranceDoorType: true,
+      }))
+    }
 
     setShowFloorPlanConfirm(false)
     setPendingDemolitionRooms([])
@@ -2810,6 +2869,75 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               setValidationAlert(prev => ({ ...prev, isOpen: false }))
             }}>
               Continuar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showFloorPlanConfirm} onOpenChange={setShowFloorPlanConfirm}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5 text-blue-600" />
+              Importar datos del plano
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3" asChild>
+              <div className="text-sm text-muted-foreground">
+                <p>
+                  Se han encontrado datos en el editor de planos. ¿Deseas importarlos a la calculadora?
+                </p>
+                <div className="bg-slate-50 p-4 rounded-md text-xs space-y-2 border">
+                  <p className="font-semibold text-slate-700 pb-1 border-b mb-1">
+                    {importTarget === "reform" ? "Datos del plano de Reforma:" : "Datos del plano de Demolición:"}
+                  </p>
+
+                  <div className="space-y-1">
+                    {importTarget === "demolition" || importTarget === "both" ? (
+                      <p className="flex justify-between">
+                        <span>Habitaciones:</span>
+                        <span className="font-bold">{pendingDemolitionRooms.length}</span>
+                      </p>
+                    ) : null}
+
+                    {importTarget === "reform" || importTarget === "both" ? (
+                      <p className="flex justify-between">
+                        <span>Habitaciones:</span>
+                        <span className="font-bold">{pendingReformRooms.length}</span>
+                      </p>
+                    ) : null}
+
+                    {pendingDoorsCount >= 0 && (
+                      <p className="flex justify-between">
+                        <span>Puertas:</span>
+                        <span className="font-bold">{pendingDoorsCount}</span>
+                      </p>
+                    )}
+
+                    {pendingWindowsCount >= 0 && (
+                      <p className="flex justify-between">
+                        <span>Ventanas:</span>
+                        <span className="font-bold">{pendingWindowsCount}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  <p className="text-[10px] text-slate-500 font-medium pt-2 border-t mt-1">
+                    ℹ️ Las ventanas se importarán en material <b>PVC</b>, como <b>Sencillas/Dobles</b> (según el plano), con apertura <b>Oscilo-Batiente</b>, color <b>Blanco</b> y <b>con Persiana</b> por defecto.
+                  </p>
+                  <p className="text-[10px] text-amber-600 font-medium pt-1">
+                    ⚠️ Se sobrescribirán los datos actuales de esta sección.
+                  </p>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => confirmRoomsImport(pendingDemolitionRooms, pendingReformRooms)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Importar Datos
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

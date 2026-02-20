@@ -56,9 +56,9 @@ import { LinkToProjectDialog } from "./link-to-project-dialog"
 
 interface Point { x: number; y: number }
 interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward' }
-interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point; hasCeramicFloor?: boolean; hasCeramicWalls?: boolean; disabledCeramicWalls?: string[] }
+interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point; hasCeramicFloor?: boolean; hasCeramicWalls?: boolean; disabledCeramicWalls?: string[]; walls: string[] }
 interface Door { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" | "sliding_pocket" | "sliding_rail" | "double_swing" | "exterior_sliding" }
-interface Window { id: string; wallId: string; t: number; width: number; height: number; flipY?: boolean; openType?: "single" | "double" | "sliding" | "balcony"; isFixed?: boolean }
+interface Window { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" | "balcony"; isFixed?: boolean }
 interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number; hasCeramic?: boolean }
 
 // Custom Icons for Doors & Windows
@@ -670,6 +670,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         // Enhance areas by subtracting shunts
         detected.forEach(r => {
             r.area = calculateArea(r.polygon)
+            // Note: r.walls is already populated by detectRoomsGeometrically
         })
 
         const usedNames = new Set<string>()
@@ -1034,7 +1035,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             return
         }
 
-        const closest = findClosestWall(pointer)
+        const excludeInvisible = type === "door" || type === "window"
+        const closest = findClosestWall(pointer, excludeInvisible)
         if (!closest || closest.dist > 30) return // Umbral para "saltar" entre muros
 
         const wall = walls.find(w => w.id === closest.wallId)
@@ -1634,11 +1636,12 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         })
     }
 
-    const findClosestWall = (p: Point): { wallId: string, t: number, dist: number } | null => {
+    const findClosestWall = (p: Point, excludeInvisible: boolean = false): { wallId: string, t: number, dist: number } | null => {
         let best: { wallId: string, t: number, dist: number } | null = null
         let minDist = Infinity
 
         walls.forEach(w => {
+            if (excludeInvisible && w.isInvisible) return
             const { point: snapPoint, t } = getClosestPointOnSegment(p, w.start, w.end)
             const dist = Math.sqrt(Math.pow(p.x - snapPoint.x, 2) + Math.pow(p.y - snapPoint.y, 2))
             if (dist < minDist) {
@@ -1672,7 +1675,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     // Tool Creation State
     const [creationDoorType, setCreationDoorType] = useState<"single" | "double" | "sliding" | "sliding_pocket" | "sliding_rail">("single")
-    const [creationWindowType, setCreationWindowType] = useState<"single" | "double" | "balcony">("single")
+    const [creationWindowType, setCreationWindowType] = useState<"single" | "double" | "sliding" | "balcony">("single")
 
     // ... existing handleMouseDown ...
     const handleMouseDown = (point: Point) => {
@@ -1748,7 +1751,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 break
 
             case "door": {
-                const closest = findClosestWall(point)
+                const closest = findClosestWall(point, true)
                 if (closest && closest.dist < 15) {
                     saveStateToHistory()
                     const newId = `door-${Date.now()}`
@@ -1769,7 +1772,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             }
 
             case "window": {
-                const closest = findClosestWall(point)
+                const closest = findClosestWall(point, true)
                 if (closest && closest.dist < 15) {
                     saveStateToHistory()
                     const newId = `window-${Date.now()}`
@@ -1777,10 +1780,10 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                         id: newId,
                         wallId: closest.wallId,
                         t: closest.t,
-                        width: creationWindowType === "double" ? 120 : 60,
-                        height: 100,
+                        width: creationWindowType === "balcony" ? 82 : (creationWindowType === "double" ? 120 : (creationWindowType === "sliding" ? 150 : 60)),
+                        height: creationWindowType === "balcony" ? 210 : (creationWindowType === "sliding" ? 120 : 100),
                         flipY: false,
-                        openType: creationWindowType
+                        openType: creationWindowType as any
                     }])
                     setActiveTool("select")
                     setSelectedElement({ type: "window", id: newId })
@@ -2789,7 +2792,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 {!bgImage ? (
                                     <Button
                                         variant="outline"
-                                        className="w-full h-12 border-dashed border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 hover:border-sky-300 transition-all font-bold"
+                                        className="w-full h-12 border-dashed border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-600 hover:text-white hover:border-sky-600 transition-all font-bold shadow-sm hover:shadow-md"
                                         onClick={() => {
                                             setIsSettingsOpen(false)
                                             setTimeout(() => document.getElementById("bg-import")?.click(), 100)

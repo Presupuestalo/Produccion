@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { supabase } from "@/lib/supabase/client"
-import { Maximize2, Loader2, RefreshCw, Trash2, Info, AlertTriangle, Image } from "lucide-react"
+import { Maximize2, Loader2, RefreshCw, Trash2, Info, AlertTriangle, Image, Copy } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -86,15 +86,20 @@ export function FloorPlanViewer({ projectId }: FloorPlanViewerProps) {
   // Verificar la estructura de la tabla
   const checkTableStructure = async () => {
     try {
-      const { data, error } = await supabase.from("project_floor_plans").select("plan_type").limit(1)
+      // Verificar si existe al menos una de las dos columnas
+      const { data, error } = await supabase.from("project_floor_plans").select("plan_type, variant").limit(1)
 
       if (error) {
         if (error.message.includes("does not exist")) {
           setIsTableUpdated(false)
-        } else if (error.message.includes('column "plan_type" does not exist')) {
+        } else if (error.message.includes('column "plan_type" does not exist') && error.message.includes('column "variant" does not exist')) {
           setIsTableUpdated(false)
+        } else if (!error.message.includes('column')) {
+          // Si el error no es por columna faltante (ej. RLS), asumimos por ahora que está bien
+          setIsTableUpdated(true)
         } else {
           console.error("Error al verificar la estructura de la tabla:", error)
+          setIsTableUpdated(true) // Fallback optimistic
         }
       } else {
         setIsTableUpdated(true)
@@ -110,8 +115,12 @@ export function FloorPlanViewer({ projectId }: FloorPlanViewerProps) {
     try {
       setDebugInfo((prev) => ({ ...prev, loadingStarted: new Date().toISOString() }))
 
-      // Buscar si ya existen planos para este proyecto
-      const { data, error } = await supabase.from("project_floor_plans").select("*").eq("project_id", projectId)
+      // Buscar si ya existen planos para este proyecto - Ordenar por fecha para tener los más recientes
+      const { data, error } = await supabase
+        .from("project_floor_plans")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("updated_at", { ascending: false })
 
       if (error) {
         setDebugInfo((prev) => ({ ...prev, loadError: error.message }))
@@ -120,29 +129,91 @@ export function FloorPlanViewer({ projectId }: FloorPlanViewerProps) {
 
       setDebugInfo((prev) => ({ ...prev, plansData: data }))
 
+      // Inicializar con null
+      const plans: Record<PlanType, string | null> = {
+        before: null,
+        after: null,
+      }
+
       if (data && data.length > 0) {
-        const plans: Record<PlanType, string | null> = {
-          before: null,
-          after: null,
-        }
-
         // Procesar los planos encontrados
-        data.forEach((plan: FloorPlan) => {
-          if (plan.plan_type === "before" || plan.plan_type === "after") {
-            // Añadir un timestamp para evitar el caché del navegador
-            const timestamp = new Date().getTime()
-            plans[plan.plan_type as PlanType] = `${plan.image_url}?t=${timestamp}`
+        data.forEach((plan: any) => {
+          let type: PlanType | null = null
 
-            // Log para depuración
-            console.log(`Cargando plano ${plan.plan_type}:`, plan.image_url)
+          if (plan.plan_type === "before" || plan.plan_type === "after") {
+            type = plan.plan_type as PlanType
+          } else if (plan.variant === "current") {
+            type = "before"
+          } else if (plan.variant === "proposal") {
+            type = "after"
+          }
+
+          if (type && !plans[type]) {
+            const timestamp = new Date().getTime()
+            plans[type] = `${plan.image_url}?t=${timestamp}`
+            console.log(`Cargando plano ${type}:`, plan.image_url)
           }
         })
-
-        setFloorPlans(plans)
-        setDebugInfo((prev) => ({ ...prev, processedPlans: plans }))
       }
+
+      setFloorPlans(plans)
+      setDebugInfo((prev) => ({ ...prev, processedPlans: plans }))
     } catch (error) {
       setDebugInfo((prev) => ({ ...prev, loadCatchError: String(error) }))
+    }
+  }
+
+  // Función para clonar el plano de antes al de después
+  const handleCloneBeforeToAfter = async () => {
+    if (!floorPlans.before) return
+
+    setIsUploading(true)
+    try {
+      // 1. Obtener los datos completos del plano de origen
+      const { data: plans, error: fetchError } = await supabase
+        .from("project_floor_plans")
+        .select("*")
+        .eq("project_id", projectId)
+        .or(`plan_type.eq.before,variant.eq.current`)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+
+      if (fetchError || !plans || plans.length === 0) {
+        throw new Error("No se encontró el plano de origen para clonar")
+      }
+
+      const sourcePlan = plans[0]
+
+      // 2. Insertar/Upsert como plano de después
+      const { error: upsertError } = await supabase
+        .from("project_floor_plans")
+        .upsert({
+          project_id: projectId,
+          user_id: sourcePlan.user_id,
+          image_url: sourcePlan.image_url,
+          plan_type: "after",
+          variant: "proposal",
+          name: `${sourcePlan.name || "Estado Actual"} (Copia)`,
+          data: sourcePlan.data,
+          updated_at: new Date().toISOString()
+        }, { onConflict: "project_id,plan_type" })
+
+      if (upsertError) throw upsertError
+
+      await loadFloorPlans()
+      toast({
+        title: "Plano clonado",
+        description: "Se ha usado el plano 'Antes' como base para el 'Después'."
+      })
+    } catch (error: any) {
+      console.error("Error al clonar el plano:", error)
+      toast({
+        title: "Error al clonar",
+        description: error.message || "No se pudo clonar el plano",
+        variant: "destructive"
+      })
+    } finally {
+      setIsUploading(false)
     }
   }
 
@@ -269,7 +340,10 @@ export function FloorPlanViewer({ projectId }: FloorPlanViewerProps) {
       // Intentar guardar la referencia en la base de datos
       const dbResult = await supabase
         .from("project_floor_plans")
-        .upsert(floorPlan, { onConflict: "project_id,plan_type" })
+        .upsert({
+          ...floorPlan,
+          variant: currentPlanType === 'before' ? 'current' : 'proposal'
+        }, { onConflict: "project_id,plan_type" })
 
       if (dbResult.error) {
         throw dbResult.error
@@ -794,7 +868,20 @@ export function FloorPlanViewer({ projectId }: FloorPlanViewerProps) {
               <div className="h-32 border rounded-md overflow-hidden bg-gray-50 flex items-center justify-center">
                 <div className="text-center p-4">
                   <Image className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">No hay plano "Después" cargado</p>
+                  <p className="text-sm text-muted-foreground mb-3">No hay plano "Después" cargado</p>
+
+                  {floorPlans.before && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 text-xs"
+                      onClick={handleCloneBeforeToAfter}
+                      disabled={isUploading}
+                    >
+                      {isUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Copy className="h-3 w-3" />}
+                      Usar plano "Antes" como base
+                    </Button>
+                  )}
                 </div>
               </div>
             )}

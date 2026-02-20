@@ -114,6 +114,7 @@ export interface Door {
   type: DoorType
   width: number
   height: number
+  isEntrance?: boolean
 }
 
 // Nueva interfaz para radiadores
