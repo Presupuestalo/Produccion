@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Minimize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, LayoutGrid, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, RefreshCw, FileText, ClipboardList, Spline, Menu, Square, ChevronDown, ChevronRight, ChevronLeft, DoorOpen, GalleryVerticalEnd, AppWindow, Columns, X, ArrowRightLeft, RectangleVertical, Check, Settings, GripHorizontal, Link2 } from "lucide-react"
+import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Minimize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, LayoutGrid, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, RefreshCw, FileText, ClipboardList, Spline, Menu, Square, ChevronDown, ChevronRight, ChevronLeft, DoorOpen, GalleryVerticalEnd, AppWindow, Columns, X, ArrowRightLeft, RectangleVertical, Check, Settings, GripHorizontal, Link2, Copy, AlertCircle } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import {
     DropdownMenu,
@@ -228,6 +228,12 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     }, [props.planName])
 
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+    const [isDuplicating, setIsDuplicating] = useState(false)
+    useEffect(() => {
+        if (editorWrapperRef.current) setFullscreenContainer(editorWrapperRef.current)
+    }, [])
+
+
     const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
     const hasUnsavedChanges = useRef(false)
     const isInitialLoad = useRef(true)
@@ -1670,7 +1676,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     // ... existing handleMouseDown ...
     const handleMouseDown = (point: Point) => {
-        if (isSettingsOpen) setIsSettingsOpen(false)
+        // Removed: if (isSettingsOpen) setIsSettingsOpen(false) - Radix Dialog handles its own outside clicks.
+
         if (isCalibrating) {
             // ... existing calibration logic ...
             if (!calibrationPoints.p1) {
@@ -2097,6 +2104,50 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         }
     }
 
+    const handleDuplicate = async () => {
+        if (!confirm("¿Estás seguro de que quieres duplicar este plano? Se creará una copia sin vincular al proyecto actual.")) return
+
+        setIsDuplicating(true)
+        try {
+            // Prepare data for save without ID (to create new)
+            // And without projectId/variant to ensure it's a standalone clone
+            const cloneData = {
+                name: `${planName} (Copia)`,
+                walls,
+                doors,
+                windows,
+                rooms,
+                shunts,
+                ceilingHeight,
+                defaultWallThickness,
+                gridRotation,
+                bgConfig,
+                calibration: calibrationPoints,
+                // We DON'T send id, projectId, or variant to force a new standalone creation
+            }
+
+            const response = await fetch("/api/editor-planos/save", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(cloneData),
+            })
+
+            const result = await response.json()
+            if (response.ok && result.id) {
+                toast({ title: "Plano duplicado", description: "Se ha creado una copia correctamente." })
+                setIsSettingsOpen(false)
+                router.push(`/dashboard/editor-planos/editar/${result.id}`)
+            } else {
+                toast({ title: "Error al duplicar", description: result.error || "No se pudo realizar la copia.", variant: "destructive" })
+            }
+        } catch (error) {
+            console.error("Duplicate error:", error)
+            toast({ title: "Error", description: "Ocurrió un error inesperado al duplicar.", variant: "destructive" })
+        } finally {
+            setIsDuplicating(false)
+        }
+    }
+
     const handleSave = async () => {
         setIsSaving(true)
         try {
@@ -2264,10 +2315,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     return (
         // ... (JSX wrapper)
         <div
-            ref={(node) => {
-                editorWrapperRef.current = node
-                if (node !== fullscreenContainer) setFullscreenContainer(node)
-            }}
+            ref={editorWrapperRef}
             className="flex flex-col h-full bg-slate-50 relative overflow-hidden"
         >
             <MobileOrientationGuard onEnterFullscreen={toggleFullscreen} />
@@ -2302,7 +2350,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             <div ref={containerRef} className="flex-1 relative border-t border-slate-200 overflow-hidden bg-slate-50">
                 {/* Top Right Floating Settings Gear */}
                 {!isSettingsOpen && (
-                    <div className="absolute top-4 right-4 z-50">
+                    <div className="absolute top-20 right-4 z-50">
                         <Button
                             size="icon"
                             variant="secondary"
@@ -2591,17 +2639,6 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 </DropdownMenu>
                             </div>
 
-                            {/* 7. LINK TO PROJECT */}
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setIsLinkDialogOpen(true)}
-                                title={currentProjectId ? "Cambiar vinculación" : "Vincular a proyecto"}
-                                className={`w-12 h-12 transition-colors ${currentProjectId ? "text-blue-600 bg-blue-50 hover:bg-blue-100" : "text-slate-700 hover:bg-slate-100"}`}
-                            >
-                                <Link2 className="h-5 w-5" />
-                            </Button>
-
                             <div className="h-px w-8 bg-slate-200 my-1 flex-shrink-0" />
 
 
@@ -2706,7 +2743,42 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 />
                             </div>
 
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label className="text-right text-sm">Proyecto</Label>
+                                <div className="col-span-3">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className={`w-full justify-start font-normal ${currentProjectId ? "text-blue-700 bg-blue-50 border-blue-200" : "text-muted-foreground"}`}
+                                        onClick={() => setIsLinkDialogOpen(true)}
+                                    >
+                                        <Link2 className="w-4 h-4 mr-2" />
+                                        {currentProjectId ? (props.initialData?.projectName || "Ver proyecto vinculado") : "Sin vincular a proyecto"}
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label className="text-right text-sm">Acciones</Label>
+                                <div className="col-span-3">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full justify-start font-bold border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 hover:text-sky-900 transition-all shadow-sm"
+                                        onClick={handleDuplicate}
+                                        disabled={isDuplicating}
+                                    >
+                                        <Copy className="w-4 h-4 mr-2" />
+                                        {isDuplicating ? "Duplicando..." : "Duplicar Plano (Crear Copia)"}
+                                    </Button>
+                                    <p className="text-[10px] text-slate-500 mt-1 pl-1 italic">
+                                        Crea una copia independiente de este plano sin vincular al proyecto actual.
+                                    </p>
+                                </div>
+                            </div>
+
                             <Separator className="my-2" />
+
 
                             <div className="space-y-4 pt-2">
                                 <div className="flex items-center gap-2">

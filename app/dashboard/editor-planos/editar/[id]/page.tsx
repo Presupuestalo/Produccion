@@ -21,16 +21,33 @@ export default async function EditPlanPage(props: { params: Promise<{ id: string
     // Try to fetch by ID (Primary Key) -> Standard behavior for V2 decoupled plans
     let { data: plan, error } = await supabase
         .from("project_floor_plans")
-        .select("*")
+        .select("*, projects:project_id(title)")
         .eq("id", params.id)
         .single()
+
+    // Fallback if join fails or plan not found by primary ID
+    if (error || !plan) {
+        if (error) console.warn("Retry without join or fallback search due to:", error.message)
+
+        // Retry without join first for the same ID
+        const fallback = await supabase
+            .from("project_floor_plans")
+            .select("*")
+            .eq("id", params.id)
+            .single()
+
+        if (fallback.data) {
+            plan = fallback.data
+            error = null
+        }
+    }
 
     // Fallback logic: If plan not found by ID (even if error occurred), check legacy project_id lookup
     // Only proceed to fallback if we didn't find the plan by ID
     if (!plan) {
         const { data: projectPlan, error: projectError } = await supabase
             .from("project_floor_plans")
-            .select("*")
+            .select("*, projects(title)")
             .eq("project_id", params.id)
             .order("updated_at", { ascending: false })
             .limit(1)
@@ -60,9 +77,14 @@ export default async function EditPlanPage(props: { params: Promise<{ id: string
 
     // Ensure 'data' field has the structure EditorContainer expects
     const initialData = plan.data || {}
+    // Add projectName to initialData for EditorContainer settings dialog
+    const enrichedInitialData = {
+        ...initialData,
+        projectName: (plan as any).projects?.title || null
+    }
 
     return <EditPlanClient
-        initialData={initialData}
+        initialData={enrichedInitialData}
         planId={plan.id}
         projectId={plan.project_id}
         planName={plan.name}

@@ -18,16 +18,41 @@ export async function GET() {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    const { data: plans, error } = await supabase
+    // Attempt fetch with join
+    let plans: any[] | null = null
+    const { data: initialPlans, error: initialError } = await supabase
       .from("project_floor_plans")
-      .select("id, name, updated_at, image_url, variant, project_id, user_id, projects(title)")
+      .select(`
+        id, 
+        name, 
+        updated_at, 
+        image_url, 
+        variant, 
+        project_id, 
+        user_id, 
+        projects:project_id (title)
+      `)
       .eq("user_id", session.user.id)
       .order("updated_at", { ascending: false })
       .limit(20)
 
-    if (error) {
-      console.error("Error fetching plans:", error)
-      return NextResponse.json({ plans: [], debug_error: error.message })
+    plans = initialPlans
+
+    // Fallback if join fails (useful for local development or schema mismatches)
+    if (initialError) {
+      console.warn("Retrying without join due to error:", initialError.message)
+      const { data: fallbackPlans, error: fallbackError } = await supabase
+        .from("project_floor_plans")
+        .select("id, name, updated_at, image_url, variant, project_id, user_id")
+        .eq("user_id", session.user.id)
+        .order("updated_at", { ascending: false })
+        .limit(20)
+
+      plans = fallbackPlans
+      if (fallbackError) {
+        console.error("Critical error fetching plans:", fallbackError)
+        return NextResponse.json({ plans: [], debug_error: fallbackError.message })
+      }
     }
 
     // Map to frontend expected format
