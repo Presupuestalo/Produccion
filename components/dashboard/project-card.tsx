@@ -314,26 +314,15 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
               <span className="truncate">Contrato</span>
             </Button>
             {hasPlans && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-[11px] h-9 bg-orange-50/50 text-orange-700 hover:bg-orange-100 hover:text-orange-800 transition-all border-orange-200 gap-1.5 px-2"
-                  onClick={() => router.push(`/dashboard/projects/${project.id}/plano`)}
-                >
-                  <PencilRuler className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">Planos</span>
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="col-span-2 w-full text-[11px] h-9 bg-slate-800 hover:bg-slate-900 text-white shadow-sm transition-all border-none gap-1.5 px-2 font-medium"
-                  onClick={() => router.push(`/dashboard/projects/${project.id}?importPlans=true`)}
-                >
-                  <Download className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">Importar desde Planos</span>
-                </Button>
-              </>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-[11px] h-9 bg-orange-50/50 text-orange-700 hover:bg-orange-100 hover:text-orange-800 transition-all border-orange-200 gap-1.5 px-2"
+                onClick={() => router.push(`/dashboard/projects/${project.id}/plano`)}
+              >
+                <PencilRuler className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">Planos</span>
+              </Button>
             )}
           </div>
         </CardContent>

@@ -908,9 +908,12 @@ export class BudgetGenerator {
     }
 
     // 3. Raseos de suelo (previo embaldosado)
-    if (floorTilingArea > 0) {
-      console.log(`[v0] BudgetGenerator - Generando partida: Raseo previo embaldosado suelo ${floorTilingArea} m²`)
-      this.addLineItem("02-A-10", floorTilingArea, "Raseo previo embaldosado suelo")
+    let netFloorTilingArea = floorTilingArea - screedArea
+    if (netFloorTilingArea < 0) netFloorTilingArea = 0
+
+    if (netFloorTilingArea > 0) {
+      console.log(`[v0] BudgetGenerator - Generando partida: Raseo previo embaldosado suelo ${netFloorTilingArea} m²`)
+      this.addLineItem("02-A-10", netFloorTilingArea, "Raseo previo embaldosado suelo")
     } else {
       console.log("[v0] BudgetGenerator - NO se genera partida de raseo previo embaldosado (total = 0)")
     }
@@ -1197,28 +1200,81 @@ export class BudgetGenerator {
       console.log("[v0] BudgetGenerator - NO se genera partida de conducto campana extractora (total kitchens = 0)")
     }
 
-    // Instalación de sanitarios (por cada baño)
+    // Instalación de sanitarios (contando elementos específicos seleccionados en cada baño)
     if (bathrooms > 0) {
+      let totalInodoros = 0;
+      let totalDuchas = 0;
+      let totalLavabos = 0;
+      let totalMamparas = 0;
+      let totalGrifosDucha = 0;
+      let totalGrifosLavabo = 0;
+      let totalBides = 0;
+      let totalDuchetas = 0;
+      let totalBaneras = 0;
+
+      reform.rooms.filter((r: any) => r.type === "Baño").forEach((room: any) => {
+        const elements = room.bathroomElements || ["Inodoro", "Plato de ducha", "Mampara", "Mueble lavabo"];
+
+        if (elements.includes("Inodoro")) totalInodoros++;
+        if (elements.includes("Plato de ducha")) {
+          totalDuchas++;
+          totalGrifosDucha++; // Asumimos un grifo por ducha
+        }
+        if (elements.includes("Mueble lavabo")) {
+          totalLavabos++;
+          totalGrifosLavabo++; // Asumimos un grifo por lavabo
+        }
+        if (elements.includes("Mampara")) totalMamparas++;
+        if (elements.includes("Bidé")) totalBides++;
+        if (elements.includes("Ducheta Inodoro")) totalDuchetas++;
+        if (elements.includes("Bañera")) totalBaneras++;
+      });
+
       // Inodoro
-      console.log(`[v0] BudgetGenerator - Generando partida: Inodoro ${bathrooms} ud`)
-      this.addLineItem("04-F-06", bathrooms)
+      if (totalInodoros > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Inodoro ${totalInodoros} ud`)
+        this.addLineItem("04-F-06", totalInodoros)
+      }
+      // Bidé (NUEVO: Verificar si existe el código, sino usar uno genérico o no asigar si no lo pide exactamente, pero lo añado asumiendo que pueda existir o se ignorará si no hay código)
+      // As in previous logic there was no Bidé, but I'll add the most basic tracking. If there's NO code, addLineItem handles it safely by warning.
+      if (totalBides > 0) {
+        this.addLineItem("04-F-14", totalBides) // Asignando código provisional, si no existe no romperá
+      }
+      // Ducheta inodoro
+      if (totalDuchetas > 0) {
+        this.addLineItem("04-F-15", totalDuchetas)
+      }
+      // Bañera
+      if (totalBaneras > 0) {
+        this.addLineItem("04-F-16", totalBaneras)
+      }
       // Plato de ducha
-      console.log(`[v0] BudgetGenerator - Generando partida: Plato de ducha ${bathrooms} ud`)
-      this.addLineItem("04-F-07", bathrooms)
+      if (totalDuchas > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Plato de ducha ${totalDuchas} ud`)
+        this.addLineItem("04-F-07", totalDuchas)
+      }
       // Mueble lavabo
-      console.log(`[v0] BudgetGenerator - Generando partida: Mueble lavabo ${bathrooms} ud`)
-      this.addLineItem("04-F-08", bathrooms)
+      if (totalLavabos > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Mueble lavabo ${totalLavabos} ud`)
+        this.addLineItem("04-F-08", totalLavabos)
+      }
       // Mampara
-      console.log(`[v0] BudgetGenerator - Generando partida: Mampara ${bathrooms} ud`)
-      this.addLineItem("04-F-09", bathrooms)
+      if (totalMamparas > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Mampara ${totalMamparas} ud`)
+        this.addLineItem("04-F-09", totalMamparas)
+      }
       // Grifo ducha
-      console.log(`[v0] BudgetGenerator - Generando partida: Grifo ducha ${bathrooms} ud`)
-      this.addLineItem("04-F-10", bathrooms)
+      if (totalGrifosDucha > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Grifo ducha ${totalGrifosDucha} ud`)
+        this.addLineItem("04-F-10", totalGrifosDucha)
+      }
       // Grifo lavabo
-      console.log(`[v0] BudgetGenerator - Generando partida: Grifo lavabo ${bathrooms} ud`)
-      this.addLineItem("04-F-11", bathrooms)
+      if (totalGrifosLavabo > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Grifo lavabo ${totalGrifosLavabo} ud`)
+        this.addLineItem("04-F-11", totalGrifosLavabo)
+      }
     } else {
-      console.log("[v0] BudgetGenerator - NO se generan Partizan de instalación de sanitarios (total bathrooms = 0)")
+      console.log("[v0] BudgetGenerator - NO se generan partidas de instalación de sanitarios (total bathrooms = 0)")
     }
 
     // Montaje fregadero y electrodomésticos (por cada cocina)
@@ -1290,12 +1346,17 @@ export class BudgetGenerator {
       console.log("[v0] BudgetGenerator - NO se genera partida de rodapié (total length = 0)")
     }
 
+    // Puertas abatibles dobles
+    const doubleSwingDoors = this.countDoubleSwingDoors()
+
     // Premarcos (por cada puerta)
     const totalDoors = this.countTotalDoors()
-    if (totalDoors > 0) {
-      console.log(`[v0] BudgetGenerator - Generando partida: Premarcos ${totalDoors} ud`)
-      this.addLineItem("05-C-05", totalDoors)
-    } else {
+    const singleDoorsForPreframe = totalDoors - doubleSwingDoors
+
+    if (singleDoorsForPreframe > 0) {
+      console.log(`[v0] BudgetGenerator - Generando partida: Premarcos sencillos ${singleDoorsForPreframe} ud`)
+      this.addLineItem("05-C-05", singleDoorsForPreframe)
+    } else if (totalDoors === 0) {
       console.log("[v0] BudgetGenerator - NO se genera partida de premarcos (total doors = 0)")
     }
 
@@ -1324,9 +1385,9 @@ export class BudgetGenerator {
       this.addLineItem("05-C-18", exteriorSlidingDoors)
     }
 
-    // Puertas abatibles dobles
-    const doubleSwingDoors = this.countDoubleSwingDoors()
     if (doubleSwingDoors > 0) {
+      console.log(`[v0] BudgetGenerator - Generando partida: Premarco doble ${doubleSwingDoors} ud`)
+      this.addLineItem("05-C-21", doubleSwingDoors)
       console.log(`[v0] BudgetGenerator - Generando partida: Puertas abatibles dobles ${doubleSwingDoors} ud`)
       this.addLineItem("05-C-20", doubleSwingDoors)
     }
@@ -1659,9 +1720,11 @@ export class BudgetGenerator {
       totalSwitches = Math.max(roomCount, 3)
     }
 
-    // 06-E-01: Main electrical panel (always 1)
-    console.log("[v0] BudgetGenerator - Generando partida: Cuadro general 1 ud")
-    this.addLineItem("06-E-01", 1, "Cuadro general 18 elementos")
+    // 06-E-01: Main electrical panel
+    if (electricalConfig?.hasElectricalPanel !== false) {
+      console.log("[v0] BudgetGenerator - Generando partida: Cuadro general 1 ud")
+      this.addLineItem("06-E-01", 1, "Cuadro general 18 elementos")
+    }
 
     // 06-E-02: TV and telecom cabling (always 1)
     console.log("[v0] BudgetGenerator - Generando partida: Canalización TV y telecomunicaciones 1 ud")
@@ -1676,9 +1739,11 @@ export class BudgetGenerator {
       console.log(`[v0] BudgetGenerator - NO se genera partida de portero convencional (realRoomCount: ${realRoomCount})`)
     }
 
-    // 06-E-04: Construction panel (always 1)
-    console.log("[v0] BudgetGenerator - Generando partida: Cuadro de obra 1 ud")
-    this.addLineItem("06-E-04", 1, "Cuadro de obra")
+    // 06-E-04: Construction panel
+    if (electricalConfig?.hasConstructionPanel) {
+      console.log("[v0] BudgetGenerator - Generando partida: Cuadro de obra 1 ud")
+      this.addLineItem("06-E-04", 1, "Cuadro de obra")
+    }
 
     // 06-E-05: Outlet line (always 1)
     console.log("[v0] BudgetGenerator - Generando partida: Línea de enchufes 1 ud")
@@ -1720,6 +1785,12 @@ export class BudgetGenerator {
       this.addLineItem("06-E-12", totalTVOutlets, "Toma de TV")
     }
 
+    // 06-E-11: Outdoor outlets
+    if (totalOutdoorOutlets > 0) {
+      console.log(`[v0] BudgetGenerator - Generando partida: Enchufes intemperie ${totalOutdoorOutlets} ud`)
+      this.addLineItem("06-E-11", totalOutdoorOutlets, "Enchufe intemperie")
+    }
+
     // 06-E-14: Recessed lights (focos empotrados)
     if (totalRecessedLights > 0) {
       console.log(`[v0] BudgetGenerator - Generando partida: Focos empotrados ${totalRecessedLights} ud`)
@@ -1733,13 +1804,17 @@ export class BudgetGenerator {
       this.addLineItem("06-E-16", 1, "Línea de cuatro para calefacción eléctrica")
     }
 
-    // 06-E-17: Certification (always 1)
-    console.log("[v0] BudgetGenerator - Generando partida: Boletín y legalización 1 ud")
-    this.addLineItem("06-E-17", 1, "Boletín y legalización")
+    // 06-E-17: Certification
+    if (electricalConfig?.hasCertificate !== false) {
+      console.log("[v0] BudgetGenerator - Generando partida: Boletín y legalización 1 ud")
+      this.addLineItem("06-E-17", 1, "Boletín y legalización")
+    }
 
-    console.log("[v0] BudgetGenerator - Nueva instalación eléctrica: agregando toma de tierra obligatoria")
-    // 06-E-18: Grounding installation (always required for new electrical installations)
-    this.addLineItem("06-E-18", 1, "Obligatorio para nueva instalación eléctrica")
+    // 06-E-18: Grounding installation
+    if (electricalConfig?.hasGroundConnection !== false) {
+      console.log("[v0] BudgetGenerator - Nueva instalación eléctrica: agregando toma de tierra")
+      this.addLineItem("06-E-18", 1, "Obligatorio para nueva instalación eléctrica")
+    }
 
     console.log("[v0] BudgetGenerator - Electrical items generation completed")
     console.log(

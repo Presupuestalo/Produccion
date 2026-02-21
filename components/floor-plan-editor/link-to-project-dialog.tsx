@@ -203,7 +203,7 @@ export function LinkToProjectDialog({
                             size="sm"
                             onClick={handleUnlink}
                             disabled={isLoading}
-                            className="text-muted-foreground hover:text-destructive sm:mr-auto"
+                            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:mr-auto"
                         >
                             <Link2Off className="h-4 w-4 mr-1.5" />
                             Desvincular

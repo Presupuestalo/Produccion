@@ -333,6 +333,25 @@ export function RoomCard({
     }
   }, [room.id, room.wallMaterial, room.type, updateRoom, isReform])
 
+  // Efecto para inicializar el material de suelo si no está definido o es inválido para el modo
+  useEffect(() => {
+    if (!room.floorMaterial) {
+      if (isReform) {
+        const defaults = getDefaultMaterials(room.type, true)
+        updateRoom(room.id, { floorMaterial: defaults.floor as FloorMaterialType })
+      }
+    } else if (isReform && room.floorMaterial) {
+      const reformValues = ["No se modifica", "Cerámico", "Parquet flotante", "Suelo laminado", "Suelo vinílico", "Otro"]
+
+      // Si el valor actual no es válido para reforma (ej. "Madera" o "Cerámica" de demolición)
+      if (!reformValues.includes(room.floorMaterial)) {
+        const defaults = getDefaultMaterials(room.type, true)
+        console.log(`[v0] Normalizando suelo de ${room.floorMaterial} a ${defaults.floor} en ${room.name || room.type}`)
+        updateRoom(room.id, { floorMaterial: defaults.floor as FloorMaterialType })
+      }
+    }
+  }, [room.id, room.floorMaterial, room.type, updateRoom, isReform, room.name])
+
   // Efecto para actualizar el material de paredes cuando cambia paintAndPlasterAll
   useEffect(() => {
     // Si estamos en reforma y paintAndPlasterAll está activado

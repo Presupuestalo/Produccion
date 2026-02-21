@@ -53,6 +53,27 @@ export async function GET() {
         console.error("Critical error fetching plans:", fallbackError)
         return NextResponse.json({ plans: [], debug_error: fallbackError.message })
       }
+
+      // Manual join for project titles
+      if (plans && plans.length > 0) {
+        const projectIds = plans.map(p => p.project_id).filter(id => id);
+        if (projectIds.length > 0) {
+          const uniqueProjectIds = [...new Set(projectIds)];
+          const { data: projectsData } = await supabase
+            .from("projects")
+            .select("id, title")
+            .in("id", uniqueProjectIds);
+
+          if (projectsData) {
+            const projectMap = new Map();
+            projectsData.forEach(p => projectMap.set(p.id, p));
+            plans = plans.map(p => ({
+              ...p,
+              projects: p.project_id ? projectMap.get(p.project_id) : null
+            }));
+          }
+        }
+      }
     }
 
     // Map to frontend expected format

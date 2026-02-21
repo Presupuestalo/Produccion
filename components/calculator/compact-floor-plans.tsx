@@ -246,7 +246,10 @@ export function CompactFloorPlans({ projectId }: CompactFloorPlansProps) {
       // Intentar guardar la referencia en la base de datos
       const { error: dbError } = await supabase
         .from("project_floor_plans")
-        .upsert(floorPlan, { onConflict: "project_id,plan_type" })
+        .upsert({
+          ...floorPlan,
+          variant: currentPlanType === 'before' ? 'current' : 'proposal'
+        }, { onConflict: "project_id,variant" })
 
       if (dbError) {
         throw dbError

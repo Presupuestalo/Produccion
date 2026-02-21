@@ -57,6 +57,7 @@ import { ElectricalSection } from "./electrical-section"
 import { RoomsSummary } from "./rooms-summary"
 import { AppointmentsHistory } from "./appointments-history"
 import { BudgetSection } from "@/components/budget/budget-section"
+import { getDefaultMaterials } from "@/lib/room-utils"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1553,10 +1554,10 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         number: nextNumber,
         type: selectedRoomType as RoomType,
         customRoomType: selectedRoomType === "Otro" ? "" : selectedRoomType,
-        width: 3,
-        length: 4,
-        area: 12,
-        perimeter: 14,
+        width: 0,
+        length: 0,
+        area: 0,
+        perimeter: 0,
         measurementMode: "rectangular",
         floorMaterial: defaultFloorMaterial as FloorMaterialType,
         wallMaterial: defaultWallMaterial as WallMaterialType,
@@ -1732,11 +1733,22 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       })
       return
     }
-    setReformRooms(rooms.map((room) => ({ ...room, id: uuidv4() }))) // Generar nuevos IDs para evitar duplicados
+
+    const translatedRooms = rooms.map((room) => {
+      const defaults = getDefaultMaterials(room.type, true)
+      return {
+        ...room,
+        id: uuidv4(),
+        floorMaterial: defaults.floor as any,
+        wallMaterial: defaults.wall as any,
+      }
+    })
+
+    setReformRooms(translatedRooms)
     setActiveTab("reform")
     toast({
       title: "Éxito",
-      description: "Habitaciones copiadas a la sección de reforma.",
+      description: "Habitaciones copiadas a la sección de reforma con materiales normalizados.",
     })
   }, [rooms, toast])
 

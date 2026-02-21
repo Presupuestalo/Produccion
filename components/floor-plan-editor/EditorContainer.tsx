@@ -44,7 +44,7 @@ import { ElementProperties } from "./ElementProperties"
 import { MobileOrientationGuard } from "./MobileOrientationGuard"
 import { FloorPlanExportDialog } from "./FloorPlanExportDialog"
 import { generateFloorPlanPDF } from "@/lib/utils/floor-plan-pdf"
-import { FileDown, Printer } from "lucide-react"
+import { FileDown, Printer, FolderOpen } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useFeatureFlags } from "@/hooks/use-feature-flags"
@@ -2351,6 +2351,29 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             )}
 
             <div ref={containerRef} className="flex-1 relative border-t border-slate-200 overflow-hidden bg-slate-50">
+                {/* Linked Project Badge (Top Center) */}
+                {(currentProjectId || props.initialData?.projectName) && !showSummary && !isSettingsOpen && (
+                    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
+                        <div className="bg-white/90 backdrop-blur-md shadow-sm border border-slate-200 px-3 py-1.5 rounded-full flex items-center gap-2 pointer-events-auto cursor-default">
+                            <FolderOpen className="h-3.5 w-3.5 text-blue-600" />
+                            <span className="text-xs font-semibold text-slate-700 truncate max-w-[200px]">
+                                {props.initialData?.projectName || "Proyecto Seleccionado"}
+                            </span>
+                            {currentVariant && (
+                                <>
+                                    <div className="w-px h-3 bg-slate-300 mx-0.5" />
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-sm ${currentVariant === 'current'
+                                        ? 'bg-amber-100 text-amber-800'
+                                        : 'bg-emerald-100 text-emerald-800'
+                                        }`}>
+                                        {currentVariant === 'current' ? 'Antes' : 'Después'}
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {/* Top Right Floating Settings Gear */}
                 {!isSettingsOpen && (
                     <div className="absolute top-20 right-4 z-50">

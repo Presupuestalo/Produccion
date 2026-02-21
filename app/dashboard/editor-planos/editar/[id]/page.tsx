@@ -21,7 +21,7 @@ export default async function EditPlanPage(props: { params: Promise<{ id: string
     // Try to fetch by ID (Primary Key) -> Standard behavior for V2 decoupled plans
     let { data: plan, error } = await supabase
         .from("project_floor_plans")
-        .select("*, projects:project_id(title)")
+        .select("*, projects(title)")
         .eq("id", params.id)
         .single()
 

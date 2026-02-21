@@ -196,7 +196,7 @@ export function FloorPlanViewer({ projectId }: FloorPlanViewerProps) {
           name: `${sourcePlan.name || "Estado Actual"} (Copia)`,
           data: sourcePlan.data,
           updated_at: new Date().toISOString()
-        }, { onConflict: "project_id,plan_type" })
+        }, { onConflict: "project_id,variant" })
 
       if (upsertError) throw upsertError
 
@@ -343,7 +343,7 @@ export function FloorPlanViewer({ projectId }: FloorPlanViewerProps) {
         .upsert({
           ...floorPlan,
           variant: currentPlanType === 'before' ? 'current' : 'proposal'
-        }, { onConflict: "project_id,plan_type" })
+        }, { onConflict: "project_id,variant" })
 
       if (dbResult.error) {
         throw dbResult.error

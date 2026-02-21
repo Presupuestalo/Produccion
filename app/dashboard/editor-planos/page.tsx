@@ -39,7 +39,7 @@ interface FloorPlan {
 export default function EditorPlanosPage() {
   const [recentPlans, setRecentPlans] = useState<FloorPlan[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [planToDelete, setPlanToDelete] = useState<string | null>(null)
+  const [planToDelete, setPlanToDelete] = useState<FloorPlan | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [selectedPlanForLinking, setSelectedPlanForLinking] = useState<FloorPlan | null>(null)
@@ -61,7 +61,7 @@ export default function EditorPlanosPage() {
 
     setIsDeleting(true)
     try {
-      const response = await fetch(`/api/editor-planos/delete?id=${planToDelete}`, {
+      const response = await fetch(`/api/editor-planos/delete?id=${planToDelete.id}`, {
         method: "DELETE",
       })
 
@@ -69,7 +69,7 @@ export default function EditorPlanosPage() {
         throw new Error("Error al eliminar el plano")
       }
 
-      setRecentPlans(prev => prev.filter(p => p.id !== planToDelete))
+      setRecentPlans(prev => prev.filter(p => p.id !== planToDelete.id))
       toast({
         title: "Plano eliminado",
         description: "El plano ha sido eliminado correctamente.",
@@ -183,7 +183,7 @@ export default function EditorPlanosPage() {
                           onClick={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
-                            setPlanToDelete(plan.id)
+                            setPlanToDelete(plan)
                           }}
                           title="Eliminar plano"
                         >
@@ -255,8 +255,14 @@ export default function EditorPlanosPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. El plano se eliminará permanentemente de tu cuenta.
+            <AlertDialogDescription className="space-y-3">
+              <p>Esta acción no se puede deshacer. El plano se eliminará permanentemente de tu cuenta.</p>
+              {planToDelete?.projectId && (
+                <div className="bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400 p-3 rounded-md border border-amber-200 dark:border-amber-800 flex flex-col">
+                  <strong>⚠️ Atención: Plano vinculado</strong>
+                  <span className="text-sm mt-1">Este plano está actualmente vinculado al proyecto <strong>"{planToDelete.projectName || 'Desconocido'}"</strong>. Si lo eliminas, el proyecto perderá esta referencia visual.</span>
+                </div>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
