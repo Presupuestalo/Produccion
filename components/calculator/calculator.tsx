@@ -425,6 +425,10 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     needsNewInstallation: false,
     installationType: "Básica",
     hasCertificate: false,
+    hasElectricalPanel: false,
+    hasConstructionPanel: false,
+    hasGroundConnection: false,
+    relocateElectricalConnection: false,
   })
 
   // Estado para el resumen de demolición
@@ -985,6 +989,8 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         partitions,
         wallLinings,
       }
+
+      console.log("[v0] AUTO-SAVE: Saving electricalConfig:", JSON.stringify(electricalConfig, null, 2))
 
       try {
         isUpdatingStateRef.current = true

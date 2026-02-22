@@ -1622,19 +1622,25 @@ export class BudgetGenerator {
     }
 
     const electricalConfig = this.calculatorData.electrical?.config || reform.electricalConfig
-
     const needsNewInstallation = electricalConfig?.needsNewInstallation === true
 
-    console.log("[v0] BudgetGenerator - Electrical config:", {
-      electricalConfig: electricalConfig,
-      needsNewInstallation: needsNewInstallation,
+    console.log("[v0] BudgetGenerator - Electrical config found:", {
+      source: this.calculatorData.electrical?.config ? "top-level" : "reform-fallback",
+      needsNewInstallation,
+      hasElectricalPanel: electricalConfig?.hasElectricalPanel,
+      hasConstructionPanel: electricalConfig?.hasConstructionPanel,
+      hasCertificate: electricalConfig?.hasCertificate,
+      hasGroundConnection: electricalConfig?.hasGroundConnection,
+      relocateElectricalConnection: electricalConfig?.relocateElectricalConnection,
+      hasHeatingCircuit: electricalConfig?.hasHeatingCircuit,
     })
 
     if (!needsNewInstallation) {
       console.log(
-        "[v0] BudgetGenerator - Electrical installation NOT needed (needsNewInstallation is not true), skipping electrical items",
+        "[v0] BudgetGenerator - Electrical installation NOT needed (needsNewInstallation is false). General items (Panel, Certificate, Telecom, Portero, Lines) will be skipped, but room elements (Outlets, Lights) will be processed.",
       )
-      return
+    } else {
+      console.log("[v0] BudgetGenerator - NEW electrical installation requested (needsNewInstallation is true). General items will be processed.")
     }
 
     let totalCeilingLights = 0
@@ -1710,9 +1716,10 @@ export class BudgetGenerator {
       recessedLights: totalRecessedLights,
     })
 
-    // If no electrical elements found in rooms, generate basic default installation
-    if (totalCeilingLights === 0 && totalOutlets === 0 && totalSwitches === 0 && totalSwitchedPoints === 0) {
-      console.log("[v0] BudgetGenerator - No electrical elements found in rooms, using basic default installation")
+    // If no electrical elements found in rooms, generate basic default installation 
+    // BUT ONLY if needsNewInstallation is true. For partial renos, if they didn't add elements, we don't assume a full installation.
+    if (needsNewInstallation && totalCeilingLights === 0 && totalOutlets === 0 && totalSwitches === 0 && totalSwitchedPoints === 0) {
+      console.log("[v0] BudgetGenerator - No electrical elements found in rooms and new installation requested, using basic default installation")
       // Basic defaults: 3 rooms = 3 lights, 6 outlets, 3 switches minimum
       const roomCount = reform.rooms.length
       totalCeilingLights = Math.max(roomCount, 3)
@@ -1720,38 +1727,58 @@ export class BudgetGenerator {
       totalSwitches = Math.max(roomCount, 3)
     }
 
-    // 06-E-01: Main electrical panel
-    if (electricalConfig?.hasElectricalPanel !== false) {
-      console.log("[v0] BudgetGenerator - Generando partida: Cuadro general 1 ud")
-      this.addLineItem("06-E-01", 1, "Cuadro general 18 elementos")
-    }
+    // --- GENERAL ITEMS (Only if needsNewInstallation is TRUE) ---
+    if (needsNewInstallation) {
+      console.log("[v0] BudgetGenerator - PROCESSING GENERAL ELECTRICAL ITEMS (needsNewInstallation is true)")
 
-    // 06-E-02: TV and telecom cabling (always 1)
-    console.log("[v0] BudgetGenerator - Generando partida: Canalización TV y telecomunicaciones 1 ud")
-    this.addLineItem("06-E-02", 1, "Canalización TV y telecomunicaciones")
+      // 06-E-01: Main electrical panel (final)
+      if (electricalConfig?.hasElectricalPanel === true) {
+        console.log("[v0] BudgetGenerator - [ADD] 06-E-01 (Cuadro general) because hasElectricalPanel === true")
+        this.addLineItem("06-E-01", 1, "Cuadro general 18 elementos")
+      } else {
+        console.log("[v0] BudgetGenerator - [SKIP] 06-E-01 (Cuadro general) because hasElectricalPanel is not true")
+      }
 
-    // 06-E-03: Intercom (solo si hay más de una habitación real)
-    const realRoomCount = this.getRealRoomCount()
-    if (realRoomCount > 1) {
-      console.log("[v0] BudgetGenerator - Generando partida: Portero convencional 1 ud")
-      this.addLineItem("06-E-03", 1, "Suministro y instalación portero convencional")
+      // 06-E-02: TV and telecom cabling (always 1 for new installation)
+      console.log("[v0] BudgetGenerator - [ADD] 06-E-02 (Telecomunicaciones) because new installation is requested")
+      this.addLineItem("06-E-02", 1, "Canalización TV y telecomunicaciones")
+
+      // 06-E-03: Intercom (solo si hay más de una habitación real)
+      const realRoomCount = this.getRealRoomCount()
+      if (realRoomCount > 1) {
+        console.log(`[v0] BudgetGenerator - [ADD] 06-E-03 (Portero) because realRoomCount is ${realRoomCount}`)
+        this.addLineItem("06-E-03", 1, "Suministro y instalación portero convencional")
+      } else {
+        console.log(`[v0] BudgetGenerator - [SKIP] 06-E-03 (Portero) because realRoomCount is ${realRoomCount}`)
+      }
+
+      // 06-E-04: Construction panel (provisional connection)
+      if (electricalConfig?.hasConstructionPanel === true) {
+        console.log("[v0] BudgetGenerator - [ADD] 06-E-04 (Cuadro de obra) because hasConstructionPanel === true")
+        this.addLineItem("06-E-04", 1, "Cuadro de obra")
+      } else {
+        console.log("[v0] BudgetGenerator - [SKIP] 06-E-04 (Cuadro de obra) because hasConstructionPanel is not true")
+      }
+
+      // Reubicación de acometida (Permanent connection relocation)
+      if (electricalConfig?.relocateElectricalConnection === true) {
+        console.log("[v0] BudgetGenerator - [ADD] 06-E-04 (Acometida) because relocateElectricalConnection === true")
+        this.addLineItem("06-E-04", 1, "Reubicación de acometida permanente")
+      } else {
+        console.log("[v0] BudgetGenerator - [SKIP] 06-E-04 (Acometida) because relocateElectricalConnection is not true")
+      }
+
+      // 06-E-05: Outlet line
+      console.log("[v0] BudgetGenerator - [ADD] 06-E-05 (Línea enchufes) because new installation is requested")
+      this.addLineItem("06-E-05", 1, "Línea de enchufes monofásica")
+
+      // 06-E-06: Lighting line
+      console.log("[v0] BudgetGenerator - [ADD] 06-E-06 (Línea alumbrado) because new installation is requested")
+      this.addLineItem("06-E-06", 1, "Línea de alumbrado")
     } else {
-      console.log(`[v0] BudgetGenerator - NO se genera partida de portero convencional (realRoomCount: ${realRoomCount})`)
+      console.log("[v0] BudgetGenerator - SKIPPING GENERAL ELECTRICAL ITEMS (needsNewInstallation is false)")
     }
 
-    // 06-E-04: Construction panel
-    if (electricalConfig?.hasConstructionPanel) {
-      console.log("[v0] BudgetGenerator - Generando partida: Cuadro de obra 1 ud")
-      this.addLineItem("06-E-04", 1, "Cuadro de obra")
-    }
-
-    // 06-E-05: Outlet line (always 1)
-    console.log("[v0] BudgetGenerator - Generando partida: Línea de enchufes 1 ud")
-    this.addLineItem("06-E-05", 1, "Línea de enchufes monofásica")
-
-    // 06-E-06: Lighting line (always 1)
-    console.log("[v0] BudgetGenerator - Generando partida: Línea de alumbrado 1 ud")
-    this.addLineItem("06-E-06", 1, "Línea de alumbrado")
 
     // 06-E-07: Simple light points (ceiling lights + switches)
     // Corrected logic: Simple light points should be total ceiling lights. Switches are separate.
@@ -1804,16 +1831,22 @@ export class BudgetGenerator {
       this.addLineItem("06-E-16", 1, "Línea de cuatro para calefacción eléctrica")
     }
 
-    // 06-E-17: Certification
-    if (electricalConfig?.hasCertificate !== false) {
-      console.log("[v0] BudgetGenerator - Generando partida: Boletín y legalización 1 ud")
-      this.addLineItem("06-E-17", 1, "Boletín y legalización")
-    }
+    if (needsNewInstallation) {
+      // 06-E-17: Certification
+      if (electricalConfig?.hasCertificate === true) {
+        console.log("[v0] BudgetGenerator - [ADD] 06-E-17 (Boletín) because hasCertificate === true")
+        this.addLineItem("06-E-17", 1, "Boletín y legalización")
+      } else {
+        console.log("[v0] BudgetGenerator - [SKIP] 06-E-17 (Boletín) because hasCertificate is not true")
+      }
 
-    // 06-E-18: Grounding installation
-    if (electricalConfig?.hasGroundConnection !== false) {
-      console.log("[v0] BudgetGenerator - Nueva instalación eléctrica: agregando toma de tierra")
-      this.addLineItem("06-E-18", 1, "Obligatorio para nueva instalación eléctrica")
+      // 06-E-18: Grounding installation
+      if (electricalConfig?.hasGroundConnection === true) {
+        console.log("[v0] BudgetGenerator - [ADD] 06-E-18 (Toma de tierra) because hasGroundConnection === true")
+        this.addLineItem("06-E-18", 1, "Obligatorio para nueva instalación eléctrica")
+      } else {
+        console.log("[v0] BudgetGenerator - [SKIP] 06-E-18 (Toma de tierra) because hasGroundConnection is not true")
+      }
     }
 
     console.log("[v0] BudgetGenerator - Electrical items generation completed")

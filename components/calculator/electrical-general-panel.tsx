@@ -23,9 +23,9 @@ export function ElectricalGeneralPanel({ config, onUpdate, globalConfig }: Elect
     hasConstructionPanel: false,
     moveElectricalConnection: false,
     relocateElectricalConnection: false,
-    hasElectricalPanel: true, // Activado por defecto
-    hasGroundConnection: true, // Activado por defecto
-    hasHeatingCircuit: false, // Will be enabled automatically for electric heating
+    hasElectricalPanel: false,
+    hasGroundConnection: false,
+    hasHeatingCircuit: false,
   }
 
   // Estado local para la configuración
@@ -34,32 +34,37 @@ export function ElectricalGeneralPanel({ config, onUpdate, globalConfig }: Elect
   // Actualizar el estado local cuando cambian las props
   useEffect(() => {
     if (config) {
-      // Asegurarse de que todas las propiedades tengan valores por defecto
       setLocalConfig({
         ...defaultConfig,
         ...config,
-        // Asegurar que las nuevas propiedades tengan valores por defecto si no existen
-        generalPanelElements: config.generalPanelElements || 10,
-        hasConstructionPanel: config.hasConstructionPanel || false,
-        moveElectricalConnection: config.moveElectricalConnection || false,
-        relocateElectricalConnection: config.relocateElectricalConnection || false,
-        hasElectricalPanel: config.hasElectricalPanel !== undefined ? config.hasElectricalPanel : true,
-        hasGroundConnection: config.hasGroundConnection !== undefined ? config.hasGroundConnection : true,
-        hasHeatingCircuit: config.hasHeatingCircuit || false,
       })
     }
   }, [config])
 
   // Manejar cambios en la configuración
   const handleConfigChange = (updates: Partial<ElectricalConfig>) => {
-    const updatedConfig = { ...localConfig, ...updates }
-    
-    if (updates.needsNewInstallation === true) {
-      updatedConfig.hasConstructionPanel = true
-      updatedConfig.hasCertificate = true
-      updatedConfig.hasElectricalPanel = true
+    let updatedConfig = { ...localConfig, ...updates }
+
+    // Force Reset: If needsNewInstallation is turned OFF, turn off all general sub-items
+    if (updates.needsNewInstallation === false) {
+      console.log("[v0] Turning off needsNewInstallation - forcing all general electrical items to false")
+      updatedConfig = {
+        ...updatedConfig,
+        hasConstructionPanel: false,
+        hasCertificate: false,
+        hasElectricalPanel: false,
+        hasGroundConnection: false,
+        relocateElectricalConnection: false,
+        hasHeatingCircuit: false,
+        hasOvenCircuit: false,
+        hasInductionCircuit: false,
+        hasWashingMachineCircuit: false,
+        hasDishwasherCircuit: false,
+        hasDryerCircuit: false,
+        hasWaterHeaterCircuit: false
+      }
     }
-    
+
     setLocalConfig(updatedConfig)
     onUpdate(updatedConfig)
   }
