@@ -2144,11 +2144,17 @@ export class BudgetGenerator {
     }
 
     // Termostato
-    if (heatingType && heatingType !== "No" && heatingType !== "Eléctrica") {
-      console.log("[v0] BudgetGenerator - Generando partida: Termostato 1 ud")
+    console.log("[v0] BudgetGenerator - Thermostat debug:", {
+      heatingType: heatingType,
+      installGasBoiler: reform.config?.installGasBoiler,
+      globalConfigInstallGasBoiler: globalConfig?.installGasBoiler
+    });
+
+    if (heatingType && heatingType !== "No" && heatingType !== "Eléctrica" && reform.config?.installGasBoiler) {
+      console.log("[v0] BudgetGenerator - Generando partida: Termostato 1 ud (caldera instalada)")
       this.addLineItem("10-M-22", 1)
     } else {
-      console.log("[v0] BudgetGenerator - NO se genera partida de termostato (no heating type or electric)")
+      console.log("[v0] BudgetGenerator - NO se genera partida de termostato (no heating type or electric or no boiler)")
     }
 
     // Termo eléctrico
