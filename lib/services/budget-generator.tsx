@@ -1768,13 +1768,32 @@ export class BudgetGenerator {
         console.log("[v0] BudgetGenerator - [SKIP] 06-E-04 (Acometida) because relocateElectricalConnection is not true")
       }
 
-      // 06-E-05: Outlet line
-      console.log("[v0] BudgetGenerator - [ADD] 06-E-05 (Línea enchufes) because new installation is requested")
-      this.addLineItem("06-E-05", 1, "Línea de enchufes monofásica")
+      // Determine if it's a complete renovation (4 or more rooms AND includes a Salón or Dormitorio)
+      // Per user request, we skip these two lines for bathroom/kitchen only or few rooms
+      const hasMainRooms = reform.rooms.some((r: any) => {
+        const type = (r.type || "").toLowerCase();
+        return type.includes("salón") || type.includes("salon") || type.includes("dormitorio") || type.includes("habitación") || type.includes("habitacion");
+      });
+      const isCompleteRenovation = this.getRealRoomCount() >= 4 && hasMainRooms;
 
-      // 06-E-06: Lighting line
-      console.log("[v0] BudgetGenerator - [ADD] 06-E-06 (Línea alumbrado) because new installation is requested")
-      this.addLineItem("06-E-06", 1, "Línea de alumbrado")
+      console.log("[v0] BudgetGenerator - isCompleteRenovation debug:", {
+        realRoomCount: this.getRealRoomCount(),
+        hasMainRooms: hasMainRooms,
+        isComplete: isCompleteRenovation,
+        roomsList: reform.rooms.map((r: any) => r.type).join(", "),
+      });
+
+      if (isCompleteRenovation) {
+        // 06-E-05: Outlet line
+        console.log("[v0] BudgetGenerator - [ADD] 06-E-05 (Línea enchufes) because new installation is requested and it's a full renovation")
+        this.addLineItem("06-E-05", 1, "Línea de enchufes monofásica")
+
+        // 06-E-06: Lighting line
+        console.log("[v0] BudgetGenerator - [ADD] 06-E-06 (Línea alumbrado) because new installation is requested and it's a full renovation")
+        this.addLineItem("06-E-06", 1, "Línea de alumbrado")
+      } else {
+        console.log(`[v0] BudgetGenerator - [SKIP] 06-E-05 & 06-E-06 since it's a partial renovation (${this.getRealRoomCount()} rooms, hasMainRooms: ${hasMainRooms})`)
+      }
     } else {
       console.log("[v0] BudgetGenerator - SKIPPING GENERAL ELECTRICAL ITEMS (needsNewInstallation is false)")
     }
