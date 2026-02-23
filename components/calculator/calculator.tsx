@@ -261,7 +261,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
   // States needed for UI elements and logic
   const [activeTab, setActiveTab] = useState<string>("demolition") // Estado para la pestaña activa
-  const [selectedRoomType, setSelectedRoomType] = useState<string>("Salón") // Estado para el tipo de habitación seleccionado
+  const [selectedRoomType, setSelectedRoomType] = useState<RoomType>("Salón") // Estado para el tipo de habitación seleccionado
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null) // Estado para el ID de la habitación seleccionada
   const [isSaving, setIsSaving] = useState<boolean>(false) // Estado para indicar si se está guardando
   const [isLoadingFromDB, setIsLoadingFromDB] = useState<boolean>(true) // Estado para indicar si se está cargando desde la DB
