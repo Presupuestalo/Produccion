@@ -28,8 +28,19 @@ const CustomWindowIcon = ({ className }: { className?: string }) => (
 
 
 
-interface Door { id: string; wallId: string; width: number, openType?: "single" | "double" | "sliding_rail" | "sliding_pocket" | "sliding" | "double_swing" | "exterior_sliding" }
-interface Window { id: string; wallId: string; width: number, openType?: "single" | "double" | "sliding" | "balcony"; isFixed?: boolean }
+interface Door {
+    id: string;
+    wallId: string;
+    width: number;
+    openType?: "single" | "double" | "sliding" | "sliding_pocket" | "sliding_rail" | "double_swing" | "exterior_sliding" | "single_swing"
+}
+interface Window {
+    id: string;
+    wallId: string;
+    width: number;
+    openType?: "single" | "double" | "sliding" | "balcony" | "fixed";
+    isFixed?: boolean
+}
 interface Shunt { id: string; x: number; y: number; width: number; height: number; hasCeramic?: boolean }
 
 interface FloorPlanSummaryProps {
