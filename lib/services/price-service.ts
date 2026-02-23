@@ -643,6 +643,18 @@ export async function searchPrices(query: string): Promise<PriceWithCategory[]> 
     masterPrices?.map((p: PriceMaster) => ({ code: p.code, sub: p.subcategory, desc: p.description })),
   )
 
+  // TEST: Check if basic query works
+  const { data: testData, error: testError } = await supabase
+    .from(userTable)
+    .select('*')
+    .limit(1)
+
+  if (testError) {
+    console.error("[TEST ERROR] Basic query failed:", JSON.stringify(testError, null, 2))
+  } else {
+    console.log("[TEST OK] Basic query succeeded")
+  }
+
   // Buscar en precios de usuario con filtro en BD
   const { data: userPrices, error: userError } = await supabase
     .from(userTable)

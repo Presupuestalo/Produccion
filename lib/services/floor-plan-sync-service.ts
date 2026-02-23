@@ -307,18 +307,19 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
                     const isSingle = openType === "single"
                     const isSliding = w.isOpenSliding || openType === "sliding"
 
+                    const isFixed = w.isFixed || openType === "fixed"
                     windowList.push({
                         id: crypto.randomUUID(),
-                        type: w.isFixed ? "Fija" : (isSliding ? "Corredera" : "Oscilo-Batiente"),
-                        opening: w.isFixed ? "Fija" : (isSliding ? "Corredera" : "Oscilo-Batiente"),
+                        type: isFixed ? "Fija" : (isSliding ? "Corredera" : "Oscilo-Batiente"),
+                        opening: isFixed ? "Fija" : (isSliding ? "Corredera" : "Oscilo-Batiente"),
                         material: "PVC", // Default
-                        width: isBalcony ? 0.82 : isSingle && !w.width ? 1.00 : (w.width || 120) / 100,
-                        height: isBalcony ? 2.10 : isSingle && !w.height ? 1.00 : (w.height || 120) / 100,
+                        width: isBalcony ? 0.82 : (isSingle || openType === "fixed") && !w.width ? 1.00 : (w.width || 120) / 100,
+                        height: isBalcony ? 2.10 : (isSingle || openType === "fixed") && !w.height ? 1.00 : (w.height || 120) / 100,
                         hasBlind: true,
                         color: "Blanco",
-                        glassType: isBalcony ? "Puerta Balcón" : (isSingle ? "Sencillo" : "Doble"),
+                        glassType: isBalcony ? "Puerta Balcón" : (isSingle || openType === "fixed" ? "Sencillo" : "Doble"),
                         hasMosquitera: false,
-                        description: `Ventana ${isSingle ? 'Sencilla' : (isBalcony ? 'Puerta Balcón' : 'Doble')} importada`
+                        description: `Ventana ${isSingle || openType === "fixed" ? 'Sencilla' : (isBalcony ? 'Puerta Balcón' : 'Doble')} importada`
                     })
                 }
             })

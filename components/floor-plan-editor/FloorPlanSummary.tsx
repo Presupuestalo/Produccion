@@ -99,7 +99,7 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts, ceiling
     const doorsSlidingPocket = internalDoors.filter(d => d.openType === "sliding_pocket" || d.openType === "sliding").length
     const totalDoors = doors.length
 
-    const winSimple = windows.filter(w => !w.openType || w.openType === "single").length
+    const winSimple = windows.filter(w => !w.openType || w.openType === "single" || w.openType === "fixed").length
     const winDouble = windows.filter(w => w.openType === "double").length
     const winBalcony = windows.filter(w => w.openType === "balcony").length
     const totalWindows = windows.length

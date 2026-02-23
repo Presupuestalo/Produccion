@@ -24,7 +24,7 @@ interface Room {
 }
 
 interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding_rail" | "sliding_pocket" | "sliding" | "double_swing" | "exterior_sliding" }
-interface Window { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" | "balcony"; isFixed?: boolean }
+interface Window { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "balcony" | "fixed"; isFixed?: boolean }
 interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number; hasCeramic?: boolean }
 
 function calculatePolygonCentroid(points: Point[]): Point {
@@ -1213,7 +1213,6 @@ export const CanvasEngine = ({
         let nearest: Point | null = null
         let minDist = threshold
 
-        // Usar snapshot si existe para que los puntos de imÃ¡n sean estÃ¡ticos durante el arrastre
         const candidates: Point[] = []
         const snapshotWalls = wallSnapshot || walls
         snapshotWalls.forEach((w: Wall) => {
@@ -1224,7 +1223,12 @@ export const CanvasEngine = ({
             r.polygon.forEach((p: Point) => candidates.push(p))
         })
 
-        // Buscar el mÃ¡s cercano con distancia euclidiana
+        // Prioridad: Si estamos dibujando un muro, el punto de inicio es el candidato #1 para cerrar la figura
+        if (currentWall?.start) {
+            candidates.unshift(currentWall.start)
+        }
+
+        // Buscar el más cercano con distancia euclidiana
         candidates.forEach(p => {
             const d = Math.sqrt(Math.pow(point.x - p.x, 2) + Math.pow(point.y - p.y, 2))
             if (d < minDist) {
@@ -1268,18 +1272,20 @@ export const CanvasEngine = ({
         setAlignmentGuides(null)
 
         if (!snappingEnabled) return point
-        const vertexThreshold = 6 / zoom
+
+        // 1. VERTEX SNAP (Strongest) - Increased from 6 to 12 for better room closing
+        const vertexThreshold = 12 / zoom
         const vertex = findNearestVertex(point, vertexThreshold)
         if (vertex) return vertex
 
         // 2. ALINEACIONES Y ORTOGONALIDAD
-        const alignThreshold = 8 / zoom
+        const alignThreshold = 12 / zoom
         const currentWS = wallSnapshot || walls
         const candidates: Point[] = []
         currentWS.forEach(w => { candidates.push(w.start); candidates.push(w.end) })
         rooms.forEach(r => r.polygon.forEach(p => candidates.push(p)))
 
-        // TambiÃ©n alinear con el punto de inicio de la acciÃ³n actual
+        // También alinear con el punto de inicio de la acción actual
         const startPoint = currentWall?.start || dragStartPos.current
         if (startPoint) {
             candidates.push(startPoint)
@@ -1311,9 +1317,9 @@ export const CanvasEngine = ({
             if (snappedX !== null && snappedY !== null) return point
         }
 
-        // 3. EDGE SNAP (Si no hay alineaciÃ³n fuerte de ejes)
+        // 3. EDGE SNAP (Si no hay alineaciÃ³n fuerte de ejes) - Increased from 8 to 15
         if (snappedX === null || snappedY === null) {
-            const edgeThreshold = 8 / zoom
+            const edgeThreshold = 15 / zoom
             let nearestEdge: Point | null = null
             let minEdgeDist = edgeThreshold
             currentWS.forEach(w => {
@@ -1327,7 +1333,7 @@ export const CanvasEngine = ({
             if (nearestEdge) return nearestEdge
         }
 
-        // 4. ROUNDING FINAL (1cm grid) -> Relaxed to 0.1 (1mm) for precision
+        // 4. ROUNDING FINAL (1mm precision)
         return {
             x: Math.round(point.x * 10) / 10,
             y: Math.round(point.y * 10) / 10
@@ -3350,8 +3356,8 @@ export const CanvasEngine = ({
                                             fill={isSelected ? "#0ea5e920" : "transparent"}
                                             listening={false}
                                         />
-                                    ) : (!window.openType || window.openType === "single") ? (
-                                        // Single Leaf (1 Hoja)
+                                    ) : (!window.openType || window.openType === "single" || window.openType === "fixed") ? (
+                                        // Single Leaf (1 Hoja) or Fixed
                                         <Group>
                                             {/* Glass Line */}
                                             <Line
@@ -3360,8 +3366,8 @@ export const CanvasEngine = ({
                                                 strokeWidth={isSelected ? 2 : 1.5}
                                                 listening={false}
                                             />
-                                            {/* Opening Arc (only if not fixed) */}
-                                            {!window.isFixed && (
+                                            {/* Opening Arc (only if not fixed type and not isFixed flag) */}
+                                            {window.openType !== "fixed" && !window.isFixed && (
                                                 <KonvaArc
                                                     x={window.flipX ? window.width / 2 : -window.width / 2}
                                                     y={window.flipY ? (wall.thickness + 4) / 2 : -(wall.thickness + 4) / 2}
@@ -3375,32 +3381,6 @@ export const CanvasEngine = ({
                                                     listening={false}
                                                 />
                                             )}
-                                        </Group>
-                                    ) : window.openType === "sliding" ? (
-                                        // Sliding Window (Corredera) - Two offset panels
-                                        <Group>
-                                            <Rect
-                                                width={window.width / 2 + 2}
-                                                height={4}
-                                                x={-window.width / 2}
-                                                y={-4}
-                                                fill={isSelected ? "#e0f2fe" : "#ffffff"}
-                                                stroke={isSelected ? "#0ea5e9" : "#38bdf8"}
-                                                strokeWidth={1}
-                                                cornerRadius={1}
-                                                listening={false}
-                                            />
-                                            <Rect
-                                                width={window.width / 2 + 2}
-                                                height={4}
-                                                x={0}
-                                                y={0}
-                                                fill={isSelected ? "#e0f2fe" : "#ffffff"}
-                                                stroke={isSelected ? "#0ea5e9" : "#38bdf8"}
-                                                strokeWidth={1}
-                                                cornerRadius={1}
-                                                listening={false}
-                                            />
                                         </Group>
                                     ) : (
                                         // Double Leaf (2 Hojas) - Split Line with Tick AND Arcs
@@ -4523,19 +4503,23 @@ export const CanvasEngine = ({
                                                         }}
                                                     />
                                                     <MenuButton
-                                                        icon={<Spline className="h-3 w-3" />}
+                                                        icon={<ArrowLeftRight className="h-3 w-3" />}
                                                         onClick={() => {
                                                             const el = doors.find(d => d.id === selectedElement.id)
                                                             if (el) {
-                                                                const types = ["single", "double", "sliding"] as const
+                                                                const types = ["single", "double", "sliding", "sliding_pocket"] as const
                                                                 // @ts-ignore
                                                                 const currentIdx = types.indexOf(el.openType || "single")
                                                                 const nextType = types[(currentIdx + 1) % types.length]
 
                                                                 let newWidth = el.width || 82
-                                                                if (nextType === "double") {
+                                                                const isLarge = (t: string) => t === "double" || t === "sliding_pocket"
+                                                                const nextIsLarge = isLarge(nextType)
+                                                                const currentIsLarge = isLarge(el.openType || "single")
+
+                                                                if (nextIsLarge && !currentIsLarge) {
                                                                     newWidth = (el.width || 82) * 2
-                                                                } else if (el.openType === "double") {
+                                                                } else if (!nextIsLarge && currentIsLarge) {
                                                                     newWidth = (el.width || 164) / 2
                                                                 }
 
@@ -4568,18 +4552,22 @@ export const CanvasEngine = ({
                                                         onClick={() => {
                                                             const el = windows.find(w => w.id === selectedElement.id)
                                                             if (el) {
-                                                                const types = ["single", "double", "sliding", "balcony"] as const
+                                                                const types = ["single", "double", "fixed", "balcony"] as const
                                                                 // @ts-ignore
                                                                 const currentIdx = types.indexOf(el.openType || "single")
                                                                 const nextType = types[(currentIdx + 1) % types.length]
 
-                                                                const updates: any = { openType: nextType }
+                                                                const updates: any = { openType: nextType, isFixed: nextType === "fixed" }
                                                                 if (nextType === "balcony") {
                                                                     updates.width = 82
                                                                     updates.height = 210
-                                                                } else if (nextType === "sliding") {
-                                                                    updates.width = 150
-                                                                    updates.height = 120
+                                                                } else if (nextType === "double") {
+                                                                    updates.width = 120
+                                                                    updates.height = 140
+                                                                } else if (nextType === "single" || nextType === "fixed") {
+                                                                    // Fallback/standard for simple windows
+                                                                    if (!el.width || el.width > 200) updates.width = 60
+                                                                    if (!el.height) updates.height = 100
                                                                 }
 
                                                                 // @ts-ignore

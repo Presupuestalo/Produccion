@@ -228,27 +228,13 @@ export default function ProjectPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+        <div className="flex flex-col gap-4 pt-2">
+          {/* Main Action Group: Design & Plans */}
           <div className="flex flex-wrap items-center gap-2">
-            {isMaster && (
-              <>
-                <ProjectGallery projectId={projectId} />
-              </>
-            )}
-            {project.user_type === "professional" && <PublishProjectButton project={project} />}
-            {project.user_type !== "owner" && (
-              <Button asChild variant="outline" size="sm" className="h-9">
-                <Link href={`/dashboard/projects/${projectId}/edit`}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span className="hidden sm:inline">Ajustes</span>
-                  <span className="sm:hidden sr-only">Ajustes</span>
-                </Link>
-              </Button>
-            )}
+            <h3 className="w-full text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 lg:hidden">Planos y Diseño</h3>
 
-            {/* Floor Plan Buttons */}
             {linkedPlans.length > 0 && (
-              <Button asChild variant="default" size="sm" className="h-9 bg-orange-600 hover:bg-orange-700 text-white shadow-sm">
+              <Button asChild variant="default" size="sm" className="h-9 bg-orange-600 hover:bg-orange-700 text-white shadow-sm shrink-0">
                 <Link href={`/dashboard/projects/${projectId}/plano`}>
                   <Eye className="mr-1.5 h-4 w-4" />
                   <span className="hidden sm:inline">Ver Planos</span>
@@ -258,7 +244,7 @@ export default function ProjectPage() {
             )}
 
             {beforePlan ? (
-              <Button asChild variant="outline" size="sm" className="h-9 border-amber-200 text-amber-700 hover:bg-amber-50">
+              <Button asChild variant="outline" size="sm" className="h-9 border-amber-200 text-amber-700 hover:bg-amber-50 shrink-0">
                 <Link href={`/dashboard/editor-planos/editar/${beforePlan.id}`}>
                   <PencilRuler className="mr-1.5 h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Plano Antes</span>
@@ -266,8 +252,9 @@ export default function ProjectPage() {
                 </Link>
               </Button>
             ) : null}
+
             {afterPlan ? (
-              <Button asChild variant="outline" size="sm" className="h-9 border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+              <Button asChild variant="outline" size="sm" className="h-9 border-emerald-200 text-emerald-700 hover:bg-emerald-50 shrink-0">
                 <Link href={`/dashboard/editor-planos/editar/${afterPlan.id}`}>
                   <PencilRuler className="mr-1.5 h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Plano Después</span>
@@ -275,9 +262,10 @@ export default function ProjectPage() {
                 </Link>
               </Button>
             ) : null}
+
             {linkedPlans.length === 0 && (
-              <Button asChild variant="outline" size="sm" className="h-9 border-blue-200 text-blue-700 hover:bg-blue-50">
-                <Link href="/dashboard/editor-planos/nuevo">
+              <Button asChild variant="outline" size="sm" className="h-9 border-blue-200 text-blue-700 hover:bg-blue-50 shrink-0">
+                <Link href={`/dashboard/editor-planos/nuevo?projectId=${projectId}`}>
                   <PencilRuler className="mr-1.5 h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Crear Plano</span>
                   <span className="sm:hidden">Plano</span>
@@ -286,7 +274,39 @@ export default function ProjectPage() {
             )}
           </div>
 
-          <div className="lg:hidden w-full">
+          {/* Secondary Action Group: Administrative & Tools */}
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="w-full text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 lg:hidden">Herramientas</h3>
+
+            {isMaster && (
+              <ProjectGallery projectId={projectId} />
+            )}
+
+            <DualFloorPlanAnalyzer
+              projectId={projectId}
+              autoOpen={shouldOpenAnalyzer}
+              onRoomsDetected={(demolition, reform) => {
+                if (calculatorRef.current && "handleRoomsDetectedFromFloorPlan" in calculatorRef.current) {
+                  calculatorRef.current.handleRoomsDetectedFromFloorPlan(demolition, reform)
+                }
+              }}
+            />
+
+            {project.user_type === "professional" && <PublishProjectButton project={project} />}
+
+            {project.user_type !== "owner" && (
+              <Button asChild variant="outline" size="sm" className="h-9 shrink-0">
+                <Link href={`/dashboard/projects/${projectId}/edit`}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span className="hidden sm:inline">Ajustes</span>
+                  <span className="sm:hidden sr-only">Ajustes</span>
+                </Link>
+              </Button>
+            )}
+          </div>
+
+          {/* Mobile Main CTA */}
+          <div className="lg:hidden mt-2">
             <Button
               variant="default"
               size="default"

@@ -699,8 +699,8 @@ export function DualFloorPlanAnalyzer({
     <Dialog open={open} onOpenChange={setOpen}>
       <Button onClick={handleOpenClick} variant="default" size="sm" className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-sm border-none h-9 px-4 font-bold">
         <Sparkles className="h-4 w-4 mr-2" />
-        <span className="hidden sm:inline">Sincronizar Maestro con IA</span>
-        <span className="sm:hidden">Sincronizar IA</span>
+        <span className="hidden sm:inline">Analizar plano con IA</span>
+        <span className="sm:hidden">Analizar con IA</span>
         {hasAiAccess === false && (
           <Badge
             variant="secondary"

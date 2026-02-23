@@ -7,7 +7,7 @@ import React from "react"
 import { useState, useEffect, useCallback, useRef, forwardRef, useMemo } from "react"
 import { v4 as uuidv4 } from "uuid"
 import { Button } from "@/components/ui/button"
-import { AlertTriangle, Copy, Plus, Save, CheckCircle2 } from "lucide-react"
+import { AlertTriangle, Copy, Plus, Save, CheckCircle2, Sofa, Utensils, Bed, Bath, Sun, ArrowRight } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
@@ -1483,8 +1483,11 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     // El autoguardado se activará automáticamente por el
   }, [])
 
-  const addRoom = useCallback(async () => {
+  const addRoom = useCallback(async (forcedType?: RoomType) => {
     if (!projectId) return
+
+    const typeToAdd = forcedType || selectedRoomType
+
     console.log("[v0] Verificando límites de habitaciones para proyecto:", projectId, "sección:", activeTab)
     const limitCheck = await canAddRoom(projectId, activeTab as "demolition" | "reform")
     if (!limitCheck.allowed) {
@@ -1499,34 +1502,35 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     const existingRooms = activeTab === "demolition" ? rooms : reformRooms
 
     // Validation Check
-    const { hasConflict, message } = checkRoomConflict(selectedRoomType, existingRooms)
+    const { hasConflict, message } = checkRoomConflict(typeToAdd, existingRooms)
     if (hasConflict && message) {
       setValidationAlert({
         isOpen: true,
         title: "Posible duplicidad o conflicto",
         description: message,
-        onConfirm: () => proceedAddRoom(activeTab, existingRooms, handler),
+        onConfirm: () => proceedAddRoom(activeTab, existingRooms, handler, typeToAdd),
       })
       return
     }
 
-    proceedAddRoom(activeTab, existingRooms, handler)
+    proceedAddRoom(activeTab, existingRooms, handler, typeToAdd)
   }, [activeTab, rooms, reformRooms, setRooms, setReformRooms, selectedRoomType, projectId, toast])
 
   const proceedAddRoom = useCallback(
     (
       currentTab: string,
       currentExistingRooms: Room[],
-      handler: React.Dispatch<React.SetStateAction<Room[]>>
+      handler: React.Dispatch<React.SetStateAction<Room[]>>,
+      typeToAdd: RoomType
     ) => {
       // Re-calculate derived values since we are in a callback/continuation
       // or duplicate logic slightly. Best to extract "creation logic" into helper but limited scope here.
       // Use values from closure or re-derive.
-      const roomsOfSameType = currentExistingRooms.filter((r) => r.type === selectedRoomType)
+      const roomsOfSameType = currentExistingRooms.filter((r) => r.type === typeToAdd)
       const nextNumber = roomsOfSameType.length + 1
 
-      const isCeramicRoom = selectedRoomType === "Baño" || selectedRoomType === "Cocina"
-      const isTerrace = selectedRoomType === "Terraza"
+      const isCeramicRoom = typeToAdd === "Baño" || typeToAdd === "Cocina"
+      const isTerrace = typeToAdd === "Terraza"
 
       let defaultFloorType: string
       let defaultFloorMaterial: string
@@ -1558,8 +1562,8 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       const newRoom: Room = {
         id: uuidv4(),
         number: nextNumber,
-        type: selectedRoomType as RoomType,
-        customRoomType: selectedRoomType === "Otro" ? "" : selectedRoomType,
+        type: typeToAdd as RoomType,
+        customRoomType: typeToAdd === "Otro" ? "" : typeToAdd,
         width: 0,
         length: 0,
         area: 0,
@@ -2465,64 +2469,88 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                     </Alert>
                   )}
 
-                  <div className="flex flex-col lg:flex-row items-stretch lg:items-end gap-2">
-                    <div className="flex-1">
-                      <Label htmlFor="roomType" className="mb-2 block">
-                        Añadir habitación
-                      </Label>
-                      <Select value={selectedRoomType} onValueChange={setSelectedRoomType}>
-                        <SelectTrigger id="roomType" className="w-full">
-                          <SelectValue placeholder="Seleccionar tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Salón">Salón</SelectItem>
-                          <SelectItem value="Cocina">Cocina</SelectItem>
-                          <SelectItem value="Cocina Abierta">Cocina Abierta</SelectItem>
-                          <SelectItem value="Cocina Americana">Cocina Americana</SelectItem>
-                          <SelectItem value="Baño">Baño</SelectItem>
-                          <SelectItem value="Dormitorio">Dormitorio</SelectItem>
-                          <SelectItem value="Pasillo">Pasillo</SelectItem>
-                          <SelectItem value="Hall">Hall</SelectItem>
-                          <SelectItem value="Terraza">Terraza</SelectItem>
-                          <SelectItem value="Trastero">Trastero</SelectItem>
-                          <SelectItem value="Vestidor">Vestidor</SelectItem>
-                          <SelectItem value="Otro">Otro</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex gap-2">
+                  <div className="space-y-3">
+                    <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Añadir habitación rápido</Label>
+
+                    <div className="flex flex-wrap gap-2">
                       <Button
-                        onClick={addRoom}
-                        className="gap-1 flex-1 sm:w-auto sm:min-w-[120px]"
-                        disabled={!allRoomsHaveMeasurements(visibleRooms)}
+                        variant="outline"
+                        onClick={() => addRoom("Salón")}
+                        className="flex-1 min-w-[100px] h-14 flex-col gap-1 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
                       >
-                        <Plus className="h-4 w-4" /> Añadir
+                        <Sofa className="h-5 w-5 text-slate-400 group-hover:text-orange-500" />
+                        <span className="text-[10px] font-medium text-slate-600 group-hover:text-orange-600">Salón</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => addRoom("Cocina")}
+                        className="flex-1 min-w-[100px] h-14 flex-col gap-1 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
+                      >
+                        <Utensils className="h-5 w-5 text-slate-400 group-hover:text-orange-500" />
+                        <span className="text-[10px] font-medium text-slate-600 group-hover:text-orange-600">Cocina</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => addRoom("Dormitorio")}
+                        className="flex-1 min-w-[100px] h-14 flex-col gap-1 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
+                      >
+                        <Bed className="h-5 w-5 text-slate-400 group-hover:text-orange-500" />
+                        <span className="text-[10px] font-medium text-slate-600 group-hover:text-orange-600">Habitación</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => addRoom("Baño")}
+                        className="flex-1 min-w-[100px] h-14 flex-col gap-1 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
+                      >
+                        <Bath className="h-5 w-5 text-slate-400 group-hover:text-orange-500" />
+                        <span className="text-[10px] font-medium text-slate-600 group-hover:text-orange-600">Baño</span>
                       </Button>
 
+                      <div className="flex-1 min-w-[120px]">
+                        <Select value={selectedRoomType} onValueChange={(val) => {
+                          setSelectedRoomType(val as RoomType)
+                          addRoom(val as RoomType)
+                        }}>
+                          <SelectTrigger className="h-14 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group">
+                            <div className="flex flex-col items-center gap-1">
+                              <Plus className="h-4 w-4 text-slate-400 group-hover:text-orange-500" />
+                              <span className="text-[10px] font-medium text-slate-500 group-hover:text-orange-600">Otros...</span>
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Pasillo">Pasillo</SelectItem>
+                            <SelectItem value="Hall">Hall</SelectItem>
+                            <SelectItem value="Terraza">Terraza</SelectItem>
+                            <SelectItem value="Trastero">Trastero</SelectItem>
+                            <SelectItem value="Vestidor">Vestidor</SelectItem>
+                            <SelectItem value="Otro">Otro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mt-2">
                       {projectId && (
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           onClick={handleManualFloorPlanSync}
                           disabled={isSaving}
-                          className="flex-1 lg:flex-none h-10 bg-white hover:bg-blue-50 text-blue-600 hover:text-blue-700 border-blue-200 transition-colors tooltip-trigger"
+                          className="h-9 px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-100 flex-1"
                           title="Importar medidas desde el plano guardado"
                         >
                           <Download className="mr-2 h-4 w-4" />
-                          <span className="hidden sm:inline">Importar de Plano</span>
-                          <span className="sm:hidden">Importar</span>
+                          Importar de Plano
                         </Button>
                       )}
 
-                      {/* Botón para copiar habitaciones a reforma en móvil - Integrado aquí */}
                       <Button
-                        variant="outline"
-                        size="sm"
+                        variant="ghost"
                         onClick={copyRoomsToReform}
-                        className="lg:hidden h-10 px-4 border-blue-200 text-blue-600 font-medium whitespace-nowrap"
+                        className="lg:hidden h-9 px-3 border border-blue-100 text-blue-600 font-medium flex-1"
                         disabled={!allRoomsHaveMeasurements(visibleRooms)}
                       >
                         <Copy className="h-4 w-4 mr-2" />
-                        Copiar a Reforma
+                        Copiar Habs.
                       </Button>
                     </div>
                   </div>
@@ -2614,75 +2642,101 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                     </Alert>
                   )}
 
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
-                    <div className="flex-1">
-                      <Label htmlFor="roomTypeReform" className="mb-2 block">
-                        Añadir habitación
-                      </Label>
-                      <Select value={selectedRoomType} onValueChange={setSelectedRoomType}>
-                        <SelectTrigger id="roomTypeReform" className="w-full">
-                          <SelectValue placeholder="Seleccionar tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Salón">Salón</SelectItem>
-                          <SelectItem value="Cocina">Cocina</SelectItem>
-                          <SelectItem value="Cocina Abierta">Cocina Abierta</SelectItem>
-                          <SelectItem value="Cocina Americana">Cocina Americana</SelectItem>
-                          <SelectItem value="Baño">Baño</SelectItem>
-                          <SelectItem value="Dormitorio">Dormitorio</SelectItem>
-                          <SelectItem value="Pasillo">Pasillo</SelectItem>
-                          <SelectItem value="Hall">Hall</SelectItem>
-                          <SelectItem value="Terraza">Terraza</SelectItem>
-                          <SelectItem value="Trastero">Trastero</SelectItem>
-                          <SelectItem value="Vestidor">Vestidor</SelectItem>
-                          <SelectItem value="Otro">Otro</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-3">
+                    <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Añadir habitación rápido</Label>
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button
-                        onClick={addRoom}
-                        className="bg-[#1e293b] hover:bg-[#0f172a] text-white flex-1 lg:flex-none shadow-sm h-10 transition-colors"
+                        variant="outline"
+                        onClick={() => addRoom("Salón")}
+                        className="flex-1 min-w-[100px] h-14 flex-col gap-1 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
                       >
-                        <Plus className="mr-2 h-4 w-4" /> Añadir Nueva
+                        <Sofa className="h-5 w-5 text-slate-400 group-hover:text-orange-500" />
+                        <span className="text-[10px] font-medium text-slate-600 group-hover:text-orange-600">Salón</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => addRoom("Cocina")}
+                        className="flex-1 min-w-[100px] h-14 flex-col gap-1 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
+                      >
+                        <Utensils className="h-5 w-5 text-slate-400 group-hover:text-orange-500" />
+                        <span className="text-[10px] font-medium text-slate-600 group-hover:text-orange-600">Cocina</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => addRoom("Dormitorio")}
+                        className="flex-1 min-w-[100px] h-14 flex-col gap-1 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
+                      >
+                        <Bed className="h-5 w-5 text-slate-400 group-hover:text-orange-500" />
+                        <span className="text-[10px] font-medium text-slate-600 group-hover:text-orange-600">Habitación</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => addRoom("Baño")}
+                        className="flex-1 min-w-[100px] h-14 flex-col gap-1 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
+                      >
+                        <Bath className="h-5 w-5 text-slate-400 group-hover:text-orange-500" />
+                        <span className="text-[10px] font-medium text-slate-600 group-hover:text-orange-600">Baño</span>
                       </Button>
 
+                      <div className="flex-1 min-w-[120px]">
+                        <Select value={selectedRoomType} onValueChange={(val) => {
+                          setSelectedRoomType(val as RoomType)
+                          addRoom(val as RoomType)
+                        }}>
+                          <SelectTrigger className="h-14 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group">
+                            <div className="flex flex-col items-center gap-1">
+                              <Plus className="h-4 w-4 text-slate-400 group-hover:text-orange-500" />
+                              <span className="text-[10px] font-medium text-slate-500 group-hover:text-orange-600">Otros...</span>
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Pasillo">Pasillo</SelectItem>
+                            <SelectItem value="Hall">Hall</SelectItem>
+                            <SelectItem value="Terraza">Terraza</SelectItem>
+                            <SelectItem value="Trastero">Trastero</SelectItem>
+                            <SelectItem value="Vestidor">Vestidor</SelectItem>
+                            <SelectItem value="Otro">Otro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mt-2">
                       {projectId && (
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           onClick={handleManualFloorPlanSync}
                           disabled={isSaving}
-                          className="flex-1 lg:flex-none h-10 bg-white hover:bg-blue-50 text-blue-600 hover:text-blue-700 border-blue-200 transition-colors tooltip-trigger"
+                          className="h-9 px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-100 flex-1"
                           title="Importar medidas desde el plano guardado"
                         >
                           <Download className="mr-2 h-4 w-4" />
-                          <span className="hidden sm:inline">Importar de Plano</span>
-                          <span className="sm:hidden">Importar</span>
+                          Importar de Plano
                         </Button>
                       )}
                     </div>
                   </div>
-                </div>
 
-                {/* Lista de habitaciones de reforma */}
-                <RoomsList
-                  rooms={visibleReformRooms}
-                  updateRoom={updateRoom}
-                  removeRoom={removeRoom}
-                  duplicateRoom={duplicateRoom}
-                  selectedRoomId={selectedRoomId}
-                  setSelectedRoomId={setSelectedRoomId}
-                  openCalculator={openCalculator}
-                  activeTab={activeTab}
-                  standardHeight={reformConfig.standardHeight || 2.6}
-                  heatingType={reformConfig.heatingType || "No Tiene"}
-                  isReform={true}
-                  globalConfig={reformConfig}
-                  electricalConfig={electricalConfig}
-                  demolitionRooms={rooms}
-                  highlightedRoomId={highlightedRoomId}
-                />
+                  {/* Lista de habitaciones de reforma */}
+                  <RoomsList
+                    rooms={visibleReformRooms}
+                    updateRoom={updateRoom}
+                    removeRoom={removeRoom}
+                    duplicateRoom={duplicateRoom}
+                    selectedRoomId={selectedRoomId}
+                    setSelectedRoomId={setSelectedRoomId}
+                    openCalculator={openCalculator}
+                    activeTab={activeTab}
+                    standardHeight={reformConfig.standardHeight || 2.6}
+                    heatingType={reformConfig.heatingType || "No Tiene"}
+                    isReform={true}
+                    globalConfig={reformConfig}
+                    electricalConfig={electricalConfig}
+                    demolitionRooms={rooms}
+                    highlightedRoomId={highlightedRoomId}
+                  />
+                </div>
               </div>
 
               {/* COLUMNA DERECHA: Resumen de reforma (solo desktop) */}

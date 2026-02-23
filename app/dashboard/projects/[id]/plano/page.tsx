@@ -36,7 +36,7 @@ export default async function ProjectPlanPage({
       )}
 
       <div className="mt-4">
-        <FloorPlanViewer projectId={id} />
+        <FloorPlanViewer projectId={id} projectTitle={project.title} />
       </div>
     </div>
   )

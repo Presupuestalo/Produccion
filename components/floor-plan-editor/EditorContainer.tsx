@@ -58,7 +58,7 @@ interface Point { x: number; y: number }
 interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward' }
 interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point; hasCeramicFloor?: boolean; hasCeramicWalls?: boolean; disabledCeramicWalls?: string[]; walls: string[] }
 interface Door { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" | "sliding_pocket" | "sliding_rail" | "double_swing" | "exterior_sliding" }
-interface Window { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" | "balcony"; isFixed?: boolean }
+interface Window { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "balcony" | "fixed"; isFixed?: boolean }
 interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number; hasCeramic?: boolean }
 
 // Custom Icons for Doors & Windows
@@ -399,6 +399,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             if (key === 'g') { setActiveTool("door"); setCreationDoorType("double") }
             if (key === 'w') { setActiveTool("window"); setCreationWindowType("double") }
             if (key === 'v') { setActiveTool("window"); setCreationWindowType("single") }
+            if (key === 'y') { setActiveTool("window"); setCreationWindowType("fixed") }
             if (key === 'a') setActiveTool("arc")
             if (key === 'c') setActiveTool("shunt")
             if (key === 'r') setActiveTool("ruler")
@@ -1675,7 +1676,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     // Tool Creation State
     const [creationDoorType, setCreationDoorType] = useState<"single" | "double" | "sliding" | "sliding_pocket" | "sliding_rail">("single")
-    const [creationWindowType, setCreationWindowType] = useState<"single" | "double" | "sliding" | "balcony">("single")
+    const [creationWindowType, setCreationWindowType] = useState<"single" | "double" | "balcony" | "fixed">("single")
 
     // ... existing handleMouseDown ...
     const handleMouseDown = (point: Point) => {
@@ -1780,10 +1781,11 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                         id: newId,
                         wallId: closest.wallId,
                         t: closest.t,
-                        width: creationWindowType === "balcony" ? 82 : (creationWindowType === "double" ? 120 : (creationWindowType === "sliding" ? 150 : 60)),
-                        height: creationWindowType === "balcony" ? 210 : (creationWindowType === "sliding" ? 120 : 100),
+                        width: creationWindowType === "balcony" ? 82 : (creationWindowType === "double" ? 120 : 60),
+                        height: creationWindowType === "balcony" ? 210 : (creationWindowType === "double" ? 140 : 100),
                         flipY: false,
-                        openType: creationWindowType as any
+                        openType: creationWindowType as any,
+                        isFixed: creationWindowType === "fixed"
                     }])
                     setActiveTool("select")
                     setSelectedElement({ type: "window", id: newId })
@@ -2234,15 +2236,16 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     }, [])
 
     const handleBack = (e: React.MouseEvent) => {
+        const backUrl = currentProjectId ? `/dashboard/projects/${currentProjectId}` : "/dashboard/editor-planos"
         // If there are unsaved changes, warn the user
         if (hasUnsavedChanges.current) {
             e.preventDefault()
             const confirmLeave = window.confirm("Tienes cambios sin guardar. ¿Seguro que quieres salir sin guardar?")
             if (confirmLeave) {
-                router.push("/dashboard/editor-planos")
+                router.push(backUrl)
             }
         } else {
-            router.push("/dashboard/editor-planos")
+            router.push(backUrl)
         }
     }
 
@@ -2524,10 +2527,13 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
                                                 <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("single") }} className="gap-3 py-2 cursor-pointer">
-                                                    <RectangleVertical className="h-4 w-4" /> <span>Ventana Sencilla (W)</span>
+                                                    <RectangleVertical className="h-4 w-4" /> <span>Ventana Sencilla (V)</span>
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("double") }} className="gap-3 py-2 cursor-pointer">
-                                                    <CustomWindowIcon className="h-4 w-4" /> <span>Ventana Doble (V)</span>
+                                                    <CustomWindowIcon className="h-4 w-4" /> <span>Ventana Doble (W)</span>
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("fixed") }} className="gap-3 py-2 cursor-pointer">
+                                                    <Square className="h-4 w-4" /> <span>Cristal Fijo (Y)</span>
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("balcony") }} className="gap-3 py-2 cursor-pointer">
                                                     <BalconyWindowIcon className="h-4 w-4" /> <span>Balconera (B)</span>

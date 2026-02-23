@@ -508,12 +508,7 @@ export async function deleteProject(id: string) {
       .maybeSingle()
 
     if (quoteCheckError && quoteCheckError.code !== "42P01") {
-      console.error("[v0] Error al verificar presmarket:", {
-        message: quoteCheckError.message,
-        code: quoteCheckError.code,
-        details: quoteCheckError.details,
-        hint: quoteCheckError.hint
-      })
+      console.error("[v0] Error al verificar presmarket:", quoteCheckError)
     }
 
     if (activeQuoteRequest) {
@@ -544,12 +539,7 @@ export async function deleteProject(id: string) {
       .in("status", ["sent", "pending"])
 
     if (offersCheckError && offersCheckError.code !== "42P01") {
-      console.error("[v0] Error al verificar ofertas:", {
-        message: offersCheckError.message,
-        code: offersCheckError.code,
-        details: offersCheckError.details,
-        hint: offersCheckError.hint
-      })
+      console.error("[v0] Error al verificar ofertas:", offersCheckError)
     }
 
     if (pendingOffers && pendingOffers.length > 0) {

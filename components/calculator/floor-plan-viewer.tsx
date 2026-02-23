@@ -3,12 +3,13 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { supabase } from "@/lib/supabase/client"
-import { Maximize2, Loader2, RefreshCw, Trash2, Info, AlertTriangle, Image, Copy } from "lucide-react"
+import { Maximize2, Loader2, RefreshCw, Trash2, Info, AlertTriangle, Image, Copy, Pencil, ExternalLink } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -27,6 +28,7 @@ import { FixStoragePermissionsButton } from "./fix-storage-permissions-button"
 
 interface FloorPlanViewerProps {
   projectId: string
+  projectTitle?: string
 }
 
 type PlanType = "before" | "after"
@@ -39,10 +41,14 @@ interface FloorPlan {
   updated_at?: string
 }
 
-export function FloorPlanViewer({ projectId }: FloorPlanViewerProps) {
+export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [floorPlans, setFloorPlans] = useState<Record<PlanType, string | null>>({
+    before: null,
+    after: null,
+  })
+  const [planIds, setPlanIds] = useState<Record<PlanType, string | null>>({
     before: null,
     after: null,
   })
@@ -66,6 +72,7 @@ export function FloorPlanViewer({ projectId }: FloorPlanViewerProps) {
   const [showDebugInfo, setShowDebugInfo] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+  const router = useRouter()
   const [hasPermissionIssues, setHasPermissionIssues] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
   const imageRef = useRef<HTMLImageElement>(null)
@@ -134,6 +141,10 @@ export function FloorPlanViewer({ projectId }: FloorPlanViewerProps) {
         before: null,
         after: null,
       }
+      const ids: Record<PlanType, string | null> = {
+        before: null,
+        after: null,
+      }
 
       if (data && data.length > 0) {
         // Procesar los planos encontrados
@@ -151,12 +162,14 @@ export function FloorPlanViewer({ projectId }: FloorPlanViewerProps) {
           if (type && !plans[type]) {
             const timestamp = new Date().getTime()
             plans[type] = `${plan.image_url}?t=${timestamp}`
+            ids[type] = plan.id
             console.log(`Cargando plano ${type}:`, plan.image_url)
           }
         })
       }
 
       setFloorPlans(plans)
+      setPlanIds(ids)
       setDebugInfo((prev) => ({ ...prev, processedPlans: plans }))
     } catch (error) {
       setDebugInfo((prev) => ({ ...prev, loadCatchError: String(error) }))
@@ -627,7 +640,7 @@ export function FloorPlanViewer({ projectId }: FloorPlanViewerProps) {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>LORENA ${type === "before" ? "ANTES" : "DESPUÉS"}</title>
+      <title>${projectTitle || "Plano"} ${type === "before" ? "ANTES" : "DESPUÉS"}</title>
       <style>
         body {
           margin: 0;
@@ -667,7 +680,7 @@ export function FloorPlanViewer({ projectId }: FloorPlanViewerProps) {
       </style>
     </head>
     <body>
-      <div class="header">LORENA ${type === "before" ? "ANTES" : "DESPUÉS"}</div>
+      <div class="header">${projectTitle || "Plano"} ${type === "before" ? "ANTES" : "DESPUÉS"}</div>
       <div class="content">
         <img src="${imageUrl}" alt="Plano" crossorigin="anonymous">
       </div>
@@ -748,15 +761,29 @@ export function FloorPlanViewer({ projectId }: FloorPlanViewerProps) {
                 className="flex-1"
               />
               {floorPlans.before && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => openInNewWindow("before")}
-                  title="Ver plano en ventana separada"
-                >
-                  <Maximize2 className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => openInNewWindow("before")}
+                    title="Ver plano en ventana separada"
+                  >
+                    <Maximize2 className="h-4 w-4" />
+                  </Button>
+                  {planIds.before && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => router.push(`/dashboard/editor-planos/editar/${planIds.before}`)}
+                      title="Editar plano en el editor"
+                      className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
             {floorPlans.before ? (
@@ -801,7 +828,7 @@ export function FloorPlanViewer({ projectId }: FloorPlanViewerProps) {
                 className="flex-1"
               />
               {floorPlans.after && (
-                <div className="flex gap-1">
+                <div className="flex gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -811,6 +838,18 @@ export function FloorPlanViewer({ projectId }: FloorPlanViewerProps) {
                   >
                     <Maximize2 className="h-4 w-4" />
                   </Button>
+                  {planIds.after && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => router.push(`/dashboard/editor-planos/editar/${planIds.after}`)}
+                      title="Editar plano en el editor"
+                      className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     variant="outline"
