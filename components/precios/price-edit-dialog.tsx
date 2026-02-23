@@ -125,6 +125,8 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess }: PriceE
               value={formData.subcategory}
               onChange={(e) => setFormData({ ...formData, subcategory: e.target.value })}
               placeholder="Ej: Derribo de tabique"
+              readOnly
+              className="bg-muted"
               required
             />
           </div>
