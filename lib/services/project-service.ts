@@ -592,7 +592,7 @@ export async function deleteProject(id: string) {
       const storageCleanup: Promise<any>[] = []
 
       // Planos (pueden estar en project-files o planos-reconocidos)
-      plans?.forEach((p) => {
+      plans?.forEach((p: { image_url: string | null }) => {
         if (p.image_url) {
           const parsed = parseStorageUrl(p.image_url)
           if (parsed) storageCleanup.push(supabase.storage.from(parsed.bucket).remove([parsed.path]))
@@ -600,14 +600,14 @@ export async function deleteProject(id: string) {
       })
 
       // Fotos de habitaciones
-      photos?.forEach((p) => {
+      photos?.forEach((p: { storage_path: string | null }) => {
         if (p.storage_path) {
           storageCleanup.push(supabase.storage.from("planos-reconocidos").remove([p.storage_path]))
         }
       })
 
       // Licencias
-      licenses?.forEach((l) => {
+      licenses?.forEach((l: { file_url: string | null }) => {
         if (l.file_url) {
           const parsed = parseStorageUrl(l.file_url)
           if (parsed) storageCleanup.push(supabase.storage.from(parsed.bucket).remove([parsed.path]))

@@ -6,10 +6,12 @@ import { getSupabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import Calculator, { type CalculatorHandle } from "@/components/calculator/calculator"
 import { useToast } from "@/components/ui/use-toast"
 import { AlertTriangle, ArrowLeft, Settings, PencilRuler, Eye, Layout, Plus, FileText, ChevronDown, Hammer, CheckCircle, Loader2 } from "lucide-react"
 import { updateProject, calculateProgress } from "@/lib/services/project-service"
+import type { Project } from "@/types/project"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,8 +38,11 @@ export default function ProjectPage() {
   const searchParams = useSearchParams()
   const projectId = params.id as string
   const { toast } = useToast()
-
-  const [project, setProject] = useState<any>(null)
+  const [project, setProject] = useState<Project & {
+    user_type?: string;
+    name?: string;
+    client_name?: string
+  } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [shouldOpenAnalyzer, setShouldOpenAnalyzer] = useState(false)
@@ -163,7 +168,7 @@ export default function ProjectPage() {
       const progress = calculateProgress(newStatus)
       await updateProject(projectId, { status: newStatus as any, progress })
 
-      setProject(prev => ({ ...prev, status: newStatus, progress }))
+      setProject(prev => prev ? ({ ...prev, status: newStatus as any, progress }) : null)
 
       toast({
         title: "Estado actualizado",
@@ -229,21 +234,21 @@ export default function ProjectPage() {
             </Button>
             <div className="min-w-0 flex-1">
               <h1 className="text-xl md:text-2xl font-bold tracking-tight truncate leading-tight">
-                {project.title || project.name || "Proyecto sin nombre"}
+                {project?.title || project?.name || "Proyecto sin nombre"}
               </h1>
               <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-0.5">
                 <p className="text-[13px] font-medium text-slate-700 truncate leading-none">
-                  Cliente: <span className="text-muted-foreground font-normal">{project.client || project.client_name || "Sin cliente"}</span>
+                  Cliente: <span className="text-muted-foreground font-normal">{project?.client || project?.client_name || "Sin cliente"}</span>
                 </p>
                 <div className="hidden sm:block w-1 h-1 rounded-full bg-slate-200" />
                 <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground leading-none">
-                  {project.ceiling_height && (
+                  {project?.ceiling_height && (
                     <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100 italic">Alt: {project.ceiling_height}m</span>
                   )}
-                  {project.structure_type && (
+                  {project?.structure_type && (
                     <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100">{project.structure_type}</span>
                   )}
-                  {project.has_elevator && (
+                  {project?.has_elevator && (
                     <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100 font-medium">
                       Asc: {project.has_elevator === "Si" || project.has_elevator === "Sí" || project.has_elevator === true || project.has_elevator === "true" ? "Sí" : "No"}
                     </span>
@@ -254,13 +259,13 @@ export default function ProjectPage() {
           </div>
 
           {/* Row 1 Middle: Premium Company Branding */}
-          {project.user_type !== "owner" && (
+          {project?.user_type !== "owner" && project?.user_id && (
             <div className="hidden lg:flex flex-[2] items-center justify-center px-6">
               <CompanyBrandingBlock userId={project.user_id} />
             </div>
           )}
 
-          {project.user_type !== "owner" && (
+          {project?.user_type !== "owner" && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -280,7 +285,7 @@ export default function ProjectPage() {
 
           {/* Status Action Buttons */}
           <div className="flex items-center gap-2 shrink-0">
-            {(project.status === "approved" || project.status === "Aceptado" || project.status === "aceptado") && (
+            {project?.status && (String(project.status) === "approved" || String(project.status) === "Aceptado" || String(project.status) === "aceptado") && (
               <Button
                 size="sm"
                 onClick={() => handleStatusChange("En Obra")}
@@ -293,7 +298,7 @@ export default function ProjectPage() {
               </Button>
             )}
 
-            {(project.status === "En Obra" || project.status === "en_obra") && (
+            {project?.status && (project.status === "En Obra" || String(project.status) === "en_obra") && (
               <Button
                 size="sm"
                 onClick={() => handleStatusChange("Terminado")}
@@ -306,7 +311,7 @@ export default function ProjectPage() {
               </Button>
             )}
 
-            {(project.status === "Terminado" || project.status === "Finalizado") && (
+            {project?.status && (project.status === "Terminado" || String(project.status) === "Finalizado") && (
               <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200 h-10 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5">
                 <CheckCircle className="h-4 w-4" />
                 TERMINADO
@@ -395,7 +400,7 @@ export default function ProjectPage() {
               </div>
             )}
 
-            {project.user_type === "professional" && <PublishProjectButton project={project} />}
+            {project?.user_type === "professional" && <PublishProjectButton project={project} />}
           </div>
 
           {/* BUDGET Button - Maximum Prominence, Aligned with Tabs below */}
