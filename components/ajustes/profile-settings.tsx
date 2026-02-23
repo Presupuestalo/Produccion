@@ -33,6 +33,7 @@ interface ProfileSettingsProps {
 export function ProfileSettings({ userData }: ProfileSettingsProps) {
   const [formData, setFormData] = useState({
     full_name: userData.full_name || "",
+    address_postal_code: (userData as any).address_postal_code || "",
   })
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
@@ -47,6 +48,7 @@ export function ProfileSettings({ userData }: ProfileSettingsProps) {
         .from("profiles")
         .update({
           full_name: formData.full_name,
+          address_postal_code: formData.address_postal_code,
           updated_at: new Date().toISOString(),
         })
         .eq("id", userData.id)

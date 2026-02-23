@@ -8,11 +8,20 @@ interface ProjectData {
   title: string
   client?: string
   project_address?: string
+  street?: string
+  project_floor?: string | number
+  door?: string
+  city?: string
+  province?: string
+  postal_code?: string
 }
 
 interface CompanyData {
   company_name: string
   company_address?: string
+  company_city?: string
+  company_province?: string
+  company_postal_code?: string
   company_tax_id?: string
   company_phone?: string
   company_email?: string
@@ -164,8 +173,17 @@ export async function generateBudgetPDF(
       }
 
       if (companyData.company_address) {
-        doc.text(String(companyData.company_address), rightColumnX, rightY)
-        rightY += 4
+        let fullAddress = String(companyData.company_address)
+        if (companyData.company_postal_code || companyData.company_city) {
+          fullAddress += `\n${companyData.company_postal_code ? companyData.company_postal_code + " " : ""}${companyData.company_city || ""}`
+        }
+        if (companyData.company_province) {
+          fullAddress += ` (${companyData.company_province})`
+        }
+
+        const addressLines = doc.splitTextToSize(fullAddress, 60)
+        doc.text(addressLines, rightColumnX, rightY)
+        rightY += (addressLines.length * 4)
       }
 
       if (companyData.company_phone) {
@@ -203,7 +221,7 @@ export async function generateBudgetPDF(
         yPosition += 5
       }
 
-      if (project.project_address) {
+      if (project.project_address || project.street) {
         doc.setFont("helvetica", "bold")
         doc.setTextColor(textColor[0], textColor[1], textColor[2])
         doc.text("Dirección de la obra:", 15, yPosition)
@@ -211,8 +229,21 @@ export async function generateBudgetPDF(
 
         doc.setFont("helvetica", "normal")
         doc.setTextColor(grayColor[0], grayColor[1], grayColor[2])
-        doc.text(String(project.project_address), 15, yPosition)
-        yPosition += 5
+
+        let fullAddress = project.project_address || ""
+        if (!fullAddress && project.street) {
+          fullAddress = project.street
+          if (project.project_floor) fullAddress += `, Planta ${project.project_floor}`
+          if (project.door) fullAddress += `, Puerta ${project.door}`
+          if (project.city || project.postal_code) {
+            fullAddress += `\n${project.postal_code ? project.postal_code + " " : ""}${project.city || ""}`
+          }
+          if (project.province) fullAddress += ` (${project.province})`
+        }
+
+        const addressLines = doc.splitTextToSize(String(fullAddress), 180)
+        doc.text(addressLines, 15, yPosition)
+        yPosition += addressLines.length * 4 + 2
       }
 
       yPosition += 5

@@ -12,6 +12,7 @@ export interface Project {
   client_street?: string
   client_city?: string
   client_province?: string
+  client_postal_code?: string
   clientNotes?: string // Cambiado a camelCase para la interfaz
   // Dirección de la reforma
   project_address?: string
@@ -20,6 +21,7 @@ export interface Project {
   door?: string
   city?: string
   province?: string
+  postal_code?: string
   country?: string // @deprecated: use country_code instead
   country_code?: string // ISO code where the reform is located
   ceiling_height?: string | number
@@ -27,7 +29,7 @@ export interface Project {
   has_elevator?: string | number | boolean
   // Resto de campos del proyecto
   progress: number
-  status: "Borrador" | "Entregado" | "En Obra" | "Rechazado"
+  status: "Borrador" | "Entregado" | "En Obra" | "Finalizado" | "Rechazado" | "Terminado"
   duedate?: string
   dueDate?: string // Mantener esta para compatibilidad
   budget?: number

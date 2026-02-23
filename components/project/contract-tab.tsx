@@ -75,6 +75,7 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
   const [hasContractAccess, setHasContractAccess] = useState<boolean>(true)
   const [canUseAI, setCanUseAI] = useState<boolean>(true)
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)
+  const [projectSettings, setProjectSettings] = useState<{ show_vat: boolean } | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -82,6 +83,7 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
     checkAccess()
     loadContract()
     loadCompanyData()
+    loadProjectSettings()
   }, [projectId])
 
   const checkAccess = async () => {
@@ -146,6 +148,20 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
     }
   }
 
+  const loadProjectSettings = async () => {
+    try {
+      const { data } = await supabase
+        .from("budget_settings")
+        .select("show_vat")
+        .eq("project_id", projectId)
+        .maybeSingle()
+      setProjectSettings(data)
+      console.log("[v0] Project settings loaded in contract tab:", data)
+    } catch (error) {
+      console.error("[v0] Error loading project settings in contract tab:", error)
+    }
+  }
+
   const loadCompanyData = async () => {
     try {
       const {
@@ -156,7 +172,7 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
         const { data: userCompanySettings, error: companyError } = await supabase
           .from("user_company_settings")
           .select(
-            "company_name, company_address, company_tax_id, company_phone, company_email, company_website, company_logo_url",
+            "company_name, company_address, company_city, company_province, company_postal_code, company_tax_id, company_phone, company_email, company_website, company_logo_url",
           )
           .eq("user_id", user.id)
           .maybeSingle()
@@ -211,14 +227,11 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
         contract_data: {
           client_name: projectData.client,
           client_dni: projectData.client_dni,
-          client_address: projectData.client_address,
-          project_address: `${projectData.street}, ${projectData.project_floor ? `Planta ${projectData.project_floor},` : ""} ${projectData.door ? `Puerta ${projectData.door},` : ""} ${projectData.city}, ${projectData.province}`,
-          budget_amount:
-            acceptedBudget?.accepted_amount_with_vat ||
-            acceptedBudget?.accepted_amount_without_vat ||
-            acceptedBudget?.total_with_vat ||
-            acceptedBudget?.total_without_vat ||
-            0,
+          client_address: `${projectData.client_street ? projectData.client_street + ", " : ""}${projectData.client_postal_code ? projectData.client_postal_code + " " : ""}${projectData.client_city || ""}${projectData.client_province ? " (" + projectData.client_province + ")" : ""}`,
+          project_address: `${projectData.street}, ${projectData.project_floor ? `Planta ${projectData.project_floor},` : ""} ${projectData.door ? `Puerta ${projectData.door},` : ""} ${projectData.postal_code ? projectData.postal_code + " " : ""}${projectData.city}, ${projectData.province}`,
+          budget_amount: (projectSettings?.show_vat !== false && budgetShowsVAT)
+            ? (acceptedBudget?.accepted_amount_with_vat || acceptedBudget?.total || 0)
+            : (acceptedBudget?.accepted_amount_without_vat || acceptedBudget?.subtotal || acceptedBudget?.total || 0),
           bank_account: bankAccount,
           clauses: clauses, // Store clauses directly in contract_data
         },
@@ -425,15 +438,16 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
     setClauses(updatedClauses)
   }
 
-  const budgetAmount = acceptedBudget?.accepted_amount_with_vat
-    ? acceptedBudget.accepted_amount_with_vat
-    : acceptedBudget?.accepted_amount_without_vat
-      ? acceptedBudget.accepted_amount_without_vat
-      : 0
-
-  const hasVAT =
+  const budgetShowsVAT =
     acceptedBudget?.accepted_includes_vat === true ||
-    (acceptedBudget?.accepted_amount_with_vat && !acceptedBudget?.accepted_amount_without_vat)
+    (acceptedBudget?.accepted_includes_vat !== false && (acceptedBudget?.accepted_vat_amount || 0) > 0)
+
+  // Trust project settings as source of truth for display
+  const hasVAT = projectSettings?.show_vat !== false && budgetShowsVAT
+
+  const budgetAmount = hasVAT
+    ? (acceptedBudget?.accepted_amount_with_vat || acceptedBudget?.total || 0)
+    : (acceptedBudget?.accepted_amount_without_vat || acceptedBudget?.subtotal || acceptedBudget?.total || 0)
 
   const vatText = hasVAT ? "IVA incluido" : "IVA no incluido"
 
@@ -576,7 +590,15 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
                   <div style={{ marginBottom: "2px" }}>CIF: {companyData.company_tax_id}</div>
                 )}
                 {companyData?.company_address && (
-                  <div style={{ marginBottom: "2px" }}>{companyData.company_address}</div>
+                  <div style={{ marginBottom: "2px" }}>
+                    {companyData.company_address}
+                    {(companyData.company_city || companyData.company_postal_code || companyData.company_province) && (
+                      <div style={{ fontSize: "8pt", marginTop: "1px" }}>
+                        {companyData.company_postal_code ? companyData.company_postal_code + " " : ""}{companyData.company_city || ""}
+                        {companyData.company_province ? " (" + companyData.company_province + ")" : ""}
+                      </div>
+                    )}
+                  </div>
                 )}
                 {companyData?.company_phone && (
                   <div style={{ marginBottom: "2px" }}>Tel: {companyData.company_phone}</div>
@@ -602,6 +624,12 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
           >
             CONTRATO DE OBRA Y REFORMA DE INMUEBLE
           </h1>
+
+          <div style={{ textAlign: "center", marginBottom: "6mm" }}>
+            <p style={{ fontSize: "10pt", fontWeight: "bold", margin: 0 }}>
+              Fecha: {signedDate ? new Date(signedDate).toLocaleDateString("es-ES") : "_____ / _____ / _____"}
+            </p>
+          </div>
 
           <div
             style={{
@@ -767,10 +795,6 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
                 <p style={{ fontSize: "9pt", marginBottom: "1mm" }}>Nombre: _________________</p>
                 <p style={{ fontSize: "9pt" }}>Cargo: _________________</p>
               </div>
-            </div>
-            <div style={{ textAlign: "center", marginTop: "5mm" }}>
-              <p style={{ fontWeight: "bold", marginBottom: "2mm", fontSize: "10pt" }}>FECHA DE FIRMA:</p>
-              <p style={{ fontSize: "10pt" }}>{signedDate ? new Date(signedDate).toLocaleDateString('es-ES') : "_____ / _____ / _____"}</p>
             </div>
           </div>
         </div>
@@ -986,45 +1010,47 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
         </Card>
       </div>
 
-      {canUseAI && (
-        <Card className="p-6 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 shadow-sm border-purple-100 dark:border-purple-900/50">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-purple-600" />
-              <h4 className="font-medium">Generar Cláusula con IA</h4>
+      {
+        canUseAI && (
+          <Card className="p-6 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 shadow-sm border-purple-100 dark:border-purple-900/50">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-purple-600" />
+                <h4 className="font-medium">Generar Cláusula con IA</h4>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Describe qué tipo de cláusula necesitas y la IA la generará por ti
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ej: Cláusula sobre penalizaciones por retraso en la entrega"
+                  value={newClausePrompt}
+                  onChange={(e) => setNewClausePrompt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault()
+                      handleGenerateClauseWithAI()
+                    }
+                  }}
+                />
+                <Button onClick={handleGenerateClauseWithAI} disabled={isGeneratingClause}>
+                  {isGeneratingClause ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Generando...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Generar
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Describe qué tipo de cláusula necesitas y la IA la generará por ti
-            </p>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Ej: Cláusula sobre penalizaciones por retraso en la entrega"
-                value={newClausePrompt}
-                onChange={(e) => setNewClausePrompt(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault()
-                    handleGenerateClauseWithAI()
-                  }
-                }}
-              />
-              <Button onClick={handleGenerateClauseWithAI} disabled={isGeneratingClause}>
-                {isGeneratingClause ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Generando...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Generar
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
-    </div>
+          </Card>
+        )
+      }
+    </div >
   )
 }

@@ -57,6 +57,7 @@ import { ElectricalSection } from "./electrical-section"
 import { RoomsSummary } from "./rooms-summary"
 import { AppointmentsHistory } from "./appointments-history"
 import { BudgetSection } from "@/components/budget/budget-section"
+import { FloorPlanPreviews } from "./floor-plan-previews"
 import { getDefaultMaterials } from "@/lib/room-utils"
 import {
   AlertDialog,
@@ -300,6 +301,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     description: "",
     onConfirm: () => { },
   })
+
 
   // Get user profile for user type detection
   // userProfile is already destructured at line 218
@@ -2384,7 +2386,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       >
         <div className="relative w-full mb-4">
           <div className="w-full overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
-            <TabsList className="flex h-auto bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl gap-1 lg:grid lg:grid-cols-5 lg:w-full w-max border shadow-sm">
+            <TabsList className={`flex h-auto bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl gap-1 lg:grid ${hasApprovedBudget ? "lg:grid-cols-6" : "lg:grid-cols-5"} lg:w-full w-max border shadow-sm`}>
               <TabsTrigger
                 value="demolition"
                 className="whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-orange-600 data-[state=active]:shadow-sm transition-all"
@@ -2452,7 +2454,12 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
           <TabsContent value="demolition" className="mt-6">
             <div className="lg:grid lg:grid-cols-[240px_1.5fr_1fr] lg:gap-6 lg:max-w-none lg:mx-0">
               {/* COLUMNA IZQUIERDA: Resumen de habitaciones y citas (solo desktop) */}
-              <div className="hidden lg:block space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+              <div className="hidden lg:block space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto pr-1">
+                {projectId && (
+                  <FloorPlanPreviews
+                    projectId={projectId}
+                  />
+                )}
                 <RoomsSummary rooms={visibleRooms} />
                 {!isOwner && projectId && !isFreePlan && <AppointmentsHistory projectId={projectId} />}
               </div>
@@ -2625,7 +2632,12 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
           <TabsContent value="reform" className="mt-6">
             <div className="lg:grid lg:grid-cols-[240px_1.5fr_1fr] lg:gap-6 lg:max-w-none lg:mx-0">
               {/* COLUMNA IZQUIERDA: Resumen de habitaciones y citas (solo desktop) */}
-              <div className="hidden lg:block space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+              <div className="hidden lg:block space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto pr-1">
+                {projectId && (
+                  <FloorPlanPreviews
+                    projectId={projectId}
+                  />
+                )}
                 <RoomsSummary rooms={visibleReformRooms} />
                 {!isOwner && projectId && !isFreePlan && <AppointmentsHistory projectId={projectId} />}
               </div>
@@ -3022,7 +3034,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div >
+    </div>
   )
 })
 

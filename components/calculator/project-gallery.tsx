@@ -5,7 +5,13 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
-import { Camera, Loader2, Trash2, X, ImageIcon, ExternalLink } from "lucide-react"
+import { Camera, Loader2, Trash2, X, ImageIcon, ExternalLink, Image } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { compressImage } from "@/lib/utils/image-utils"
 
@@ -273,26 +279,37 @@ export function ProjectGallery({ projectId }: ProjectGalleryProps) {
     <>
       <input
         ref={fileInputRef}
+        id="gallery-photo-upload"
         type="file"
         accept="image/*"
         onChange={handleFileSelect}
         className="hidden"
+        title="Subir foto a la galería"
       />
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="bg-transparent h-8"
-            onClick={() => {
-              console.log("[v0] ProjectGallery - Botón Galería presionado")
-            }}
-          >
-            <ImageIcon className="h-4 w-4" />
-            <span className="hidden sm:inline ml-2">Galería</span>
-          </Button>
-        </DialogTrigger>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 text-slate-300 hover:text-orange-600 hover:bg-orange-50 hover:border-orange-200 transition-all border-slate-200"
+                  onClick={() => {
+                    console.log("[v0] ProjectGallery - Botón Galería presionado")
+                  }}
+                >
+                  <Image className="h-4 w-4" />
+                  <span className="sr-only">Galería</span>
+                </Button>
+              </DialogTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Galería del proyecto</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pr-8">
             <DialogTitle>Galería del Proyecto</DialogTitle>

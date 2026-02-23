@@ -175,6 +175,7 @@ export function CreateProjectButton({ className }: { className?: string }) {
     door: "",
     city: "",
     province: "",
+    postal_code: "",
     country: "España",
     country_code: "ES",
     structure_type: "",
@@ -368,6 +369,7 @@ export function CreateProjectButton({ className }: { className?: string }) {
         door: "",
         city: "",
         province: "",
+        postal_code: "",
         country: "España",
         country_code: "ES",
         structure_type: "",
@@ -770,6 +772,16 @@ export function CreateProjectButton({ className }: { className?: string }) {
                             required
                           />
                         )}
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="postal_code">Código Postal</Label>
+                        <Input
+                          id="postal_code"
+                          placeholder="28001"
+                          value={formData.postal_code}
+                          onChange={handleChange}
+                        />
                       </div>
                     </div>
 

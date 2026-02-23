@@ -4,6 +4,7 @@ import type { Project, ProjectFormData, ProjectActivity, ProjectActivityFormData
 import type { UserProfile } from "@/types/user"
 import { v4 as uuidv4 } from "uuid"
 import { canCreateProject } from "./subscription-limits-service"
+import { BudgetService } from "./budget-service"
 
 // Colores predefinidos para los proyectos
 const projectColors = [
@@ -549,7 +550,35 @@ export async function deleteProject(id: string) {
       )
     }
 
-    // Eliminar primero el proyecto principal para mejorar la percepción de velocidad
+    // 1. Obtener URLs de archivos para eliminarlos del storage
+    const { data: plans } = await supabase.from("project_floor_plans").select("image_url").eq("project_id", id)
+    const { data: photos } = await supabase.from("room_photos").select("storage_path").eq("project_id", id)
+    const { data: licenses } = await supabase.from("license_documents").select("file_url").eq("project_id", id)
+
+    // Función auxiliar para extraer bucket y ruta del storage desde una URL
+    const parseStorageUrl = (urlStr: string) => {
+      try {
+        const url = new URL(urlStr)
+        const pathParts = url.pathname.split("/")
+        const publicIndex = pathParts.indexOf("public")
+        if (publicIndex !== -1 && publicIndex < pathParts.length - 2) {
+          return {
+            bucket: pathParts[publicIndex + 1],
+            path: pathParts.slice(publicIndex + 2).join("/"),
+          }
+        }
+      } catch (e) {
+        // Fallback para rutas relativas o formatos antiguos
+        const match = urlStr.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)/)
+        if (match) {
+          return { bucket: match[1], path: match[2].split("?")[0] }
+        }
+      }
+      return null
+    }
+
+    // Eliminar el proyecto principal (esto activará borrados en cascada si están configurados, 
+    // pero lo haremos manual para asegurar integridad total)
     const { error: deleteProjectError } = await supabase.from("projects").delete().eq("id", id)
 
     if (deleteProjectError) {
@@ -557,35 +586,71 @@ export async function deleteProject(id: string) {
       throw new Error(`Error al eliminar: ${deleteProjectError.message}`)
     }
 
-    // Eliminar datos relacionados en segundo plano
-    Promise.all([
-      // 1. Eliminar registros de planos de la base de datos
-      supabase
-        .from("project_floor_plans")
-        .delete()
-        .eq("project_id", id),
+    // Ejecutar limpieza profunda de datos relacionados
+    try {
+      // A. Limpieza de Storage
+      const storageCleanup: Promise<any>[] = []
 
-      // 2. Eliminar datos de la calculadora
-      supabase
-        .from("calculator_data")
-        .delete()
-        .eq("project_id", id),
+      // Planos (pueden estar en project-files o planos-reconocidos)
+      plans?.forEach((p) => {
+        if (p.image_url) {
+          const parsed = parseStorageUrl(p.image_url)
+          if (parsed) storageCleanup.push(supabase.storage.from(parsed.bucket).remove([parsed.path]))
+        }
+      })
 
-      // 3. Eliminar actividades del proyecto
-      supabase
-        .from("project_activities")
-        .delete()
-        .eq("project_id", id),
+      // Fotos de habitaciones
+      photos?.forEach((p) => {
+        if (p.storage_path) {
+          storageCleanup.push(supabase.storage.from("planos-reconocidos").remove([p.storage_path]))
+        }
+      })
 
-      // 4. Eliminar ajustes de demolición
-      supabase
-        .from("demolition_settings")
-        .delete()
-        .eq("project_id", id),
-    ]).catch((error) => {
-      // Solo registrar errores, no interrumpir el flujo
-      console.error("Error al eliminar datos relacionados:", error)
-    })
+      // Licencias
+      licenses?.forEach((l) => {
+        if (l.file_url) {
+          const parsed = parseStorageUrl(l.file_url)
+          if (parsed) storageCleanup.push(supabase.storage.from(parsed.bucket).remove([parsed.path]))
+        }
+      })
+
+      // B. Limpieza de Base de Datos (Tablas que no tengan cascada o por seguridad)
+      const dbCleanup = [
+        // 1. Presupuestos y sus partidas
+        BudgetService.deleteAllBudgets(id, supabase),
+
+        // 2. Registro de planos
+        supabase.from("project_floor_plans").delete().eq("project_id", id),
+
+        // 3. Datos de la calculadora y configuraciones
+        supabase.from("calculator_data").delete().eq("project_id", id),
+        supabase.from("demolition_settings").delete().eq("project_id", id),
+        supabase.from("budget_settings").delete().eq("project_id", id),
+
+        // 4. Actividades y citas
+        supabase.from("project_activities").delete().eq("project_id", id),
+        supabase.from("project_appointments").delete().eq("project_id", id),
+
+        // 5. Contratos y licencias
+        supabase.from("contracts").delete().eq("project_id", id),
+        supabase.from("license_documents").delete().eq("project_id", id),
+
+        // 6. Fotos de habitaciones
+        supabase.from("room_photos").delete().eq("project_id", id),
+
+        // 7. Marketplace (Solicitudes y ofertas)
+        supabase.from("quote_requests").delete().eq("project_id", id),
+        supabase.from("quote_offers").delete().eq("project_id", id),
+        supabase.from("lead_requests").delete().eq("project_id", id),
+      ]
+
+      // Ejecutar todo en paralelo
+      await Promise.all([...storageCleanup, ...dbCleanup])
+      console.log(`[v0] Deep clean completado para el proyecto ${id}`)
+    } catch (cleanError) {
+      // No lanzamos error para no fallar la UX si el proyecto ya se borró, pero logueamos
+      console.error("[v0] Error en limpieza profunda:", cleanError)
+    }
 
     return true
   } catch (error) {
@@ -596,18 +661,31 @@ export async function deleteProject(id: string) {
 
 // Función para calcular el progreso basado en el estado
 export function calculateProgress(status: string): number {
-  switch (status) {
-    case "Borrador":
+  if (!status) return 0
+  const s = status.toLowerCase()
+  switch (s) {
+    case "borrador":
+    case "draft":
       return 0
-    case "Entregado":
+    case "entregado":
+    case "sent":
+    case "delivered":
       return 25
-    case "Aceptado":
+    case "aceptado":
+    case "accepted":
+    case "approved":
       return 50
-    case "En obra":
+    case "en obra":
+    case "en_obra":
+    case "in_progress":
+    case "in progress":
       return 75
-    case "Finalizado":
+    case "finalizado":
+    case "terminado":
+    case "completed":
       return 100
-    case "Rechazado":
+    case "rechazado":
+    case "rejected":
       return 0
     default:
       return 0

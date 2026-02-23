@@ -53,7 +53,7 @@ export function PartitionsSection({
   const addPartition = () => {
     const newPartition: Partition = {
       id: `partition-${Date.now()}`,
-      type: "ladrillo",
+      type: "placa_yeso",
       linearMeters: 0,
       height: standardHeight || 2.6,
     }

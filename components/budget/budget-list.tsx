@@ -328,7 +328,7 @@ export function BudgetList({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-9 w-9 text-slate-300 hover:text-destructive hover:bg-destructive/10 rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                            className="h-9 w-9 text-slate-300 hover:text-destructive hover:bg-destructive/10 rounded-full md:opacity-0 md:group-hover:opacity-100 transition-all"
                             onClick={(e) => {
                               e.stopPropagation()
                               setBudgetToDelete(budget)

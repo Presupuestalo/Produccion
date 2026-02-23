@@ -8,12 +8,27 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import Calculator, { type CalculatorHandle } from "@/components/calculator/calculator"
 import { useToast } from "@/components/ui/use-toast"
-import { AlertTriangle, ArrowLeft, Settings, PencilRuler, Eye } from "lucide-react"
+import { AlertTriangle, ArrowLeft, Settings, PencilRuler, Eye, Layout, Plus, FileText, ChevronDown, Hammer, CheckCircle, Loader2 } from "lucide-react"
+import { updateProject, calculateProgress } from "@/lib/services/project-service"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import Link from "next/link"
 import { DualFloorPlanAnalyzer } from "@/components/floor-plan/dual-floor-plan-analyzer"
 import { ProjectGallery } from "@/components/calculator/project-gallery"
 import { PublishProjectButton } from "@/components/professional-gallery/publish-project-button"
 import { isMasterUser } from "@/lib/services/auth-service"
+import { CompanyBrandingBlock } from "@/components/dashboard/company-branding-block"
 
 export default function ProjectPage() {
   const params = useParams()
@@ -142,6 +157,32 @@ export default function ProjectPage() {
   const beforePlan = linkedPlans.find(p => p.variant === 'current')
   const afterPlan = linkedPlans.find(p => p.variant === 'proposal')
 
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      setIsLoading(true)
+      const progress = calculateProgress(newStatus)
+      await updateProject(projectId, { status: newStatus as any, progress })
+
+      setProject(prev => ({ ...prev, status: newStatus, progress }))
+
+      toast({
+        title: "Estado actualizado",
+        description: `El proyecto ahora está en estado: ${newStatus}`,
+      })
+    } catch (error: any) {
+      console.error("Error updating status:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "No se pudo actualizar el estado del proyecto",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const [isLoading, setIsLoading] = useState(false)
+
   if (loading) {
     return (
       <div className="space-y-4 p-4">
@@ -178,36 +219,99 @@ export default function ProjectPage() {
     <div className="space-y-2">
       <div className="flex flex-col gap-1.5 py-1 border-b">
         {/* Row 1: Back Button + Project Identity */}
-        <div className="flex items-start gap-3 min-w-0">
-          <Button asChild variant="ghost" size="icon" className="shrink-0 h-8 w-8 -ml-2">
-            <Link href="/dashboard/projects">
-              <ArrowLeft className="h-4 w-4" />
-              <span className="sr-only">Volver</span>
-            </Link>
-          </Button>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight truncate leading-tight">
-              {project.title || project.name || "Proyecto sin nombre"}
-            </h1>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-0.5">
-              <p className="text-[13px] font-medium text-slate-700 truncate leading-none">
-                Cliente: <span className="text-muted-foreground font-normal">{project.client || project.client_name || "Sin cliente"}</span>
-              </p>
-              <div className="hidden sm:block w-1 h-1 rounded-full bg-slate-200" />
-              <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground leading-none">
-                {project.ceiling_height && (
-                  <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100 italic">Alt: {project.ceiling_height}m</span>
-                )}
-                {project.structure_type && (
-                  <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100">{project.structure_type}</span>
-                )}
-                {project.has_elevator && (
-                  <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100 font-medium">
-                    Asc: {project.has_elevator === "Si" || project.has_elevator === "Sí" || project.has_elevator === true || project.has_elevator === "true" ? "Sí" : "No"}
-                  </span>
-                )}
+        <div className="flex items-start justify-between gap-3 min-w-0">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <Button asChild variant="ghost" size="icon" className="shrink-0 h-8 w-8 -ml-2">
+              <Link href="/dashboard/projects">
+                <ArrowLeft className="h-4 w-4" />
+                <span className="sr-only">Volver</span>
+              </Link>
+            </Button>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl md:text-2xl font-bold tracking-tight truncate leading-tight">
+                {project.title || project.name || "Proyecto sin nombre"}
+              </h1>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-0.5">
+                <p className="text-[13px] font-medium text-slate-700 truncate leading-none">
+                  Cliente: <span className="text-muted-foreground font-normal">{project.client || project.client_name || "Sin cliente"}</span>
+                </p>
+                <div className="hidden sm:block w-1 h-1 rounded-full bg-slate-200" />
+                <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground leading-none">
+                  {project.ceiling_height && (
+                    <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100 italic">Alt: {project.ceiling_height}m</span>
+                  )}
+                  {project.structure_type && (
+                    <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100">{project.structure_type}</span>
+                  )}
+                  {project.has_elevator && (
+                    <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100 font-medium">
+                      Asc: {project.has_elevator === "Si" || project.has_elevator === "Sí" || project.has_elevator === true || project.has_elevator === "true" ? "Sí" : "No"}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
+          </div>
+
+          {/* Row 1 Middle: Premium Company Branding */}
+          {project.user_type !== "owner" && (
+            <div className="hidden lg:flex flex-[2] items-center justify-center px-6">
+              <CompanyBrandingBlock userId={project.user_id} />
+            </div>
+          )}
+
+          {project.user_type !== "owner" && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button asChild variant="outline" size="icon" className="h-10 w-10 text-slate-500 hover:text-orange-600 hover:bg-orange-50 hover:border-orange-200 transition-all shadow-sm border-slate-200 shrink-0">
+                    <Link href={`/dashboard/projects/${projectId}/edit`}>
+                      <Settings className="h-5 w-5" />
+                      <span className="sr-only">Ajustes</span>
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent align="end">
+                  <p>Ajustes del proyecto</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
+          {/* Status Action Buttons */}
+          <div className="flex items-center gap-2 shrink-0">
+            {(project.status === "approved" || project.status === "Aceptado" || project.status === "aceptado") && (
+              <Button
+                size="sm"
+                onClick={() => handleStatusChange("En Obra")}
+                disabled={isLoading}
+                className="bg-orange-500 hover:bg-orange-600 text-white font-bold gap-1.5 h-10 px-4 rounded-xl shadow-sm transition-all active:scale-95"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hammer className="h-4 w-4" />}
+                <span className="hidden sm:inline">EMPEZAR OBRA</span>
+                <span className="sm:hidden">OBRA</span>
+              </Button>
+            )}
+
+            {(project.status === "En Obra" || project.status === "en_obra") && (
+              <Button
+                size="sm"
+                onClick={() => handleStatusChange("Terminado")}
+                disabled={isLoading}
+                className="bg-green-600 hover:bg-green-700 text-white font-bold gap-1.5 h-10 px-4 rounded-xl shadow-sm transition-all active:scale-95"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                <span className="hidden sm:inline">FINALIZAR PROYECTO</span>
+                <span className="sm:hidden">TERMINAR</span>
+              </Button>
+            )}
+
+            {(project.status === "Terminado" || project.status === "Finalizado") && (
+              <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200 h-10 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                <CheckCircle className="h-4 w-4" />
+                TERMINADO
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -215,42 +319,62 @@ export default function ProjectPage() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           {/* Main Action Group */}
           <div className="flex flex-wrap items-center gap-2">
-            {linkedPlans.length > 0 && (
-              <Button asChild variant="default" size="sm" className="h-8 bg-slate-900 hover:bg-slate-800 text-white shadow-sm font-bold text-[11px]">
-                <Link href={`/dashboard/projects/${projectId}/plano`}>
-                  <Eye className="mr-1.5 h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Ver Planos</span>
-                  <span className="sm:inline hidden md:hidden">Ver</span>
-                </Link>
-              </Button>
-            )}
+            {/* Floor Plan Dropdown Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 border-slate-200 text-slate-600 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 data-[state=open]:bg-orange-50 data-[state=open]:text-orange-600 data-[state=open]:border-orange-200 transition-all font-bold text-[11px] gap-1.5 px-3">
+                  <Layout className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline uppercase tracking-tight">Planos</span>
+                  <ChevronDown className="h-3 w-3 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                {linkedPlans.length > 0 && (
+                  <>
+                    <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
+                      <Link href={`/dashboard/projects/${projectId}/plano`} className="flex items-center gap-2">
+                        <Eye className="h-4 w-4 opacity-70" />
+                        <span>Ver lista de planos</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
 
-            {beforePlan && (
-              <Button asChild variant="outline" size="sm" className="h-8 border-slate-200 text-slate-700 hover:bg-slate-50">
-                <Link href={`/dashboard/editor-planos/editar/${beforePlan.id}`}>
-                  <PencilRuler className="mr-1.5 h-3 w-3 opacity-70" />
-                  <span className="hidden sm:inline text-[10px] font-semibold tracking-tight">P. ANTES</span>
-                </Link>
-              </Button>
-            )}
+                {beforePlan && (
+                  <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
+                    <Link href={`/dashboard/editor-planos/editar/${beforePlan.id}`} className="flex items-center gap-2">
+                      <PencilRuler className="h-4 w-4 opacity-70" />
+                      <div className="flex flex-col">
+                        <span className="font-medium">Editar Plano ANTES</span>
+                        <span className="text-[10px] opacity-70">Estado actual del proyecto</span>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
 
-            {afterPlan && (
-              <Button asChild variant="outline" size="sm" className="h-8 border-slate-200 text-slate-700 hover:bg-slate-50">
-                <Link href={`/dashboard/editor-planos/editar/${afterPlan.id}`}>
-                  <PencilRuler className="mr-1.5 h-3 w-3 opacity-70" />
-                  <span className="hidden sm:inline text-[10px] font-semibold tracking-tight">P. DESPUÉS</span>
-                </Link>
-              </Button>
-            )}
+                {afterPlan && (
+                  <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
+                    <Link href={`/dashboard/editor-planos/editar/${afterPlan.id}`} className="flex items-center gap-2">
+                      <PencilRuler className="h-4 w-4 opacity-70" />
+                      <div className="flex flex-col">
+                        <span className="font-medium">Editar Plano DESPUÉS</span>
+                        <span className="text-[10px] opacity-70">Propuesta de reforma</span>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
 
-            {linkedPlans.length === 0 && (
-              <Button asChild variant="outline" size="sm" className="h-8 border-blue-200 text-blue-700 hover:bg-blue-50 font-semibold text-[11px]">
-                <Link href={`/dashboard/editor-planos/nuevo?projectId=${projectId}`}>
-                  <PencilRuler className="mr-1.5 h-3.5 w-3.5" />
-                  <span>Crear Plano</span>
-                </Link>
-              </Button>
-            )}
+                {(beforePlan || afterPlan) && <DropdownMenuSeparator />}
+
+                <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
+                  <Link href={`/dashboard/editor-planos/nuevo?projectId=${projectId}`} className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    <span className="font-bold uppercase text-[10px] tracking-tight">Crear Nuevo Plano</span>
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <div className="h-3 w-px bg-slate-200 mx-0.5 hidden lg:block" />
 
@@ -264,14 +388,6 @@ export default function ProjectPage() {
               }}
             />
 
-            {project.user_type !== "owner" && (
-              <Button asChild variant="ghost" size="sm" className="h-8 text-slate-500 hover:text-slate-900 group">
-                <Link href={`/dashboard/projects/${projectId}/edit`}>
-                  <Settings className="h-3.5 w-3.5" />
-                  <span className="sr-only">Ajustes</span>
-                </Link>
-              </Button>
-            )}
 
             {isMaster && (
               <div className="scale-90 origin-left">

@@ -23,3 +23,8 @@ export async function isMasterUser(): Promise<boolean> {
   const role = await getCurrentUserRole()
   return role === "master"
 }
+
+export async function isAdminUser(): Promise<boolean> {
+  const role = await getCurrentUserRole()
+  return role === "admin"
+}

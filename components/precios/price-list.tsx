@@ -30,7 +30,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
-import { isMasterUser } from "@/lib/services/auth-service"
+import { isMasterUser, isAdminUser } from "@/lib/services/auth-service"
 import { getUserCountryFromProfile } from "@/lib/services/currency-service"
 import { PriceTable } from "./price-table"
 import { AdminPriceEditor } from "./admin-price-editor" // Import AdminPriceEditor
@@ -52,6 +52,7 @@ export function PriceList() {
   const { toast } = useToast()
   const [currencySymbol, setCurrencySymbol] = useState("€")
   const [isMaster, setIsMaster] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [adminEditingPrice, setAdminEditingPrice] = useState<PriceMaster | null>(null)
   const [userCountry, setUserCountry] = useState<any>(null)
 
@@ -63,7 +64,13 @@ export function PriceList() {
     loadCategories()
     loadUserCountry()
     checkMasterStatus()
+    checkAdminStatus()
   }, [])
+
+  async function checkAdminStatus() {
+    const isAdminUser_ = await isAdminUser()
+    setIsAdmin(isAdminUser_)
+  }
 
   useEffect(() => {
     if (selectedCategory && !searchQuery) {
@@ -391,7 +398,7 @@ export function PriceList() {
           Categorías
         </Button>
 
-        {isMaster && (
+        {isAdmin && (
           <Button onClick={() => setShowGlobalIncreaseDialog(true)} variant="outline" className="gap-2">
             <Percent className="h-4 w-4" />
           </Button>
@@ -440,6 +447,7 @@ export function PriceList() {
                   onDelete={setDeletingPrice}
                   onIncrease={setIncreasingPrice}
                   isMaster={isMaster}
+                  isAdmin={isAdmin}
                   onAdminEdit={setAdminEditingPrice}
                   hideCode={true}
                 />
@@ -461,6 +469,7 @@ export function PriceList() {
               onDelete={setDeletingPrice}
               onIncrease={setIncreasingPrice}
               isMaster={isMaster}
+              isAdmin={isAdmin}
               onAdminEdit={setAdminEditingPrice}
             />
           )}

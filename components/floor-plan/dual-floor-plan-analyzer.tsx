@@ -697,10 +697,9 @@ export function DualFloorPlanAnalyzer({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button onClick={handleOpenClick} variant="default" size="sm" className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-sm border-none h-9 px-4 font-bold">
-        <Sparkles className="h-4 w-4 mr-2" />
-        <span className="hidden sm:inline">Analizar plano con IA</span>
-        <span className="sm:hidden">Analizar con IA</span>
+      <Button onClick={handleOpenClick} variant="outline" size="sm" className="h-8 border-orange-200 bg-orange-50/30 text-orange-600 hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300 transition-all font-bold px-4 active:scale-95 shadow-sm">
+        <Sparkles className="h-3.5 w-3.5 mr-2" />
+        <span>Analizar con IA</span>
         {hasAiAccess === false && (
           <Badge
             variant="secondary"

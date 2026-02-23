@@ -30,6 +30,17 @@ interface BudgetViewerProps {
   onBudgetUpdated?: () => void
 }
 
+interface ProjectData {
+  title: string
+  client?: string
+  project_address?: string
+  street?: string
+  project_floor?: string | number
+  door?: string
+  city?: string
+  province?: string
+}
+
 interface LeadRequestStatus {
   id: string
   status: string
@@ -270,7 +281,7 @@ export function BudgetViewer({ projectId, budgetId, onBudgetUpdated }: BudgetVie
 
       const { data: project, error: projectError } = await supabase
         .from("projects")
-        .select("title, client, project_address")
+        .select("title, client, project_address, street, project_floor, door, city, province")
         .eq("id", projectId)
         .single()
 

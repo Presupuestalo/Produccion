@@ -12,6 +12,7 @@ interface PriceTableProps {
   onDelete: (price: PriceMaster) => void
   onIncrease: (price: PriceMaster) => void
   isMaster: boolean
+  isAdmin: boolean
   onAdminEdit: (price: PriceMaster) => void
   hideCode?: boolean
 }
@@ -27,6 +28,7 @@ export function PriceTable({
   onDelete,
   onIncrease,
   isMaster,
+  isAdmin,
   onAdminEdit,
   hideCode = false,
 }: PriceTableProps) {
@@ -75,7 +77,7 @@ export function PriceTable({
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1">
-                    {isMaster ? (
+                    {isAdmin ? (
                       <button
                         onClick={() => onAdminEdit(price)}
                         className="p-2 hover:bg-muted rounded-lg transition-colors"
@@ -148,7 +150,7 @@ export function PriceTable({
 
               {/* Right: Actions */}
               <div className="flex flex-col gap-1">
-                {isMaster ? (
+                {isAdmin ? (
                   <button
                     onClick={() => onAdminEdit(price)}
                     className="p-1 hover:bg-muted rounded transition-colors"

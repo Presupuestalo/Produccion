@@ -17,7 +17,7 @@ import { useState, useEffect } from "react"
 import { getSupabase } from "@/lib/supabase/client"
 import { BudgetService } from "@/lib/services/budget-service"
 import { Badge } from "@/components/ui/badge"
-import { deleteProject } from "@/lib/services/project-service"
+import { deleteProject, calculateProgress } from "@/lib/services/project-service"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -44,9 +44,14 @@ const getStatusLabel = (status: string): string => {
     accepted: "Aceptado",
     rejected: "Rechazado",
     in_progress: "En Obra",
+    "En Obra": "En Obra",
+    "en_obra": "En Obra",
     completed: "Terminado",
+    "Terminado": "Terminado",
+    "Finalizado": "Terminado",
+    "finalizado": "Terminado",
   }
-  return labels[status] || status
+  return labels[status] || labels[status.toLowerCase()] || status
 }
 
 const getStatusColor = (status: string): string => {
@@ -59,8 +64,10 @@ const getStatusColor = (status: string): string => {
     rejected: "bg-red-100 text-red-700 hover:bg-red-100",
     in_progress: "bg-orange-100 text-orange-700 hover:bg-orange-100",
     completed: "bg-purple-100 text-purple-700 hover:bg-purple-100",
+    "Terminado": "bg-purple-100 text-purple-700 hover:bg-purple-100",
+    "Finalizado": "bg-purple-100 text-purple-700 hover:bg-purple-100",
   }
-  return colors[status] || "bg-slate-100 text-slate-700"
+  return colors[status] || colors[status.toLowerCase()] || colors[status === "En Obra" ? "in_progress" : ""] || "bg-slate-100 text-slate-700"
 }
 
 const getMostAdvancedStatus = (statuses: string[]): string | null => {
@@ -98,6 +105,13 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
           return
         }
 
+        // Fetch budget settings for VAT display logic
+        const { data: settings } = await supabase
+          .from("budget_settings")
+          .select("show_vat")
+          .eq("project_id", project.id)
+          .maybeSingle()
+
         // Fetch budget status
         const budgets = await BudgetService.getBudgetsByProject(project.id, supabase)
 
@@ -108,8 +122,18 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
 
           const accepted = budgets.find((b) => (b.status as any) === "approved" || (b.status as any) === "accepted")
           if (accepted) {
-            const amount = accepted.accepted_amount_with_vat || accepted.accepted_amount_without_vat || accepted.total
-            const includesVat = accepted.accepted_includes_vat !== false
+            // Check if budget data says it includes VAT
+            const budgetShowsVat = accepted.accepted_includes_vat === true ||
+              (accepted.accepted_includes_vat !== false && (accepted.accepted_vat_amount || 0) > 0)
+
+            // Source of truth: project settings
+            const includesVat = settings?.show_vat !== false && budgetShowsVat
+
+            // Select amount based on user preference
+            const amount = includesVat
+              ? (accepted.accepted_amount_with_vat || accepted.total)
+              : (accepted.accepted_amount_without_vat || accepted.subtotal || accepted.total)
+
             setAcceptedBudget({
               id: accepted.id,
               amount,
@@ -178,6 +202,30 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
       setIsDeleting(false)
     }
   }
+
+  const calculateDisplayProgress = () => {
+    let progress = project.progress || 0
+
+    // Si hay un estado de presupuesto más avanzado, lo usamos como base
+    if (budgetStatus) {
+      const budgetProgress = calculateProgress(budgetStatus)
+      progress = Math.max(progress, budgetProgress)
+    }
+
+    // Ajustes adicionales por hitos del proyecto
+    if (project.contract_signed) progress = Math.max(progress, 60)
+    if (project.license_status === "Concedida") progress = Math.max(progress, 70)
+
+    // Si está en obra o terminado, respetamos el estado del proyecto
+    if (budgetStatus === "in_progress" || budgetStatus === "completed") {
+      const statusProgress = calculateProgress(budgetStatus)
+      progress = Math.max(progress, statusProgress)
+    }
+
+    return Math.min(progress, 100)
+  }
+
+  const displayProgress = calculateDisplayProgress()
 
   return (
     <>
@@ -273,13 +321,13 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
                 <span className="text-xs">{formatDate((project.dueDate || project.duedate) as string)}</span>
                 <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
               </div>
-              {project.progress !== undefined && (
+              {displayProgress !== undefined && (
                 <div className="space-y-1">
                   <div className="flex justify-between text-[10px] text-muted-foreground">
                     <span>Progreso</span>
-                    <span>{project.progress}%</span>
+                    <span>{displayProgress}%</span>
                   </div>
-                  <Progress value={project.progress} className="h-1" />
+                  <Progress value={displayProgress} className="h-1" />
                 </div>
               )}
             </div>

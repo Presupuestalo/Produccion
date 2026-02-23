@@ -242,13 +242,15 @@ export function BudgetStatusManager({ budgetId, projectId, currentStatus, onStat
               {dialogContent.warning && <AlertTriangle className="h-5 w-5 text-orange-500" />}
               {dialogContent.title}
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <div>{dialogContent.description}</div>
-              {dialogContent.warning && targetStatus === "accepted" && (
-                <div className="text-orange-600 dark:text-orange-400 font-medium">
-                  ⚠️ Esta acción bloqueará la edición del presupuesto original.
-                </div>
-              )}
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <div>{dialogContent.description}</div>
+                {dialogContent.warning && targetStatus === "accepted" && (
+                  <div className="text-orange-600 dark:text-orange-400 font-medium">
+                    ⚠️ Esta acción bloqueará la edición del presupuesto original.
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

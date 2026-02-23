@@ -255,14 +255,16 @@ export default function EditorPlanosPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <p>Esta acción no se puede deshacer. El plano se eliminará permanentemente de tu cuenta.</p>
-              {planToDelete?.projectId && (
-                <div className="bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400 p-3 rounded-md border border-amber-200 dark:border-amber-800 flex flex-col">
-                  <strong>⚠️ Atención: Plano vinculado</strong>
-                  <span className="text-sm mt-1">Este plano está actualmente vinculado al proyecto <strong>"{planToDelete.projectName || 'Desconocido'}"</strong>. Si lo eliminas, el proyecto perderá esta referencia visual.</span>
-                </div>
-              )}
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>Esta acción no se puede deshacer. El plano se eliminará permanentemente de tu cuenta.</p>
+                {planToDelete?.projectId && (
+                  <div className="bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400 p-3 rounded-md border border-amber-200 dark:border-amber-800 flex flex-col">
+                    <strong>⚠️ Atención: Plano vinculado</strong>
+                    <span className="text-sm mt-1">Este plano está actualmente vinculado al proyecto <strong>"{planToDelete.projectName || 'Desconocido'}"</strong>. Si lo eliminas, el proyecto perderá esta referencia visual.</span>
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

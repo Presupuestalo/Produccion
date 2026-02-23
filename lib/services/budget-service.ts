@@ -64,13 +64,26 @@ export class BudgetService {
     const versionNumber = existingBudgets && existingBudgets.length > 0 ? existingBudgets[0].version_number + 1 : 1
     console.log("[v0] Next version number:", versionNumber)
 
+    // Obtener configuración de IVA del proyecto
+    const { data: settings } = await supabase
+      .from("budget_settings")
+      .select("show_vat, vat_percentage")
+      .eq("project_id", projectId)
+      .maybeSingle()
+
+    const showVat = settings?.show_vat ?? false
+    const vatRate = showVat ? (settings?.vat_percentage ?? 21.0) : 0
+    const taxAmount = subtotal * (vatRate / 100)
+    const total = subtotal + taxAmount
+
     console.log("[v0] About to insert budget with data:", {
       project_id: projectId,
       user_id: userId,
       version_number: versionNumber,
       subtotal,
-      tax_amount: subtotal * 0.21,
-      total: subtotal * 1.21,
+      tax_rate: vatRate,
+      tax_amount: taxAmount,
+      total,
     })
 
     // Crear el presupuesto
@@ -85,9 +98,9 @@ export class BudgetService {
         is_original: true,
         status: "draft",
         subtotal,
-        tax_rate: 21.0,
-        tax_amount: subtotal * 0.21,
-        total: subtotal * 1.21,
+        tax_rate: vatRate,
+        tax_amount: taxAmount,
+        total: total,
       })
       .select()
       .single()
@@ -471,6 +484,13 @@ export class BudgetService {
       const { data: budget } = await supabase.from("budgets").select("*").eq("id", budgetId).single()
 
       if (budget) {
+        // Get budget settings to check if VAT should be included
+        const { data: settings } = await supabase
+          .from("budget_settings")
+          .select("show_vat")
+          .eq("project_id", budget.project_id)
+          .maybeSingle()
+
         const acceptedData = {
           status,
           accepted_at: new Date().toISOString(),
@@ -478,14 +498,15 @@ export class BudgetService {
           accepted_amount_with_vat: budget.total,
           accepted_vat_rate: budget.tax_rate,
           accepted_vat_amount: budget.tax_amount,
-          accepted_includes_vat: true, // Assuming VAT is always included by default
+          accepted_includes_vat: settings?.show_vat ?? budget.tax_rate > 0,
         }
 
         const { error } = await supabase.from("budgets").update(acceptedData).eq("id", budgetId)
 
         if (error) {
-          console.error("[BudgetService] Error updating budget status with accepted data:", error)
-          throw new Error("Error al actualizar el estado del presupuesto")
+          console.error("[BudgetService] Error updating budget status with accepted data:", JSON.stringify(error, null, 2))
+          console.error("[BudgetService] Error details:", error.message, error.hint, error.details)
+          throw new Error("Error al actualizar el estado del presupuesto: " + (error.message || ""))
         }
         return
       }

@@ -13,6 +13,7 @@ export interface UserProfile {
   address_street?: string
   address_city?: string
   address_province?: string
+  address_postal_code?: string
   country?: string  // ISO code: 'ES', 'FR', 'PT', 'IT', etc.
 
   avatar_url?: string

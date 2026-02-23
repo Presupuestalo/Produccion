@@ -66,6 +66,7 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
     company_address: userData.address || "",
     company_city: "",
     company_province: "",
+    company_postal_code: "",
     company_country: userData.country || "ES",
     company_tax_id: "",
     company_phone: userData.phone || "",
@@ -119,6 +120,7 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
           company_address: data.company_address || userData.address || "",
           company_city: data.company_city || "",
           company_province: data.company_province || "",
+          company_postal_code: data.company_postal_code || "",
           company_country: userCountry,
           company_tax_id: data.company_tax_id || "",
           company_phone: data.company_phone || userData.phone || "",
@@ -222,6 +224,7 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
           company_address: formData.company_address,
           company_city: formData.company_city,
           company_province: formData.company_province,
+          company_postal_code: formData.company_postal_code,
           company_country: formData.company_country,
           company_tax_id: formData.company_tax_id,
           company_phone: formData.company_phone,
@@ -414,6 +417,16 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
                     placeholder={fieldLabels.province}
                   />
                 )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="company_postal_code">Código Postal</Label>
+                <Input
+                  id="company_postal_code"
+                  value={formData.company_postal_code}
+                  onChange={(e) => setFormData({ ...formData, company_postal_code: e.target.value })}
+                  placeholder="28001"
+                />
               </div>
 
               <div className="space-y-2">

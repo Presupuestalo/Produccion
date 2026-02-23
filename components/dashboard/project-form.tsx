@@ -141,6 +141,8 @@ export function ProjectForm({
     progress: project?.progress || 0,
     status: project?.status || "Borrador",
     color: project?.color || "#000000",
+    country_code: project?.country_code || "ES",
+    client_country: project?.client_country || "ES",
   })
 
   // Estado para los ajustes de demolición
@@ -284,6 +286,13 @@ export function ProjectForm({
     loadUserCountry()
   }, [])
 
+  // Sincronizar país del cliente con el país de la obra para proyectos nuevos si el del cliente está vacío
+  useEffect(() => {
+    if (isNew && formData.country_code && !formData.client_country) {
+      setFormData((prev) => ({ ...prev, client_country: prev.country_code }))
+    }
+  }, [formData.country_code, isNew])
+
   // Cargar los ajustes de demolición y la configuración de la calculadora si hay un proyecto
   useEffect(() => {
     if (project?.id) {
@@ -416,6 +425,7 @@ export function ProjectForm({
         door: "",
         city: "",
         province: "",
+        postal_code: "",
         country: "",
         ceiling_height: "",
         structure_type: "",
@@ -427,6 +437,7 @@ export function ProjectForm({
         client_street: "",
         client_city: "",
         client_province: "",
+        client_postal_code: "",
         // Campos que se añadieron después de la creación inicial del proyecto
         progress: 0,
         status: "Borrador",
@@ -1104,6 +1115,10 @@ export function ProjectForm({
   const countryLabels = getCountryFieldLabels(selectedCountry)
   const provincesForCountry = getProvincesForCountry(selectedCountry)
 
+  const selectedClientCountry = formData.client_country || userCountry
+  const clientCountryLabels = getCountryFieldLabels(selectedClientCountry)
+  const clientProvincesForCountry = getProvincesForCountry(selectedClientCountry)
+
   const isHomeowner = userRole === "homeowner" || userRole === "propietario"
   console.log("[v0] Renderizando ProjectForm - userRole:", userRole, "| isHomeowner:", isHomeowner)
 
@@ -1192,7 +1207,11 @@ export function ProjectForm({
                         <SelectValue placeholder="Selecciona país" />
                       </SelectTrigger>
                       <SelectContent>
-                        {SUPPORTED_COUNTRIES.map((country) => (
+                        {/* Priorizar España */}
+                        {[
+                          ...SUPPORTED_COUNTRIES.filter((c) => c.code === "ES"),
+                          ...SUPPORTED_COUNTRIES.filter((c) => c.code !== "ES").sort((a, b) => a.name.localeCompare(b.name)),
+                        ].map((country) => (
                           <SelectItem key={country.code} value={country.code}>
                             {country.name}
                           </SelectItem>
@@ -1271,6 +1290,16 @@ export function ProjectForm({
                           required
                         />
                       )}
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="postal_code">Código Postal</Label>
+                      <Input
+                        id="postal_code"
+                        placeholder="28001"
+                        value={formData.postal_code || ""}
+                        onChange={handleChange}
+                      />
                     </div>
                   </div>
                 </div>
@@ -1415,7 +1444,13 @@ export function ProjectForm({
                           <SelectValue placeholder="Selecciona país" />
                         </SelectTrigger>
                         <SelectContent>
-                          {SUPPORTED_COUNTRIES.map((country) => (
+                          {/* Priorizar España */}
+                          {[
+                            ...SUPPORTED_COUNTRIES.filter((c) => c.code === "ES"),
+                            ...SUPPORTED_COUNTRIES.filter((c) => c.code !== "ES").sort((a, b) =>
+                              a.name.localeCompare(b.name),
+                            ),
+                          ].map((country) => (
                             <SelectItem key={country.code} value={country.code}>
                               {country.name}
                             </SelectItem>
@@ -1447,12 +1482,40 @@ export function ProjectForm({
 
                       <div className="grid gap-2">
                         <Label htmlFor="client_province">
-                          {getCountryFieldLabels(formData.client_country || userCountry).province}
+                          {clientCountryLabels.province}
                         </Label>
+                        {clientProvincesForCountry ? (
+                          <Select
+                            value={formData.client_province || ""}
+                            onValueChange={(value) => setFormData({ ...formData, client_province: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={`Selecciona ${clientCountryLabels.province.toLowerCase()}`} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {clientProvincesForCountry.map((province) => (
+                                <SelectItem key={province} value={province}>
+                                  {province}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input
+                            id="client_province"
+                            placeholder={clientCountryLabels.province}
+                            value={formData.client_province || ""}
+                            onChange={handleChange}
+                          />
+                        )}
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="client_postal_code">Código Postal</Label>
                         <Input
-                          id="client_province"
-                          placeholder={getCountryFieldLabels(formData.client_country || userCountry).province}
-                          value={formData.client_province || ""}
+                          id="client_postal_code"
+                          placeholder="28001"
+                          value={formData.client_postal_code || ""}
                           onChange={handleChange}
                         />
                       </div>
