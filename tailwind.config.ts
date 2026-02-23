@@ -73,7 +73,12 @@ const config: Config = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    ({ addVariant }: { addVariant: any }) => {
+      addVariant("desktop", ".is-desktop &")
+    },
+  ],
 }
 
 export default config

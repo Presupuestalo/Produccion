@@ -84,6 +84,8 @@ function normalizeProject(project: any): Project {
     door: project.door || "",
     city: project.city || "",
     province: project.province || "",
+    postal_code: project.postal_code || "",
+    client_postal_code: project.client_postal_code || "",
     country: project.country || "España", // @deprecated
     ceiling_height: typeof project.ceiling_height === "number" ? project.ceiling_height : 2.6,
     structure_type: project.structure_type || "",
@@ -305,6 +307,7 @@ export async function createProject(projectData: ProjectFormData, userProfile?: 
       door: projectData.door || "",
       city: projectData.city || "",
       province: projectData.province || "",
+      postal_code: projectData.postal_code || "",
       country: projectData.country || "España", // @deprecated
       ceiling_height:
         typeof projectData.ceiling_height === "string"
@@ -435,6 +438,14 @@ export async function updateProject(id: string, projectData: Partial<Project>) {
     if (dataToUpdate.project_province !== undefined) {
       dataToUpdate.province = dataToUpdate.project_province
       delete dataToUpdate.project_province
+    }
+
+    if (dataToUpdate.postal_code !== undefined) {
+      dataToUpdate.postal_code = dataToUpdate.postal_code
+    }
+
+    if (dataToUpdate.client_postal_code !== undefined) {
+      dataToUpdate.client_postal_code = dataToUpdate.client_postal_code
     }
 
     if (dataToUpdate.country !== undefined) {

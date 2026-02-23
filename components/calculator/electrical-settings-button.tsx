@@ -290,7 +290,6 @@ export function ElectricalSettingsButton() {
       console.log("[v0] RESTORE DEFAULTS - Starting restore process")
       console.log("[v0] RESTORE DEFAULTS - Default settings:", defaultElectricalSettings)
 
-      // Restaurar los valores predeterminados
       setRoomSettings([...defaultElectricalSettings])
 
       // Eliminar cualquier configuración guardada previamente de ambos sistemas
@@ -298,13 +297,8 @@ export function ElectricalSettingsButton() {
       localStorage.removeItem("electrical_room_settings")
       console.log("[v0] RESTORE DEFAULTS - Cleared both localStorage keys")
 
-      console.log("[v0] RESTORE DEFAULTS - Dispatching event and reloading page")
+      console.log("[v0] RESTORE DEFAULTS - Dispatching event")
       window.dispatchEvent(new CustomEvent("electrical-settings-changed"))
-
-      // Dar tiempo para que se procese el evento antes de recargar
-      setTimeout(() => {
-        window.location.reload()
-      }, 100)
 
       // Intentar eliminar de Supabase si está disponible
       try {
@@ -351,324 +345,330 @@ export function ElectricalSettingsButton() {
           Ajustes
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl text-orange-700">Ajustes de Electricidad Predeterminados</DialogTitle>
+      <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden bg-white sm:rounded-2xl">
+        <DialogHeader className="p-6 pb-4 border-b">
+          <DialogTitle className="text-xl text-orange-700 flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            Ajustes de Electricidad Predeterminados
+          </DialogTitle>
           <DialogDescription>
             Configura los elementos eléctricos predeterminados por tipo de habitación
           </DialogDescription>
         </DialogHeader>
 
-        <div className="bg-orange-50 p-4 rounded-lg border border-orange-100">
-          <h3 className="text-lg font-medium mb-4 text-orange-700">
-            Elementos Eléctricos Predeterminados por Habitación
-          </h3>
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50/30">
 
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-orange-100">
-                  <th className="border border-orange-200 px-4 py-2 text-left">Tipo de Habitación</th>
-                  <th className="border border-orange-200 px-4 py-2 text-left">Puntos de luz techo</th>
-                  <th className="border border-orange-200 px-4 py-2 text-left">Enchufes</th>
-                  <th className="border border-orange-200 px-4 py-2 text-left">Sencillo</th>
-                  <th className="border border-orange-200 px-4 py-2 text-left">Conmutados</th>
-                  <th className="border border-orange-200 px-4 py-2 text-left">Cruzamiento</th>
-                  <th className="border border-orange-200 px-4 py-2 text-left">Intemperie</th>
-                  <th className="border border-orange-200 px-4 py-2 text-left">Toma TV</th>
-                  <th className="border border-orange-200 px-4 py-2 text-left">Focos empotrados</th>
-                </tr>
-              </thead>
-              <tbody>
-                {roomSettings.map((room, index) => (
-                  <tr key={index} className={index % 2 === 0 ? "bg-orange-50" : ""}>
-                    <td className="border border-orange-200 px-4 py-2 font-medium">{room.name}</td>
-                    <td className="border border-orange-200 px-4 py-2">
-                      <div className="flex items-center justify-center">
-                        <button
-                          type="button"
-                          className="px-1 py-0.5 bg-orange-100 rounded-l-md border border-orange-200 hover:bg-orange-200 text-xs"
-                          onClick={() => {
-                            if (room.lightPoints > 0) {
-                              handleSettingChange(index, "lightPoints", room.lightPoints - 1)
-                            }
-                          }}
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          value={room.lightPoints}
-                          onChange={(e) => handleSettingChange(index, "lightPoints", Number(e.target.value))}
-                          className="w-8 text-center border-y border-orange-200 py-0.5 focus:outline-none text-xs"
-                          min={0}
-                        />
-                        <button
-                          type="button"
-                          className="px-1 py-0.5 bg-orange-100 rounded-r-md border border-orange-200 hover:bg-orange-200 text-xs"
-                          onClick={() => handleSettingChange(index, "lightPoints", room.lightPoints + 1)}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </td>
-                    <td className="border border-orange-200 px-4 py-2">
-                      <div className="flex items-center justify-center">
-                        <button
-                          type="button"
-                          className="px-1 py-0.5 bg-orange-100 rounded-l-md border border-orange-200 hover:bg-orange-200 text-xs"
-                          onClick={() => {
-                            if (room.outlets > 0) {
-                              handleSettingChange(index, "outlets", room.outlets - 1)
-                            }
-                          }}
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          value={room.outlets}
-                          onChange={(e) => handleSettingChange(index, "outlets", Number(e.target.value))}
-                          className="w-8 text-center border-y border-orange-200 py-0.5 focus:outline-none text-xs"
-                          min={0}
-                        />
-                        <button
-                          type="button"
-                          className="px-1 py-0.5 bg-orange-100 rounded-r-md border border-orange-200 hover:bg-orange-200 text-xs"
-                          onClick={() => handleSettingChange(index, "outlets", room.outlets + 1)}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </td>
-                    <td className="border border-orange-200 px-4 py-2">
-                      <div className="flex items-center justify-center">
-                        <button
-                          type="button"
-                          className="px-1 py-0.5 bg-orange-100 rounded-l-md border border-orange-200 hover:bg-orange-200 text-xs"
-                          onClick={() => {
-                            if (room.simple > 0) {
-                              handleSettingChange(index, "simple", room.simple - 1)
-                            }
-                          }}
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          value={room.simple}
-                          onChange={(e) => handleSettingChange(index, "simple", Number(e.target.value))}
-                          className="w-8 text-center border-y border-orange-200 py-0.5 focus:outline-none text-xs"
-                          min={0}
-                        />
-                        <button
-                          type="button"
-                          className="px-1 py-0.5 bg-orange-100 rounded-r-md border border-orange-200 hover:bg-orange-200 text-xs"
-                          onClick={() => handleSettingChange(index, "simple", room.simple + 1)}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </td>
-                    <td className="border border-orange-200 px-4 py-2">
-                      <div className="flex items-center justify-center">
-                        <button
-                          type="button"
-                          className="px-1 py-0.5 bg-orange-100 rounded-l-md border border-orange-200 hover:bg-orange-200 text-xs"
-                          onClick={() => {
-                            if (room.switches > 0) {
-                              handleSettingChange(index, "switches", room.switches - 1)
-                            }
-                          }}
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          value={room.switches}
-                          onChange={(e) => handleSettingChange(index, "switches", Number(e.target.value))}
-                          className="w-8 text-center border-y border-orange-200 py-0.5 focus:outline-none text-xs"
-                          min={0}
-                        />
-                        <button
-                          type="button"
-                          className="px-1 py-0.5 bg-orange-100 rounded-r-md border border-orange-200 hover:bg-orange-200 text-xs"
-                          onClick={() => handleSettingChange(index, "switches", room.switches + 1)}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </td>
-                    <td className="border border-orange-200 px-4 py-2">
-                      <div className="flex items-center justify-center">
-                        <button
-                          type="button"
-                          className="px-1 py-0.5 bg-orange-100 rounded-l-md border border-orange-200 hover:bg-orange-200 text-xs"
-                          onClick={() => {
-                            if (room.crossover > 0) {
-                              handleSettingChange(index, "crossover", room.crossover - 1)
-                            }
-                          }}
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          value={room.crossover}
-                          onChange={(e) => handleSettingChange(index, "crossover", Number(e.target.value))}
-                          className="w-8 text-center border-y border-orange-200 py-0.5 focus:outline-none text-xs"
-                          min={0}
-                        />
-                        <button
-                          type="button"
-                          className="px-1 py-0.5 bg-orange-100 rounded-r-md border border-orange-200 hover:bg-orange-200 text-xs"
-                          onClick={() => handleSettingChange(index, "crossover", room.crossover + 1)}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </td>
-                    <td className="border border-orange-200 px-4 py-2">
-                      <div className="flex items-center justify-center">
-                        <button
-                          type="button"
-                          className="px-1 py-0.5 bg-orange-100 rounded-l-md border border-orange-200 hover:bg-orange-200 text-xs"
-                          onClick={() => {
-                            if (room.outdoor > 0) {
-                              handleSettingChange(index, "outdoor", room.outdoor - 1)
-                            }
-                          }}
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          value={room.outdoor}
-                          onChange={(e) => handleSettingChange(index, "outdoor", Number(e.target.value))}
-                          className="w-8 text-center border-y border-orange-200 py-0.5 focus:outline-none text-xs"
-                          min={0}
-                        />
-                        <button
-                          type="button"
-                          className="px-1 py-0.5 bg-orange-100 rounded-r-md border border-orange-200 hover:bg-orange-200 text-xs"
-                          onClick={() => handleSettingChange(index, "outdoor", room.outdoor + 1)}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </td>
-                    <td className="border border-orange-200 px-4 py-2">
-                      <div className="flex items-center justify-center">
-                        <button
-                          type="button"
-                          className="px-1 py-0.5 bg-orange-100 rounded-l-md border border-orange-200 hover:bg-orange-200 text-xs"
-                          onClick={() => {
-                            if (room.tvOutlet > 0) {
-                              handleSettingChange(index, "tvOutlet", room.tvOutlet - 1)
-                            }
-                          }}
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          value={room.tvOutlet}
-                          onChange={(e) => handleSettingChange(index, "tvOutlet", Number(e.target.value))}
-                          className="w-8 text-center border-y border-orange-200 py-0.5 focus:outline-none text-xs"
-                          min={0}
-                        />
-                        <button
-                          type="button"
-                          className="px-1 py-0.5 bg-orange-100 rounded-r-md border border-orange-200 hover:bg-orange-200 text-xs"
-                          onClick={() => handleSettingChange(index, "tvOutlet", room.tvOutlet + 1)}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </td>
-                    <td className="border border-orange-200 px-4 py-2">
-                      <div className="flex items-center justify-center">
-                        <button
-                          type="button"
-                          className="px-1 py-0.5 bg-orange-100 rounded-l-md border border-orange-200 hover:bg-orange-200 text-xs"
-                          onClick={() => {
-                            if (room.recessedLights > 0) {
-                              handleSettingChange(index, "recessedLights", room.recessedLights - 1)
-                            }
-                          }}
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          value={room.recessedLights}
-                          onChange={(e) => handleSettingChange(index, "recessedLights", Number(e.target.value))}
-                          className="w-8 text-center border-y border-orange-200 py-0.5 focus:outline-none text-xs"
-                          min={0}
-                        />
-                        <button
-                          type="button"
-                          className="px-1 py-0.5 bg-orange-100 rounded-r-md border border-orange-200 hover:bg-orange-200 text-xs"
-                          onClick={() => handleSettingChange(index, "recessedLights", room.recessedLights + 1)}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </td>
+          <div className="bg-orange-50 p-4 rounded-lg border border-orange-100">
+            <h3 className="text-lg font-medium mb-4 text-orange-700">
+              Elementos Eléctricos Predeterminados por Habitación
+            </h3>
+
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-orange-100">
+                    <th className="border border-orange-200 px-3 py-2 text-left text-xs font-bold text-orange-800 sticky top-0 bg-orange-100 z-10 w-32">Tipo de Habitación</th>
+                    <th className="border border-orange-200 px-2 py-2 text-center text-xs font-bold text-orange-800 sticky top-0 bg-orange-100 z-10">Puntos de luz</th>
+                    <th className="border border-orange-200 px-2 py-2 text-center text-xs font-bold text-orange-800 sticky top-0 bg-orange-100 z-10">Enchufes</th>
+                    <th className="border border-orange-200 px-2 py-2 text-center text-xs font-bold text-orange-800 sticky top-0 bg-orange-100 z-10">Sencillo</th>
+                    <th className="border border-orange-200 px-2 py-2 text-center text-xs font-bold text-orange-800 sticky top-0 bg-orange-100 z-10">Conmutados</th>
+                    <th className="border border-orange-200 px-2 py-2 text-center text-xs font-bold text-orange-800 sticky top-0 bg-orange-100 z-10">Cruzamiento</th>
+                    <th className="border border-orange-200 px-2 py-2 text-center text-xs font-bold text-orange-800 sticky top-0 bg-orange-100 z-10">Intemperie</th>
+                    <th className="border border-orange-200 px-2 py-2 text-center text-xs font-bold text-orange-800 sticky top-0 bg-orange-100 z-10">Toma TV</th>
+                    <th className="border border-orange-200 px-2 py-2 text-center text-xs font-bold text-orange-800 sticky top-0 bg-orange-100 z-10">Focos</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {roomSettings.map((room, index) => (
+                    <tr key={index} className={index % 2 === 0 ? "bg-orange-50" : ""}>
+                      <td className="border border-orange-200 px-2 py-1 text-center font-medium text-xs text-slate-700">{room.name}</td>
+                      <td className="border border-orange-200 px-1 py-1">
+                        <div className="flex items-center justify-center">
+                          <button
+                            type="button"
+                            className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded-l-md border border-orange-200 hover:bg-orange-200 text-xs transition-colors"
+                            onClick={() => {
+                              if (room.lightPoints > 0) {
+                                handleSettingChange(index, "lightPoints", room.lightPoints - 1)
+                              }
+                            }}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            value={room.lightPoints}
+                            onChange={(e) => handleSettingChange(index, "lightPoints", Number(e.target.value))}
+                            className="w-8 text-center border-y border-orange-200 py-0.5 focus:outline-none text-[11px] font-bold text-slate-800"
+                            min={0}
+                          />
+                          <button
+                            type="button"
+                            className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded-r-md border border-orange-200 hover:bg-orange-200 text-xs transition-colors"
+                            onClick={() => handleSettingChange(index, "lightPoints", room.lightPoints + 1)}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </td>
+                      <td className="border border-orange-200 px-1 py-1">
+                        <div className="flex items-center justify-center">
+                          <button
+                            type="button"
+                            className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded-l-md border border-orange-200 hover:bg-orange-200 text-xs transition-colors"
+                            onClick={() => {
+                              if (room.outlets > 0) {
+                                handleSettingChange(index, "outlets", room.outlets - 1)
+                              }
+                            }}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            value={room.outlets}
+                            onChange={(e) => handleSettingChange(index, "outlets", Number(e.target.value))}
+                            className="w-8 text-center border-y border-orange-200 py-0.5 focus:outline-none text-[11px] font-bold text-slate-800"
+                            min={0}
+                          />
+                          <button
+                            type="button"
+                            className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded-r-md border border-orange-200 hover:bg-orange-200 text-xs transition-colors"
+                            onClick={() => handleSettingChange(index, "outlets", room.outlets + 1)}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </td>
+                      <td className="border border-orange-200 px-1 py-1">
+                        <div className="flex items-center justify-center">
+                          <button
+                            type="button"
+                            className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded-l-md border border-orange-200 hover:bg-orange-200 text-xs transition-colors"
+                            onClick={() => {
+                              if (room.simple > 0) {
+                                handleSettingChange(index, "simple", room.simple - 1)
+                              }
+                            }}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            value={room.simple}
+                            onChange={(e) => handleSettingChange(index, "simple", Number(e.target.value))}
+                            className="w-8 text-center border-y border-orange-200 py-0.5 focus:outline-none text-[11px] font-bold text-slate-800"
+                            min={0}
+                          />
+                          <button
+                            type="button"
+                            className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded-r-md border border-orange-200 hover:bg-orange-200 text-xs transition-colors"
+                            onClick={() => handleSettingChange(index, "simple", room.simple + 1)}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </td>
+                      <td className="border border-orange-200 px-1 py-1">
+                        <div className="flex items-center justify-center">
+                          <button
+                            type="button"
+                            className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded-l-md border border-orange-200 hover:bg-orange-200 text-xs transition-colors"
+                            onClick={() => {
+                              if (room.switches > 0) {
+                                handleSettingChange(index, "switches", room.switches - 1)
+                              }
+                            }}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            value={room.switches}
+                            onChange={(e) => handleSettingChange(index, "switches", Number(e.target.value))}
+                            className="w-8 text-center border-y border-orange-200 py-0.5 focus:outline-none text-[11px] font-bold text-slate-800"
+                            min={0}
+                          />
+                          <button
+                            type="button"
+                            className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded-r-md border border-orange-200 hover:bg-orange-200 text-xs transition-colors"
+                            onClick={() => handleSettingChange(index, "switches", room.switches + 1)}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </td>
+                      <td className="border border-orange-200 px-1 py-1">
+                        <div className="flex items-center justify-center">
+                          <button
+                            type="button"
+                            className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded-l-md border border-orange-200 hover:bg-orange-200 text-xs transition-colors"
+                            onClick={() => {
+                              if (room.crossover > 0) {
+                                handleSettingChange(index, "crossover", room.crossover - 1)
+                              }
+                            }}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            value={room.crossover}
+                            onChange={(e) => handleSettingChange(index, "crossover", Number(e.target.value))}
+                            className="w-8 text-center border-y border-orange-200 py-0.5 focus:outline-none text-[11px] font-bold text-slate-800"
+                            min={0}
+                          />
+                          <button
+                            type="button"
+                            className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded-r-md border border-orange-200 hover:bg-orange-200 text-xs transition-colors"
+                            onClick={() => handleSettingChange(index, "crossover", room.crossover + 1)}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </td>
+                      <td className="border border-orange-200 px-1 py-1">
+                        <div className="flex items-center justify-center">
+                          <button
+                            type="button"
+                            className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded-l-md border border-orange-200 hover:bg-orange-200 text-xs transition-colors"
+                            onClick={() => {
+                              if (room.outdoor > 0) {
+                                handleSettingChange(index, "outdoor", room.outdoor - 1)
+                              }
+                            }}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            value={room.outdoor}
+                            onChange={(e) => handleSettingChange(index, "outdoor", Number(e.target.value))}
+                            className="w-8 text-center border-y border-orange-200 py-0.5 focus:outline-none text-[11px] font-bold text-slate-800"
+                            min={0}
+                          />
+                          <button
+                            type="button"
+                            className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded-r-md border border-orange-200 hover:bg-orange-200 text-xs transition-colors"
+                            onClick={() => handleSettingChange(index, "outdoor", room.outdoor + 1)}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </td>
+                      <td className="border border-orange-200 px-1 py-1">
+                        <div className="flex items-center justify-center">
+                          <button
+                            type="button"
+                            className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded-l-md border border-orange-200 hover:bg-orange-200 text-xs transition-colors"
+                            onClick={() => {
+                              if (room.tvOutlet > 0) {
+                                handleSettingChange(index, "tvOutlet", room.tvOutlet - 1)
+                              }
+                            }}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            value={room.tvOutlet}
+                            onChange={(e) => handleSettingChange(index, "tvOutlet", Number(e.target.value))}
+                            className="w-8 text-center border-y border-orange-200 py-0.5 focus:outline-none text-[11px] font-bold text-slate-800"
+                            min={0}
+                          />
+                          <button
+                            type="button"
+                            className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded-r-md border border-orange-200 hover:bg-orange-200 text-xs transition-colors"
+                            onClick={() => handleSettingChange(index, "tvOutlet", room.tvOutlet + 1)}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </td>
+                      <td className="border border-orange-200 px-1 py-1">
+                        <div className="flex items-center justify-center">
+                          <button
+                            type="button"
+                            className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded-l-md border border-orange-200 hover:bg-orange-200 text-xs transition-colors"
+                            onClick={() => {
+                              if (room.recessedLights > 0) {
+                                handleSettingChange(index, "recessedLights", room.recessedLights - 1)
+                              }
+                            }}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            value={room.recessedLights}
+                            onChange={(e) => handleSettingChange(index, "recessedLights", Number(e.target.value))}
+                            className="w-8 text-center border-y border-orange-200 py-0.5 focus:outline-none text-[11px] font-bold text-slate-800"
+                            min={0}
+                          />
+                          <button
+                            type="button"
+                            className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded-r-md border border-orange-200 hover:bg-orange-200 text-xs transition-colors"
+                            onClick={() => handleSettingChange(index, "recessedLights", room.recessedLights + 1)}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button
-              onClick={handleSaveDefaults}
-              disabled={isSaving}
-              className="bg-orange-600 hover:bg-orange-700 text-white flex items-center gap-2"
-            >
-              {isSaving ? (
-                <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                  <span>Guardando...</span>
-                </div>
-              ) : saveSuccess ? (
-                <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4" />
-                  <span>¡Guardado!</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Save className="h-4 w-4" />
-                  <span>Guardar Valores</span>
-                </div>
-              )}
-            </Button>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Button
+                onClick={handleSaveDefaults}
+                disabled={isSaving}
+                className="bg-orange-600 hover:bg-orange-700 text-white flex items-center gap-2"
+              >
+                {isSaving ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                    <span>Guardando...</span>
+                  </div>
+                ) : saveSuccess ? (
+                  <div className="flex items-center gap-2">
+                    <Check className="h-4 w-4" />
+                    <span>¡Guardado!</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Save className="h-4 w-4" />
+                    <span>Guardar Valores</span>
+                  </div>
+                )}
+              </Button>
 
-            <Button
-              onClick={handleRestoreDefaults}
-              disabled={isResetting}
-              variant="outline"
-              className="border-orange-300 text-orange-700 hover:bg-orange-100 flex items-center gap-2 bg-transparent"
-            >
-              {isResetting ? (
-                <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-orange-700 border-t-transparent"></div>
-                  <span>Restaurando...</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4" />
-                  <span>Restaurar Valores Predeterminados</span>
-                </div>
-              )}
-            </Button>
-          </div>
+              <Button
+                onClick={handleRestoreDefaults}
+                disabled={isResetting}
+                variant="outline"
+                className="border-orange-300 text-orange-700 hover:bg-orange-100 hover:text-orange-800 transition-colors flex items-center gap-2 bg-transparent"
+              >
+                {isResetting ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-orange-700 border-t-transparent"></div>
+                    <span>Restaurando...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="h-4 w-4" />
+                    <span>Restaurar Valores Predeterminados</span>
+                  </div>
+                )}
+              </Button>
+            </div>
 
-          <div className="mt-6 text-sm text-orange-700">
-            <p>
-              Estos valores son predeterminados y pueden ajustarse según las necesidades específicas de cada proyecto.
-            </p>
+            <div className="mt-6 text-sm text-orange-700">
+              <p>
+                Estos valores son predeterminados y pueden ajustarse según las necesidades específicas de cada proyecto.
+              </p>
+            </div>
           </div>
         </div>
       </DialogContent>

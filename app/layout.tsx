@@ -33,6 +33,20 @@ export default function RootLayout({
 
   return (
     <html lang="es" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                var canHover = window.matchMedia('(hover: hover)').matches;
+                if (canHover) {
+                  document.documentElement.classList.add('is-desktop');
+                }
+              })();
+            `,
+          }}
+        />
+      </head>
       {/* Google Analytics */}
       <Script src="https://www.googletagmanager.com/gtag/js?id=G-V6TH4192NL" strategy="afterInteractive" />
       <Script id="google-analytics" strategy="afterInteractive">

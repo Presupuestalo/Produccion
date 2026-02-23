@@ -4,6 +4,7 @@ import React, { useRef, useState } from "react"
 import { EditorContainer } from "@/components/floor-plan-editor/EditorContainer"
 import { useRouter, useSearchParams } from "next/navigation"
 import { SimpleSaveDialog } from "@/components/dashboard/simple-save-dialog"
+import { useToast } from "@/hooks/use-toast"
 
 export default function NuevoPlanoPage() {
   const editorRef = useRef<any>(null)
@@ -12,6 +13,7 @@ export default function NuevoPlanoPage() {
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [pendingPlanData, setPendingPlanData] = useState<any>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const { toast } = useToast()
 
   // URL-based pre-linking (from "Con Plano" project creation flow)
   const urlProjectId = searchParams.get("projectId")
@@ -53,6 +55,7 @@ export default function NuevoPlanoPage() {
         } else {
           router.push(`/dashboard/editor-planos/editar/${result.id}`)
         }
+        toast({ title: "Plano creado", description: "El nuevo plano se ha guardado correctamente." })
         router.refresh()
       } else {
         const errorText = await response.text()

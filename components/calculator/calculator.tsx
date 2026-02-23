@@ -1530,7 +1530,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       // or duplicate logic slightly. Best to extract "creation logic" into helper but limited scope here.
       // Use values from closure or re-derive.
       const roomsOfSameType = currentExistingRooms.filter((r) => r.type === typeToAdd)
-      const nextNumber = roomsOfSameType.length + 1
+      const nextNumber = Math.max(0, ...roomsOfSameType.map((r) => r.number || 0)) + 1
 
       const isCeramicRoom = typeToAdd === "Baño" || typeToAdd === "Cocina"
       const isTerrace = typeToAdd === "Terraza"
@@ -1607,7 +1607,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         removeWallMaterial: false,
         removeCeilingMaterial: false,
         newDoors: false,
-        name: `${selectedRoomType} ${nextNumber}`,
+        name: roomsOfSameType.length === 0 ? (typeToAdd as string) : `${typeToAdd} ${nextNumber}`,
         wallArea: 0,
         ceilingArea: 0,
         ceilingMaterial: "Pintura",
@@ -1615,10 +1615,20 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         reformCost: 0,
       }
 
-      handler((prevRooms) => [newRoom, ...prevRooms])
+      handler((prevRooms) => {
+        // Si estamos añadiendo la segunda habitación de este tipo,
+        // y la primera se llamaba solo "Tipo", le ponemos el número 1
+        if (roomsOfSameType.length === 1) {
+          const firstRoom = roomsOfSameType[0]
+          if (firstRoom.name === typeToAdd) {
+            return [newRoom, ...prevRooms.map((r) => (r.id === firstRoom.id ? { ...r, name: `${typeToAdd} 1` } : r))]
+          }
+        }
+        return [newRoom, ...prevRooms]
+      })
       setHighlightedRoomId(newRoom.id)
     },
-    [selectedRoomType]
+    []
   )
 
   const duplicateRoom = useCallback(
@@ -1694,9 +1704,23 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
           ...radiator,
           id: uuidv4(),
         })),
+        name: `${roomToDuplicate.type} ${nextNumber}`,
       }
 
-      handler((prevRooms) => [duplicatedRoom, ...prevRooms])
+      handler((prevRooms) => {
+        // Si al duplicar pasamos de 1 a 2 habitaciones de este tipo,
+        // y la original se llamaba solo "Tipo", le ponemos el número 1
+        if (roomsOfSameType.length === 1) {
+          const firstRoom = roomsOfSameType[0]
+          if (firstRoom.name === roomToDuplicate.type) {
+            return [
+              duplicatedRoom,
+              ...prevRooms.map((r) => (r.id === firstRoom.id ? { ...r, name: `${roomToDuplicate.type} 1` } : r)),
+            ]
+          }
+        }
+        return [duplicatedRoom, ...prevRooms]
+      })
       setHighlightedRoomId(duplicatedRoom.id)
 
       toast({
@@ -1710,7 +1734,22 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   const removeRoom = useCallback(
     (roomId: string) => {
       const handler = activeTab === "demolition" ? setRooms : setReformRooms
-      handler((prevRooms) => prevRooms.filter((room) => room.id !== roomId))
+      handler((prevRooms) => {
+        const removedRoom = prevRooms.find((r) => r.id === roomId)
+        const filtered = prevRooms.filter((room) => room.id !== roomId)
+
+        if (removedRoom) {
+          const remainingOfType = filtered.filter((r) => r.type === removedRoom.type)
+          if (remainingOfType.length === 1) {
+            const lastRoom = remainingOfType[0]
+            // Solo renombrar si seguía el patrón automático ("Tipo 1" o "Tipo #" donde # es su número)
+            if (lastRoom.name === `${lastRoom.type} 1` || lastRoom.name === `${lastRoom.type} ${lastRoom.number}`) {
+              return filtered.map((r) => (r.id === lastRoom.id ? { ...r, name: r.type as string } : r))
+            }
+          }
+        }
+        return filtered
+      })
     },
     [activeTab, setRooms, setReformRooms],
   )

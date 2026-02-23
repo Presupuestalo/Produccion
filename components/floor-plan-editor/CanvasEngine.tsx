@@ -903,7 +903,14 @@ export const CanvasEngine = ({
 
     React.useEffect(() => {
         const checkMobile = () => {
-            setIsMobile(window.innerWidth < 1200 || (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)))
+            const hasHover = window.matchMedia('(hover: hover)').matches;
+            if (hasHover) {
+                // On desktop/hover devices, only mobile if window is extremely narrow
+                setIsMobile(window.innerWidth < 1024);
+            } else {
+                // On touch-only devices
+                setIsMobile(window.innerWidth < 1024 || (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)));
+            }
         }
         checkMobile()
         window.addEventListener('resize', checkMobile)

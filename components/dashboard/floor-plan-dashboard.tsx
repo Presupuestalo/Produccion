@@ -103,7 +103,6 @@ export function FloorPlanDashboard({ projectId, onApplyChanges }: FloorPlanDashb
             const variant = activeTab
             await saveFloorPlan(projectId, variant, name, data, image, editingPlan?.id)
             setIsEditorOpen(false)
-            toast({ title: "Guardado", description: "Plano guardado correctamente" })
             loadPlans()
         } catch (e) {
             console.error(e)
@@ -211,6 +210,7 @@ export function FloorPlanDashboard({ projectId, onApplyChanges }: FloorPlanDashb
                                     className="w-full p-2 border rounded"
                                     value={compareSource || ""}
                                     onChange={e => setCompareSource(e.target.value)}
+                                    title="Seleccionar plano de origen"
                                 >
                                     <option value="">Selecciona...</option>
                                     {plans.map(p => <option key={p.id} value={p.id}>{p.name} ({p.variant === 'current' ? 'Actual' : 'Propuesta'})</option>)}
@@ -222,6 +222,7 @@ export function FloorPlanDashboard({ projectId, onApplyChanges }: FloorPlanDashb
                                     className="w-full p-2 border rounded"
                                     value={compareTarget || ""}
                                     onChange={e => setCompareTarget(e.target.value)}
+                                    title="Seleccionar plano de destino"
                                 >
                                     <option value="">Selecciona...</option>
                                     {plans.map(p => <option key={p.id} value={p.id}>{p.name} ({p.variant === 'current' ? 'Actual' : 'Propuesta'})</option>)}

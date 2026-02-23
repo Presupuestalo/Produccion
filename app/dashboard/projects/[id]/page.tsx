@@ -260,63 +260,66 @@ export default function ProjectPage() {
 
           {/* Row 1 Middle: Premium Company Branding */}
           {project?.user_type !== "owner" && project?.user_id && (
-            <div className="hidden lg:flex flex-[2] items-center justify-center px-6">
+            <div className="hidden lg:flex desktop:flex flex-none items-center justify-center px-2">
               <CompanyBrandingBlock userId={project.user_id} />
             </div>
           )}
 
-          {project?.user_type !== "owner" && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button asChild variant="outline" size="icon" className="h-10 w-10 text-slate-500 hover:text-orange-600 hover:bg-orange-50 hover:border-orange-200 transition-all shadow-sm border-slate-200 shrink-0">
-                    <Link href={`/dashboard/projects/${projectId}/edit`}>
-                      <Settings className="h-5 w-5" />
-                      <span className="sr-only">Ajustes</span>
-                    </Link>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent align="end">
-                  <p>Ajustes del proyecto</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-
-          {/* Status Action Buttons */}
-          <div className="flex items-center gap-2 shrink-0">
-            {project?.status && (String(project.status) === "approved" || String(project.status) === "Aceptado" || String(project.status) === "aceptado") && (
-              <Button
-                size="sm"
-                onClick={() => handleStatusChange("En Obra")}
-                disabled={isLoading}
-                className="bg-orange-500 hover:bg-orange-600 text-white font-bold gap-1.5 h-10 px-4 rounded-xl shadow-sm transition-all active:scale-95"
-              >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hammer className="h-4 w-4" />}
-                <span className="hidden sm:inline">EMPEZAR OBRA</span>
-                <span className="sm:hidden">OBRA</span>
-              </Button>
+          {/* Right Section: Settings + Status (flex-1 to balance) */}
+          <div className="flex flex-1 justify-end items-center gap-2 shrink-0 min-w-0">
+            {project?.user_type !== "owner" && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button asChild variant="outline" size="icon" className="h-10 w-10 text-slate-500 hover:text-orange-600 hover:bg-orange-50 hover:border-orange-200 transition-all shadow-sm border-slate-200 shrink-0">
+                      <Link href={`/dashboard/projects/${projectId}/edit`}>
+                        <Settings className="h-5 w-5" />
+                        <span className="sr-only">Ajustes</span>
+                      </Link>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent align="end">
+                    <p>Ajustes del proyecto</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
 
-            {project?.status && (project.status === "En Obra" || String(project.status) === "en_obra") && (
-              <Button
-                size="sm"
-                onClick={() => handleStatusChange("Terminado")}
-                disabled={isLoading}
-                className="bg-green-600 hover:bg-green-700 text-white font-bold gap-1.5 h-10 px-4 rounded-xl shadow-sm transition-all active:scale-95"
-              >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                <span className="hidden sm:inline">FINALIZAR PROYECTO</span>
-                <span className="sm:hidden">TERMINAR</span>
-              </Button>
-            )}
+            {/* Status Action Buttons */}
+            <div className="flex items-center gap-2 shrink-0">
+              {project?.status && (String(project.status) === "approved" || String(project.status) === "Aceptado" || String(project.status) === "aceptado") && (
+                <Button
+                  size="sm"
+                  onClick={() => handleStatusChange("En Obra")}
+                  disabled={isLoading}
+                  className="bg-orange-500 hover:bg-orange-600 text-white font-bold gap-1.5 h-10 px-4 rounded-xl shadow-sm transition-all active:scale-95"
+                >
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hammer className="h-4 w-4" />}
+                  <span className="hidden sm:inline desktop:inline">EMPEZAR OBRA</span>
+                  <span className="sm:hidden desktop:hidden">OBRA</span>
+                </Button>
+              )}
 
-            {project?.status && (project.status === "Terminado" || String(project.status) === "Finalizado") && (
-              <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200 h-10 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5">
-                <CheckCircle className="h-4 w-4" />
-                TERMINADO
-              </Badge>
-            )}
+              {project?.status && (project.status === "En Obra" || String(project.status) === "en_obra") && (
+                <Button
+                  size="sm"
+                  onClick={() => handleStatusChange("Terminado")}
+                  disabled={isLoading}
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold gap-1.5 h-10 px-4 rounded-xl shadow-sm transition-all active:scale-95"
+                >
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                  <span className="hidden sm:inline desktop:inline">FINALIZAR PROYECTO</span>
+                  <span className="sm:hidden desktop:hidden">TERMINAR</span>
+                </Button>
+              )}
+
+              {project?.status && (project.status === "Terminado" || String(project.status) === "Finalizado") && (
+                <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200 h-10 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                  <CheckCircle className="h-4 w-4" />
+                  TERMINADO
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
 
@@ -329,7 +332,7 @@ export default function ProjectPage() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 border-slate-200 text-slate-600 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 data-[state=open]:bg-orange-50 data-[state=open]:text-orange-600 data-[state=open]:border-orange-200 transition-all font-bold text-[11px] gap-1.5 px-3">
                   <Layout className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline uppercase tracking-tight">Planos</span>
+                  <span className="hidden sm:inline desktop:inline uppercase tracking-tight">Planos</span>
                   <ChevronDown className="h-3 w-3 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
@@ -395,9 +398,7 @@ export default function ProjectPage() {
 
 
             {isMaster && (
-              <div className="scale-90 origin-left">
-                <ProjectGallery projectId={projectId} />
-              </div>
+              <ProjectGallery projectId={projectId} />
             )}
 
             {project?.user_type === "professional" && <PublishProjectButton project={project} />}

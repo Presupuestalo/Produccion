@@ -71,9 +71,9 @@ export function CompanyBrandingBlock({ userId, className }: CompanyBrandingBlock
     }
 
     return (
-        <div className={`flex items-center gap-6 bg-white border border-slate-200 p-3 rounded-2xl shadow-sm hover:shadow-md transition-all group ${className}`}>
+        <div className={`flex items-center gap-4 bg-white border border-slate-200 p-2 px-4 rounded-xl shadow-sm hover:shadow-md transition-all group ${className}`}>
             {companySettings.company_logo_url && (
-                <div className="relative h-12 w-32 border-r border-slate-100 pr-6 shrink-0 flex items-center justify-center">
+                <div className="relative h-10 w-24 border-r border-slate-100 pr-4 shrink-0 flex items-center justify-center">
                     <img
                         src={companySettings.company_logo_url}
                         alt="Logo"
@@ -81,9 +81,9 @@ export function CompanyBrandingBlock({ userId, className }: CompanyBrandingBlock
                     />
                 </div>
             )}
-            <div className="flex flex-col min-w-0 pr-2">
+            <div className="flex flex-col items-start justify-center min-w-0">
                 <div className="flex items-center gap-2">
-                    <span className="text-[15px] font-black text-slate-900 uppercase tracking-tight truncate leading-tight">
+                    <span className="text-[16px] font-black text-slate-900 uppercase tracking-tight truncate leading-tight">
                         {companySettings.company_name}
                     </span>
                     {companySettings.company_tax_id && (
@@ -93,15 +93,15 @@ export function CompanyBrandingBlock({ userId, className }: CompanyBrandingBlock
                     )}
                 </div>
 
-                <div className="grid grid-cols-1 gap-y-0.5 mt-1">
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
+                <div className="flex flex-col gap-y-0.5 mt-0.5">
+                    <div className="flex items-center justify-start gap-1.5 text-[10px] text-slate-500 font-medium">
                         <div className="w-1 h-1 rounded-full bg-orange-400" />
                         <span className="truncate">{companySettings.company_address || "Sin dirección"}</span>
                         {companySettings.company_city && (
                             <span className="text-slate-300">| {companySettings.company_city}</span>
                         )}
                     </div>
-                    <div className="flex items-center gap-4 text-[10px] font-bold">
+                    <div className="flex items-center justify-start gap-4 text-[10px] font-bold">
                         {companySettings.company_phone && (
                             <span className="text-slate-700 flex items-center gap-1">
                                 <span className="text-slate-300 font-normal">Telf:</span> {companySettings.company_phone}

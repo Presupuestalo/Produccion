@@ -295,7 +295,7 @@ export function ProjectGallery({ projectId }: ProjectGalleryProps) {
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-8 w-8 text-slate-300 hover:text-orange-600 hover:bg-orange-50 hover:border-orange-200 transition-all border-slate-200"
+                  className="h-8 w-8 text-slate-500 hover:text-orange-600 hover:bg-orange-50 hover:border-orange-200 transition-all border-slate-200 shadow-sm"
                   onClick={() => {
                     console.log("[v0] ProjectGallery - Botón Galería presionado")
                   }}

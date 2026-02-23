@@ -41,7 +41,7 @@ export function PriceTable({
   return (
     <>
       {/* Desktop view */}
-      <div className="hidden md:block rounded-lg border overflow-hidden">
+      <div className="hidden md:block desktop:block rounded-lg border overflow-hidden">
         <table className="w-full">
           <thead className="bg-muted/50">
             <tr>
@@ -120,7 +120,7 @@ export function PriceTable({
         </table>
       </div>
 
-      <div className="md:hidden space-y-2">
+      <div className="md:hidden desktop:hidden space-y-2">
         {prices.map((price) => (
           <div key={price.id} className="border rounded-lg p-2.5 bg-card">
             <div className="flex items-start justify-between gap-2">

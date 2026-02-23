@@ -53,6 +53,7 @@ import { detectRoomsGeometrically, fragmentWalls, getClosestPointOnSegment, isPo
 import { useToast } from "@/hooks/use-toast"
 import { ToastProvider } from "@/components/ui/toast-provider"
 import { LinkToProjectDialog } from "./link-to-project-dialog"
+import { SimpleSaveDialog } from "@/components/dashboard/simple-save-dialog"
 
 interface Point { x: number; y: number }
 interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward' }
@@ -229,6 +230,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
     const [isDuplicating, setIsDuplicating] = useState(false)
+    const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false)
     useEffect(() => {
         if (editorWrapperRef.current) setFullscreenContainer(editorWrapperRef.current)
     }, [])
@@ -2109,15 +2111,18 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         }
     }
 
-    const handleDuplicate = async () => {
-        if (!confirm("¿Estás seguro de que quieres duplicar este plano? Se creará una copia sin vincular al proyecto actual.")) return
+    const handleDuplicate = () => {
+        setIsDuplicateDialogOpen(true)
+    }
 
+    const handleDuplicateConfirm = async (newName: string, projectId: string | null, variant: string) => {
         setIsDuplicating(true)
         try {
-            // Prepare data for save without ID (to create new)
-            // And without projectId/variant to ensure it's a standalone clone
+            // Get snapshot for the new clone
+            const imageUrl = canvasEngineRef.current?.getSnapshot() || ""
+
             const cloneData = {
-                name: `${planName} (Copia)`,
+                name: newName,
                 walls,
                 doors,
                 windows,
@@ -2128,7 +2133,9 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 gridRotation,
                 bgConfig,
                 calibration: calibrationPoints,
-                // We DON'T send id, projectId, or variant to force a new standalone creation
+                projectId,
+                variant,
+                image: imageUrl
             }
 
             const response = await fetch("/api/editor-planos/save", {
@@ -2140,6 +2147,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             const result = await response.json()
             if (response.ok && result.id) {
                 toast({ title: "Plano duplicado", description: "Se ha creado una copia correctamente." })
+                setIsDuplicateDialogOpen(false)
                 setIsSettingsOpen(false)
                 router.push(`/dashboard/editor-planos/editar/${result.id}`)
             } else {
@@ -2153,7 +2161,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         }
     }
 
-    const handleSave = async () => {
+    const handleSave = async (options: { isManual?: boolean } = { isManual: false }) => {
         setIsSaving(true)
         try {
             const dataToSave = {
@@ -2182,6 +2190,13 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 console.log("DEBUG: Got snapshot len:", imageUrl.length)
                 await props.onSave(dataToSave, imageUrl)
                 hasUnsavedChanges.current = false
+
+                if (options.isManual && props.planId) {
+                    toast({
+                        title: "Guardado correctamente",
+                        description: "Los cambios se han guardado en el servidor.",
+                    })
+                }
             } else {
                 // Legacy API call (standalone create)
                 const response = await fetch("/api/editor-planos/save", {
@@ -2197,7 +2212,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     console.log("[v0] Plano guardado con ID:", data.id)
                     toast({
                         title: "Guardado correctamente",
-                        description: `El plano se ha guardado con ID: ${data.id?.substring(0, 8)}...`,
+                        description: options.isManual ? "Los cambios se han guardado correctamente." : `El plano se ha guardado con ID: ${data.id?.substring(0, 8)}...`,
                     })
                     hasUnsavedChanges.current = false
                 } else {
@@ -2226,9 +2241,13 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [isMobile, setIsMobile] = useState(false)
     useEffect(() => {
         const checkMobile = () => {
-            // Mobile state now depends strictly on screen width, not touch capability.
-            // This prevents touch laptops from getting forced into mobile layout.
-            setIsMobile(window.innerWidth <= 1024)
+            const hasHover = window.matchMedia('(hover: hover)').matches;
+            if (hasHover) {
+                // Fixed: Treat as desktop if hover is supported, regardless of touch capability
+                setIsMobile(window.innerWidth < 1024);
+            } else {
+                setIsMobile(window.innerWidth <= 1024);
+            }
         }
         checkMobile()
         window.addEventListener("resize", checkMobile)
@@ -2644,7 +2663,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                     size="icon"
                                     variant="ghost"
                                     className="w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                                    onClick={handleSave}
+                                    onClick={() => handleSave({ isManual: true })}
                                     disabled={isSaving}
                                     title="Guardar"
                                 >
@@ -2661,7 +2680,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
-                                        <DropdownMenuItem onSelect={handleSave} className="gap-3 py-2 cursor-pointer">
+                                        <DropdownMenuItem onSelect={() => handleSave({ isManual: true })} className="gap-3 py-2 cursor-pointer">
                                             <Save className="h-4 w-4" /> <span>Guardar</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onSelect={handleOpenExportDialog} className="gap-3 py-2 cursor-pointer">
@@ -2803,9 +2822,6 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                         <Copy className="w-4 h-4 mr-2" />
                                         {isDuplicating ? "Duplicando..." : "Duplicar Plano (Crear Copia)"}
                                     </Button>
-                                    <p className="text-[10px] text-slate-500 mt-1 pl-1 italic">
-                                        Crea una copia independiente de este plano sin vincular al proyecto actual.
-                                    </p>
                                 </div>
                             </div>
 
@@ -3229,6 +3245,16 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     </div>
                 )
             }
+            {/* Duplication Dialog */}
+            <SimpleSaveDialog
+                open={isDuplicateDialogOpen}
+                onOpenChange={setIsDuplicateDialogOpen}
+                onSave={handleDuplicateConfirm}
+                isLoading={isDuplicating}
+                container={fullscreenContainer}
+                initialProjectId={currentProjectId}
+                initialVariant={currentVariant === "current" ? "proposal" : currentVariant}
+            />
         </div >
     )
 })

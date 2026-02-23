@@ -39,7 +39,6 @@ export default function EditPlanClient({
             })
 
             if (response.ok) {
-                toast({ title: "Plano guardado", description: "Los cambios se han guardado correctamente." })
                 router.refresh()
             } else {
                 console.error("Error saving plan")
