@@ -94,6 +94,7 @@ export function DemolitionSection({
               type="text"
               value={areaInput}
               onChange={(e) => handleAreaChange(e.target.value)}
+              onFocus={(e) => e.target.select()}
               placeholder="0"
             />
             {showWarning && (
@@ -122,6 +123,7 @@ export function DemolitionSection({
               type="text"
               value={thicknessInput}
               onChange={(e) => handleThicknessChange(e.target.value)}
+              onFocus={(e) => e.target.select()}
               placeholder="10"
             />
           </div>

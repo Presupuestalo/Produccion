@@ -147,6 +147,7 @@ function WallDemolitionInput({
         value={localValue}
         onChange={handleChange}
         onBlur={handleBlur}
+        onFocus={(e) => e.target.select()}
         className="mt-1"
         placeholder={placeholder}
       />
@@ -1026,6 +1027,13 @@ export function GlobalConfigSection({
                     placeholder="10,00"
                     label="Grosor (cm)"
                   />
+                </div>
+
+                <div className="flex justify-between items-center mb-4 p-2 rounded-md bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30">
+                  <span className="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase tracking-wider">Superficie Estimada</span>
+                  <span className="text-sm font-bold text-blue-900 dark:text-blue-100">
+                    {((demolition.length || 0) * (config.standardHeight || 2.7)).toFixed(2).replace(".", ",")} m²
+                  </span>
                 </div>
 
                 <div className="flex items-center space-x-2 mb-3">

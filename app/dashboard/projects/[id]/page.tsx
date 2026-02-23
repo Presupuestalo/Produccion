@@ -28,6 +28,7 @@ export default function ProjectPage() {
   const [shouldOpenAnalyzer, setShouldOpenAnalyzer] = useState(false)
   const [isMaster, setIsMaster] = useState(false)
   const [linkedPlans, setLinkedPlans] = useState<{ id: string, variant: string }[]>([])
+  const [activeTab, setActiveTab] = useState<string>("demolition")
 
   const calculatorRef = useRef<CalculatorHandle>(null)
 
@@ -174,113 +175,84 @@ export default function ProjectPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-4 mb-2 py-4 border-b">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-start gap-3 min-w-0">
-            <Button asChild variant="ghost" size="icon" className="shrink-0 h-9 w-9 -ml-2">
-              <Link href="/dashboard/projects">
-                <ArrowLeft className="h-5 w-5" />
-                <span className="sr-only">Volver</span>
-              </Link>
-            </Button>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-xl md:text-2xl font-bold tracking-tight truncate leading-tight mb-1">
-                {project.title || project.name || "Proyecto sin nombre"}
-              </h1>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-1">
-                <p className="text-sm font-medium text-slate-700 truncate">
-                  Cliente: <span className="text-muted-foreground font-normal">{project.client || project.client_name || "Sin cliente"}</span>
-                </p>
-                <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-slate-300" />
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  {project.ceiling_height && (
-                    <span className="bg-slate-100 px-1.5 py-0.5 rounded">Alt: {project.ceiling_height}m</span>
-                  )}
-                  {project.structure_type && (
-                    <span className="bg-slate-100 px-1.5 py-0.5 rounded">{project.structure_type}</span>
-                  )}
-                  {project.has_elevator && (
-                    <span className="bg-slate-100 px-1.5 py-0.5 rounded">
-                      Asc: {project.has_elevator === "Si" || project.has_elevator === "Sí" || project.has_elevator === true || project.has_elevator === "true" ? "Sí" : "No"}
-                    </span>
-                  )}
-                </div>
+    <div className="space-y-2">
+      <div className="flex flex-col gap-1.5 py-1 border-b">
+        {/* Row 1: Back Button + Project Identity */}
+        <div className="flex items-start gap-3 min-w-0">
+          <Button asChild variant="ghost" size="icon" className="shrink-0 h-8 w-8 -ml-2">
+            <Link href="/dashboard/projects">
+              <ArrowLeft className="h-4 w-4" />
+              <span className="sr-only">Volver</span>
+            </Link>
+          </Button>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight truncate leading-tight">
+              {project.title || project.name || "Proyecto sin nombre"}
+            </h1>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-0.5">
+              <p className="text-[13px] font-medium text-slate-700 truncate leading-none">
+                Cliente: <span className="text-muted-foreground font-normal">{project.client || project.client_name || "Sin cliente"}</span>
+              </p>
+              <div className="hidden sm:block w-1 h-1 rounded-full bg-slate-200" />
+              <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground leading-none">
+                {project.ceiling_height && (
+                  <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100 italic">Alt: {project.ceiling_height}m</span>
+                )}
+                {project.structure_type && (
+                  <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100">{project.structure_type}</span>
+                )}
+                {project.has_elevator && (
+                  <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100 font-medium">
+                    Asc: {project.has_elevator === "Si" || project.has_elevator === "Sí" || project.has_elevator === true || project.has_elevator === "true" ? "Sí" : "No"}
+                  </span>
+                )}
               </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="hidden lg:flex">
-              <Button
-                variant="default"
-                size="lg"
-                className="bg-primary hover:bg-primary/90 font-bold h-11 px-8 text-base shadow-lg border-2 border-primary/20"
-                onClick={() => {
-                  if (calculatorRef.current && "setActiveTab" in calculatorRef.current) {
-                    calculatorRef.current.setActiveTab("presupuesto")
-                  }
-                }}
-              >
-                PRESUPUESTOS
-              </Button>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 pt-2">
-          {/* Main Action Group: Design & Plans */}
+        {/* Row 2: Consolidated Actions Row (Unified) */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {/* Main Action Group */}
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="w-full text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 lg:hidden">Planos y Diseño</h3>
-
             {linkedPlans.length > 0 && (
-              <Button asChild variant="default" size="sm" className="h-9 bg-orange-600 hover:bg-orange-700 text-white shadow-sm shrink-0">
+              <Button asChild variant="default" size="sm" className="h-8 bg-slate-900 hover:bg-slate-800 text-white shadow-sm font-bold text-[11px]">
                 <Link href={`/dashboard/projects/${projectId}/plano`}>
-                  <Eye className="mr-1.5 h-4 w-4" />
+                  <Eye className="mr-1.5 h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Ver Planos</span>
-                  <span className="sm:hidden">Ver</span>
+                  <span className="sm:inline hidden md:hidden">Ver</span>
                 </Link>
               </Button>
             )}
 
-            {beforePlan ? (
-              <Button asChild variant="outline" size="sm" className="h-9 border-amber-200 text-amber-700 hover:bg-amber-50 shrink-0">
+            {beforePlan && (
+              <Button asChild variant="outline" size="sm" className="h-8 border-slate-200 text-slate-700 hover:bg-slate-50">
                 <Link href={`/dashboard/editor-planos/editar/${beforePlan.id}`}>
-                  <PencilRuler className="mr-1.5 h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Plano Antes</span>
-                  <span className="sm:hidden">Antes</span>
+                  <PencilRuler className="mr-1.5 h-3 w-3 opacity-70" />
+                  <span className="hidden sm:inline text-[10px] font-semibold tracking-tight">P. ANTES</span>
                 </Link>
               </Button>
-            ) : null}
+            )}
 
-            {afterPlan ? (
-              <Button asChild variant="outline" size="sm" className="h-9 border-emerald-200 text-emerald-700 hover:bg-emerald-50 shrink-0">
+            {afterPlan && (
+              <Button asChild variant="outline" size="sm" className="h-8 border-slate-200 text-slate-700 hover:bg-slate-50">
                 <Link href={`/dashboard/editor-planos/editar/${afterPlan.id}`}>
-                  <PencilRuler className="mr-1.5 h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Plano Después</span>
-                  <span className="sm:hidden">Después</span>
+                  <PencilRuler className="mr-1.5 h-3 w-3 opacity-70" />
+                  <span className="hidden sm:inline text-[10px] font-semibold tracking-tight">P. DESPUÉS</span>
                 </Link>
               </Button>
-            ) : null}
+            )}
 
             {linkedPlans.length === 0 && (
-              <Button asChild variant="outline" size="sm" className="h-9 border-blue-200 text-blue-700 hover:bg-blue-50 shrink-0">
+              <Button asChild variant="outline" size="sm" className="h-8 border-blue-200 text-blue-700 hover:bg-blue-50 font-semibold text-[11px]">
                 <Link href={`/dashboard/editor-planos/nuevo?projectId=${projectId}`}>
                   <PencilRuler className="mr-1.5 h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Crear Plano</span>
-                  <span className="sm:hidden">Plano</span>
+                  <span>Crear Plano</span>
                 </Link>
               </Button>
             )}
-          </div>
 
-          {/* Secondary Action Group: Administrative & Tools */}
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="w-full text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 lg:hidden">Herramientas</h3>
-
-            {isMaster && (
-              <ProjectGallery projectId={projectId} />
-            )}
+            <div className="h-3 w-px bg-slate-200 mx-0.5 hidden lg:block" />
 
             <DualFloorPlanAnalyzer
               projectId={projectId}
@@ -292,38 +264,46 @@ export default function ProjectPage() {
               }}
             />
 
-            {project.user_type === "professional" && <PublishProjectButton project={project} />}
-
             {project.user_type !== "owner" && (
-              <Button asChild variant="outline" size="sm" className="h-9 shrink-0">
+              <Button asChild variant="ghost" size="sm" className="h-8 text-slate-500 hover:text-slate-900 group">
                 <Link href={`/dashboard/projects/${projectId}/edit`}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span className="hidden sm:inline">Ajustes</span>
-                  <span className="sm:hidden sr-only">Ajustes</span>
+                  <Settings className="h-3.5 w-3.5" />
+                  <span className="sr-only">Ajustes</span>
                 </Link>
               </Button>
             )}
+
+            {isMaster && (
+              <div className="scale-90 origin-left">
+                <ProjectGallery projectId={projectId} />
+              </div>
+            )}
+
+            {project.user_type === "professional" && <PublishProjectButton project={project} />}
           </div>
 
-          {/* Mobile Main CTA */}
-          <div className="lg:hidden mt-2">
-            <Button
-              variant="default"
-              size="default"
-              className="w-full bg-primary hover:bg-primary/90 font-bold h-11 shadow-lg border-2 border-primary/20 text-base"
-              onClick={() => {
-                if (calculatorRef.current && "setActiveTab" in calculatorRef.current) {
-                  calculatorRef.current.setActiveTab("presupuesto")
-                }
-              }}
-            >
-              VER PRESUPUESTOS
-            </Button>
-          </div>
+          {/* BUDGET Button - Maximum Prominence, Aligned with Tabs below */}
+          {activeTab !== "presupuesto" && (
+            <div className="flex-1 md:flex-initial flex justify-end md:pr-1">
+              <Button
+                variant="default"
+                size="lg"
+                className="w-full md:w-auto md:px-16 bg-orange-600 hover:bg-orange-700 font-black h-11 shadow-xl shadow-orange-200/50 transition-all active:scale-95 text-sm uppercase tracking-widest rounded-xl border-b-2 border-orange-800"
+                onClick={() => {
+                  if (calculatorRef.current && "setActiveTab" in calculatorRef.current) {
+                    calculatorRef.current.setActiveTab("presupuesto")
+                    setActiveTab("presupuesto")
+                  }
+                }}
+              >
+                PRESUPUESTOS
+              </Button>
+            </div>
+          )}
         </div>
       </div>
-      <div className="pt-2">
-        <Calculator ref={calculatorRef} projectId={projectId} />
+      <div className="pt-1">
+        <Calculator ref={calculatorRef} projectId={projectId} onTabChange={setActiveTab} />
       </div>
     </div>
   )

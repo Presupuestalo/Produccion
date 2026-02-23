@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { BudgetService } from "@/lib/services/budget-service"
 import { createClient } from "@/lib/supabase/client"
 import type { Budget } from "@/lib/types/budget"
-import { FileText, Plus, Loader2, Trash2, AlertTriangle } from "lucide-react"
+import { FileText, Plus, Loader2, Trash2, AlertTriangle, ChevronRight } from "lucide-react"
 import { formatCurrency } from "@/lib/utils/format"
 import { formatDistanceToNow } from "date-fns"
 import { es } from "date-fns/locale"
@@ -76,7 +76,7 @@ export function BudgetList({
 
         const { data: settings } = await supabase
           .from("budget_settings")
-          .select("status")
+          .select("status, show_vat, vat_percentage")
           .eq("project_id", projectId)
           .eq("user_id", user?.id)
           .maybeSingle()
@@ -193,27 +193,30 @@ export function BudgetList({
 
   return (
     <>
-      <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-          <h3 className="text-lg font-medium">Presupuestos del Proyecto</h3>
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 pb-2 border-b">
+          <div>
+            <h3 className="text-xl font-bold tracking-tight text-slate-800">Presupuestos del Proyecto</h3>
+            <p className="text-sm text-muted-foreground mt-0.5">Gestiona y compara las versiones de tu presupuesto</p>
+          </div>
           <div className="flex gap-2 w-full sm:w-auto">
             {budgets.length > 0 && (
               <Button
                 size="sm"
-                variant="outline"
+                variant="ghost"
                 onClick={() => setShowDeleteAllDialog(true)}
                 disabled={deletingAll}
-                className="text-destructive hover:text-white flex-1 sm:flex-none"
+                className="text-slate-400 hover:text-destructive hover:bg-destructive/5 flex-1 sm:flex-none transition-colors"
               >
                 {deletingAll ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
                     Eliminando...
                   </>
                 ) : (
                   <>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Eliminar Todos
+                    <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                    Limpiar todo
                   </>
                 )}
               </Button>
@@ -223,7 +226,7 @@ export function BudgetList({
               onClick={onCreateBudget}
               disabled={!hasData || isGenerating || hasAcceptedBudget}
               title={hasAcceptedBudget ? "No se pueden crear más presupuestos mientras haya uno aceptado" : ""}
-              className="flex-1 sm:flex-none"
+              className="flex-1 sm:flex-none shadow-md bg-orange-600 hover:bg-orange-700 font-bold px-5"
             >
               {isGenerating ? (
                 <>
@@ -232,8 +235,8 @@ export function BudgetList({
                 </>
               ) : (
                 <>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nuevo
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Nuevo Presupuesto
                 </>
               )}
             </Button>
@@ -241,61 +244,107 @@ export function BudgetList({
         </div>
 
         {budgets.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-            <p className="text-sm text-amber-800">
-              Si has modificado datos en la calculadora, genera un nuevo presupuesto para reflejar los cambios actuales.
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex items-center gap-3 shadow-sm">
+            <div className="bg-orange-100 p-1.5 rounded-full">
+              <AlertTriangle className="h-3.5 w-3.5 text-orange-600" />
+            </div>
+            <p className="text-[13px] text-slate-600 font-medium leading-tight">
+              Si has modificado la calculadora, genera un <span className="text-orange-700 font-bold">nuevo presupuesto</span> para actualizar resultados.
             </p>
           </div>
         )}
 
-        <div className="space-y-2">
-          {budgets.map((budget) => (
-            <Card key={budget.id} className="hover:border-primary/50 transition-colors">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onSelectBudget(budget.id)}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-medium truncate">{budget.name}</h4>
-                      {budget.is_original && (
-                        <Badge variant="outline" className="text-xs">
-                          Original
-                        </Badge>
-                      )}
-                      {getStatusBadge(budget.status)}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      v{budget.version_number} •{" "}
-                      {formatDistanceToNow(new Date(budget.created_at), { addSuffix: true, locale: es })}
-                      {currentDataHash && budgets[0]?.id === budget.id && budgets.length > 1 && (
-                        <span className="ml-2 inline-flex items-center text-blue-600 text-xs font-medium bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                          Más reciente
+        <div className="grid gap-3">
+          {budgets.map((budget, index) => (
+            <Card
+              key={budget.id}
+              className={`group hover:shadow-lg hover:border-orange-200 transition-all duration-300 cursor-pointer overflow-hidden border-slate-200/60 ${index === 0 ? 'bg-gradient-to-br from-white to-slate-50/50' : 'bg-white'}`}
+              onClick={() => onSelectBudget(budget.id)}
+            >
+              <CardContent className="p-0">
+                <div className="flex items-center">
+                  {/* Status indicator bar */}
+                  <div className={`w-1.5 self-stretch ${budget.status === 'approved' ? 'bg-green-500' :
+                    budget.status === 'sent' ? 'bg-blue-500' :
+                      'bg-slate-300'
+                    }`} />
+
+                  <div className="flex-1 p-4 flex justify-between items-center gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <h4 className="font-bold text-slate-800 group-hover:text-orange-600 transition-colors truncate">
+                          {budget.name}
+                        </h4>
+                        <div className="flex items-center gap-1.5">
+                          {budget.is_original && (
+                            <Badge variant="outline" className="text-[10px] uppercase font-bold text-slate-400 bg-white shadow-xs">
+                              Base
+                            </Badge>
+                          )}
+                          {getStatusBadge(budget.status)}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-xs text-slate-500">
+                        <span className="font-semibold bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">v{budget.version_number}</span>
+                        <span className="flex items-center gap-1 opacity-80">
+                          {formatDistanceToNow(new Date(budget.created_at), { addSuffix: true, locale: es })}
                         </span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="text-right">
-                      <div className="text-lg font-semibold text-primary">{formatCurrency(budget.total)}</div>
-                      <div className="text-xs text-muted-foreground">IVA incluido</div>
-                    </div>
-                    {budgets.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setBudgetToDelete(budget)
-                        }}
-                        disabled={deletingId === budget.id}
-                      >
-                        {deletingId === budget.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                        {currentDataHash && budgets[0]?.id === budget.id && budgets.length > 1 && (
+                          <span className="text-blue-600 font-bold flex items-center gap-1">
+                            <span className="h-1 w-1 rounded-full bg-blue-600" />
+                            Más reciente
+                          </span>
                         )}
-                      </Button>
-                    )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-5 shrink-0">
+                      <div className="text-right">
+                        <div className="text-xl font-black text-slate-900 flex items-baseline gap-0.5">
+                          {(() => {
+                            const showVat = budgetSettings?.show_vat
+                            const vatRate = budgetSettings?.vat_percentage ?? 21
+                            const displayAmount = showVat
+                              ? budget.subtotal * (1 + vatRate / 100)
+                              : budget.subtotal
+
+                            const formatted = formatCurrency(displayAmount)
+                            return (
+                              <>
+                                {formatted.split(',')[0]}
+                                <span className="text-sm font-bold opacity-60">,{formatted.split(',')[1]}</span>
+                              </>
+                            )
+                          })()}
+                        </div>
+                        {budgetSettings?.show_vat && (
+                          <div className="text-[10px] uppercase tracking-tighter font-bold text-slate-400">IVA Incluido</div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        {budgets.length > 1 && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 text-slate-300 hover:text-destructive hover:bg-destructive/10 rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setBudgetToDelete(budget)
+                            }}
+                            disabled={deletingId === budget.id}
+                          >
+                            {deletingId === budget.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4.5 w-4.5" />
+                            )}
+                          </Button>
+                        )}
+                        <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-orange-400 group-hover:translate-x-0.5 transition-all" />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardContent>

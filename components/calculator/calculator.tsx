@@ -204,6 +204,7 @@ type CalculatorProps = {
   onSave?: () => void // Added onSave prop for potential external save triggers
   initialData?: any // Añadido initialData
   project?: any // Añadido project prop
+  onTabChange?: (tab: string) => void // New prop to notify parent of tab changes
 }
 
 export interface CalculatorHandle {
@@ -219,7 +220,7 @@ export interface CalculatorHandle {
 }
 
 const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calculator(
-  { projectId, onSave, initialData, project },
+  { projectId, onSave, initialData, project, onTabChange },
   ref,
 ) {
   const { toast } = useToast()
@@ -2373,7 +2374,14 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) => {
+          setActiveTab(val)
+          if (onTabChange) onTabChange(val)
+        }}
+        className="w-full"
+      >
         <div className="relative w-full mb-4">
           <div className="w-full overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
             <TabsList className="flex h-auto bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl gap-1 lg:grid lg:grid-cols-5 lg:w-full w-max border shadow-sm">

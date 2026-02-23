@@ -224,6 +224,7 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
                         })
                       }
                     }}
+                    onFocus={(e) => e.target.select()}
                     placeholder="0,01"
                     maxLength={5}
                   />
@@ -256,6 +257,7 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
                     onChange={(e) =>
                       handleDecimalChange("woodExpansionCoef", e.target.value, setWoodExpansionCoefInput)
                     }
+                    onFocus={(e) => e.target.select()}
                     placeholder="1,40"
                     maxLength={5}
                   />
@@ -320,6 +322,7 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
                     onChange={(e) =>
                       handleDecimalChange("mortarBaseThickness", e.target.value, setMortarBaseThicknessInput)
                     }
+                    onFocus={(e) => e.target.select()}
                     placeholder="0,08"
                     maxLength={5}
                   />
@@ -388,6 +391,7 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
                     onChange={(e) =>
                       handleDecimalChange("wallExpansionCoef", e.target.value, setWallExpansionCoefInput)
                     }
+                    onFocus={(e) => e.target.select()}
                     placeholder="1,40"
                     maxLength={5}
                   />
@@ -427,6 +431,7 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
                         })
                       }
                     }}
+                    onFocus={(e) => e.target.select()}
                     placeholder="1,40"
                     maxLength={5}
                   />
@@ -459,6 +464,7 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
                     onChange={(e) =>
                       handleDecimalChange("woodExpansionCoef", e.target.value, setWoodExpansionCoefInput)
                     }
+                    onFocus={(e) => e.target.select()}
                     placeholder="1,40"
                     maxLength={5}
                   />
@@ -491,6 +497,7 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
                     onChange={(e) =>
                       handleDecimalChange("woodenFloorExpansionCoef", e.target.value, setWoodenFloorExpansionCoefInput)
                     }
+                    onFocus={(e) => e.target.select()}
                     placeholder="1,40"
                     maxLength={5}
                   />
@@ -525,6 +532,7 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
                     onChange={(e) =>
                       handleDecimalChange("mortarBaseExpansionCoef", e.target.value, setMortarBaseExpansionCoefInput)
                     }
+                    onFocus={(e) => e.target.select()}
                     placeholder="1,40"
                     maxLength={5}
                   />
@@ -559,6 +567,7 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
                     onChange={(e) =>
                       handleDecimalChange("ceilingExpansionCoef", e.target.value, setCeilingExpansionCoefInput)
                     }
+                    onFocus={(e) => e.target.select()}
                     placeholder="1,40"
                     maxLength={5}
                   />

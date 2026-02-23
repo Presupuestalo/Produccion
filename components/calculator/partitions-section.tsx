@@ -238,6 +238,7 @@ export function PartitionsSection({
                           value={linearMetersInputs[partition.id] || ""}
                           onChange={(e) => handleLinearMetersChange(partition.id, e.target.value, true)}
                           onBlur={() => handleLinearMetersBlur(partition.id, true)}
+                          onFocus={(e) => e.target.select()}
                           placeholder="0,00"
                           className="h-9 mt-1"
                         />
@@ -250,14 +251,17 @@ export function PartitionsSection({
                           value={heightInputs[partition.id] || ""}
                           onChange={(e) => handleHeightChange(partition.id, e.target.value, true)}
                           onBlur={() => handleHeightBlur(partition.id, true)}
+                          onFocus={(e) => e.target.select()}
                           placeholder="0,00"
                           className="h-9 mt-1"
                         />
                       </div>
                       <div className="sm:col-span-2">
                         <Label className="text-xs text-muted-foreground">Área</Label>
-                        <div className="h-9 mt-1 flex items-center text-sm font-semibold">
-                          {formatDecimalInput(partition.linearMeters * partition.height)} m²
+                        <div className="h-9 mt-1 flex items-center">
+                          <span className="px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-sm font-bold border border-blue-100 dark:border-blue-800">
+                            {formatDecimalInput(partition.linearMeters * partition.height)} m²
+                          </span>
                         </div>
                       </div>
                       <div className="sm:col-span-1 flex items-end">
@@ -325,6 +329,7 @@ export function PartitionsSection({
                           value={linearMetersInputs[lining.id] || ""}
                           onChange={(e) => handleLinearMetersChange(lining.id, e.target.value, false)}
                           onBlur={() => handleLinearMetersBlur(lining.id, false)}
+                          onFocus={(e) => e.target.select()}
                           placeholder="0,00"
                           className="h-9 mt-1"
                         />
@@ -337,14 +342,17 @@ export function PartitionsSection({
                           value={heightInputs[lining.id] || ""}
                           onChange={(e) => handleHeightChange(lining.id, e.target.value, false)}
                           onBlur={() => handleHeightBlur(lining.id, false)}
+                          onFocus={(e) => e.target.select()}
                           placeholder="0,00"
                           className="h-9 mt-1"
                         />
                       </div>
                       <div className="sm:col-span-4">
                         <Label className="text-xs text-muted-foreground">Área</Label>
-                        <div className="h-9 mt-1 flex items-center text-sm font-semibold">
-                          {formatDecimalInput(lining.linearMeters * lining.height)} m²
+                        <div className="h-9 mt-1 flex items-center">
+                          <span className="px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-sm font-bold border border-blue-100 dark:border-blue-800">
+                            {formatDecimalInput(lining.linearMeters * lining.height)} m²
+                          </span>
                         </div>
                       </div>
                       <div className="sm:col-span-1 flex items-end">
