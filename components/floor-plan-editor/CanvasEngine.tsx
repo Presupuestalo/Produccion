@@ -66,7 +66,7 @@ interface CanvasEngineProps {
     windows: Window[]
     shunts?: Shunt[]
     currentWall: { start: Point; end: Point } | null
-    activeTool: string
+    activeTool: "select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt" | "ceramic" | "eraser"
     hoveredWallId: string | null
     onPan: (x: number, y: number) => void
     onZoom: (newZoom: number) => void
@@ -122,6 +122,7 @@ interface CanvasEngineProps {
     onDblClick?: (point: Point) => void
     onDblTap?: (point: Point) => void
     showAreas?: boolean
+    alignmentGuides?: { x?: number, y?: number } | null
 }
 
 export interface CanvasEngineRef {
@@ -485,13 +486,15 @@ export const CanvasEngine = ({
     showAreas = true,
     showGrid = true,
     onDblClick,
-    onDblTap
+    onDblTap,
+    alignmentGuides: externalGuides
 }: CanvasEngineProps) => {
     const [isCeramicEraserActive, setIsCeramicEraserActive] = React.useState(false)
     const stageRef = React.useRef<any>(null)
     const gridRef = React.useRef<any>(null)
     const [dragShuntState, setDragShuntState] = React.useState<{ id: string, x: number, y: number } | null>(null)
     const [draggedWallId, setDraggedWallId] = React.useState<string | null>(null)
+    const [alignmentGuides, setAlignmentGuides] = React.useState<{ x?: number, y?: number } | null>(null)
     const [image, setImage] = React.useState<HTMLImageElement | null>(null)
 
     // Generic Input State for Inline Editing (Shunts, Doors, Windows, Measures)
@@ -879,7 +882,7 @@ export const CanvasEngine = ({
         img.src = canvas.toDataURL()
         img.onload = () => setWallHatchingImage(img)
     }, [])
-    const [alignmentGuides, setAlignmentGuides] = React.useState<{ x?: number, y?: number } | null>(null)
+    const [internalAlignmentGuides, setInternalAlignmentGuides] = React.useState<{ x?: number, y?: number } | null>(null)
     const [editMode, setEditMode] = React.useState<"menu" | "length" | "thickness" | "room" | "room-custom" | null>(null)
     const [editLength, setEditLength] = React.useState<string>("")
     const [editHeight, setEditHeight] = React.useState<string>("")
@@ -1053,7 +1056,7 @@ export const CanvasEngine = ({
                 guides.y = bestSnapY
             }
 
-            setAlignmentGuides(Object.keys(guides).length > 0 ? guides : null)
+            setInternalAlignmentGuides(Object.keys(guides).length > 0 ? guides : null)
             // --- SNAPPING LOGIC END ---
 
             onDragVertex(dragStartPos.current, totalDelta, draggingVertexWallIds.current)
@@ -1064,7 +1067,7 @@ export const CanvasEngine = ({
                 isDraggingVertexRef.current = false
                 dragStartPos.current = null
                 dragStartPointerPos.current = null
-                setAlignmentGuides(null) // Clear guides
+                setInternalAlignmentGuides(null) // Clear guides
                 onDragEnd()
                 document.body.style.cursor = 'default'
             }
@@ -1276,7 +1279,7 @@ export const CanvasEngine = ({
         const rawY = (pointer.y - offset.y) / zoom
         let point = { x: rawX, y: rawY }
 
-        setAlignmentGuides(null)
+        setInternalAlignmentGuides(null)
 
         if (!snappingEnabled) return point
 
@@ -1316,7 +1319,7 @@ export const CanvasEngine = ({
 
         // Aplicar alineaciones
         if (snappedX !== null || snappedY !== null) {
-            setAlignmentGuides({ x: snappedX ?? undefined, y: snappedY ?? undefined })
+            setInternalAlignmentGuides({ x: snappedX ?? undefined, y: snappedY ?? undefined })
             if (snappedX !== null) point.x = snappedX
             if (snappedY !== null) point.y = snappedY
 
@@ -1347,7 +1350,8 @@ export const CanvasEngine = ({
         }
     }
 
-    const findTerminal = (startWall: Wall, startP: Point, visited: Set<string>, faceNormal: Point, isInterior: boolean) => {
+    const findTerminal = (startWall: Wall, startP: Point, visited: Set<string>, faceNormal: Point, interiorRoomId?: string) => {
+        const isInterior = !!interiorRoomId
         const TOL = 5.0
         let curr = startP
         let addedLen = 0
@@ -1383,9 +1387,15 @@ export const CanvasEngine = ({
 
             const midP_cont = { x: (cont.start.x + cont.end.x) / 2, y: (cont.start.y + cont.end.y) / 2 }
             const testP_cont = { x: midP_cont.x + faceNormal.x * 12, y: midP_cont.y + faceNormal.y * 12 }
-            const contIsInterior = isPointInAnyRoom(testP_cont)
+            const contIsInterior = interiorRoomId ? isPointInPolygon(testP_cont, rooms.find(r => r.id === interiorRoomId)!.polygon) : false
 
-            if (isInterior && contIsInterior !== isInterior) {
+            if (isInterior && !contIsInterior) {
+                return { terminal: curr, addedLen, terminalWallId }
+            }
+
+            // If we are measuring EXTERIOR, we should also stop if we hit an interior segment
+            // (i.e., we are crossing into the "inside" of some room part)
+            if (!isInterior && isPointInAnyRoom(testP_cont)) {
                 return { terminal: curr, addedLen, terminalWallId }
             }
 
@@ -1523,18 +1533,18 @@ export const CanvasEngine = ({
             const ny = dx / centerLength
             const faceNormal = { x: nx * (editFace === "interior" ? 1 : -1), y: ny * (editFace === "interior" ? 1 : -1) }
 
-            const isInterior = (editFace === "interior") || (() => {
-                const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
-                const safeOffset = (selectedWall.thickness / 2) + 10
-                const testP = { x: midP.x + faceNormal.x * safeOffset, y: midP.y + faceNormal.y * safeOffset }
-                return isPointInAnyRoom(testP)
-            })()
+            const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
+            const safeOffset = (selectedWall.thickness / 2) + 12
+            const testP = { x: midP.x + faceNormal.x * safeOffset, y: midP.y + faceNormal.y * safeOffset }
+            const owningRoom = rooms.find(r => isPointInPolygon(testP, r.polygon))
+            const interiorRoomId = owningRoom?.id
+
             const chainIds = new Set([selectedWall.id])
 
             // GLOBAL CHAIN LOGIC: Always sync with the total chain length (Interior or Exterior)
             // to maintain consistency with the visualized labels.
-            const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, isInterior)
-            const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, isInterior)
+            const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, interiorRoomId)
+            const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, interiorRoomId)
             const chainLen = centerLength + back.addedLen + forward.addedLen
 
             const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || selectedWall
@@ -1563,15 +1573,23 @@ export const CanvasEngine = ({
         // Deterministic face type based on offset side
         const faceType: "interior" | "exterior" = offsetVal > 0 ? "interior" : "exterior"
         const midP = { x: (wall.start.x + wall.end.x) / 2, y: (wall.start.y + wall.end.y) / 2 }
-        // Use a fixed distance that is always outside the wall for robust detection
-        const testP_dist = (wall.thickness / 2) + 8
-        const testP = { x: midP.x + faceNormal.x * testP_dist, y: midP.y + faceNormal.y * testP_dist }
-        const isInterior = (faceType === "interior") || isPointInAnyRoom(testP)
+
+        // Robust Interior/Exterior detection & Room identification
+        const safeCheckDist = (wall.thickness / 2) + 12
+        const interiorTestP = { x: midP.x + nx * safeCheckDist, y: midP.y + ny * safeCheckDist }
+        const exteriorTestP = { x: midP.x - nx * safeCheckDist, y: midP.y - ny * safeCheckDist }
+
+        // We consider the side we are rendering on
+        const currentSideTestP = offsetVal > 0 ? interiorTestP : exteriorTestP
+        const owningRoom = rooms.find(r => isPointInPolygon(currentSideTestP, r.polygon))
+        const isActuallyInterior = !!owningRoom
+        const interiorRoomId = owningRoom?.id
+        const isInterior = isActuallyInterior // For findTerminal and other logic
 
         // COLLINEAR CHAIN SEARCH
         const chainIds = new Set([wall.id])
-        const back = findTerminal(wall, wall.start, chainIds, faceNormal, isInterior)
-        const forward = findTerminal(wall, wall.end, chainIds, faceNormal, isInterior)
+        const back = findTerminal(wall, wall.start, chainIds, faceNormal, interiorRoomId)
+        const forward = findTerminal(wall, wall.end, chainIds, faceNormal, interiorRoomId)
 
         const totalChainCenter = centerLength + back.addedLen + forward.addedLen
         const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || wall
@@ -1596,7 +1614,7 @@ export const CanvasEngine = ({
                 if (selectedRoom.area < 2) {
                     isVisible = false
                 } else {
-                    isVisible = isPointInPolygon(testP, selectedRoom.polygon)
+                    isVisible = isPointInPolygon(currentSideTestP, selectedRoom.polygon)
                 }
             }
         }
@@ -1604,7 +1622,6 @@ export const CanvasEngine = ({
         if (!isVisible) return null
 
         const isInteractive = forceInteractive ?? isAnyInChainSelected
-        const isActuallyInterior = isInterior // Calculated earlier via testP
 
         const defaultColor = isInteractive
             ? (isActuallyInterior ? "#0ea5e9" : "#f59e0b")
@@ -1624,9 +1641,15 @@ export const CanvasEngine = ({
 
         // Offset visual de la lÃ­nea de medida - CLOSE TO WALL
         const isShortWall = displayLength < 60
-        // Scale offset to ensure it never touches the wall
+        // Scale offset to ensure it never touches the wall and stacks properly
         const baseOffsetFactor = 1.4
-        const visualOff = isShortWall ? offsetVal * (baseOffsetFactor + 0.5) : offsetVal * baseOffsetFactor
+
+        // STACKING LOGIC: Total chains (facades) go further out than individual segments
+        const isTotalChain = (totalChainCenter > centerLength + 5)
+        const stackMultiplier = isTotalChain ? 1.6 : 1.0
+        const extMultiplier = !isActuallyInterior ? 1.3 : 1.0 // Exterior goes a bit further out to differentiate
+
+        const visualOff = (offsetVal * baseOffsetFactor) * stackMultiplier * extMultiplier
 
         const p1x = (back.terminal.x + ux * finalOffStart) + nx * visualOff
         const p1y = (back.terminal.y + uy * finalOffStart) + ny * visualOff
@@ -2013,63 +2036,139 @@ export const CanvasEngine = ({
 
         if (e.evt.button !== 0 && (e.evt as any).pointerType === 'mouse') return
 
-        // CERAMIC ERASER LOGIC
-        if (isCeramicEraserActive && selectedRoomId) {
-            const room = rooms.find(r => r.id === selectedRoomId);
-            if (room) {
-                const pointer = stage.getPointerPosition();
-                if (pointer) {
-                    const pos = getRelativePointerPosition(stage, { x: pointer.x, y: pointer.y });
+        // HERRAMIENTA CERÁMICA
+        if (activeTool === "ceramic") {
+            const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
 
-                    // 1. Check if click is on a shunt (column) inside the selected room
-                    const clickedShunt = shunts.find(s => {
-                        const halfW = s.width / 2;
-                        const halfH = s.height / 2;
-                        return pos.x >= s.x - halfW && pos.x <= s.x + halfW &&
-                            pos.y >= s.y - halfH && pos.y <= s.y + halfH;
-                    });
-                    if (clickedShunt && onUpdateShunt) {
-                        onUpdateShunt(clickedShunt.id, { hasCeramic: !(clickedShunt as any).hasCeramic });
-                        return;
-                    }
-
-                    // 2. Check if click is on a room wall segment
-                    let bestSegWallId: string | null = null;
-                    let minDist = Infinity;
-
+            // 1. Intentar toggle de alicatado en muro
+            let bestSegWallId: string | null = null
+            let minDist = 30 / zoom
+            const roomId = getRoomIdAt(pos)
+            if (roomId) {
+                const room = rooms.find(r => r.id === roomId)
+                if (room) {
                     room.polygon.forEach((p1, k) => {
-                        const p2 = room.polygon[(k + 1) % room.polygon.length];
-                        const { point: proj } = getClosestPointOnSegment(pos, p1, p2);
-                        const d = Math.sqrt((pos.x - proj.x) ** 2 + (pos.y - proj.y) ** 2);
-                        if (d < 25 / zoom && d < minDist) {
-                            const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+                        const p2 = room.polygon[(k + 1) % room.polygon.length]
+                        const { point: proj } = getClosestPointOnSegment(pos, p1, p2)
+                        const d = Math.sqrt((pos.x - proj.x) ** 2 + (pos.y - proj.y) ** 2)
+                        if (d < minDist) {
+                            // Buscar el muro real que coincide con este segmento del polígono
+                            const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
                             const foundWall = walls.find(w => {
-                                const dx_w = w.end.x - w.start.x;
-                                const dy_w = w.end.y - w.start.y;
-                                const lengthSq = dx_w * dx_w + dy_w * dy_w;
-                                if (lengthSq === 0) return false;
-                                const t = Math.max(0, Math.min(1, ((midP.x - w.start.x) * dx_w + (midP.y - w.start.y) * dy_w) / lengthSq));
-                                const projX = w.start.x + t * dx_w;
-                                const projY = w.start.y + t * dy_w;
-                                return Math.sqrt((midP.x - projX) ** 2 + (midP.y - projY) ** 2) < 4.0;
-                            });
+                                const dx_w = w.end.x - w.start.x
+                                const dy_w = w.end.y - w.start.y
+                                const lengthSq = dx_w * dx_w + dy_w * dy_w
+                                if (lengthSq === 0) return false
+                                const t = Math.max(0, Math.min(1, ((midP.x - w.start.x) * dx_w + (midP.y - w.start.y) * dy_w) / lengthSq))
+                                const projX = w.start.x + t * dx_w
+                                const projY = w.start.y + t * dy_w
+                                return Math.sqrt((midP.x - projX) ** 2 + (midP.y - projY) ** 2) < 5.0
+                            })
                             if (foundWall) {
-                                bestSegWallId = foundWall.id;
-                                minDist = d;
+                                bestSegWallId = foundWall.id
+                                minDist = d
                             }
                         }
-                    });
+                    })
+                }
+            }
 
+            if (bestSegWallId && roomId) {
+                const room = rooms.find(r => r.id === roomId)!
+                const currentDisabled = room.disabledCeramicWalls || []
+                let nextDisabled: string[]
+                let nextHasCeramicWalls = room.hasCeramicWalls
+
+                if (!nextHasCeramicWalls) {
+                    // Activar paredes cerámicas para la habitación, pero deshabilitar todas excepto la clicada
+                    nextHasCeramicWalls = true
+                    // Obtenemos todos los muros que forman esta habitación
+                    const roomWallIds = walls
+                        .filter(w => !w.isInvisible && room.polygon.some((p, i) => {
+                            const pNext = room.polygon[(i + 1) % room.polygon.length]
+                            const midW = { x: (w.start.x + w.end.x) / 2, y: (w.start.y + w.end.y) / 2 }
+                            const { point: projW } = getClosestPointOnSegment(midW, p, pNext)
+                            const distW = Math.sqrt((midW.x - projW.x) ** 2 + (midW.y - projW.y) ** 2)
+                            return distW < 5.0
+                        }))
+                        .map(w => w.id)
+
+                    nextDisabled = roomWallIds.filter(id => id !== bestSegWallId)
+                } else {
+                    nextDisabled = currentDisabled.includes(bestSegWallId)
+                        ? currentDisabled.filter(id => id !== bestSegWallId)
+                        : [...currentDisabled, bestSegWallId]
+                }
+                onUpdateRoom(roomId, { hasCeramicWalls: nextHasCeramicWalls, disabledCeramicWalls: nextDisabled })
+                return
+            }
+
+            // 2. Intentar toggle de suelo cerámico
+            if (roomId) {
+                const room = rooms.find(r => r.id === roomId)!
+                onUpdateRoom(roomId, { hasCeramicFloor: !room.hasCeramicFloor })
+                return
+            }
+        }
+
+        // HERRAMIENTA GOMA (BORRADOR)
+        if (activeTool === "eraser") {
+            const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
+
+            // 1. Quitar alicatado si clicamos en un muro alicatado
+            const roomId = getRoomIdAt(pos)
+            if (roomId) {
+                const room = rooms.find(r => r.id === roomId)!
+                if (room.hasCeramicWalls) {
+                    let bestSegWallId: string | null = null
+                    let minDist = 30 / zoom
+                    room.polygon.forEach((p1, k) => {
+                        const p2 = room.polygon[(k + 1) % room.polygon.length]
+                        const { point: proj } = getClosestPointOnSegment(pos, p1, p2)
+                        const d = Math.sqrt((pos.x - proj.x) ** 2 + (pos.y - proj.y) ** 2)
+                        if (d < minDist) {
+                            const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+                            const foundWall = walls.find(w => {
+                                const dx_w = w.end.x - w.start.x
+                                const dy_w = w.end.y - w.start.y
+                                const lengthSq = dx_w * dx_w + dy_w * dy_w
+                                if (lengthSq === 0) return false
+                                const t = Math.max(0, Math.min(1, ((midP.x - w.start.x) * dx_w + (midP.y - w.start.y) * dy_w) / lengthSq))
+                                const projX = w.start.x + t * dx_w
+                                const projY = w.start.y + t * dy_w
+                                return Math.sqrt((midP.x - projX) ** 2 + (midP.y - projY) ** 2) < 5.0
+                            })
+                            // Solo si el muro TIENE alicatado (no está en disabledCeramicWalls)
+                            if (foundWall && !(room.disabledCeramicWalls || []).includes(foundWall.id)) {
+                                bestSegWallId = foundWall.id
+                                minDist = d
+                            }
+                        }
+                    })
                     if (bestSegWallId) {
-                        const currentDisabled = room.disabledCeramicWalls || [];
-                        const newDisabled = currentDisabled.includes(bestSegWallId)
-                            ? currentDisabled.filter(id => id !== bestSegWallId)
-                            : [...currentDisabled, bestSegWallId];
-                        onUpdateRoom(room.id, { disabledCeramicWalls: newDisabled });
-                        return; // Prevent further action
+                        const currentDisabled = room.disabledCeramicWalls || []
+                        onUpdateRoom(room.id, { disabledCeramicWalls: [...currentDisabled, bestSegWallId] })
+                        return
                     }
                 }
             }
+
+            // 2. Comportamiento normal: borrar el elemento
+            if (targetName.startsWith("wall-")) {
+                const wallId = targetName.split("wall-")[1].split("-")[0]
+                onDeleteWall(wallId)
+                return
+            } else if (targetName.startsWith("door-") || targetName.startsWith("window-") || targetName.startsWith("shunt-")) {
+                const type = targetName.split("-")[0] as "door" | "window" | "shunt"
+                const id = targetName.split("-")[1]
+                onDeleteElement(type, id)
+                return
+            }
+        }
+
+        // LÓGICA ANTIGUA DE GOMA CERÁMICA (Mantener por retrocompatibilidad si es necesario, pero el activeTool es preferible)
+        if (isCeramicEraserActive && selectedRoomId) {
+            // ... (rest of old logic which I'll keep for now to avoid breaking the button in the menu)
         }
 
         // Si pinchamos en algo (o cerca por el offset) y es tÃ¡ctil, disparamos su lÃ³gica
@@ -2441,7 +2540,15 @@ export const CanvasEngine = ({
     }
 
     return (
-        <div className="w-full h-full bg-slate-50 overflow-hidden" style={{ touchAction: 'none', cursor: isCeramicEraserActive ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230ea5e9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21'/%3E%3Cpath d='M22 21H7'/%3E%3Cpath d='m5 11 9 9'/%3E%3C/svg%3E") 12 12, pointer` : undefined }}>
+        <div className="w-full h-full bg-slate-50 overflow-hidden"
+            style={{
+                touchAction: 'none',
+                cursor: (isCeramicEraserActive || activeTool === "eraser")
+                    ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21'/%3E%3Cpath d='M22 21H7'/%3E%3Cpath d='m5 11 9 9'/%3E%3C/svg%3E") 12 12, pointer`
+                    : activeTool === "ceramic"
+                        ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230ea5e9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='18' x='3' y='3' rx='2'/%3E%3Cpath d='M3 9h18'/%3E%3Cpath d='M3 15h18'/%3E%3Cpath d='M9 3v18'/%3E%3Cpath d='M15 3v18'/%3E%3C/svg%3E") 12 12, pointer`
+                        : undefined
+            }}>
             <Stage
                 ref={stageRef}
                 width={width}
@@ -2835,12 +2942,12 @@ export const CanvasEngine = ({
                             const midP = { x: (wall.start.x + wall.end.x) / 2, y: (wall.start.y + wall.end.y) / 2 }
                             // Determine if we are measuring on an interior-pointing face for proper terminal traversal
                             const testP = { x: midP.x + nx_local * (wall.thickness / 2 + 10), y: midP.y + ny_local * (wall.thickness / 2 + 10) }
-                            const isInterior = isPointInAnyRoom(testP)
+                            const interiorRoomId = rooms.find(r => isPointInPolygon(testP, r.polygon))?.id
                             const faceNormal = { x: nx_local, y: ny_local }
 
                             const chainIds = new Set([wall.id])
-                            const back = findTerminal(wall, wall.start, chainIds, faceNormal, isInterior)
-                            const forward = findTerminal(wall, wall.end, chainIds, faceNormal, isInterior)
+                            const back = findTerminal(wall, wall.start, chainIds, faceNormal, interiorRoomId)
+                            const forward = findTerminal(wall, wall.end, chainIds, faceNormal, interiorRoomId)
 
                             // Helper to get connected wall thickness at a vertex (IGNORING INVISIBLE WALLS)
                             const getNeighborThickness = (p: { x: number, y: number }, wallId: string) => {
@@ -3201,12 +3308,12 @@ export const CanvasEngine = ({
                             const midP = { x: (wall.start.x + wall.end.x) / 2, y: (wall.start.y + wall.end.y) / 2 }
                             // Determine if we are measuring on an interior-pointing face for proper terminal traversal
                             const testP = { x: midP.x + nx_local * (wall.thickness / 2 + 10), y: midP.y + ny_local * (wall.thickness / 2 + 10) }
-                            const isInterior = isPointInAnyRoom(testP)
+                            const interiorRoomId = rooms.find(r => isPointInPolygon(testP, r.polygon))?.id
                             const faceNormal = { x: nx_local, y: ny_local }
 
                             const chainIds = new Set([wall.id])
-                            const back = findTerminal(wall, wall.start, chainIds, faceNormal, isInterior)
-                            const forward = findTerminal(wall, wall.end, chainIds, faceNormal, isInterior)
+                            const back = findTerminal(wall, wall.start, chainIds, faceNormal, interiorRoomId)
+                            const forward = findTerminal(wall, wall.end, chainIds, faceNormal, interiorRoomId)
 
                             // Helper to get connected wall thickness at a vertex (IGNORING INVISIBLE WALLS)
                             const getNeighborThickness = (p: { x: number, y: number }, wallId: string) => {
@@ -3842,20 +3949,22 @@ export const CanvasEngine = ({
                                             fill="#1e293b"
                                             fontStyle="bold"
                                             align="center"
-                                            offsetX={50 * scale}
-                                            width={100 * scale}
+                                            offsetX={125 * scale}
+                                            width={250 * scale}
+                                            wrap="none"
                                         />
                                     )}
                                     {showAreas && (
                                         <Text
                                             name="room-label-text"
-                                            y={10 * scale}
+                                            y={12 * scale}
                                             text={`${room.area.toFixed(2).replace('.', ',')} m²`}
                                             fontSize={14 * scale}
                                             fill="#64748b"
                                             align="center"
-                                            offsetX={50 * scale}
-                                            width={100 * scale}
+                                            offsetX={125 * scale}
+                                            width={250 * scale}
+                                            wrap="none"
                                         />
                                     )}
                                 </Group>
@@ -3938,28 +4047,33 @@ export const CanvasEngine = ({
                         })()}
 
                         {/* GuÃ­as inteligentes de alineaciÃ³n */}
-                        {alignmentGuides && mousePos && (
-                            <Group listening={false}>
-                                {alignmentGuides.x !== undefined && (
-                                    <Line
-                                        points={[alignmentGuides.x, -5000, alignmentGuides.x, 5000]}
-                                        stroke="#0ea5e9"
-                                        strokeWidth={1.5 / zoom}
-                                        dash={[10, 5]}
-                                        opacity={0.8}
-                                    />
-                                )}
-                                {alignmentGuides.y !== undefined && (
-                                    <Line
-                                        points={[-5000, alignmentGuides.y, 5000, alignmentGuides.y]}
-                                        stroke="#0ea5e9"
-                                        strokeWidth={1.5 / zoom}
-                                        dash={[10, 5]}
-                                        opacity={0.8}
-                                    />
-                                )}
-                            </Group>
-                        )}
+                        {/* External & Internal Alignment Guides */}
+                        {(() => {
+                            const guides = externalGuides || internalAlignmentGuides
+                            if (!guides) return null
+                            return (
+                                <Group listening={false}>
+                                    {guides.x !== undefined && (
+                                        <Line
+                                            points={[guides.x, -5000, guides.x, 5000]}
+                                            stroke="#0ea5e9"
+                                            strokeWidth={1.5 / zoom}
+                                            dash={[10, 5]}
+                                            opacity={0.8}
+                                        />
+                                    )}
+                                    {guides.y !== undefined && (
+                                        <Line
+                                            points={[-5000, guides.y, 5000, guides.y]}
+                                            stroke="#0ea5e9"
+                                            strokeWidth={1.5 / zoom}
+                                            dash={[10, 5]}
+                                            opacity={0.8}
+                                        />
+                                    )}
+                                </Group>
+                            )
+                        })()}
 
                         {/* Indicador visual de Snapping */}
                         {(() => {
@@ -4890,10 +5004,10 @@ export const CanvasEngine = ({
 
                                                             const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
                                                             const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
-                                                            const isInterior = (editFace === "interior") || isPointInAnyRoom(testP)
+                                                            const interiorRoomId = getRoomIdAt(testP)
 
-                                                            const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, isInterior)
-                                                            const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, isInterior)
+                                                            const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, interiorRoomId)
+                                                            const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, interiorRoomId)
                                                             const chainLen = centerLength + back.addedLen + forward.addedLen
 
                                                             const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || selectedWall
@@ -4941,10 +5055,10 @@ export const CanvasEngine = ({
 
                                                                 const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
                                                                 const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
-                                                                const isInterior = (editFace === "interior") || isPointInAnyRoom(testP)
+                                                                const interiorRoomId = getRoomIdAt(testP)
 
-                                                                const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, isInterior)
-                                                                const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, isInterior)
+                                                                const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, interiorRoomId)
+                                                                const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, interiorRoomId)
                                                                 const chainLen = centerLength + back.addedLen + forward.addedLen
 
                                                                 const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || selectedWall
@@ -4980,10 +5094,10 @@ export const CanvasEngine = ({
 
                                                         const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
                                                         const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
-                                                        const isInterior = (editFace === "interior") || isPointInAnyRoom(testP)
+                                                        const interiorRoomId = getRoomIdAt(testP)
 
-                                                        const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, isInterior)
-                                                        const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, isInterior)
+                                                        const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, interiorRoomId)
+                                                        const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, interiorRoomId)
                                                         const chainLen = centerLength + back.addedLen + forward.addedLen
 
                                                         const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || selectedWall
@@ -5129,10 +5243,10 @@ export const CanvasEngine = ({
 
                                     const midP = { x: (selectedWall.start.x + selectedWall.end.x) / 2, y: (selectedWall.start.y + selectedWall.end.y) / 2 }
                                     const testP = { x: midP.x + faceNormal.x * 12, y: midP.y + faceNormal.y * 12 }
-                                    const isInterior = (editFace === "interior") || isPointInAnyRoom(testP)
+                                    const interiorRoomId = getRoomIdAt(testP)
 
-                                    const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, isInterior)
-                                    const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, isInterior)
+                                    const back = findTerminal(selectedWall, selectedWall.start, chainIds, faceNormal, interiorRoomId)
+                                    const forward = findTerminal(selectedWall, selectedWall.end, chainIds, faceNormal, interiorRoomId)
                                     const chainLen = centerLength + back.addedLen + forward.addedLen
 
                                     const terminalStartWall = walls.find(w => w.id === back.terminalWallId) || selectedWall

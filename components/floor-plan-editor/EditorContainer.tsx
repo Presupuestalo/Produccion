@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { MousePointer2, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Minimize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, LayoutGrid, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, RefreshCw, FileText, ClipboardList, Spline, Menu, Square, ChevronDown, ChevronRight, ChevronLeft, DoorOpen, GalleryVerticalEnd, AppWindow, Columns, X, ArrowRightLeft, RectangleVertical, Check, Settings, GripHorizontal, Link2, Copy, AlertCircle } from "lucide-react"
+import { Pointer, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Minimize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, LayoutGrid, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, RefreshCw, FileText, ClipboardList, Spline, Menu, Square, ChevronDown, ChevronRight, ChevronLeft, DoorOpen, GalleryVerticalEnd, AppWindow, Columns, X, ArrowRightLeft, RectangleVertical, Check, Settings, GripHorizontal, Link2, Copy, AlertCircle, Grid3X3, Eraser } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import {
     DropdownMenu,
@@ -150,7 +150,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [shunts, setShunts] = useState<Shunt[]>(props.initialData?.shunts || [])
     // Si el plano ya tiene datos (está guardado), arranca con 'select' para no dibujar líneas accidentales
     const hasExistingData = (props.initialData?.walls?.length > 0) || (props.initialData?.rooms?.length > 0)
-    const [activeTool, _setActiveTool] = useState<"select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt">(hasExistingData ? "select" : "wall")
+    const [activeTool, _setActiveTool] = useState<"select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt" | "ceramic" | "eraser">(hasExistingData ? "select" : "wall")
     // ... (rest of state)
     const [gridRotation, setGridRotation] = useState<number>(props.initialData?.gridRotation || 0)
     // Toolbar visibility
@@ -166,7 +166,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [phantomArc, setPhantomArc] = useState<{ start: Point, end: Point, depth: number } | undefined>(undefined)
 
     // Wrapper to ensure clean state transitions
-    const setActiveTool = (tool: "select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt") => {
+    const setActiveTool = (tool: "select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt" | "ceramic" | "eraser") => {
         _setActiveTool(tool)
         setCurrentWall(null)
         setRulerState({ active: false, start: null, end: null })
@@ -212,6 +212,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [touchOffset, setTouchOffset] = useState(40)
     const [forceTouchOffset, setForceTouchOffset] = useState(false)
     const [rulerState, setRulerState] = useState<{ start: Point | null, end: Point | null, active: boolean }>({ start: null, end: null, active: false })
+    const [alignmentGuides, setAlignmentGuides] = useState<{ x?: number, y?: number } | null>(null)
     const [activeMenu, setActiveMenu] = useState<'pencil' | 'door' | 'window' | 'save' | 'undo' | null>(null)
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
     const [isExportingPDF, setIsExportingPDF] = useState(false)
@@ -404,6 +405,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             if (key === 'y') { setActiveTool("window"); setCreationWindowType("fixed") }
             if (key === 'a') setActiveTool("arc")
             if (key === 'c') setActiveTool("shunt")
+            if (key === 'h') setActiveTool("ceramic")
+            if (key === 'e') setActiveTool("eraser")
             if (key === 'r') setActiveTool("ruler")
             if (key === 'q') setShowAllQuotes(prev => !prev)
             if (key === 'f') { setActiveTool("wall"); applyFacadeHighlight() }
@@ -1202,9 +1205,47 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             const isH = Math.abs(wallToMove.start.y - wallToMove.end.y) < 15.0
             const isV = Math.abs(wallToMove.start.x - wallToMove.end.x) < 15.0
 
+            // --- IMPROVED AXIS SNAPPING ---
+            let snapDelta = { ...totalDelta }
+            let guides: { x?: number, y?: number } | null = null
+            if (snappingEnabled) {
+                const SNAP_TOL = 10 // 10cm threshold for "a paño" alignment
+                if (isV) {
+                    const proposedX = wallToMove.start.x + totalDelta.x
+                    let nearestX = proposedX
+                    let minDist = SNAP_TOL
+                    wallSnapshot.forEach(w => {
+                        // Check both terminals of other walls
+                        [w.start.x, w.end.x].forEach(x => {
+                            const d = Math.abs(proposedX - x)
+                            if (d < minDist) { minDist = d; nearestX = x }
+                        })
+                    })
+                    snapDelta.x = nearestX - wallToMove.start.x
+                    if (minDist < SNAP_TOL) {
+                        guides = { x: nearestX }
+                    }
+                } else if (isH) {
+                    const proposedY = wallToMove.start.y + totalDelta.y
+                    let nearestY = proposedY
+                    let minDist = SNAP_TOL
+                    wallSnapshot.forEach(w => {
+                        [w.start.y, w.end.y].forEach(y => {
+                            const d = Math.abs(proposedY - y)
+                            if (d < minDist) { minDist = d; nearestY = y }
+                        })
+                    })
+                    snapDelta.y = nearestY - wallToMove.start.y
+                    if (minDist < SNAP_TOL) {
+                        guides = { y: nearestY }
+                    }
+                }
+                setAlignmentGuides(guides)
+            }
+
             const cleanDelta = {
-                x: (isV || (!isH && !isV)) ? totalDelta.x : 0,
-                y: (isH || (!isH && !isV)) ? totalDelta.y : 0
+                x: (isV || (!isH && !isV)) ? snapDelta.x : 0,
+                y: (isH || (!isH && !isV)) ? snapDelta.y : 0
             }
 
             let workingWalls = JSON.parse(JSON.stringify(wallSnapshot)) as Wall[]
@@ -1329,18 +1370,46 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     if (vertexSnapped) break
                 }
 
-                // Imanes de ejes (ortogonalidad) - only apply if not snapped to vertex
+                // Imanes de ejes (ortogonalidad y alineaciones "a paño")
                 if (!vertexSnapped) {
+                    const AXIS_TOL = 8 // Threshold for axis snapping
+                    let snappedX = false
+                    let snappedY = false
+                    let bestX = tx
+                    let bestY = ty
+
+                    // 1. Prioridad: Ortogonalidad Local (snap a los otros extremos de los mismos muros)
                     for (const id of idsToMove) {
                         const w = snapshot.find(sw => sw.id === id)
                         if (!w) continue
                         const fixedP = isSame(w.start, originalPoint) ? w.end : w.start
+                        if (!snappedX && Math.abs(tx - fixedP.x) < AXIS_TOL) { bestX = fixedP.x; snappedX = true }
+                        if (!snappedY && Math.abs(ty - fixedP.y) < AXIS_TOL) { bestY = fixedP.y; snappedY = true }
+                    }
 
-                        // Slightly increased axis snap threshold for easier alignment
-                        const AXIS_SNAP = 2.5
+                    // 2. Alineaciones Globales (snap a cualquier vértice del proyecto para quedar "a paño")
+                    if (!snappedX || !snappedY) {
+                        for (const w of snapshot) {
+                            if (idsToMoveSet.has(w.id)) continue
+                            for (const p of [w.start, w.end]) {
+                                if (!snappedX && Math.abs(tx - p.x) < AXIS_TOL) { bestX = p.x; snappedX = true }
+                                if (!snappedY && Math.abs(ty - p.y) < AXIS_TOL) { bestY = p.y; snappedY = true }
+                                if (snappedX && snappedY) break
+                            }
+                            if (snappedX && snappedY) break
+                        }
+                    }
 
-                        if (Math.abs(tx - fixedP.x) < AXIS_SNAP) tx = fixedP.x
-                        if (Math.abs(ty - fixedP.y) < AXIS_SNAP) ty = fixedP.y
+                    tx = bestX
+                    ty = bestY
+
+                    if (snappedX || snappedY) {
+                        setAlignmentGuides({
+                            x: snappedX ? tx : undefined,
+                            y: snappedY ? ty : undefined
+                        })
+                    } else {
+                        setAlignmentGuides(null)
                     }
                 }
             }
@@ -1381,6 +1450,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     const handleDragEnd = () => {
         setWallSnapshot(null)
+        wallSnapshotRef.current = null
+        setAlignmentGuides(null)
         setWalls(prev => {
             const processed = prev.map(w => ({
                 ...w,
@@ -1741,6 +1812,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
                         if (nextRooms.length > rooms.length) {
                             setCurrentWall(null)
+                            setActiveTool("select") // AUTO-SELECT after room closure
                         } else {
                             setCurrentWall({ start: point, end: point })
                         }
@@ -2047,6 +2119,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                 // Si se ha cerrado una habitación (figura completa), detener el encadenamiento
                 if (nextRooms.length > rooms.length) {
                     setCurrentWall(null)
+                    setActiveTool("select") // AUTO-SELECT after room closure
                 } else {
                     // MODO ENCADENADO: No hacemos null a currentWall, sino que el punto final es el nuevo inicio
                     setCurrentWall({ start: point, end: point })
@@ -2428,7 +2501,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 title={isMobile ? "Seleccionar" : "Seleccionar (S)"}
                                 className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "select" ? "bg-slate-200 text-slate-900" : ""}`}
                             >
-                                <MousePointer2 className="h-5 w-5" />
+                                <Pointer className="h-5 w-5" />
                             </Button>
 
                             {/* 2. PENCIL Submenu: Walls, Arc, Facade, Column */}
@@ -2634,6 +2707,28 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </div>
+
+                            {/* HERRAMIENTA CERÁMICA */}
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setActiveTool("ceramic")}
+                                title={isMobile ? "Cerámica" : "Cerámica (H)"}
+                                className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "ceramic" ? "bg-slate-200 text-slate-900" : ""}`}
+                            >
+                                <Grid3X3 className="h-5 w-5" />
+                            </Button>
+
+                            {/* HERRAMIENTA GOMA (BORRAR MUROS O ALICATADO) */}
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setActiveTool("eraser")}
+                                title={isMobile ? "Borrador" : "Borrador (E)"}
+                                className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "eraser" ? "bg-slate-200 text-slate-900" : ""}`}
+                            >
+                                <Eraser className="h-5 w-5" />
+                            </Button>
 
 
                             {/* 5. TRASH (Clear Plan) */}
@@ -3032,6 +3127,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     onUpdateShunt={handleUpdateShunt}
                     hideFloatingUI={isSettingsOpen || showSummary || (isMobile && !isFullscreen && typeof window !== 'undefined' && window.innerWidth > window.innerHeight)}
                     onDblClick={handleDblClick}
+                    alignmentGuides={alignmentGuides}
                 />
 
 
