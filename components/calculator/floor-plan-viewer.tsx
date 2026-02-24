@@ -2,15 +2,13 @@
 
 import type React from "react"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { supabase } from "@/lib/supabase/client"
-import { Maximize2, Loader2, RefreshCw, Trash2, Info, AlertTriangle, Image, Copy, Pencil, ExternalLink } from "lucide-react"
-import { v4 as uuidv4 } from "uuid"
+import { Maximize2, RefreshCw, Info, AlertTriangle, Image, Pencil, Loader2, Trash2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UpdateFloorPlansButton } from "./update-floor-plans-button"
@@ -42,8 +40,6 @@ interface FloorPlan {
 }
 
 export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
   const [floorPlans, setFloorPlans] = useState<Record<PlanType, string | null>>({
     before: null,
     after: null,
@@ -53,30 +49,19 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
     after: null,
   })
   const [currentPlanType, setCurrentPlanType] = useState<PlanType>("before")
-  const [zoom, setZoom] = useState(1)
-  const [isDragging, setIsDragging] = useState(false)
-  const [position, setPosition] = useState({ x: 0, y: 0 })
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  const [uploadError, setUploadError] = useState<string | null>(null)
-  const [isFixingPolicies, setIsFixingPolicies] = useState(false)
-  const [isTableUpdated, setIsTableUpdated] = useState<boolean | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [planToDelete, setPlanToDelete] = useState<PlanType | null>(null)
+  const [isTableUpdated, setIsTableUpdated] = useState<boolean | null>(null)
   const [imageLoadError, setImageLoadError] = useState<Record<PlanType, boolean>>({
     before: false,
     after: false,
   })
-  const [isRefreshing, setIsRefreshing] = useState(false)
   const [debugInfo, setDebugInfo] = useState<Record<string, any>>({})
   const [showDebugInfo, setShowDebugInfo] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const router = useRouter()
-  const [hasPermissionIssues, setHasPermissionIssues] = useState(false)
-  const [isVerifying, setIsVerifying] = useState(false)
-  const imageRef = useRef<HTMLImageElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
 
   // Verificar si la tabla tiene la estructura actualizada
   useEffect(() => {
@@ -147,25 +132,69 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
       }
 
       if (data && data.length > 0) {
-        // Procesar los planos encontrados
+        // Procesar los planos encontrados con heurísticas similares a FloorPlanPreviews
         data.forEach((plan: any) => {
-          let type: PlanType | null = null
+          const planName = (plan.name || "").toLowerCase()
+          const planType = (plan.plan_type || "").toLowerCase()
+          const variant = (plan.variant || "").toLowerCase()
 
-          if (plan.plan_type === "before" || plan.plan_type === "after") {
-            type = plan.plan_type as PlanType
-          } else if (plan.variant === "current") {
-            type = "before"
-          } else if (plan.variant === "proposal") {
-            type = "after"
-          }
+          const isBefore =
+            variant === "current" ||
+            planType === "before" ||
+            planName.includes("antes") ||
+            planName.includes("actual") ||
+            planName.includes("original") ||
+            planName.includes("existente") ||
+            planName.includes("estado actual")
 
-          if (type && !plans[type]) {
+          const isAfter =
+            variant === "proposal" ||
+            planType === "after" ||
+            planName.includes("despues") ||
+            planName.includes("después") ||
+            planName.includes("reforma") ||
+            planName.includes("propuesta") ||
+            planName.includes("nuevo") ||
+            planName.includes("opcion") ||
+            planName.includes("opción") ||
+            planName.includes("proyecto") ||
+            planName.includes("modificado") ||
+            planName.includes("cambio")
+
+          if (isBefore && !plans.before) {
             const timestamp = new Date().getTime()
-            plans[type] = `${plan.image_url}?t=${timestamp}`
-            ids[type] = plan.id
-            console.log(`Cargando plano ${type}:`, plan.image_url)
+            plans.before = `${plan.image_url}?t=${timestamp}`
+            ids.before = plan.id
+          } else if (isAfter && !plans.after) {
+            const timestamp = new Date().getTime()
+            plans.after = `${plan.image_url}?t=${timestamp}`
+            ids.after = plan.id
           }
         })
+
+        // Heurística final: si no hemos asignado 'before' y hay datos, asignamos el primero disponible que no sea after
+        if (!plans.before && data.length > 0) {
+          const firstNotAfter = data.find((p: any) => {
+            const name = (p.name || "").toLowerCase()
+            return !name.includes("despues") && !name.includes("reforma") && p.variant !== "proposal"
+          }) || data[0]
+
+          if (firstNotAfter) {
+            const timestamp = new Date().getTime()
+            plans.before = `${firstNotAfter.image_url}?t=${timestamp}`
+            ids.before = firstNotAfter.id
+          }
+        }
+
+        // Heurística para 'after': si sigue vacío y hay más planos, asignar el primero que no sea 'before'
+        if (!plans.after && data.length > 1) {
+          const leftoverPlan = data.find((p: any) => p.id !== ids.before)
+          if (leftoverPlan) {
+            const timestamp = new Date().getTime()
+            plans.after = `${leftoverPlan.image_url}?t=${timestamp}`
+            ids.after = leftoverPlan.id
+          }
+        }
       }
 
       setFloorPlans(plans)
@@ -173,228 +202,6 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
       setDebugInfo((prev) => ({ ...prev, processedPlans: plans }))
     } catch (error) {
       setDebugInfo((prev) => ({ ...prev, loadCatchError: String(error) }))
-    }
-  }
-
-  // Función para clonar el plano de antes al de después
-  const handleCloneBeforeToAfter = async () => {
-    if (!floorPlans.before) return
-
-    setIsUploading(true)
-    try {
-      // 1. Obtener los datos completos del plano de origen
-      const { data: plans, error: fetchError } = await supabase
-        .from("project_floor_plans")
-        .select("*")
-        .eq("project_id", projectId)
-        .or(`plan_type.eq.before,variant.eq.current`)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-
-      if (fetchError || !plans || plans.length === 0) {
-        throw new Error("No se encontró el plano de origen para clonar")
-      }
-
-      const sourcePlan = plans[0]
-
-      // 2. Insertar/Upsert como plano de después
-      const { error: upsertError } = await supabase
-        .from("project_floor_plans")
-        .upsert({
-          project_id: projectId,
-          user_id: sourcePlan.user_id,
-          image_url: sourcePlan.image_url,
-          plan_type: "after",
-          variant: "proposal",
-          name: `${sourcePlan.name || "Estado Actual"} (Copia)`,
-          data: sourcePlan.data,
-          updated_at: new Date().toISOString()
-        }, { onConflict: "project_id,variant" })
-
-      if (upsertError) throw upsertError
-
-      await loadFloorPlans()
-      toast({
-        title: "Plano clonado",
-        description: "Se ha usado el plano 'Antes' como base para el 'Después'."
-      })
-    } catch (error: any) {
-      console.error("Error al clonar el plano:", error)
-      toast({
-        title: "Error al clonar",
-        description: error.message || "No se pudo clonar el plano",
-        variant: "destructive"
-      })
-    } finally {
-      setIsUploading(false)
-    }
-  }
-
-  // Modificamos esta función para que el diálogo no se cierre automáticamente
-  const handleOpenChange = (open: boolean) => {
-    // Solo permitimos cerrar el diálogo a través del botón X
-    if (!open) {
-      // No hacemos nada, ignoramos el intento de cerrar
-      return
-    } else {
-      setIsOpen(true)
-      // Resetear zoom y posición
-      setZoom(1)
-      setPosition({ x: 0, y: 0 })
-    }
-  }
-
-  // Función explícita para cerrar el diálogo
-  const closeDialog = () => {
-    setIsOpen(false)
-  }
-
-  // Función para corregir las políticas de seguridad
-  const fixSecurityPolicies = async () => {
-    setIsFixingPolicies(true)
-    try {
-      // Intentar crear el bucket si no existe
-      const response = await fetch("/api/fix-storage-permissions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Error al corregir los permisos")
-      }
-
-      toast({
-        title: "Permisos corregidos",
-        description: "Se han corregido los permisos de almacenamiento correctamente.",
-      })
-
-      // Esperar un momento para que se apliquen los cambios
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      return true
-    } catch (error) {
-      console.error("Error al configurar el almacenamiento:", error)
-      return false
-    } finally {
-      setIsFixingPolicies(false)
-    }
-  }
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Limpiar error anterior
-    setUploadError(null)
-
-    // Validar tipo de archivo
-    const validTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"]
-    if (!validTypes.includes(file.type)) {
-      toast({
-        title: "Formato no soportado",
-        description: "Por favor, sube una imagen (JPG, PNG, GIF, WEBP) o un PDF.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    // Validar tamaño (máximo 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "Archivo demasiado grande",
-        description: "El tamaño máximo permitido es 5MB.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsUploading(true)
-
-    try {
-      // Generar un nombre único para el archivo
-      const fileExt = file.name.split(".").pop()
-      const fileName = `${uuidv4()}.${fileExt}`
-      const filePath = `floor-plans/${fileName}`
-
-      // Intentar subir el archivo
-      let uploadResult = await supabase.storage.from("project-files").upload(filePath, file)
-
-      // Si hay un error de política, intentar corregirlo y volver a intentar
-      if (uploadResult.error && uploadResult.error.message.includes("policy")) {
-        const fixed = await fixSecurityPolicies()
-        if (fixed) {
-          // Intentar subir de nuevo
-          uploadResult = await supabase.storage.from("project-files").upload(filePath, file)
-        }
-      }
-
-      if (uploadResult.error) {
-        throw uploadResult.error
-      }
-
-      // Obtener la URL pública del archivo
-      const { data: urlData } = supabase.storage.from("project-files").getPublicUrl(filePath)
-      const imageUrl = urlData.publicUrl
-
-      console.log("URL de la imagen subida:", imageUrl)
-      setDebugInfo((prev) => ({ ...prev, uploadedImageUrl: imageUrl }))
-
-      // Crear el objeto del plano
-      const floorPlan: FloorPlan = {
-        project_id: projectId,
-        image_url: imageUrl,
-        plan_type: currentPlanType,
-        updated_at: new Date().toISOString(),
-      }
-
-      // Intentar guardar la referencia en la base de datos
-      const dbResult = await supabase
-        .from("project_floor_plans")
-        .upsert({
-          ...floorPlan,
-          variant: currentPlanType === 'before' ? 'current' : 'proposal'
-        }, { onConflict: "project_id,variant" })
-
-      if (dbResult.error) {
-        throw dbResult.error
-      }
-
-      // Actualizar el estado local
-      const timestamp = new Date().getTime()
-      setFloorPlans((prev) => ({
-        ...prev,
-        [currentPlanType]: `${imageUrl}?t=${timestamp}`,
-      }))
-
-      // Resetear el error de carga de imagen
-      setImageLoadError((prev) => ({
-        ...prev,
-        [currentPlanType]: false,
-      }))
-
-      toast({
-        title: "Plano subido correctamente",
-        description: `El plano "${currentPlanType === "before" ? "Antes" : "Después"}" ha sido guardado.`,
-      })
-
-      // Limpiar el input de archivo
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""
-      }
-    } catch (error: any) {
-      console.error("Error al subir el plano:", error)
-      setUploadError(error.message || "Ha ocurrido un error al subir el plano.")
-      setDebugInfo((prev) => ({ ...prev, uploadError: String(error) }))
-      toast({
-        title: "Error al subir el plano",
-        description: error.message || "Ha ocurrido un error al subir el plano.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsUploading(false)
     }
   }
 
@@ -444,50 +251,6 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
     }
   }
 
-  // Funciones para el zoom y movimiento
-  const handleZoomIn = () => {
-    setZoom((prev) => Math.min(prev + 0.1, 3))
-  }
-
-  const handleZoomOut = () => {
-    setZoom((prev) => Math.max(prev - 0.1, 0.5))
-  }
-
-  // Simplificar el manejo de eventos
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    setIsDragging(true)
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
-    })
-  }
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isDragging) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y,
-      })
-    }
-  }
-
-  const handleMouseUp = () => {
-    setIsDragging(false)
-  }
-
-  // Añadir soporte para zoom con rueda del ratón
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    const delta = e.deltaY * -0.01
-    const newZoom = Math.min(Math.max(zoom + delta, 0.5), 3)
-    setZoom(newZoom)
-  }
-
-  const handleReset = () => {
-    setZoom(1)
-    setPosition({ x: 0, y: 0 })
-  }
-
   // Función para confirmar eliminación
   const confirmDelete = (type: PlanType) => {
     setPlanToDelete(type)
@@ -496,187 +259,33 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
 
   // Función para manejar errores de carga de imagen
   const handleImageError = (type: PlanType) => {
-    console.error(`Error al cargar la imagen del plano ${type}`)
     setImageLoadError((prev) => ({
       ...prev,
       [type]: true,
     }))
-
-    // Marcar que puede haber problemas de permisos
-    setHasPermissionIssues(true)
-
-    // Guardar información de depuración
-    setDebugInfo((prev) => ({
-      ...prev,
-      imageError: {
-        type,
-        url: floorPlans[type],
-        time: new Date().toISOString(),
-      },
-    }))
   }
 
-  // Función para refrescar los planos
   const refreshPlans = async () => {
     setIsRefreshing(true)
-    try {
-      await loadFloorPlans()
-
-      // Resetear los errores de carga
-      setImageLoadError({
-        before: false,
-        after: false,
-      })
-
-      toast({
-        title: "Planos actualizados",
-        description: "Se han actualizado los planos correctamente.",
-      })
-    } catch (error) {
-      console.error("Error al refrescar los planos:", error)
-    } finally {
-      setIsRefreshing(false)
-    }
+    await loadFloorPlans()
+    setIsRefreshing(false)
   }
 
-  // Función para verificar y corregir los permisos de la imagen
-  const verifyAndFixImage = async (type: PlanType) => {
-    if (!floorPlans[type]) return
-
-    setIsVerifying(true)
-    try {
-      const response = await fetch("/api/verify-image", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          imageUrl: floorPlans[type],
-        }),
-      })
-
-      const data = await response.json()
-
-      setDebugInfo((prev) => ({
-        ...prev,
-        imageVerification: {
-          type,
-          url: floorPlans[type],
-          response: data,
-          time: new Date().toISOString(),
-        },
-      }))
-
-      if (data.success) {
-        toast({
-          title: "Imagen verificada",
-          description: "La imagen existe y es accesible. Intenta cargarla nuevamente.",
-        })
-
-        // Actualizar la URL con un nuevo timestamp para forzar la recarga
-        const timestamp = new Date().getTime()
-        setFloorPlans((prev) => ({
-          ...prev,
-          [type]: `${floorPlans[type]?.split("?")[0]}?t=${timestamp}`,
-        }))
-
-        // Resetear el error de carga
-        setImageLoadError((prev) => ({
-          ...prev,
-          [type]: false,
-        }))
-      } else if (data.corrected) {
-        toast({
-          title: "Permisos corregidos",
-          description: "Se han corregido los permisos. Intenta cargar la imagen nuevamente.",
-        })
-
-        // Esperar un momento para que se apliquen los cambios
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        // Actualizar la URL con un nuevo timestamp para forzar la recarga
-        const timestamp = new Date().getTime()
-        setFloorPlans((prev) => ({
-          ...prev,
-          [type]: `${floorPlans[type]?.split("?")[0]}?t=${timestamp}`,
-        }))
-
-        // Resetear el error de carga
-        setImageLoadError((prev) => ({
-          ...prev,
-          [type]: false,
-        }))
-      } else {
-        toast({
-          title: "Error al verificar la imagen",
-          description: data.error || "No se pudo verificar la imagen",
-          variant: "destructive",
-        })
-      }
-    } catch (error: any) {
-      console.error("Error al verificar la imagen:", error)
-      toast({
-        title: "Error al verificar la imagen",
-        description: error.message || "Ha ocurrido un error al verificar la imagen",
-        variant: "destructive",
-      })
-    } finally {
-      setIsVerifying(false)
-    }
-  }
-
-  // Función para abrir la imagen en una ventana separada del navegador
   const openInNewWindow = (type: PlanType) => {
-    if (!floorPlans[type]) return
+    const imageUrl = floorPlans[type]
+    if (!imageUrl) return
 
-    // URL de la imagen
-    const imageUrl = floorPlans[type] as string
-
-    // Crear una URL de datos con la imagen directamente
-    const windowName = `floorPlan_${projectId}_${type}_${new Date().getTime()}`
-
-    // Crear una URL simple que solo muestra la imagen a pantalla completa
+    const windowName = `Plano_${type}_${projectId}`
     const html = `
     <!DOCTYPE html>
     <html>
     <head>
-      <title>${projectTitle || "Plano"} ${type === "before" ? "ANTES" : "DESPUÉS"}</title>
+      <title>${projectTitle || "Plano"} ${type === "before" ? "Antes" : "Después"}</title>
       <style>
-        body {
-          margin: 0;
-          padding: 0;
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-          height: 100vh;
-          font-family: Arial, sans-serif;
-        }
-        .header {
-          background-color: #f0f0f0;
-          padding: 10px;
-          text-align: center;
-          font-weight: bold;
-          font-size: 18px;
-          border-bottom: 1px solid #ddd;
-        }
-        .content {
-          flex: 1;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          background-color: #f5f5f5;
-          overflow: auto;
-        }
-        img {
-          max-width: 100%;
-          max-height: 100%;
-          object-fit: contain;
-        }
-        @media print {
-          .header {
-            display: none;
-          }
-        }
+        body { margin: 0; display: flex; flex-direction: column; height: 100vh; font-family: sans-serif; }
+        .header { padding: 10px; background: #f8f9fa; border-bottom: 11px solid #dee2e6; font-weight: bold; }
+        .content { flex: 1; display: flex; items-center justify-content: center; overflow: auto; background: #e9ecef; }
+        img { max-width: 100%; max-height: 100%; object-contain: contain; }
       </style>
     </head>
     <body>
@@ -686,7 +295,7 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
       </div>
     </body>
     </html>
-  `
+    `
 
     // Crear un blob con el HTML
     const blob = new Blob([html], { type: "text/html" })
@@ -737,10 +346,15 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
       <div className="mb-4">
         <div className="flex justify-between items-center mb-2">
           <Label>Planos de referencia</Label>
-          <Button variant="outline" size="sm" onClick={refreshPlans} disabled={isRefreshing} className="gap-1">
-            {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Actualizar
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setShowDebugInfo(!showDebugInfo)} className="h-8 w-8 p-0">
+              <Info className="h-4 w-4 text-muted-foreground opacity-50" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={refreshPlans} disabled={isRefreshing} className="gap-1">
+              {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Actualizar
+            </Button>
+          </div>
         </div>
 
         <Tabs value={currentPlanType} onValueChange={(value) => setCurrentPlanType(value as PlanType)}>
@@ -750,16 +364,10 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
           </TabsList>
 
           <TabsContent value="before" className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Input
-                ref={fileInputRef}
-                id="floor-plan-before"
-                type="file"
-                accept="image/*,application/pdf"
-                onChange={handleFileChange}
-                disabled={isUploading || isFixingPolicies}
-                className="flex-1"
-              />
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-muted-foreground italic">
+                {floorPlans.before ? "Plano reconocido desde el editor" : "No se ha reconocido ningún plano 'Antes'"}
+              </span>
               {floorPlans.before && (
                 <div className="flex gap-2">
                   <Button
@@ -776,7 +384,7 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
                       type="button"
                       variant="outline"
                       size="icon"
-                      onClick={() => router.push(`/dashboard/editor-planos/editar/${planIds.before}`)}
+                      onClick={() => router.push(`/ dashboard / editor - planos / editar / ${planIds.before} `)}
                       title="Editar plano en el editor"
                       className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                     >
@@ -800,7 +408,7 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
                   <img
                     src={floorPlans.before || "/placeholder.svg"}
                     alt="Plano antes"
-                    className="max-h-full max-w-full object-contain"
+                    className="max-h-full max-w-full object-contain cursor-pointer"
                     onError={() => handleImageError("before")}
                     crossOrigin="anonymous"
                   />
@@ -817,16 +425,10 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
           </TabsContent>
 
           <TabsContent value="after" className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Input
-                ref={fileInputRef}
-                id="floor-plan-after"
-                type="file"
-                accept="image/*,application/pdf"
-                onChange={handleFileChange}
-                disabled={isUploading || isFixingPolicies}
-                className="flex-1"
-              />
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-muted-foreground italic">
+                {floorPlans.after ? "Plano reconocido desde el editor" : "No se ha reconocido ningún plano 'Después'"}
+              </span>
               {floorPlans.after && (
                 <div className="flex gap-2">
                   <Button
@@ -843,7 +445,7 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
                       type="button"
                       variant="outline"
                       size="icon"
-                      onClick={() => router.push(`/dashboard/editor-planos/editar/${planIds.after}`)}
+                      onClick={() => router.push(`/ dashboard / editor - planos / editar / ${planIds.after} `)}
                       title="Editar plano en el editor"
                       className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                     >
@@ -870,23 +472,7 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
                     <AlertTriangle className="h-8 w-8 text-amber-500 mx-auto mb-2" />
                     <p className="text-sm text-muted-foreground">Error al cargar la imagen</p>
                     <div className="flex flex-col gap-1 mt-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => verifyAndFixImage("after")}
-                        disabled={isVerifying}
-                        className="text-xs"
-                      >
-                        {isVerifying ? (
-                          <>
-                            <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                            Corrigiendo...
-                          </>
-                        ) : (
-                          "Corregir permisos"
-                        )}
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={refreshPlans} className="text-xs mt-1">
+                      <Button variant="outline" size="sm" onClick={() => loadFloorPlans()} className="text-xs mt-1">
                         Reintentar
                       </Button>
                     </div>
@@ -895,10 +481,9 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
                   <img
                     src={floorPlans.after || "/placeholder.svg"}
                     alt="Plano después"
-                    className="max-h-full max-w-full object-contain"
+                    className="max-h-full max-w-full object-contain cursor-pointer"
                     onClick={() => openInNewWindow("after")}
                     onError={() => handleImageError("after")}
-                    style={{ cursor: "pointer" }}
                     crossOrigin="anonymous"
                   />
                 )}
@@ -907,57 +492,57 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
               <div className="h-32 border rounded-md overflow-hidden bg-gray-50 flex items-center justify-center">
                 <div className="text-center p-4">
                   <Image className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground mb-3">No hay plano "Después" cargado</p>
-
-                  {floorPlans.before && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-2 text-xs"
-                      onClick={handleCloneBeforeToAfter}
-                      disabled={isUploading}
-                    >
-                      {isUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Copy className="h-3 w-3" />}
-                      Usar plano "Antes" como base
-                    </Button>
-                  )}
+                  <p className="text-sm text-muted-foreground">No se ha reconocido ningún plano 'Después'</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 italic">Vaya al editor para crear una propuesta de reforma</p>
                 </div>
               </div>
             )}
           </TabsContent>
         </Tabs>
 
-        {isUploading && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Subiendo plano...</span>
+        {showDebugInfo && (
+          <div className="mt-4 p-4 border rounded-md bg-slate-950 text-slate-50 font-mono text-xs overflow-auto max-h-96">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-sm font-bold">Diagnóstico de Planos</h3>
+              <Button variant="ghost" size="sm" onClick={() => setShowDebugInfo(false)} className="h-6 w-6 p-0 text-slate-50">
+                ×
+              </Button>
+            </div>
+            <p className="mb-2 text-slate-400">ID Proyecto: {projectId}</p>
+            <div className="space-y-2">
+              <div>
+                <p className="text-blue-400 underline">Planos encontrados ({debugInfo.plansData?.length || 0}):</p>
+                {debugInfo.plansData?.map((p: any, i: number) => (
+                  <div key={i} className="ml-2 mb-1 border-l border-slate-700 pl-2">
+                    <p>Nombre: "{p.name}"</p>
+                    <p>Tipo: {p.plan_type} | Variant: {p.variant}</p>
+                    <p className="truncate text-[10px] text-slate-500">{p.image_url}</p>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <p className="text-green-400">Asignación actual:</p>
+                <p>Antes: {floorPlans.before ? "SÍ" : "NO"} (ID: {planIds.before || "---"})</p>
+                <p>Después: {floorPlans.after ? "SÍ" : "NO"} (ID: {planIds.after || "---"})</p>
+              </div>
+            </div>
           </div>
         )}
 
-        {isFixingPolicies && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Configurando permisos de almacenamiento...</span>
-          </div>
-        )}
-
-        {(uploadError || hasPermissionIssues || imageLoadError.before || imageLoadError.after) && (
+        {(imageLoadError.before || imageLoadError.after) && (
           <Alert variant="destructive" className="mt-4">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Problemas con los planos</AlertTitle>
             <AlertDescription>
-              {uploadError && <p>{uploadError}</p>}
-              {(imageLoadError.before || imageLoadError.after) && (
-                <p>
-                  Hay problemas para cargar las imágenes de los planos. Esto puede deberse a permisos de acceso o
-                  problemas con el almacenamiento.
-                </p>
-              )}
+              <p>
+                Hay problemas para cargar las imágenes de los planos. Esto puede deberse a permisos de acceso o
+                problemas con el almacenamiento.
+              </p>
               <div className="mt-4 space-y-2">
                 <p className="text-sm">Intenta alguna de estas soluciones:</p>
                 <div className="flex flex-col gap-2">
                   <FixStoragePermissionsButton />
-                  <Button variant="outline" onClick={refreshPlans} className="gap-2">
+                  <Button variant="outline" onClick={() => loadFloorPlans()} className="gap-2">
                     <RefreshCw className="h-4 w-4" />
                     Actualizar planos
                   </Button>

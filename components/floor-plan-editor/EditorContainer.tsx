@@ -213,7 +213,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [forceTouchOffset, setForceTouchOffset] = useState(false)
     const [rulerState, setRulerState] = useState<{ start: Point | null, end: Point | null, active: boolean }>({ start: null, end: null, active: false })
     const [alignmentGuides, setAlignmentGuides] = useState<{ x?: number, y?: number } | null>(null)
-    const [activeMenu, setActiveMenu] = useState<'pencil' | 'door' | 'window' | 'save' | 'undo' | null>(null)
+    const [activeMenu, setActiveMenu] = useState<'pencil' | 'door' | 'window' | 'save' | 'undo' | 'ruler' | 'ceramic' | null>(null)
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
     const [isExportingPDF, setIsExportingPDF] = useState(false)
     const [exportRoomNames, setExportRoomNames] = useState(true)
