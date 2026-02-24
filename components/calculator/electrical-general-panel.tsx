@@ -9,6 +9,7 @@ import { Zap, FileCheck, Wrench, Cable, Plug2, Flame } from 'lucide-react'
 
 interface ElectricalGeneralPanelProps {
   config?: ElectricalConfig
+  onUpdate: (config: ElectricalConfig) => void
   globalConfig?: GlobalConfig
   isReadOnly?: boolean
 }

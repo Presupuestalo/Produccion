@@ -18,6 +18,7 @@ import type { Room, ElectricalElement } from "@/types/calculator"
 interface ElectricalRoomsCompactProps {
   rooms: Room[]
   onUpdateRoom?: (roomId: string, electricalElements: ElectricalElement[]) => void
+  isReadOnly?: boolean
 }
 
 interface ElectricalRoomSettings {
