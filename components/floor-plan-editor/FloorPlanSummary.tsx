@@ -56,22 +56,9 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts, ceiling
     const filteredRooms = rooms.filter(r => r.area >= 1.0)
 
     // 1. Global Stats
-    const totalArea = filteredRooms.reduce((acc, r) => acc + r.area, 0)
-    const totalWallsLength = walls.reduce((acc, w) => {
-        if (w.isInvisible) return acc
-        const len = Math.sqrt(Math.pow(w.end.x - w.start.x, 2) + Math.pow(w.end.y - w.start.y, 2))
-        return acc + len
-    }, 0) / 100 // Convert cm to meters
-
-    // HELPER: Detect Exterior Doors (Entrance Doors)
-    // A door is an entrance if its wall is part of ONLY ONE room.
+    // HELPER: Detect Wall Room Membership
     const wallRoomCounts = new Map<string, number>()
-
-    // We need to check every wall against every room to see if it forms part of the boundary
-    // The calculateRoomStats or isPointOnSegment logic helps, but we can do a simpler check here:
-    // For each wall, how many rooms have a segment that corresponds to it?
-
-    // Iterate all rooms and their polygon segments
+    // Iterate all rooms and their polygon segments to count room associations for each wall
     filteredRooms.forEach(room => {
         const polygon = room.polygon
         for (let i = 0; i < polygon.length; i++) {
@@ -79,18 +66,41 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts, ceiling
             const p2 = polygon[(i + 1) % polygon.length]
             const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
 
-            // Find which wall this segment belongs to
-            const wall = walls.find(w => isPointOnSegment(midP, w.start, w.end, 1.0))
+            // Find which wall this segment belongs to (increased tolerance to 5.0 for better matching)
+            const wall = walls.find(w => isPointOnSegment(midP, w.start, w.end, 5.0))
             if (wall) {
                 wallRoomCounts.set(wall.id, (wallRoomCounts.get(wall.id) || 0) + 1)
             }
         }
     })
 
+    // 1. Global Stats
+    const totalArea = filteredRooms.reduce((acc, r) => acc + r.area, 0)
+
+    const internalWallsStats = walls.reduce((acc, w) => {
+        if (w.isInvisible) return acc
+
+        // PAREDES INTERNAS: Only count walls shared by 2+ rooms OR not part of any room (isolated partitions)
+        // Walls part of exactly 1 room are considered perimeter walls.
+        const roomCount = wallRoomCounts.get(w.id) || 0
+        if (roomCount === 1) return acc
+
+        const len = Math.sqrt(Math.pow(w.end.x - w.start.x, 2) + Math.pow(w.end.y - w.start.y, 2))
+        const area = (len * w.thickness) / 10000 // cm2 to m2
+
+        return {
+            length: acc.length + len,
+            area: acc.area + area
+        }
+    }, { length: 0, area: 0 })
+
+    const totalWallsLength = internalWallsStats.length / 100 // Convert cm to meters
+    const internalWallsArea = internalWallsStats.area
+    const totalBuiltArea = totalArea + internalWallsArea
+
+    // Filter out entrance doors (doors on walls with 1 room count)
     const entranceDoorIds = new Set<string>()
     doors.forEach(d => {
-        // If the wall has 1 room (or 0 if something is weird, but typically 1 for exterior), it's an entrance
-        // Ideally 1. If 2, it's a partition between rooms.
         const roomCount = wallRoomCounts.get(d.wallId) || 0
         if (roomCount <= 1) {
             entranceDoorIds.add(d.id)
@@ -130,25 +140,32 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts, ceiling
     return (
         <div className="space-y-6">
             {/* Global Cards - 2x2 Grid for better fit in sidebar */}
+            {/* 1. MAIN METRICS BLOCK (Consolidated) */}
+            <Card className="bg-slate-50/50 border-slate-200 shadow-sm overflow-hidden">
+                <div className="grid grid-cols-3 divide-x divide-slate-200">
+                    <div className="p-4 flex flex-col items-center justify-center text-center">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">M² Útiles</span>
+                        <div className="text-xl font-bold text-slate-900 leading-none">
+                            {totalArea.toFixed(2).replace('.', ',')}
+                        </div>
+                    </div>
+                    <div className="p-4 bg-white/50 flex flex-col items-center justify-center text-center">
+                        <span className="text-[10px] font-bold text-sky-600 uppercase tracking-wider mb-1">M² Construidos</span>
+                        <div className="text-xl font-bold text-sky-900 leading-none">
+                            {totalBuiltArea.toFixed(2).replace('.', ',')}
+                        </div>
+                    </div>
+                    <div className="p-4 flex flex-col items-center justify-center text-center">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Ml Paredes</span>
+                        <div className="text-xl font-bold text-slate-900 leading-none">
+                            {totalWallsLength.toFixed(2).replace('.', ',')}
+                        </div>
+                    </div>
+                </div>
+            </Card>
+
+            {/* 2. DETAIL CARDS (Doors, Windows, Ceramics) */}
             <div className="grid grid-cols-2 gap-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
-                        <CardTitle className="text-xs font-medium">Área Total</CardTitle>
-                        <Maximize className="h-3 w-3 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                        <div className="text-xl font-bold">{totalArea.toFixed(2).replace('.', ',')} m²</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
-                        <CardTitle className="text-xs font-medium">Muros (Total)</CardTitle>
-                        <Ruler className="h-3 w-3 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                        <div className="text-xl font-bold">{totalWallsLength.toFixed(2).replace('.', ',')} ml</div>
-                    </CardContent>
-                </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
                         <CardTitle className="text-xs font-medium">Puertas</CardTitle>
@@ -211,7 +228,7 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts, ceiling
                         </div>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card className="col-span-2">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
                         <CardTitle className="text-xs font-medium">Cerámica</CardTitle>
                         <Grid3X3 className="h-3 w-3 text-muted-foreground" />
@@ -227,7 +244,7 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts, ceiling
                                 <span className="font-bold text-foreground">{totalCeramicWallArea.toFixed(2).replace('.', ',')} m²</span>
                             </div>
                             <div className="flex justify-between items-center pt-1 border-t border-slate-100">
-                                <span>Altura (Ref)</span>
+                                <span>Altura de Referencia</span>
                                 <span className="font-medium text-foreground">{(ceilingHeight || 250)} cm</span>
                             </div>
                         </div>
@@ -245,7 +262,7 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts, ceiling
                             <TableRow>
                                 <TableHead className="w-[100px] h-8 text-xs">Habitación</TableHead>
                                 <TableHead className="h-8 text-xs text-right">Área</TableHead>
-                                <TableHead className="h-8 text-xs text-right">P. Muros</TableHead>
+                                <TableHead className="h-8 text-xs text-right">P. Paredes</TableHead>
                                 <TableHead className="h-8 text-xs text-right text-orange-600">P. Col.</TableHead>
                                 <TableHead className="h-8 text-xs text-right font-bold">P. Total</TableHead>
                             </TableRow>
