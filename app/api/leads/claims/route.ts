@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { sendEmail, sendAdminEmail } from "@/lib/email/send-email"
 import { emailClaimReceived, emailAdminNewClaim } from "@/lib/email/templates/presmarket-emails"
+import { isAdminUserOnServer } from "@/lib/services/auth-server-service"
 
 export const dynamic = "force-dynamic"
 
@@ -199,13 +200,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const isAdmin = searchParams.get("admin") === "true"
 
-    // Verificar si es admin
-    const { data: profile } = await supabase.from("profiles").select("role, email").eq("id", user.id).single()
-
-    const isAdminUser =
-      profile?.role === "admin" ||
-      profile?.email === "pascualmollar@gmail.com" ||
-      profile?.email === "admin@presupuestalo.es"
+    const isSuperAdmin = await isAdminUserOnServer()
 
     let query = supabase
       .from("lead_claims")
@@ -224,7 +219,7 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
 
     // Si no es admin, solo ver sus propias reclamaciones
-    if (!isAdminUser || !isAdmin) {
+    if (!isSuperAdmin || !isAdmin) {
       query = query.eq("professional_id", user.id)
     }
 
@@ -240,7 +235,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Error al obtener reclamaciones" }, { status: 500 })
     }
 
-    return NextResponse.json({ claims, isAdmin: isAdminUser })
+    return NextResponse.json({ claims, isAdmin: isSuperAdmin })
   } catch (error: any) {
     console.error("[v0] Error en GET /api/leads/claims:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })

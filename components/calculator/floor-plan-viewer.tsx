@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase/client"
 import { Maximize2, RefreshCw, Info, AlertTriangle, Image, Pencil, Loader2, Trash2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
 import { UpdateFloorPlansButton } from "./update-floor-plans-button"
 import {
   AlertDialog,
@@ -53,6 +54,7 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [planToDelete, setPlanToDelete] = useState<PlanType | null>(null)
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("")
   const [isTableUpdated, setIsTableUpdated] = useState<boolean | null>(null)
   const [imageLoadError, setImageLoadError] = useState<Record<PlanType, boolean>>({
     before: false,
@@ -248,12 +250,14 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
       setIsDeleting(false)
       setDeleteDialogOpen(false)
       setPlanToDelete(null)
+      setDeleteConfirmationText("")
     }
   }
 
   // Función para confirmar eliminación
   const confirmDelete = (type: PlanType) => {
     setPlanToDelete(type)
+    setDeleteConfirmationText("")
     setDeleteDialogOpen(true)
   }
 
@@ -391,6 +395,16 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
                       <Pencil className="h-4 w-4" />
                     </Button>
                   )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => confirmDelete("before")}
+                    title="Eliminar plano"
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               )}
             </div>
@@ -558,25 +572,53 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
       </div>
 
       {/* Diálogo de confirmación para eliminar plano */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => {
+        setDeleteDialogOpen(open)
+        if (!open) setDeleteConfirmationText("")
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar plano?</AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Estás seguro de que quieres eliminar el plano "{planToDelete === "before" ? "Antes" : "Después"}"? Esta
-              acción no se puede deshacer.
+            <AlertDialogTitle className="text-red-600 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              ¿Eliminar plano del proyecto?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Estás a punto de eliminar el plano <strong>"{planToDelete === "before" ? "Antes" : "Después"}"</strong>.
+              </p>
+              <Alert variant="destructive" className="bg-red-50 border-red-200 py-2">
+                <p className="text-xs font-medium text-red-800">
+                  ¡Atención! Este plano está vinculado a este proyecto. Al borrarlo, se perderán las referencias visuales en el calculador. Esta acción es definitiva.
+                </p>
+              </Alert>
+              <div className="space-y-2 pt-2">
+                <p className="text-sm font-bold text-slate-800">
+                  Para confirmar, escribe <span className="text-red-600 underline">ELIMINAR</span> a continuación:
+                </p>
+                <Input
+                  value={deleteConfirmationText}
+                  onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                  placeholder="Escribe ELIMINAR aquí"
+                  className="border-red-200 focus:border-red-500 focus:ring-red-500"
+                  autoFocus
+                />
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeletePlan} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction
+              onClick={handleDeletePlan}
+              disabled={isDeleting || deleteConfirmationText !== "ELIMINAR"}
+              className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               {isDeleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Eliminando...
                 </>
               ) : (
-                "Eliminar"
+                "Eliminar permanentemente"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

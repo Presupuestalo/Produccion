@@ -247,11 +247,12 @@ function CompanySettings({ userId, userData = {} }: CompanySettingsProps) {
         throw error
       }
 
-      // Sync with profiles table for notification consistency
+      // Sync with profiles table for notification consistency and UI display
       const finalServiceProvinces = Array.from(new Set([formData.company_province, ...serviceProvinces])).filter(Boolean)
       const { error: profileSyncError } = await supabase
         .from("profiles")
         .update({
+          full_name: formData.company_name, // Sync full_name with company name for consistent UI
           address_province: formData.company_province,
           service_provinces: finalServiceProvinces,
           country: formData.company_country === "ES" ? "España" : formData.company_country // Keep consistenct with lead publish logic

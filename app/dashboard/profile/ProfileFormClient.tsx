@@ -606,111 +606,127 @@ export default function ProfileFormClient({ userData }: { userData: UserProfile 
           </CardContent>
         </Card>
 
-        {/* Basic Info Section - Added for professionals */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Información del Profesional</CardTitle>
-            <CardDescription>Estos datos se usarán en tus facturas y contratos</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="prof-fullName">Nombre completo / Razón Social *</Label>
-                <Input
-                  id="prof-fullName"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Tu nombre o empresa"
-                  required
-                />
+        {/* Basic Info Section - Hidden for professionals as they use the "Empresa" tab */}
+        {!isProfessional ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Información del Profesional</CardTitle>
+              <CardDescription>Estos datos se usarán en tus facturas y contratos</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="prof-fullName">Nombre completo / Razón Social *</Label>
+                  <Input
+                    id="prof-fullName"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Tu nombre o empresa"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="prof-dniNif">DNI/NIF (Para facturación)</Label>
+                  <Input
+                    id="prof-dniNif"
+                    value={dniNif}
+                    onChange={(e) => setDniNif(e.target.value)}
+                    placeholder="12345678A"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="prof-dniNif">DNI/NIF (Para facturación)</Label>
-                <Input
-                  id="prof-dniNif"
-                  value={dniNif}
-                  onChange={(e) => setDniNif(e.target.value)}
-                  placeholder="12345678A"
-                />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="prof-country">País</Label>
-                <Select value={country} onValueChange={setCountry}>
-                  <SelectTrigger id="prof-country">
-                    <SelectValue placeholder="Selecciona tu país" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    {PAISES.map((pais) => (
-                      <SelectItem key={pais.code} value={pais.code}>
-                        {pais.flag} {pais.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="prof-province">{fieldLabels.province}</Label>
-                {hasProvinces ? (
-                  <Select value={province} onValueChange={setProvince}>
-                    <SelectTrigger id="prof-province">
-                      <SelectValue placeholder="Selecciona tu provincia" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="prof-country">País</Label>
+                  <Select value={country} onValueChange={setCountry}>
+                    <SelectTrigger id="prof-country">
+                      <SelectValue placeholder="Selecciona tu país" />
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
-                      {countryProvinces.map((p) => (
-                        <SelectItem key={p} value={p}>
-                          {p}
+                      {PAISES.map((pais) => (
+                        <SelectItem key={pais.code} value={pais.code}>
+                          {pais.flag} {pais.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                ) : (
-                  <Input
-                    id="prof-province"
-                    value={province}
-                    onChange={(e) => setProvince(e.target.value)}
-                    placeholder="Escribe tu provincia"
-                  />
-                )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="prof-province">{fieldLabels.province}</Label>
+                  {hasProvinces ? (
+                    <Select value={province} onValueChange={setProvince}>
+                      <SelectTrigger id="prof-province">
+                        <SelectValue placeholder="Selecciona tu provincia" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        {countryProvinces.map((p) => (
+                          <SelectItem key={p} value={p}>
+                            {p}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      id="prof-province"
+                      value={province}
+                      onChange={(e) => setProvince(e.target.value)}
+                      placeholder="Escribe tu provincia"
+                    />
+                  )}
+                </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="prof-addressStreet">Dirección Fiscal (Calle y número)</Label>
-                <Input
-                  id="prof-addressStreet"
-                  value={addressStreet}
-                  onChange={(e) => setAddressStreet(e.target.value)}
-                  placeholder="Calle Mayor, 1"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="prof-addressStreet">Dirección Fiscal (Calle y número)</Label>
+                  <Input
+                    id="prof-addressStreet"
+                    value={addressStreet}
+                    onChange={(e) => setAddressStreet(e.target.value)}
+                    placeholder="Calle Mayor, 1"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="prof-addressCity">Ciudad</Label>
+                  <Input
+                    id="prof-addressCity"
+                    value={addressCity}
+                    onChange={(e) => setAddressCity(e.target.value)}
+                    placeholder="Madrid"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="prof-addressCity">Ciudad</Label>
-                <Input
-                  id="prof-addressCity"
-                  value={addressCity}
-                  onChange={(e) => setAddressCity(e.target.value)}
-                  placeholder="Madrid"
-                />
-              </div>
+            </CardContent>
+            <CardFooter className="flex justify-end">
+              <Button onClick={(e) => handleSubmit(e as any)} disabled={isLoading} className="bg-orange-600 hover:bg-orange-700">
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  "Guardar información básica"
+                )}
+              </Button>
+            </CardFooter>
+          </Card>
+        ) : (
+          <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-orange-900">Configuración de Identidad</p>
+              <p className="text-xs text-orange-700">
+                Como profesional, gestionas tu nombre comercial, dirección fiscal y DNI/CIF en la pestaña de Datos de Empresa.
+              </p>
             </div>
-          </CardContent>
-          <CardFooter className="flex justify-end">
-            <Button onClick={(e) => handleSubmit(e as any)} disabled={isLoading} className="bg-orange-600 hover:bg-orange-700">
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                "Guardar información básica"
-              )}
+            <Button asChild variant="outline" size="sm" className="bg-white border-orange-200 text-orange-700 hover:bg-orange-100 shrink-0">
+              <Link href="/dashboard/empresa">
+                Gestionar Empresa
+              </Link>
             </Button>
-          </CardFooter>
-        </Card>
+          </div>
+        )}
 
         {/* Work Mode Section - Only for professionals */}
         {isMaster && (

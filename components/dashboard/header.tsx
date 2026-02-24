@@ -36,6 +36,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/ui/logo"
 import { Badge } from "@/components/ui/badge"
+import { isAdminUser, isMasterUser } from "@/lib/services/auth-service"
 
 function CalculatorIcon() {
   return (
@@ -89,12 +90,9 @@ export function DashboardHeader() {
         console.log("[v0] HEADER - Session:", session?.user?.email)
 
         if (session?.user) {
-          const adminEmails = ["mikelfedz@gmail.com", "mikelfedzmcc@gmail.com", "presupuestaloficial@gmail.com"]
-          const isAdminEmail = adminEmails.includes(session.user.email || "")
-
           const { data: profile, error: profileError } = await supabase
             .from("profiles")
-            .select("user_type, full_name, avatar_url, is_admin, role, work_mode, phone, phone_verified, email, subscription_plan")
+            .select("user_type, full_name, avatar_url, work_mode, phone, phone_verified, email, subscription_plan")
             .eq("id", session.user.id)
             .single()
 
@@ -106,8 +104,15 @@ export function DashboardHeader() {
             profile?.full_name || session.user.user_metadata?.name || session.user.email?.split("@")[0] || "Usuario",
           )
           setUserAvatar(profile?.avatar_url || session.user.user_metadata?.picture || "")
-          setIsAdmin(profile?.is_admin || isAdminEmail)
-          setIsMaster(profile?.role === "master")
+
+          // Usar servicio centralizado para roles
+          const [masterStatus, adminStatus] = await Promise.all([
+            isMasterUser(),
+            isAdminUser()
+          ])
+
+          setIsAdmin(adminStatus)
+          setIsMaster(masterStatus)
           setIsCoordinator(profile?.work_mode === "coordinator")
 
           // Set subscription plan

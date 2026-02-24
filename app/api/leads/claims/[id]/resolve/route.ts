@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { sendEmail } from "@/lib/email/send-email"
 import { emailClaimResolved } from "@/lib/email/templates/presmarket-emails"
+import { isAdminUserOnServer } from "@/lib/services/auth-server-service"
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -20,15 +21,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "No autenticado" }, { status: 401 })
     }
 
-    // Verificar que es admin
-    const { data: adminProfile } = await supabase.from("profiles").select("role, email").eq("id", user.id).single()
+    // Verificar que es admin (Supermaster)
+    const isSuperAdmin = await isAdminUserOnServer()
 
-    const isAdmin =
-      adminProfile?.role === "admin" ||
-      adminProfile?.email === "pascualmollar@gmail.com" ||
-      adminProfile?.email === "admin@presupuestalo.es"
-
-    if (!isAdmin) {
+    if (!isSuperAdmin) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 })
     }
 
