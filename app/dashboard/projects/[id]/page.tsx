@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import Calculator, { type CalculatorHandle } from "@/components/calculator/calculator"
 import { useToast } from "@/components/ui/use-toast"
-import { AlertTriangle, ArrowLeft, Settings, PencilRuler, Eye, Layout, Plus, FileText, ChevronDown, Hammer, CheckCircle, Loader2 } from "lucide-react"
+import { AlertTriangle, ArrowLeft, Settings, PencilRuler, Eye, Layout, Plus, FileText, ChevronDown, Hammer, CheckCircle, Loader2, Copy } from "lucide-react"
 import { updateProject, calculateProgress } from "@/lib/services/project-service"
 import type { Project } from "@/types/project"
 import {
@@ -237,9 +237,20 @@ export default function ProjectPage() {
                 {project?.title || project?.name || "Proyecto sin nombre"}
               </h1>
               <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-0.5">
-                <p className="text-[13px] font-medium text-slate-700 truncate leading-none">
+                <div className="text-[13px] font-medium text-slate-700 truncate leading-none flex items-center gap-2">
                   Cliente: <span className="text-muted-foreground font-normal">{project?.client || project?.client_name || "Sin cliente"}</span>
-                </p>
+                  {project?.status && (
+                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 border-none shadow-none ${project.status === "Borrador" || String(project.status).toLowerCase() === "draft" ? "bg-slate-100 text-slate-600" :
+                      project.status === "Entregado" || String(project.status).toLowerCase() === "sent" ? "bg-blue-100 text-blue-600" :
+                        project.status === "Aceptado" || String(project.status).toLowerCase() === "approved" ? "bg-green-100 text-green-600" :
+                          project.status === "En Obra" || String(project.status).toLowerCase() === "in_progress" ? "bg-orange-100 text-orange-600" :
+                            project.status === "Terminado" || String(project.status).toLowerCase() === "completed" ? "bg-purple-100 text-purple-600" :
+                              "bg-slate-100 text-slate-600"
+                      }`}>
+                      {String(project.status).toUpperCase()}
+                    </Badge>
+                  )}
+                </div>
                 <div className="hidden sm:block w-1 h-1 rounded-full bg-slate-200" />
                 <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground leading-none">
                   {project?.ceiling_height && (
@@ -268,56 +279,100 @@ export default function ProjectPage() {
           {/* Right Section: Settings + Status (flex-1 to balance) */}
           <div className="flex flex-1 justify-end items-center gap-2 shrink-0 min-w-0">
             {project?.user_type !== "owner" && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button asChild variant="outline" size="icon" className="h-10 w-10 text-slate-500 hover:text-orange-600 hover:bg-orange-50 hover:border-orange-200 transition-all shadow-sm border-slate-200 shrink-0">
-                      <Link href={`/dashboard/projects/${projectId}/edit`}>
-                        <Settings className="h-5 w-5" />
-                        <span className="sr-only">Ajustes</span>
-                      </Link>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent align="end">
-                    <p>Ajustes del proyecto</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <div className="flex items-center gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={async () => {
+                          if (window.confirm("¿Seguro que quieres duplicar este proyecto?")) {
+                            setIsLoading(true);
+                            try {
+                              const { duplicateProject } = await import("@/lib/services/project-service");
+                              const newId = await duplicateProject(projectId);
+                              router.push(`/dashboard/projects/${newId}`);
+                              toast({ title: "Proyecto duplicado", description: "Se ha creado una copia de este proyecto." });
+                            } catch (e: any) {
+                              toast({ variant: "destructive", title: "Error", description: e.message || "No se pudo duplicar el proyecto" });
+                            } finally {
+                              setIsLoading(false);
+                            }
+                          }
+                        }}
+                        disabled={isLoading}
+                        className="h-10 w-10 text-slate-500 hover:text-orange-600 hover:bg-orange-50 hover:border-orange-200 transition-all shadow-sm border-slate-200 shrink-0"
+                      >
+                        <Copy className="h-5 w-5" />
+                        <span className="sr-only">Duplicar</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent align="end">
+                      <p>Duplicar proyecto</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button asChild variant="outline" size="icon" className="h-10 w-10 text-slate-500 hover:text-orange-600 hover:bg-orange-50 hover:border-orange-200 transition-all shadow-sm border-slate-200 shrink-0">
+                        <Link href={`/dashboard/projects/${projectId}/edit`}>
+                          <Settings className="h-5 w-5" />
+                          <span className="sr-only">Ajustes</span>
+                        </Link>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent align="end">
+                      <p>Ajustes del proyecto</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             )}
 
             {/* Status Action Buttons */}
-            <div className="flex items-center gap-2 shrink-0">
-              {project?.status && (String(project.status) === "approved" || String(project.status) === "Aceptado" || String(project.status) === "aceptado") && (
-                <Button
-                  size="sm"
-                  onClick={() => handleStatusChange("En Obra")}
-                  disabled={isLoading}
-                  className="bg-orange-500 hover:bg-orange-600 text-white font-bold gap-1.5 h-10 px-4 rounded-xl shadow-sm transition-all active:scale-95"
-                >
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hammer className="h-4 w-4" />}
-                  <span className="hidden sm:inline desktop:inline">EMPEZAR OBRA</span>
-                  <span className="sm:hidden desktop:hidden">OBRA</span>
-                </Button>
-              )}
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <div className="flex items-center gap-2">
+                {project?.status && (String(project.status) === "approved" || String(project.status) === "Aceptado" || String(project.status) === "aceptado") && (
+                  <Button
+                    size="sm"
+                    onClick={() => handleStatusChange("En Obra")}
+                    disabled={isLoading}
+                    className="bg-orange-500 hover:bg-orange-600 text-white font-bold gap-1.5 h-10 px-4 rounded-xl shadow-sm transition-all active:scale-95"
+                  >
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hammer className="h-4 w-4" />}
+                    <span className="hidden sm:inline desktop:inline">EMPEZAR OBRA</span>
+                    <span className="sm:hidden desktop:hidden">OBRA</span>
+                  </Button>
+                )}
 
-              {project?.status && (project.status === "En Obra" || String(project.status) === "en_obra") && (
-                <Button
-                  size="sm"
-                  onClick={() => handleStatusChange("Terminado")}
-                  disabled={isLoading}
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold gap-1.5 h-10 px-4 rounded-xl shadow-sm transition-all active:scale-95"
-                >
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                  <span className="hidden sm:inline desktop:inline">FINALIZAR PROYECTO</span>
-                  <span className="sm:hidden desktop:hidden">TERMINAR</span>
-                </Button>
-              )}
+                {project?.status && (project.status === "En Obra" || String(project.status) === "en_obra") && (
+                  <Button
+                    size="sm"
+                    onClick={() => handleStatusChange("Terminado")}
+                    disabled={isLoading}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold gap-1.5 h-10 px-4 rounded-xl shadow-sm transition-all active:scale-95"
+                  >
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                    <span className="hidden sm:inline desktop:inline">FINALIZAR PROYECTO</span>
+                    <span className="sm:hidden desktop:hidden">TERMINAR</span>
+                  </Button>
+                )}
 
-              {project?.status && (project.status === "Terminado" || String(project.status) === "Finalizado") && (
-                <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200 h-10 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5">
-                  <CheckCircle className="h-4 w-4" />
-                  TERMINADO
-                </Badge>
+                {project?.status && (project.status === "Terminado" || String(project.status) === "Finalizado") && (
+                  <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200 h-10 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                    <CheckCircle className="h-4 w-4" />
+                    TERMINADO
+                  </Badge>
+                )}
+              </div>
+
+              {project?.status && (project.status === "Borrador" || String(project.status).toLowerCase() === "draft" || project.status === "Entregado" || String(project.status).toLowerCase() === "sent") && (
+                <p className="text-[10px] text-muted-foreground italic px-2">
+                  * El estado cambia a "Aceptado" al aprobar un presupuesto
+                </p>
               )}
             </div>
           </div>

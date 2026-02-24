@@ -520,7 +520,7 @@ export async function deleteProject(id: string) {
       .maybeSingle()
 
     if (quoteCheckError && quoteCheckError.code !== "42P01") {
-      console.error("[v0] Error al verificar presmarket:", quoteCheckError)
+      console.error("[v0] Error al verificar presmarket:", quoteCheckError.message || quoteCheckError.details || quoteCheckError)
     }
 
     if (activeQuoteRequest) {
@@ -537,6 +537,10 @@ export async function deleteProject(id: string) {
       .in("status", ["open", "active"])
       .maybeSingle()
 
+    if (leadCheckError && leadCheckError.code !== "42P01") {
+      console.error("[v0] Error al verificar marketplace leads:", leadCheckError.message || leadCheckError.details || leadCheckError)
+    }
+
     if (activeLeadRequest) {
       throw new Error(
         "No puedes eliminar este proyecto porque tiene una solicitud activa en el marketplace. " +
@@ -551,7 +555,7 @@ export async function deleteProject(id: string) {
       .in("status", ["sent", "pending"])
 
     if (offersCheckError && offersCheckError.code !== "42P01") {
-      console.error("[v0] Error al verificar ofertas:", offersCheckError)
+      console.error("[v0] Error al verificar ofertas:", offersCheckError.message || offersCheckError.details || offersCheckError)
     }
 
     if (pendingOffers && pendingOffers.length > 0) {
@@ -666,6 +670,139 @@ export async function deleteProject(id: string) {
     return true
   } catch (error) {
     console.error(`Error al eliminar el proyecto con ID ${id}:`, error)
+    throw error
+  }
+}
+
+/**
+ * Duplica un proyecto completo con toda su configuración, planos y presupuestos
+ */
+export async function duplicateProject(projectId: string) {
+  try {
+    const supabase = await getSupabase()
+    if (!supabase) throw new Error("Supabase client not available")
+
+    // 1. Obtener proyecto original
+    const { data: originalProject, error: fetchError } = await supabase
+      .from("projects")
+      .select("*")
+      .eq("id", projectId)
+      .single()
+
+    if (fetchError || !originalProject) {
+      throw new Error(`Error al obtener el proyecto original: ${fetchError?.message || "No encontrado"}`)
+    }
+
+    // 2. Crear proyecto duplicado
+    const newProjectId = uuidv4()
+    const { id: _, created_at: __, ...projectToCopy } = originalProject
+
+    const duplicatedProject = {
+      ...projectToCopy,
+      id: newProjectId,
+      title: `${originalProject.title} (Copia)`,
+      created_at: new Date().toISOString(),
+      status: "Borrador",
+      progress: 0
+    }
+
+    const { error: insertError } = await supabase.from("projects").insert(duplicatedProject)
+    if (insertError) throw new Error(`Error al insertar el proyecto duplicado: ${insertError.message}`)
+
+    // 3. Duplicar Datos de la Calculadora (calculator_data)
+    const { data: calcData } = await supabase.from("calculator_data").select("*").eq("project_id", projectId).maybeSingle()
+    if (calcData) {
+      const { id: ___, project_id: ____, created_at: _____, updated_at: ______, ...calcToCopy } = calcData
+      await supabase.from("calculator_data").insert({
+        ...calcToCopy,
+        project_id: newProjectId,
+      })
+    }
+
+    // 4. Duplicar Ajustes de Derribos (demolition_settings)
+    const { data: demoSettings } = await supabase.from("demolition_settings").select("*").eq("project_id", projectId).maybeSingle()
+    if (demoSettings) {
+      const { id: ___, project_id: ____, created_at: _____, updated_at: ______, ...demoToCopy } = demoSettings
+      await supabase.from("demolition_settings").insert({
+        ...demoToCopy,
+        project_id: newProjectId,
+      })
+    }
+
+    // 5. Duplicar Ajustes de Presupuesto (budget_settings)
+    const { data: budgetSettings } = await supabase.from("budget_settings").select("*").eq("project_id", projectId).maybeSingle()
+    if (budgetSettings) {
+      const { project_id: ____, created_at: _____, updated_at: ______, ...settingsToCopy } = budgetSettings
+      await supabase.from("budget_settings").insert({
+        ...settingsToCopy,
+        project_id: newProjectId,
+      })
+    }
+
+    // 6. Duplicar Planos (project_floor_plans)
+    const { data: floorPlans } = await supabase.from("project_floor_plans").select("*").eq("project_id", projectId)
+    if (floorPlans && floorPlans.length > 0) {
+      const plansToInsert = floorPlans.map((plan: any) => {
+        const { id: ___, project_id: ____, created_at: _____, ...planToCopy } = plan
+        return {
+          ...planToCopy,
+          project_id: newProjectId
+        }
+      })
+      await supabase.from("project_floor_plans").insert(plansToInsert)
+    }
+
+    // 7. Duplicar Presupuestos y sus partidas
+    const budgets = await BudgetService.getBudgetsByProject(projectId, supabase)
+    for (const budget of budgets) {
+      const fullBudget = await BudgetService.getBudgetById(budget.id, supabase)
+      if (!fullBudget) continue
+
+      const { id: oldBudgetId, project_id: _, created_at: __, updated_at: ___, line_items, ...budgetData } = fullBudget
+
+      const { data: newBudget, error: bError } = await supabase
+        .from("budgets")
+        .insert({
+          ...budgetData,
+          project_id: newProjectId,
+          status: "draft", // Siempre empezamos como borrador en la copia
+        })
+        .select()
+        .single()
+
+      if (bError) {
+        console.error("Error duplicando presupuesto:", bError)
+        continue
+      }
+
+      if (line_items && line_items.length > 0) {
+        const lineItemsToInsert = line_items.map(item => {
+          const { id: ____, budget_id: _____, created_at: ______, updated_at: _______, ...itemToCopy } = item
+          return {
+            ...itemToCopy,
+            budget_id: newBudget.id
+          }
+        })
+        await supabase.from("budget_line_items").insert(lineItemsToInsert)
+      }
+
+      // Duplicar Ajustes (budget_adjustments)
+      const adjustments = await BudgetService.getBudgetAdjustments(oldBudgetId, supabase)
+      if (adjustments && adjustments.length > 0) {
+        const adjustmentsToInsert = adjustments.map(adj => {
+          const { id: ____, budget_id: _____, created_at: ______, ...adjToCopy } = adj
+          return {
+            ...adjToCopy,
+            budget_id: newBudget.id
+          }
+        })
+        await supabase.from("budget_adjustments").insert(adjustmentsToInsert)
+      }
+    }
+
+    return newProjectId
+  } catch (error) {
+    console.error("Error en duplicateProject:", error)
     throw error
   }
 }

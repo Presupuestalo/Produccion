@@ -9,11 +9,11 @@ import { Zap, FileCheck, Wrench, Cable, Plug2, Flame } from 'lucide-react'
 
 interface ElectricalGeneralPanelProps {
   config?: ElectricalConfig
-  onUpdate: (config: ElectricalConfig) => void
   globalConfig?: GlobalConfig
+  isReadOnly?: boolean
 }
 
-export function ElectricalGeneralPanel({ config, onUpdate, globalConfig }: ElectricalGeneralPanelProps) {
+export function ElectricalGeneralPanel({ config, onUpdate, globalConfig, isReadOnly = false }: ElectricalGeneralPanelProps) {
   // Usar una configuración por defecto si no se proporciona
   const defaultConfig: ElectricalConfig = {
     needsNewInstallation: false,
@@ -96,6 +96,7 @@ export function ElectricalGeneralPanel({ config, onUpdate, globalConfig }: Elect
                     id="needsNewInstallation"
                     checked={localConfig.needsNewInstallation}
                     onCheckedChange={(checked) => handleConfigChange({ needsNewInstallation: checked })}
+                    disabled={isReadOnly}
                   />
                 </div>
               </CardContent>
@@ -120,6 +121,7 @@ export function ElectricalGeneralPanel({ config, onUpdate, globalConfig }: Elect
                         id="hasConstructionPanel"
                         checked={localConfig.hasConstructionPanel}
                         onCheckedChange={(checked) => handleConfigChange({ hasConstructionPanel: checked })}
+                        disabled={isReadOnly}
                       />
                     </div>
                   </CardContent>
@@ -140,6 +142,7 @@ export function ElectricalGeneralPanel({ config, onUpdate, globalConfig }: Elect
                         id="hasCertificate"
                         checked={localConfig.hasCertificate}
                         onCheckedChange={(checked) => handleConfigChange({ hasCertificate: checked })}
+                        disabled={isReadOnly}
                       />
                     </div>
                   </CardContent>
@@ -160,6 +163,7 @@ export function ElectricalGeneralPanel({ config, onUpdate, globalConfig }: Elect
                         id="relocateElectricalConnection"
                         checked={localConfig.relocateElectricalConnection || false}
                         onCheckedChange={(checked) => handleConfigChange({ relocateElectricalConnection: checked })}
+                        disabled={isReadOnly}
                       />
                     </div>
                   </CardContent>
@@ -180,6 +184,7 @@ export function ElectricalGeneralPanel({ config, onUpdate, globalConfig }: Elect
                         id="hasElectricalPanel"
                         checked={localConfig.hasElectricalPanel || false}
                         onCheckedChange={(checked) => handleConfigChange({ hasElectricalPanel: checked })}
+                        disabled={isReadOnly}
                       />
                     </div>
                   </CardContent>
@@ -200,6 +205,7 @@ export function ElectricalGeneralPanel({ config, onUpdate, globalConfig }: Elect
                         id="hasGroundConnection"
                         checked={localConfig.hasGroundConnection || false}
                         onCheckedChange={(checked) => handleConfigChange({ hasGroundConnection: checked })}
+                        disabled={isReadOnly}
                       />
                     </div>
                   </CardContent>
@@ -221,6 +227,7 @@ export function ElectricalGeneralPanel({ config, onUpdate, globalConfig }: Elect
                           id="hasHeatingCircuit"
                           checked={localConfig.hasHeatingCircuit || false}
                           onCheckedChange={(checked) => handleConfigChange({ hasHeatingCircuit: checked })}
+                          disabled={isReadOnly}
                         />
                       </div>
                     </CardContent>

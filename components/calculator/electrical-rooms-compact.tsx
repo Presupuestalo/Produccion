@@ -35,7 +35,7 @@ interface ElectricalSettings {
   [key: string]: ElectricalRoomSettings
 }
 
-export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsCompactProps) {
+export function ElectricalRoomsCompact({ rooms, onUpdateRoom, isReadOnly = false }: ElectricalRoomsCompactProps) {
   const [settings, setSettings] = useState<ElectricalSettings | null>(null)
   const [roomElements, setRoomElements] = useState<{ [key: string]: ElectricalRoomSettings }>({})
   const [loading, setLoading] = useState(true)
@@ -424,7 +424,8 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                     <button
                       type="button"
                       onClick={() => decrementValue(room.id, "puntosLuzTecho")}
-                      className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                      disabled={isReadOnly}
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -438,13 +439,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                           const value = e.target.value.replace(/[^0-9]/g, "")
                           updateElement(room.id, "puntosLuzTecho", value === "" ? 0 : Number.parseInt(value))
                         }}
-                        className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none"
+                        className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none disabled:bg-gray-50"
+                        disabled={isReadOnly}
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => incrementValue(room.id, "puntosLuzTecho")}
-                      className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                      disabled={isReadOnly}
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -458,7 +461,8 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                     <button
                       type="button"
                       onClick={() => decrementValue(room.id, "enchufes")}
-                      className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                      disabled={isReadOnly}
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -472,13 +476,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                           const value = e.target.value.replace(/[^0-9]/g, "")
                           updateElement(room.id, "enchufes", value === "" ? 0 : Number.parseInt(value))
                         }}
-                        className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none"
+                        className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none disabled:bg-gray-50"
+                        disabled={isReadOnly}
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => incrementValue(room.id, "enchufes")}
-                      className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                      disabled={isReadOnly}
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -492,7 +498,8 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                     <button
                       type="button"
                       onClick={() => decrementValue(room.id, "sencillo")}
-                      className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                      disabled={isReadOnly}
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -506,13 +513,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                           const value = e.target.value.replace(/[^0-9]/g, "")
                           updateElement(room.id, "sencillo", value === "" ? 0 : Number.parseInt(value))
                         }}
-                        className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none"
+                        className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none disabled:bg-gray-50"
+                        disabled={isReadOnly}
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => incrementValue(room.id, "sencillo")}
-                      className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                      disabled={isReadOnly}
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -526,7 +535,8 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                     <button
                       type="button"
                       onClick={() => decrementValue(room.id, "conmutados")}
-                      className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                      disabled={isReadOnly}
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -540,13 +550,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                           const value = e.target.value.replace(/[^0-9]/g, "")
                           updateElement(room.id, "conmutados", value === "" ? 0 : Number.parseInt(value))
                         }}
-                        className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none"
+                        className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none disabled:bg-gray-50"
+                        disabled={isReadOnly}
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => incrementValue(room.id, "conmutados")}
-                      className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                      disabled={isReadOnly}
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -560,7 +572,8 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                     <button
                       type="button"
                       onClick={() => decrementValue(room.id, "cruzamiento")}
-                      className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                      disabled={isReadOnly}
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -574,13 +587,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                           const value = e.target.value.replace(/[^0-9]/g, "")
                           updateElement(room.id, "cruzamiento", value === "" ? 0 : Number.parseInt(value))
                         }}
-                        className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none"
+                        className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none disabled:bg-gray-50"
+                        disabled={isReadOnly}
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => incrementValue(room.id, "cruzamiento")}
-                      className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                      disabled={isReadOnly}
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -594,7 +609,8 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                     <button
                       type="button"
                       onClick={() => decrementValue(room.id, "intemperie")}
-                      className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                      disabled={isReadOnly}
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -608,13 +624,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                           const value = e.target.value.replace(/[^0-9]/g, "")
                           updateElement(room.id, "intemperie", value === "" ? 0 : Number.parseInt(value))
                         }}
-                        className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none"
+                        className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none disabled:bg-gray-50"
+                        disabled={isReadOnly}
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => incrementValue(room.id, "intemperie")}
-                      className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                      disabled={isReadOnly}
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -628,7 +646,8 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                     <button
                       type="button"
                       onClick={() => decrementValue(room.id, "tomaTV")}
-                      className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                      disabled={isReadOnly}
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -642,13 +661,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                           const value = e.target.value.replace(/[^0-9]/g, "")
                           updateElement(room.id, "tomaTV", value === "" ? 0 : Number.parseInt(value))
                         }}
-                        className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none"
+                        className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none disabled:bg-gray-50"
+                        disabled={isReadOnly}
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => incrementValue(room.id, "tomaTV")}
-                      className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                      disabled={isReadOnly}
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -662,7 +683,8 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                     <button
                       type="button"
                       onClick={() => decrementValue(room.id, "focosEmpotrados")}
-                      className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      className="h-6 w-6 rounded-l border flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                      disabled={isReadOnly}
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -676,13 +698,15 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom }: ElectricalRoomsC
                           const value = e.target.value.replace(/[^0-9]/g, "")
                           updateElement(room.id, "focosEmpotrados", value === "" ? 0 : Number.parseInt(value))
                         }}
-                        className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none"
+                        className="h-6 w-full text-center p-0 border-l-0 border-r-0 rounded-none disabled:bg-gray-50"
+                        disabled={isReadOnly}
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => incrementValue(room.id, "focosEmpotrados")}
-                      className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100"
+                      className="h-6 w-6 rounded-r border flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                      disabled={isReadOnly}
                     >
                       <Plus className="h-3 w-3" />
                     </button>

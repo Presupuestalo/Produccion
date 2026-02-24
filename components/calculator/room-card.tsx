@@ -107,7 +107,7 @@ interface RoomCardProps {
   isHighlighted?: boolean
   forceShowNumber?: boolean
   existingRooms?: Room[]
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  isReadOnly?: boolean
 }
 
 // Actualizar la desestructuración de props para incluir globalConfig y demolitionRoom
@@ -127,6 +127,7 @@ export function RoomCard({
   isHighlighted = false,
   forceShowNumber = false,
   existingRooms = [],
+  isReadOnly = false,
 }: RoomCardProps) {
   // Estado para el acordeón
   const [isOpen, setIsOpen] = useState(true)
@@ -1167,6 +1168,13 @@ export function RoomCard({
     globalConfig?.reformHeatingType === "Otra"
     : heatingType === "Caldera + Radiadores" || heatingType === "Central" || heatingType === "Eléctrica"
 
+  // Debug logging for radiator visibility
+  useEffect(() => {
+    if (isReform) {
+      console.log(`[v0] RoomCard Debug (${room.type} ${room.number}) - isReform: ${isReform}, shouldShowRadiator: ${shouldShowRadiator}, reformHeatingType: ${globalConfig?.reformHeatingType}, installRadiators: ${globalConfig?.installRadiators}`)
+    }
+  }, [isReform, shouldShowRadiator, globalConfig?.reformHeatingType, globalConfig?.installRadiators, room.type, room.number])
+
   const getDefaultRadiatorType = (): RadiatorType => {
     const isBathroom = room.type === "Baño"
 
@@ -1317,7 +1325,7 @@ export function RoomCard({
                         setIsEditingName(false)
                       }}
                     >
-                      <SelectTrigger className="h-7 w-[180px] text-xs">
+                      <SelectTrigger className="h-7 w-[180px] text-xs" disabled={isReadOnly}>
                         <SelectValue placeholder="Seleccionar tipo" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1354,6 +1362,7 @@ export function RoomCard({
                         e.stopPropagation()
                         setIsEditingName(true)
                       }}
+                      disabled={isReadOnly}
                     >
                       <Pencil className="h-2.5 w-2.5 transition-transform duration-200" />
                     </Button>
@@ -1423,6 +1432,7 @@ export function RoomCard({
                         size="sm"
                         onClick={() => onDuplicate(room.id)}
                         className="h-6 w-6 p-0"
+                        disabled={isReadOnly}
                       >
                         <Copy className="h-3 w-3" />
                       </Button>
@@ -1435,7 +1445,7 @@ export function RoomCard({
               )}
               {/* </CHANGE> */}
 
-              <Button type="button" variant="destructive" size="sm" onClick={handleDelete} className="h-6 w-6 p-0">
+              <Button type="button" variant="destructive" size="sm" onClick={handleDelete} className="h-6 w-6 p-0" disabled={isReadOnly}>
                 <Trash2 className="h-3 w-3" />
               </Button>
             </div>
@@ -1470,6 +1480,7 @@ export function RoomCard({
                         onChange={handleCustomRoomTypeChange}
                         onBlur={saveCustomRoomType}
                         placeholder="Ej. Despensa..."
+                        disabled={isReadOnly}
                         className="h-8 text-xs bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary transition-all"
                       />
                     </div>
@@ -1484,6 +1495,7 @@ export function RoomCard({
                       <Select
                         value={room.floorMaterial}
                         onValueChange={(value) => updateRoom(room.id, { floorMaterial: value as FloorMaterialType })}
+                        disabled={isReadOnly}
                       >
                         <SelectTrigger id={`floorMaterial-${room.id}`} className="h-8 text-[11px] font-medium bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 transition-all">
                           <SelectValue placeholder="Material" />
@@ -1517,7 +1529,7 @@ export function RoomCard({
                       <Select
                         value={wallMaterialValue}
                         onValueChange={handleWallMaterialChange}
-                        disabled={isWallMaterialDisabled}
+                        disabled={isWallMaterialDisabled || isReadOnly}
                         required
                       >
                         <SelectTrigger id={`wallMaterial-${room.id}`} className="h-8 text-[11px] font-medium bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 transition-all">
@@ -1556,22 +1568,26 @@ export function RoomCard({
                             value={room.currentCeilingStatus || "no_false_ceiling"}
                             onValueChange={handleCurrentCeilingStatusChange}
                             className="flex-1"
+                            disabled={isReadOnly}
                           >
                             <TabsList className="grid grid-cols-3 h-8 p-1 bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
                               <TabsTrigger
                                 value="no_false_ceiling"
+                                disabled={isReadOnly}
                                 className="text-[9px] h-6 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
                               >
                                 Ninguno
                               </TabsTrigger>
                               <TabsTrigger
                                 value="lowered_remove"
+                                disabled={isReadOnly}
                                 className="text-[9px] h-6 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
                               >
                                 Retirar
                               </TabsTrigger>
                               <TabsTrigger
                                 value="lowered_keep"
+                                disabled={isReadOnly}
                                 className="text-[9px] h-6 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
                               >
                                 Mantener
@@ -1587,6 +1603,7 @@ export function RoomCard({
                                 value={currentCeilingHeightInput}
                                 onChange={handleCurrentCeilingHeightChange}
                                 onBlur={saveCurrentCeilingHeight}
+                                disabled={isReadOnly}
                                 className="h-8 text-[11px] font-bold pr-5 bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800"
                                 placeholder="..."
                               />
@@ -1608,6 +1625,7 @@ export function RoomCard({
                                   setCeilingHeightInput(formatDecimal(defaultNewHeight))
                                 }
                               }}
+                              disabled={isReadOnly}
                               className="h-3.5 w-3.5"
                             />
                             <Label htmlFor={`lowerCeiling-integrated-${room.id}`} className="text-[10px] cursor-pointer font-medium">Bajar techo</Label>
@@ -1634,6 +1652,7 @@ export function RoomCard({
                                     setCeilingHeightInput(formatDecimal(finalValue))
                                   }
                                 }}
+                                disabled={isReadOnly}
                                 className="h-8 text-[11px] font-bold pr-5"
                               />
                               <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-slate-400">m</span>
@@ -1666,6 +1685,7 @@ export function RoomCard({
                       onClick={() => toggleMeasurementMode()}
                       className="h-6 w-6 p-0 hover:bg-white dark:hover:bg-slate-800 text-slate-400 hover:text-primary transition-colors"
                       title="Cambiar modo de medición"
+                      disabled={isReadOnly}
                     >
                       <RefreshCw className="h-3 w-3" />
                     </Button>
@@ -1686,6 +1706,7 @@ export function RoomCard({
                               value={widthInput}
                               onChange={handleWidthChange}
                               onBlur={saveWidth}
+                              disabled={isReadOnly}
                               className="h-8 text-xs font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary focus:border-primary transition-all pr-6"
                               placeholder="0,00"
                             />
@@ -1701,6 +1722,7 @@ export function RoomCard({
                               value={lengthInput}
                               onChange={handleLengthChange}
                               onBlur={saveLength}
+                              disabled={isReadOnly}
                               className="h-8 text-xs font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary focus:border-primary transition-all pr-6"
                               placeholder="0,00"
                             />
@@ -1721,6 +1743,7 @@ export function RoomCard({
                                 onClick={() => setIsShapeEditorOpen(true)}
                                 className="h-4 w-4 p-0 text-primary hover:bg-primary/10 rounded-full transition-transform hover:scale-110"
                                 title="Editor de formas"
+                                disabled={isReadOnly}
                               >
                                 <Edit className="h-2.5 w-2.5" />
                               </Button>
@@ -1733,6 +1756,7 @@ export function RoomCard({
                               value={areaInput}
                               onChange={handleAreaChange}
                               onBlur={saveArea}
+                              disabled={isReadOnly}
                               className="h-8 text-xs font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary focus:border-primary transition-all pr-7"
                               placeholder="0,00"
                             />
@@ -1748,6 +1772,7 @@ export function RoomCard({
                               value={perimeterInput}
                               onChange={handlePerimeterChange}
                               onBlur={savePerimeter}
+                              disabled={isReadOnly}
                               className="h-8 text-xs font-bold bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-primary focus:border-primary transition-all pr-6"
                               placeholder="0,00"
                             />
@@ -1801,6 +1826,7 @@ export function RoomCard({
                             id={`hasDoors-${room.id}`}
                             checked={room.hasDoors}
                             onCheckedChange={(checked) => handleDoorChange(checked === true)}
+                            disabled={isReadOnly}
                             className="h-3.5 w-3.5"
                           />
                           <Label htmlFor={`hasDoors-${room.id}`} className="text-[11px] cursor-pointer">
@@ -1812,6 +1838,7 @@ export function RoomCard({
                               variant="ghost"
                               size="sm"
                               onClick={addDoorOld}
+                              disabled={isReadOnly}
                               className="h-5 w-5 p-0 ml-1"
                               title="Añadir otra puerta"
                             >
@@ -1866,6 +1893,7 @@ export function RoomCard({
                           id={`removeWoodenFloor-${room.id}`}
                           checked={room.removeFloor === true}
                           onCheckedChange={handleRemoveWoodenFloorChange}
+                          disabled={isReadOnly}
                           className="h-3.5 w-3.5"
                         />
                         <Label htmlFor={`removeWoodenFloor-${room.id}`} className="text-[11px] cursor-pointer">
@@ -1880,6 +1908,7 @@ export function RoomCard({
                           id={`removeWallTiles-${room.id}`}
                           checked={room.removeWallTiles === true}
                           onCheckedChange={(checked) => updateRoom(room.id, { removeWallTiles: checked === true })}
+                          disabled={isReadOnly}
                           className="h-3.5 w-3.5"
                         />
                         <Label htmlFor={`removeWallTiles-${room.id}`} className="text-[11px] cursor-pointer">
@@ -1896,6 +1925,7 @@ export function RoomCard({
                           checked={room.removeFloor !== false}
                           defaultChecked={true}
                           onCheckedChange={(checked) => updateRoom(room.id, { removeFloor: checked === true })}
+                          disabled={isReadOnly}
                           className="h-3.5 w-3.5"
                         />
                         <Label htmlFor={`removeFloorTiles-${room.id}`} className="text-[11px] cursor-pointer">
@@ -1910,6 +1940,7 @@ export function RoomCard({
                           id={`removeSkirting-${room.id}`}
                           checked={room.removeSkirting === true}
                           onCheckedChange={(checked) => updateRoom(room.id, { removeSkirting: checked === true })}
+                          disabled={isReadOnly}
                           className="h-3.5 w-3.5"
                         />
                         <Label htmlFor={`removeSkirting-${room.id}`} className="text-[11px] cursor-pointer">
@@ -1925,6 +1956,7 @@ export function RoomCard({
                           id={`removeGotele-${room.id}`}
                           checked={room.removeGotele === true}
                           onCheckedChange={handleRemoveGoteleChange}
+                          disabled={isReadOnly}
                           className="h-3.5 w-3.5"
                         />
                         <Label htmlFor={`removeGotele-${room.id}`} className="text-[11px] cursor-pointer">
@@ -1940,6 +1972,7 @@ export function RoomCard({
                           id={`hasRadiator-${room.id}`}
                           checked={room.hasRadiator}
                           onCheckedChange={(checked) => updateRoom(room.id, { hasRadiator: checked === true })}
+                          disabled={isReadOnly}
                           className="h-3.5 w-3.5"
                         />
                         <Label htmlFor={`hasRadiator-${room.id}`} className="text-[11px] cursor-pointer">
@@ -2043,6 +2076,7 @@ export function RoomCard({
                       id={`hasRadiator-reform-${room.id}`}
                       checked={room.hasRadiator}
                       onCheckedChange={(checked) => updateRoom(room.id, { hasRadiator: checked === true })}
+                      disabled={isReadOnly}
                       className="h-3.5 w-3.5"
                     />
                     <Label htmlFor={`hasRadiator-reform-${room.id}`} className="text-[11px] cursor-pointer">
@@ -2065,6 +2099,7 @@ export function RoomCard({
                         }}
                         className="h-5 w-5 p-0 ml-1"
                         title="Añadir otro radiador"
+                        disabled={isReadOnly}
                       >
                         <PlusCircle className="h-3.5 w-3.5" />
                       </Button>
@@ -2079,8 +2114,9 @@ export function RoomCard({
                           <Select
                             value={room.radiatorType || getDefaultRadiatorType()}
                             onValueChange={(value) => handleRadiatorTypeChange(value as RadiatorType)}
+                            disabled={isReadOnly}
                           >
-                            <SelectTrigger id={`radiatorType-${room.id}`} className="h-7 text-xs">
+                            <SelectTrigger id={`radiatorType-${room.id}`} className="h-7 text-xs" disabled={isReadOnly}>
                               <SelectValue placeholder="Tipo de radiador" />
                             </SelectTrigger>
                             <SelectContent>
@@ -2116,7 +2152,7 @@ export function RoomCard({
                                   handleTypeChange(value as RadiatorType);
                                 }}
                               >
-                                <SelectTrigger id={`radiatorType-${radiator.id}`} className="h-7 text-xs flex-1">
+                                <SelectTrigger id={`radiatorType-${radiator.id}`} className="h-7 text-xs flex-1" disabled={isReadOnly}>
                                   <SelectValue placeholder="Tipo de radiador" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -2180,6 +2216,7 @@ export function RoomCard({
                               })
                             }
                           }}
+                          disabled={isReadOnly}
                           className="h-3.5 w-3.5"
                         />
                         <Label htmlFor={`newDoors-${room.id}`} className="text-[11px] cursor-pointer">
@@ -2206,6 +2243,7 @@ export function RoomCard({
                             }}
                             className="h-5 w-5 p-0 ml-1"
                             title="Añadir otra puerta"
+                            disabled={isReadOnly}
                           >
                             <PlusCircle className="h-3 w-3" />
                           </Button>
@@ -2225,7 +2263,7 @@ export function RoomCard({
                                   updateRoom(room.id, { newDoorList: updatedDoors })
                                 }}
                               >
-                                <SelectTrigger className="h-7 text-xs flex-1">
+                                <SelectTrigger className="h-7 text-xs flex-1" disabled={isReadOnly}>
                                   <SelectValue placeholder="Tipo de puerta" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -2267,6 +2305,7 @@ export function RoomCard({
                           id={`newBathroomElements-${room.id}`}
                           checked={room.newBathroomElements}
                           onCheckedChange={(checked) => updateRoom(room.id, { newBathroomElements: checked === true })}
+                          disabled={isReadOnly}
                           className="h-3.5 w-3.5"
                         />
                         <Label htmlFor={`newBathroomElements-${room.id}`} className="text-[11px] cursor-pointer">
@@ -2278,9 +2317,11 @@ export function RoomCard({
                         <div className="ml-4 space-y-1.5 grid grid-cols-2 gap-x-2">
                           <div className="flex items-center space-x-2">
                             <Checkbox
+                              disabled={isReadOnly}
                               id={`bathroomElement-inodoro-${room.id}`}
                               checked={isBathroomElementSelected("Inodoro")}
                               onCheckedChange={(checked) => handleBathroomElementChange("Inodoro", checked === true)}
+                              disabled={isReadOnly}
                               className="h-3.5 w-3.5"
                             />
                             <Label htmlFor={`bathroomElement-inodoro-${room.id}`} className="text-[10px] cursor-pointer">
@@ -2290,9 +2331,11 @@ export function RoomCard({
 
                           <div className="flex items-center space-x-2">
                             <Checkbox
+                              disabled={isReadOnly}
                               id={`bathroomElement-bide-${room.id}`}
                               checked={isBathroomElementSelected("Bidé")}
                               onCheckedChange={(checked) => handleBathroomElementChange("Bidé", checked === true)}
+                              disabled={isReadOnly}
                               className="h-3.5 w-3.5"
                             />
                             <Label htmlFor={`bathroomElement-bide-${room.id}`} className="text-[10px] cursor-pointer">
@@ -2302,11 +2345,13 @@ export function RoomCard({
 
                           <div className="flex items-center space-x-2">
                             <Checkbox
+                              disabled={isReadOnly}
                               id={`bathroomElement-duchetaInodoro-${room.id}`}
                               checked={isBathroomElementSelected("Ducheta Inodoro")}
                               onCheckedChange={(checked) =>
                                 handleBathroomElementChange("Ducheta Inodoro", checked === true)
                               }
+                              disabled={isReadOnly}
                               className="h-3.5 w-3.5"
                             />
                             <Label
@@ -2319,11 +2364,13 @@ export function RoomCard({
 
                           <div className="flex items-center space-x-2">
                             <Checkbox
+                              disabled={isReadOnly}
                               id={`bathroomElement-platoDucha-${room.id}`}
                               checked={isBathroomElementSelected("Plato de ducha")}
                               onCheckedChange={(checked) =>
                                 handleBathroomElementChange("Plato de ducha", checked === true)
                               }
+                              disabled={isReadOnly}
                               className="h-3.5 w-3.5"
                             />
                             <Label htmlFor={`bathroomElement-platoDucha-${room.id}`} className="text-[10px] cursor-pointer">
@@ -2333,9 +2380,11 @@ export function RoomCard({
 
                           <div className="flex items-center space-x-2">
                             <Checkbox
+                              disabled={isReadOnly}
                               id={`bathroomElement-banera-${room.id}`}
                               checked={isBathroomElementSelected("Bañera")}
                               onCheckedChange={(checked) => handleBathroomElementChange("Bañera", checked === true)}
+                              disabled={isReadOnly}
                               className="h-3.5 w-3.5"
                             />
                             <Label htmlFor={`bathroomElement-banera-${room.id}`} className="text-[10px] cursor-pointer">
@@ -2345,9 +2394,11 @@ export function RoomCard({
 
                           <div className="flex items-center space-x-2">
                             <Checkbox
+                              disabled={isReadOnly}
                               id={`bathroomElement-mampara-${room.id}`}
                               checked={isBathroomElementSelected("Mampara")}
                               onCheckedChange={(checked) => handleBathroomElementChange("Mampara", checked === true)}
+                              disabled={isReadOnly}
                               className="h-3.5 w-3.5"
                             />
                             <Label htmlFor={`bathroomElement-mampara-${room.id}`} className="text-[10px] cursor-pointer">
@@ -2357,11 +2408,13 @@ export function RoomCard({
 
                           <div className="flex items-center space-x-2">
                             <Checkbox
+                              disabled={isReadOnly}
                               id={`bathroomElement-muebleLavabo-${room.id}`}
                               checked={isBathroomElementSelected("Mueble lavabo")}
                               onCheckedChange={(checked) =>
                                 handleBathroomElementChange("Mueble lavabo", checked === true)
                               }
+                              disabled={isReadOnly}
                               className="h-3.5 w-3.5"
                             />
                             <Label

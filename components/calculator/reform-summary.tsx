@@ -429,7 +429,7 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
         newSummary.instalacionLavavajillas += 1
       }
 
-      const shouldHaveRadiators = reformHeatingType !== "ninguna" && reformHeatingType !== "Suelo Radiante"
+      const shouldHaveRadiators = globalConfig?.installRadiators === true
 
       if (reformHeatingType === "Eléctrica") {
         if (room.radiators && Array.isArray(room.radiators) && room.radiators.length > 0) {

@@ -123,6 +123,52 @@ export async function createCategory(name: string, description?: string): Promis
   return data
 }
 
+/**
+ * Genera el siguiente código de precio siguiendo el formato:
+ * [REF_NUM]-[CAT_ABB]-[ITEM_NUM]
+ * Ejemplo: 01-DRY-01
+ */
+export async function getNextPriceCode(categoryId: string, categoryName: string): Promise<string> {
+  try {
+    const prefix = categoryName
+      .trim()
+      .toUpperCase()
+      .replace(/^\d+\.\s*/, "") // Limpiar prefijos numéricos como "01. "
+      .substring(0, 3)
+
+    // 1. Obtener todas las categorías para calcular el REF_NUM (basado en el prefijo)
+    const { data: categories } = await supabase.from("price_categories").select("id, name").order("name", { ascending: true })
+
+    let refNum = 1
+    if (categories) {
+      const samePrefixCategories = categories.filter((c: { id: string; name: string }) => {
+        const cPrefix = c.name
+          .trim()
+          .toUpperCase()
+          .replace(/^\d+\.\s*/, "")
+          .substring(0, 3)
+        return cPrefix === prefix
+      })
+
+      const refIdx = samePrefixCategories.findIndex((c: { id: string; name: string }) => c.id === categoryId)
+      refNum = (refIdx !== -1 ? refIdx : samePrefixCategories.length) + 1
+    }
+    const formattedRef = refNum.toString().padStart(2, "0")
+
+    // 2. Obtener el número de items en esta categoría para el ITEM_NUM
+    // Consultamos price_master ya que es donde se guardan habitualmente
+    const { count } = await supabase.from("price_master").select("*", { count: "exact", head: true }).eq("category_id", categoryId)
+
+    const itemNum = (count || 0) + 1
+    const formattedItem = itemNum.toString().padStart(2, "0")
+
+    return `${formattedRef}-${prefix}-${formattedItem}`
+  } catch (error) {
+    console.error("Error generating next price code:", error)
+    return `00-GEN-${Date.now().toString().slice(-2)}` // Fallback seguro
+  }
+}
+
 export async function updateCategory(id: string, updates: Partial<PriceCategory>): Promise<PriceCategory> {
   const {
     data: { user },

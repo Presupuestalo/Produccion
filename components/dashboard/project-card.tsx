@@ -1,7 +1,7 @@
 "use client"
 import Link from "next/link"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Calendar, MapPin, User, MoreHorizontal, Eye, Edit, FileText, Trash2, Loader2, LayoutDashboard, FileCheck, PencilRuler, ShieldCheck, Sparkles, RefreshCw, Download, CheckCircle2 } from "lucide-react"
+import { Calendar, MapPin, User, MoreHorizontal, Eye, Edit, FileText, Trash2, Loader2, LayoutDashboard, FileCheck, PencilRuler, ShieldCheck, Sparkles, RefreshCw, Download, CheckCircle2, Copy, Hammer } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import type { Project } from "@/types/project"
 import { Button } from "@/components/ui/button"
@@ -17,7 +17,7 @@ import { useState, useEffect } from "react"
 import { getSupabase } from "@/lib/supabase/client"
 import { BudgetService } from "@/lib/services/budget-service"
 import { Badge } from "@/components/ui/badge"
-import { deleteProject, calculateProgress } from "@/lib/services/project-service"
+import { deleteProject, calculateProgress, duplicateProject, updateProject } from "@/lib/services/project-service"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -73,15 +73,25 @@ const getStatusColor = (status: string): string => {
 const getMostAdvancedStatus = (statuses: string[]): string | null => {
   if (statuses.length === 0) return null
 
-  const hierarchy = ["completed", "in_progress", "approved", "accepted", "rejected", "sent", "delivered", "draft"]
+  const normalized = statuses.map(s => {
+    const low = s.toLowerCase()
+    if (low === "terminado" || low === "finalizado" || low === "completed") return "completed"
+    if (low === "en obra" || low === "en_obra" || low === "in_progress") return "in_progress"
+    if (low === "aprobado" || low === "aceptado" || low === "approved" || low === "accepted") return "accepted"
+    if (low === "rechazado" || low === "rejected") return "rejected"
+    if (low === "entregado" || low === "sent" || low === "delivered") return "delivered"
+    return low
+  })
+
+  const hierarchy = ["completed", "in_progress", "accepted", "rejected", "delivered", "draft"]
 
   for (const status of hierarchy) {
-    if (statuses.includes(status)) {
+    if (normalized.includes(status)) {
       return status
     }
   }
 
-  return statuses[0]
+  return normalized[0]
 }
 
 export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
@@ -95,6 +105,7 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
   } | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isDuplicating, setIsDuplicating] = useState(false)
 
   useEffect(() => {
     const fetchProjectData = async () => {
@@ -115,10 +126,15 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
         // Fetch budget status
         const budgets = await BudgetService.getBudgetsByProject(project.id, supabase)
 
-        if (budgets.length > 0) {
-          const statuses = budgets.map((b) => b.status).filter(Boolean)
-          const mostAdvanced = getMostAdvancedStatus(statuses)
+        const allStatuses = budgets.map((b) => b.status).filter(Boolean)
+        if (project.status) allStatuses.push(project.status)
+
+        if (allStatuses.length > 0) {
+          const mostAdvanced = getMostAdvancedStatus(allStatuses)
           setBudgetStatus(mostAdvanced)
+        }
+
+        if (budgets.length > 0) {
 
           const accepted = budgets.find((b) => (b.status as any) === "approved" || (b.status as any) === "accepted")
           if (accepted) {
@@ -203,6 +219,42 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
     }
   }
 
+  const handleDuplicate = async () => {
+    setIsDuplicating(true)
+    const toastId = toast.loading("Duplicando proyecto...")
+    try {
+      const newProjectId = await duplicateProject(project.id)
+      toast.success("Proyecto duplicado correctamente", { id: toastId })
+      if (onDeleted) {
+        onDeleted()
+      } else {
+        router.refresh()
+      }
+    } catch (error: any) {
+      console.error("Error al duplicar proyecto:", error)
+      toast.error(error.message || "Error al duplicar el proyecto", { id: toastId })
+    } finally {
+      setIsDuplicating(false)
+    }
+  }
+
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      const progress = calculateProgress(newStatus)
+      await updateProject(project.id, { status: newStatus as any, progress })
+      toast.success(`Estado del proyecto actualizado a: ${getStatusLabel(newStatus)}`)
+
+      if (onDeleted) {
+        onDeleted()
+      } else {
+        router.refresh()
+      }
+    } catch (error: any) {
+      console.error("Error al actualizar estado:", error)
+      toast.error("No se pudo actualizar el estado del proyecto")
+    }
+  }
+
   const calculateDisplayProgress = () => {
     let progress = project.progress || 0
 
@@ -272,7 +324,7 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="h-8 w-8 p-0 text-slate-400 hover:text-orange-600 hover:bg-slate-100 transition-all"
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
@@ -280,12 +332,33 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
               <DropdownMenuContent align="end" className="w-40">
                 <DropdownMenuItem onClick={() => router.push(`/dashboard/projects/${project.id}`)}>
                   <Eye className="h-4 w-4 mr-2" />
-                  Ver proyecto
+                  Ver proyecto!!!
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.push(`/dashboard/projects/${project.id}/edit`)}>
                   <Edit className="h-4 w-4 mr-2" />
                   Editar
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDuplicate} disabled={isDuplicating}>
+                  {isDuplicating ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Copy className="h-4 w-4 mr-2" />
+                  )}
+                  Duplicar
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {(budgetStatus === "approved" || budgetStatus === "accepted" || budgetStatus === "delivered" || budgetStatus === "sent") && (
+                  <DropdownMenuItem onClick={() => handleStatusChange("in_progress")} className="text-orange-600 focus:text-orange-700 focus:bg-orange-50">
+                    <Hammer className="h-4 w-4 mr-2" />
+                    Empezar Obra
+                  </DropdownMenuItem>
+                )}
+                {(budgetStatus === "in_progress" || (typeof budgetStatus === 'string' && budgetStatus.toLowerCase() === 'en obra')) && (
+                  <DropdownMenuItem onClick={() => handleStatusChange("completed")} className="text-green-600 focus:text-green-700 focus:bg-green-50">
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Finalizar Proyecto
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => setShowDeleteDialog(true)}

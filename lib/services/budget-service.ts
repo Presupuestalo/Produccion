@@ -86,6 +86,14 @@ export class BudgetService {
       total,
     })
 
+    // Obtener el título del proyecto para el nombre del presupuesto
+    const { data: project } = await supabase
+      .from("projects")
+      .select("title")
+      .eq("id", projectId)
+      .single()
+    const projectTitle = project?.title || "Presupuesto"
+
     // Crear el presupuesto
     console.log("[v0] Inserting budget into database...")
     const { data: budget, error: budgetError } = await supabase
@@ -94,7 +102,7 @@ export class BudgetService {
         project_id: projectId,
         user_id: userId,
         version_number: versionNumber,
-        name: name || `Presupuesto v${versionNumber}`,
+        name: name || `${projectTitle} v${versionNumber}`,
         is_original: true,
         status: "draft",
         subtotal,
@@ -278,7 +286,14 @@ export class BudgetService {
 
     const versionNumber = existingBudgets && existingBudgets.length > 0 ? existingBudgets[0].version_number + 1 : 1
 
-    const budgetName = name || `Presupuesto v${versionNumber}`
+    const { data: project } = await supabase
+      .from("projects")
+      .select("title")
+      .eq("id", originalBudget.project_id)
+      .single()
+    const projectTitle = project?.title || "Presupuesto"
+
+    const budgetName = name || `${projectTitle} v${versionNumber}`
 
     // Obtener el usuario actual para asignarle la propiedad de la copia
     const {
@@ -422,8 +437,10 @@ export class BudgetService {
       budget_id: budgetId,
       category: finalCategory,
       concept_code: finalCode,
-      concept: lineItemWithoutOwnerFlag.concept,
-      description: lineItemWithoutOwnerFlag.description || null,
+      concept: lineItemWithoutOwnerFlag.concept.toUpperCase(),
+      description: lineItemWithoutOwnerFlag.description
+        ? lineItemWithoutOwnerFlag.description.charAt(0).toUpperCase() + lineItemWithoutOwnerFlag.description.slice(1)
+        : null,
       unit: lineItemWithoutOwnerFlag.unit,
       quantity: lineItemWithoutOwnerFlag.quantity,
       unit_price: added_by_owner ? 0 : lineItemWithoutOwnerFlag.unit_price,
@@ -508,6 +525,13 @@ export class BudgetService {
           console.error("[BudgetService] Error details:", error.message, error.hint, error.details)
           throw new Error("Error al actualizar el estado del presupuesto: " + (error.message || ""))
         }
+
+        // Sincronizar estado del PROYECTO
+        await supabase.from("projects").update({
+          status: "Aceptado",
+          progress: 50
+        }).eq("id", budget.project_id)
+
         return
       }
     }
@@ -517,6 +541,17 @@ export class BudgetService {
     if (error) {
       console.error("[BudgetService] Error updating budget status:", error)
       throw new Error("Error al actualizar el estado del presupuesto")
+    }
+
+    // Opcional: Sincronizar otros estados al proyecto
+    if (status === "sent") {
+      const { data: budget } = await supabase.from("budgets").select("project_id").eq("id", budgetId).single()
+      if (budget) {
+        await supabase.from("projects").update({
+          status: "Entregado",
+          progress: 25
+        }).eq("id", budget.project_id)
+      }
     }
   }
 

@@ -18,6 +18,7 @@ interface PartitionsSectionProps {
   onUpdatePartitions: (partitions: Partition[]) => void
   onUpdateWallLinings: (wallLinings: WallLining[]) => void
   reformRooms?: Room[]
+  isReadOnly?: boolean
 }
 
 export function PartitionsSection({
@@ -27,6 +28,7 @@ export function PartitionsSection({
   onUpdatePartitions,
   onUpdateWallLinings,
   reformRooms = [],
+  isReadOnly = false,
 }: PartitionsSectionProps) {
   const [linearMetersInputs, setLinearMetersInputs] = useState<Record<string, string>>({})
   const [heightInputs, setHeightInputs] = useState<Record<string, string>>({})
@@ -202,7 +204,7 @@ export function PartitionsSection({
           {partitions.length === 0 ? (
             <div className="w-full rounded-lg border border-dashed border-muted-foreground/25 p-8 flex flex-col items-center justify-center gap-3">
               <p className="text-sm text-muted-foreground">No hay tabiques añadidos</p>
-              <Button variant="outline" size="sm" onClick={addPartition} className="gap-2 bg-transparent">
+              <Button variant="outline" size="sm" onClick={addPartition} className="gap-2 bg-transparent" disabled={isReadOnly}>
                 <PlusCircle className="h-4 w-4" />
                 Añadir
               </Button>
@@ -220,6 +222,7 @@ export function PartitionsSection({
                           onValueChange={(value: "ladrillo" | "placa_yeso") =>
                             updatePartition(partition.id, { type: value })
                           }
+                          disabled={isReadOnly}
                         >
                           <SelectTrigger className="h-9 mt-1">
                             <SelectValue />
@@ -241,6 +244,7 @@ export function PartitionsSection({
                           onFocus={(e) => e.target.select()}
                           placeholder="0,00"
                           className="h-9 mt-1"
+                          disabled={isReadOnly}
                         />
                       </div>
                       <div className="sm:col-span-3">
@@ -254,6 +258,7 @@ export function PartitionsSection({
                           onFocus={(e) => e.target.select()}
                           placeholder="0,00"
                           className="h-9 mt-1"
+                          disabled={isReadOnly}
                         />
                       </div>
                       <div className="sm:col-span-2">
@@ -270,6 +275,7 @@ export function PartitionsSection({
                           size="sm"
                           onClick={() => removePartition(partition.id)}
                           className="h-9 w-full sm:w-9 text-destructive"
+                          disabled={isReadOnly}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -290,7 +296,7 @@ export function PartitionsSection({
                 variant="outline"
                 size="sm"
                 onClick={addPartition}
-                disabled={!canAddPartition}
+                disabled={!canAddPartition || isReadOnly}
                 className="gap-2 bg-transparent"
                 title={!canAddPartition ? "Completa el tabique anterior antes de añadir uno nuevo" : ""}
               >
@@ -310,7 +316,7 @@ export function PartitionsSection({
           {wallLinings.length === 0 ? (
             <div className="w-full rounded-lg border border-dashed border-muted-foreground/25 p-8 flex flex-col items-center justify-center gap-3">
               <p className="text-sm text-muted-foreground">No hay trasdosados añadidos</p>
-              <Button variant="outline" size="sm" onClick={addWallLining} className="gap-2 bg-transparent">
+              <Button variant="outline" size="sm" onClick={addWallLining} className="gap-2 bg-transparent" disabled={isReadOnly}>
                 <PlusCircle className="h-4 w-4" />
                 Añadir
               </Button>
@@ -332,6 +338,7 @@ export function PartitionsSection({
                           onFocus={(e) => e.target.select()}
                           placeholder="0,00"
                           className="h-9 mt-1"
+                          disabled={isReadOnly}
                         />
                       </div>
                       <div className="sm:col-span-3">
@@ -345,6 +352,7 @@ export function PartitionsSection({
                           onFocus={(e) => e.target.select()}
                           placeholder="0,00"
                           className="h-9 mt-1"
+                          disabled={isReadOnly}
                         />
                       </div>
                       <div className="sm:col-span-4">
@@ -361,6 +369,7 @@ export function PartitionsSection({
                           size="sm"
                           onClick={() => removeWallLining(lining.id)}
                           className="h-9 w-full sm:w-9 text-destructive"
+                          disabled={isReadOnly}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -381,7 +390,7 @@ export function PartitionsSection({
                 variant="outline"
                 size="sm"
                 onClick={addWallLining}
-                disabled={!canAddWallLining}
+                disabled={!canAddWallLining || isReadOnly}
                 className="gap-2 bg-transparent"
                 title={!canAddWallLining ? "Completa el trasdosado anterior antes de añadir uno nuevo" : ""}
               >

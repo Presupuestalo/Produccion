@@ -37,13 +37,24 @@ export function ProjectsList() {
       await Promise.all(
         projects.map(async (project) => {
           try {
+            // Si el proyecto ya está en un estado avanzado de ejecución, lo respetamos
+            const pStatus = project.status ? String(project.status).toLowerCase() : ""
+            if (pStatus === "en obra" || pStatus === "en_obra" || pStatus === "in_progress") {
+              statuses[project.id] = "in_progress"
+              return
+            }
+            if (pStatus === "terminado" || pStatus === "finalizado" || pStatus === "completed") {
+              statuses[project.id] = "completed"
+              return
+            }
+
             const budgets = await BudgetService.getBudgetsByProject(project.id, supabase)
             if (budgets.length > 0) {
               const budgetStatuses = budgets.map((b) => b.status).filter(Boolean)
               const mostAdvanced = getMostAdvancedStatus(budgetStatuses)
               statuses[project.id] = mostAdvanced
             } else {
-              statuses[project.id] = "draft"
+              statuses[project.id] = pStatus || "draft"
             }
           } catch (error) {
             console.error(`Error fetching status for project ${project.id}:`, error)

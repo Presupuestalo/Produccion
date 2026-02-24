@@ -30,7 +30,7 @@ import * as SubscriptionLimitsService from "@/lib/services/subscription-limits-s
 import { Badge } from "@/components/ui/badge"
 import { AIPriceImportDialog } from "@/components/precios/ai-price-import-dialog"
 import { formatNumber } from "@/lib/utils/format"
-import { getPriceCategories, type PriceCategory } from "@/lib/services/price-service"
+import { getPriceCategories, type PriceCategory, getNextPriceCode, createCategory } from "@/lib/services/price-service"
 
 interface AddCustomLineItemDialogProps {
   budgetId: string
@@ -221,6 +221,34 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
     }
   }
 
+  // Función para actualizar el código automáticamente basado en la categoría
+  const updateGeneratedCode = async (categoryName: string) => {
+    try {
+      const cleanName = categoryName
+        .toUpperCase()
+        .replace(/^\d+\.\s*/, "")
+        .replace(/^\d+-[A-Z]\.\s*/, "")
+
+      const cat = dynamicCategories.find((c) => {
+        const cClean = c.name
+          .toUpperCase()
+          .replace(/^\d+\.\s*/, "")
+          .replace(/^\d+-[A-Z]\.\s*/, "")
+        return cClean === cleanName
+      })
+
+      if (cat) {
+        const nextCode = await getNextPriceCode(cat.id, cat.name)
+        setFormData((prev) => ({ ...prev, concept_code: nextCode, category: categoryName }))
+      } else {
+        setFormData((prev) => ({ ...prev, category: categoryName }))
+      }
+    } catch (error) {
+      console.error("Error updating generated code:", error)
+      setFormData((prev) => ({ ...prev, category: categoryName }))
+    }
+  }
+
   const loadNormalPrices = async () => {
     // Load from price_master (base prices)
     try {
@@ -385,8 +413,10 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
       setFormData({
         category: generatedCategory,
         concept_code: data.code || "",
-        concept: data.concept || data.description || "",
-        description: data.description || "",
+        concept: (data.concept || data.description || "").toUpperCase(),
+        description: data.description
+          ? data.description.charAt(0).toUpperCase() + data.description.slice(1)
+          : null,
         unit: data.unit || "Ud",
         quantity: (data.quantity || 1).toString(),
         unit_price: isOwner ? "0" : (data.unit_price || 0).toString(),
@@ -448,13 +478,17 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
       console.log("[v0] Final category name:", categoryName)
       console.log("[v0] Form data before submit:", formData)
 
+      const sentenceCaseDescription = formData.description
+        ? formData.description.charAt(0).toUpperCase() + formData.description.slice(1)
+        : ""
+
       const lineItem: Omit<BudgetLineItem, "id" | "budget_id" | "created_at" | "updated_at"> & {
         added_by_owner?: boolean
       } = {
         category: categoryName,
         concept_code: formData.concept_code || undefined,
         concept: formData.concept.toUpperCase(),
-        description: formData.description,
+        description: sentenceCaseDescription,
         unit: formData.unit,
         quantity: Number.parseFloat(formData.quantity.toString()) || 0,
         unit_price: isOwner ? 0 : Number.parseFloat(formData.unit_price.toString()) || 0,
@@ -526,7 +560,16 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
           }
 
           if (!categoryId) {
-            throw new Error("No se pudo encontrar una categoría válida")
+            try {
+              console.log("[v0] Categoría no encontrada, creando una nueva:", cleanCategoryName)
+              const newCat = await createCategory(cleanCategoryName)
+              categoryId = newCat.id
+              // Actualizar la lista local
+              loadCategories()
+            } catch (catError) {
+              console.error("[v0] Error creando categoría automática:", catError)
+              throw new Error("No se pudo encontrar ni crear una categoría válida")
+            }
           }
 
           const totalCost = Number.parseFloat(formData.unit_price.toString()) || 0
@@ -537,7 +580,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
             id: self.crypto.randomUUID(),
             code: formData.concept_code || `CUSTOM-${Date.now()}`,
             category_id: categoryId,
-            subcategory: formData.description || null,
+            subcategory: sentenceCaseDescription || null,
             description: formData.concept.toUpperCase(),
             unit: formData.unit,
             material_cost: materialCost,
@@ -751,7 +794,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                   </Label>
                   <Select
                     value={formData.category}
-                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    onValueChange={updateGeneratedCode}
                   >
                     <SelectTrigger id="category-list">
                       <SelectValue placeholder="Seleccionar categoría" />
@@ -771,8 +814,9 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                   <Input
                     id="code-list"
                     value={formData.concept_code}
-                    onChange={(e) => setFormData({ ...formData, concept_code: e.target.value })}
-                    placeholder="Ej: 01-D-01"
+                    readOnly
+                    className="bg-muted"
+                    placeholder="Generado automáticamente..."
                   />
                 </div>
               </div>
@@ -784,7 +828,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                 <Input
                   id="concept-list"
                   value={formData.concept}
-                  onChange={(e) => setFormData({ ...formData, concept: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, concept: e.target.value.toUpperCase() })}
                   placeholder="Nombre de la partida"
                 />
               </div>
@@ -903,7 +947,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                     <Label>Categoría</Label>
                     <Select
                       value={formData.category}
-                      onValueChange={(value) => setFormData({ ...formData, category: value })}
+                      onValueChange={updateGeneratedCode}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccionar categoría" />
@@ -922,8 +966,9 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                     <Label>Código</Label>
                     <Input
                       value={formData.concept_code}
-                      onChange={(e) => setFormData({ ...formData, concept_code: e.target.value })}
-                      placeholder="Ej: 01-D-01"
+                      readOnly
+                      className="bg-muted"
+                      placeholder="Generado automáticamente..."
                     />
                   </div>
                 </div>
@@ -932,7 +977,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                   <Label>Concepto</Label>
                   <Input
                     value={formData.concept}
-                    onChange={(e) => setFormData({ ...formData, concept: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, concept: e.target.value.toUpperCase() })}
                   />
                 </div>
 
@@ -1020,7 +1065,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                   </Label>
                   <Select
                     value={formData.category}
-                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    onValueChange={updateGeneratedCode}
                   >
                     <SelectTrigger id="category">
                       <SelectValue placeholder="Seleccionar categoría" />
@@ -1040,8 +1085,9 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                   <Input
                     id="code"
                     value={formData.concept_code}
-                    onChange={(e) => setFormData({ ...formData, concept_code: e.target.value })}
-                    placeholder="Ej: 01-D-01"
+                    readOnly
+                    className="bg-muted"
+                    placeholder="Generado automáticamente..."
                   />
                 </div>
               </div>
@@ -1053,7 +1099,7 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                 <Input
                   id="concept"
                   value={formData.concept}
-                  onChange={(e) => setFormData({ ...formData, concept: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, concept: e.target.value.toUpperCase() })}
                   placeholder="Nombre de la partida"
                 />
               </div>

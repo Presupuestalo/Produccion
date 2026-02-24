@@ -23,6 +23,7 @@ type WindowsSectionProps = {
   updateRoom: (roomId: string, updates: Partial<Room>) => void
   projectId?: string
   onAddStandaloneWindow?: () => void
+  isReadOnly?: boolean
 }
 
 const windowTypeIcons: Record<string, React.ReactNode> = {
@@ -168,7 +169,13 @@ const WINDOW_PRICE_PER_SQM: Record<string, number> = {
   default: 400, // Precio por defecto para países no especificados
 }
 
-export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWindow }: WindowsSectionProps) {
+export function WindowsSection({
+  rooms,
+  updateRoom,
+  projectId,
+  onAddStandaloneWindow,
+  isReadOnly = false,
+}: WindowsSectionProps) {
   const [priceInputs, setPriceInputs] = useState<Record<string, string>>({})
   const [dimensionInputs, setDimensionInputs] = useState<Record<string, { width: string; height: string }>>({})
   const [projectData, setProjectData] = useState<{
@@ -717,7 +724,7 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
         <CardHeader>
           <CardTitle>Gestión de Ventanas</CardTitle>
           <div className="flex flex-wrap gap-2 mt-3">
-            <Button onClick={onAddStandaloneWindow} variant="default" size="sm" className="bg-orange-600 hover:bg-orange-700">
+            <Button onClick={onAddStandaloneWindow} variant="default" size="sm" className="bg-orange-600 hover:bg-orange-700" disabled={isReadOnly}>
               <Plus className="h-4 w-4 mr-2" />
               Añadir Ventana
             </Button>
@@ -750,7 +757,7 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
               Exportar a PDF
             </Button>
             {/* Add Standalone Window button */}
-            <Button onClick={onAddStandaloneWindow} variant="default" size="sm" className="bg-orange-600 hover:bg-orange-700">
+            <Button onClick={onAddStandaloneWindow} variant="default" size="sm" className="bg-orange-600 hover:bg-orange-700" disabled={isReadOnly}>
               <Plus className="h-4 w-4 mr-2" />
               Añadir Ventana
             </Button>
@@ -772,7 +779,7 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
               <div key={room.id} className="border p-4 rounded-lg">
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="font-semibold">{room.customRoomType || `${room.type} ${room.number}`}</h4>
-                  <Button size="sm" onClick={() => addWindow(room.id)}>
+                  <Button size="sm" onClick={() => addWindow(room.id)} disabled={isReadOnly}>
                     <Plus className="h-4 w-4 mr-2" />
                     Añadir Ventana
                   </Button>
@@ -806,6 +813,7 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
                                     }
                                     updateWindow(room.id, window.id, updates)
                                   }}
+                                  disabled={isReadOnly}
                                 >
                                   {glassTypeIcons[type]}
                                   <span className="text-xs">{type}</span>
@@ -829,6 +837,7 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
                                     : "border-2 hover:bg-primary hover:text-primary-foreground hover:border-primary"
                                     }`}
                                   onClick={() => updateWindow(room.id, window.id, { type: type as any })}
+                                  disabled={isReadOnly}
                                 >
                                   {windowTypeIcons[type]}
                                   <span className="text-[10px] sm:text-xs text-center leading-tight">{type}</span>
@@ -853,6 +862,7 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
                               onChange={(e) => handleDimensionChange(window.id, "width", e.target.value)}
                               onBlur={() => handleDimensionBlur(room.id, window.id, "width")}
                               placeholder="0,00"
+                              disabled={isReadOnly}
                             />
                           </div>
                           <div className="space-y-1">
@@ -867,6 +877,7 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
                               onChange={(e) => handleDimensionChange(window.id, "height", e.target.value)}
                               onBlur={() => handleDimensionBlur(room.id, window.id, "height")}
                               placeholder="0,00"
+                              disabled={isReadOnly}
                             />
                           </div>
                           {/* Material */}
@@ -879,6 +890,7 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
                               onValueChange={(value) =>
                                 updateWindow(room.id, window.id, { material: value as Window["material"] })
                               }
+                              disabled={isReadOnly}
                             >
                               <SelectTrigger id={`window-material-${window.id}`}>
                                 <SelectValue placeholder="Material" />
@@ -900,6 +912,7 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
                               onValueChange={(value) =>
                                 updateWindow(room.id, window.id, { innerColor: value as WindowColor })
                               }
+                              disabled={isReadOnly}
                             >
                               <SelectTrigger id={`window-inner-color-${window.id}`}>
                                 <SelectValue placeholder="Color interior" />
@@ -923,6 +936,7 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
                               onValueChange={(value) =>
                                 updateWindow(room.id, window.id, { outerColor: value as WindowColor })
                               }
+                              disabled={isReadOnly}
                             >
                               <SelectTrigger id={`window-outer-color-${window.id}`}>
                                 <SelectValue placeholder="Color exterior" />
@@ -948,6 +962,7 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
                               value={window.description || ""}
                               onChange={(e) => updateWindow(room.id, window.id, { description: e.target.value })}
                               className="text-xs"
+                              disabled={isReadOnly}
                             />
                           </div>
                           {!isOwner && (
@@ -963,12 +978,13 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
                                 onChange={(e) => handlePriceChange(room.id, window.id, e.target.value)}
                                 onBlur={() => handlePriceBlur(room.id, window.id)}
                                 placeholder="0,00"
+                                disabled={isReadOnly}
                               />
                             </div>
                           )}
                         </div>
                         {/* Window Photo Upload */}
-                        <WindowPhotoUpload projectId={projectId || ""} windowId={window.id} roomId={room.id} />
+                        <WindowPhotoUpload projectId={projectId || ""} windowId={window.id} roomId={room.id} isReadOnly={isReadOnly} />
                         {/* Checkboxes and Actions */}
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-2 gap-2">
                           <div className="flex flex-wrap items-center gap-3 sm:gap-6">
@@ -979,6 +995,7 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
                                 type="checkbox"
                                 checked={window.hasBlind}
                                 onChange={(e) => updateWindow(room.id, window.id, { hasBlind: e.target.checked })}
+                                disabled={isReadOnly}
                               />
                               <Label htmlFor={`window-blind-${window.id}`} className="text-xs cursor-pointer">
                                 Persiana
@@ -991,6 +1008,7 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
                                 type="checkbox"
                                 checked={window.hasFixedPanel || false}
                                 onChange={(e) => updateWindow(room.id, window.id, { hasFixedPanel: e.target.checked })}
+                                disabled={isReadOnly}
                               />
                               <Label htmlFor={`window-fixed-${window.id}`} className="text-xs cursor-pointer">
                                 Fijo
@@ -1003,6 +1021,7 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
                                 type="checkbox"
                                 checked={window.hasMosquitera}
                                 onChange={(e) => updateWindow(room.id, window.id, { hasMosquitera: e.target.checked })}
+                                disabled={isReadOnly}
                               />
                               <Label htmlFor={`window-mosquitera-${window.id}`} className="text-xs cursor-pointer">
                                 Mosquitera
@@ -1016,6 +1035,7 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
                                   type="checkbox"
                                   checked={window.hasCatFlap}
                                   onChange={(e) => updateWindow(room.id, window.id, { hasCatFlap: e.target.checked })}
+                                  disabled={isReadOnly}
                                 />
                                 <Label htmlFor={`window-catflap-${window.id}`} className="text-xs cursor-pointer">
                                   Gatera
@@ -1029,6 +1049,7 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
                                 type="checkbox"
                                 checked={window.hasMotor || false}
                                 onChange={(e) => updateWindow(room.id, window.id, { hasMotor: e.target.checked })}
+                                disabled={isReadOnly}
                               />
                               <Label htmlFor={`window-motor-${window.id}`} className="text-xs cursor-pointer">
                                 Motor
@@ -1037,7 +1058,7 @@ export function WindowsSection({ rooms, updateRoom, projectId, onAddStandaloneWi
                           </div>
                           {/* Actions */}
                           <div>
-                            <Button variant="ghost" size="icon" onClick={() => removeWindow(room.id, window.id)}>
+                            <Button variant="ghost" size="icon" onClick={() => removeWindow(room.id, window.id)} disabled={isReadOnly}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>

@@ -20,20 +20,22 @@ export async function POST(request: Request) {
 
 Responde EXCLUSIVAMENTE con un objeto JSON válido con esta estructura:
 {
-  "category": "01. DERRIBOS" | "02. ALBAÑILERÍA" | "03. FONTANERÍA" | "04. CARPINTERÍA" | "05. ELECTRICIDAD" | "06. CALEFACCIÓN" | "07. LIMPIEZA" | "08. MATERIALES" | "09. OTROS",
-  "code": "Código técnico (ej: DER-01, ALB-05)",
+  "category": "Nombre de categoría (ej: ALBAÑILERÍA, FONTANERÍA...)",
+  "suggested_category": "Nombre sugerido para una NUEVA categoría (solo si no encaja en las habituales)",
+  "code": "Código técnico (formato: 01-XXX-01, donde XXX son las 3 primeras letras de la categoría)",
   "concept": "NOMBRE CORTO (MÁX 80 CARACTERES)",
-  "description": "Descripción técnica detallada que incluya: tipo de material, gramajes/espesores si aplica, medios auxiliares y limpieza previa/posterior.",
+  "description": "Descripción técnica detallada. DEBE empezar con Mayúscula y seguir formato de oración profesional.",
   "unit": "Ud" | "m²" | "ml" | "m³" | "h" | "PA",
-  "quantity": número (cantidad lógica para la descripción),
-  "unit_price": número (precio unitario actual de mercado en España, incluyendo mano de obra y materiales)
+  "quantity": número (cantidad lógica),
+  "unit_price": número (precio unitario incluyendo mano de obra y materiales)
 }
 
 Reglas críticas:
 1. El "concept" SIEMPRE en MAYÚSCULAS.
-2. La "description" debe sonar profesional, no genérica.
-3. Los precios deben reflejar los costes actuales de 2024-2025 en España.
-4. No añadas nada de texto fuera del JSON.`,
+2. La "description" debe empezar por Mayúscula, sonar técnica y profesional.
+3. El "code" debe seguir el formato: 01-[TRES LETRAS CATEGORÍA]-01.
+4. Si la partida es muy específica (ej: Domótica, Paisajismo) y no encaja en las clásicas, usa "suggested_category" para proponer el nombre de la nueva categoría.
+5. No añadas texto fuera del JSON.`,
     })
 
     // Limpiar el texto para extraer solo el JSON
@@ -46,6 +48,15 @@ Reglas críticas:
 
     if (lineItem.concept) {
       lineItem.concept = lineItem.concept.toUpperCase()
+    }
+
+    if (lineItem.description) {
+      lineItem.description = lineItem.description.charAt(0).toUpperCase() + lineItem.description.slice(1)
+    }
+
+    // Si hay una categoría sugerida y no hay categoría principal clara, usar la sugerida
+    if (lineItem.suggested_category && (!lineItem.category || lineItem.category === "OTROS")) {
+      lineItem.category = lineItem.suggested_category.toUpperCase()
     }
 
     return NextResponse.json(lineItem)

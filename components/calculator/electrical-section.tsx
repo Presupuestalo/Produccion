@@ -20,6 +20,7 @@ interface ElectricalSectionProps {
   onUpdateConfig: (config: ElectricalConfig) => void
   onUpdateRoom: (roomId: string, updates: Partial<Room>) => void
   globalConfig?: GlobalConfig
+  isReadOnly?: boolean
 }
 
 export function ElectricalSection({
@@ -29,6 +30,7 @@ export function ElectricalSection({
   onUpdateConfig,
   onUpdateRoom,
   globalConfig,
+  isReadOnly = false,
 }: ElectricalSectionProps) {
   // Estado local para manejar la configuración eléctrica
   const [config, setConfig] = useState<ElectricalConfig | undefined>(electricalConfig)
@@ -274,7 +276,7 @@ export function ElectricalSection({
           {/* Panel general de electricidad */}
           <div className="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-100">
             <h3 className="text-lg font-medium mb-4 text-blue-700">Configuración General de Electricidad</h3>
-            <ElectricalGeneralPanel config={defaultConfig} onUpdate={handleConfigUpdate} globalConfig={globalConfig} />
+            <ElectricalGeneralPanel config={defaultConfig} onUpdate={handleConfigUpdate} globalConfig={globalConfig} isReadOnly={isReadOnly} />
           </div>
 
           {/* Lista de habitaciones (Siempre visible) */}
@@ -339,13 +341,14 @@ export function ElectricalSection({
                     }
                   }}
                   className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                  disabled={isReadOnly}
                 >
                   <RefreshCw className="h-4 w-4 mr-1" />
                   Recargar Predefinidos
                 </Button>
               </div>
             </div>
-            <ElectricalRoomsCompact rooms={safeRooms} onUpdateRoom={handleUpdateRoomElements} />
+            <ElectricalRoomsCompact rooms={safeRooms} onUpdateRoom={handleUpdateRoomElements} isReadOnly={isReadOnly} />
           </div>
 
           {Object.keys(electricalSummary).length > 0 && (

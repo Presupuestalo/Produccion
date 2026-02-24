@@ -302,6 +302,9 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     onConfirm: () => { },
   })
 
+  // Determine if the calculator should be read-only based on approved budget
+  const isReadOnly = hasApprovedBudget
+
 
   // Get user profile for user type detection
   // userProfile is already destructured at line 218
@@ -1206,6 +1209,13 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                     standardHeight: projectHeight,
                     projectId,
                   }
+
+                  // Sincronización de seguridad al cargar: si el edificio es Central, la reforma debe ser Central
+                  if (configWithDefaults.heatingType === "Central" && reformConfigWithDefaults.reformHeatingType !== "Central") {
+                    console.log("[v0] LOAD - Sincronizando reformHeatingType a Central de forma preventiva")
+                    reformConfigWithDefaults.reformHeatingType = "Central"
+                  }
+
                   setReformConfig((prev) => ({ ...prev, ...reformConfigWithDefaults }))
                 } else {
                   console.log("[v0] LOAD - No se encontró reformConfig en Supabase, usando valores por defecto")
@@ -1499,6 +1509,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       setShowRoomLimitDialog(true)
       return
     }
+    if (isReadOnly) return
     console.log("[v0] Límites OK, añadiendo habitación...")
 
     const handler = activeTab === "demolition" ? setRooms : setReformRooms
@@ -1633,7 +1644,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
   const duplicateRoom = useCallback(
     async (roomId: string) => {
-      if (!projectId) return
+      if (!projectId || isReadOnly) return
       console.log(
         "[v0] Verificando límites de habitaciones para duplicar en proyecto:",
         projectId,
@@ -1925,7 +1936,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
   // Función para manejar el guardado general (tanto para botón como para antes de cerrar)
   const handleSave = async (forceSave?: boolean) => {
-    if (!projectId || !tableExists) return
+    if (!projectId || !tableExists || isReadOnly) return
 
     const currentHash = calculateStateHash()
     const isDataChanged =
@@ -2500,6 +2511,16 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                   />
                 )}
                 <RoomsSummary rooms={visibleRooms} />
+                <div className="mt-4">
+                  {isReadOnly && (
+                    <Alert className="bg-amber-50 border-amber-200">
+                      <AlertTriangle className="h-4 w-4 text-amber-600" />
+                      <AlertDescription className="text-amber-800 text-xs font-medium">
+                        Proyecto Bloqueado: No se pueden realizar cambios porque ya existe un presupuesto aceptado.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
                 {!isOwner && projectId && !isFreePlan && <AppointmentsHistory projectId={projectId} />}
               </div>
 
@@ -2512,6 +2533,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                   isReform={false}
                   projectId={projectId}
                   onConfigUpdate={(updatedConfig) => setDemolitionConfig((prev) => ({ ...prev, ...updatedConfig }))}
+                  isReadOnly={isReadOnly}
                 />
 
                 <div className="space-y-2">
@@ -2530,6 +2552,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                       <Button
                         variant="outline"
                         onClick={() => addRoom("Salón")}
+                        disabled={isReadOnly}
                         className="flex-1 min-w-[100px] h-14 flex-col gap-1 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
                       >
                         <Sofa className="h-5 w-5 text-slate-400 group-hover:text-orange-500" />
@@ -2538,6 +2561,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                       <Button
                         variant="outline"
                         onClick={() => addRoom("Cocina")}
+                        disabled={isReadOnly}
                         className="flex-1 min-w-[100px] h-14 flex-col gap-1 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
                       >
                         <Utensils className="h-5 w-5 text-slate-400 group-hover:text-orange-500" />
@@ -2546,6 +2570,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                       <Button
                         variant="outline"
                         onClick={() => addRoom("Dormitorio")}
+                        disabled={isReadOnly}
                         className="flex-1 min-w-[100px] h-14 flex-col gap-1 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
                       >
                         <Bed className="h-5 w-5 text-slate-400 group-hover:text-orange-500" />
@@ -2554,6 +2579,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                       <Button
                         variant="outline"
                         onClick={() => addRoom("Baño")}
+                        disabled={isReadOnly}
                         className="flex-1 min-w-[100px] h-14 flex-col gap-1 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
                       >
                         <Bath className="h-5 w-5 text-slate-400 group-hover:text-orange-500" />
@@ -2561,10 +2587,14 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                       </Button>
 
                       <div className="flex-1 min-w-[120px]">
-                        <Select value={selectedRoomType} onValueChange={(val) => {
-                          setSelectedRoomType(val as RoomType)
-                          addRoom(val as RoomType)
-                        }}>
+                        <Select
+                          disabled={isReadOnly}
+                          value={selectedRoomType}
+                          onValueChange={(val) => {
+                            setSelectedRoomType(val as RoomType)
+                            addRoom(val as RoomType)
+                          }}
+                        >
                           <SelectTrigger className="h-14 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group">
                             <div className="flex flex-col items-center gap-1">
                               <Plus className="h-4 w-4 text-slate-400 group-hover:text-orange-500" />
@@ -2588,7 +2618,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                         <Button
                           variant="ghost"
                           onClick={handleManualFloorPlanSync}
-                          disabled={isSaving}
+                          disabled={isSaving || isReadOnly}
                           className="h-9 px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-100 flex-1"
                           title="Importar medidas desde el plano guardado"
                         >
@@ -2601,7 +2631,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                         variant="ghost"
                         onClick={copyRoomsToReform}
                         className="lg:hidden h-9 px-3 border border-blue-100 text-blue-600 font-medium flex-1"
-                        disabled={!allRoomsHaveMeasurements(visibleRooms)}
+                        disabled={!allRoomsHaveMeasurements(visibleRooms) || isReadOnly}
                       >
                         <Copy className="h-4 w-4 mr-2" />
                         Copiar Habs.
@@ -2616,7 +2646,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                       size="default"
                       onClick={copyRoomsToReform}
                       className="w-full gap-1 bg-blue-600 hover:bg-blue-700 font-medium"
-                      disabled={!allRoomsHaveMeasurements(visibleRooms)}
+                      disabled={!allRoomsHaveMeasurements(visibleRooms) || isReadOnly}
                     >
                       <Copy className="h-4 w-4" />
                       Copiar a Reforma
@@ -2639,6 +2669,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                   standardHeight={demolitionConfig.standardHeight || 2.6}
                   heatingType={demolitionConfig.heatingType || "No Tiene"}
                   globalConfig={demolitionConfig}
+                  isReadOnly={isReadOnly}
                 />
               </div>
 
@@ -2690,6 +2721,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                   isReform={true}
                   demolitionConfig={demolitionConfig}
                   projectId={projectId}
+                  isReadOnly={isReadOnly}
                 />
 
                 <div className="space-y-2">
@@ -2708,6 +2740,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                       <Button
                         variant="outline"
                         onClick={() => addRoom("Salón")}
+                        disabled={isReadOnly}
                         className="flex-1 min-w-[100px] h-14 flex-col gap-1 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
                       >
                         <Sofa className="h-5 w-5 text-slate-400 group-hover:text-orange-500" />
@@ -2716,6 +2749,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                       <Button
                         variant="outline"
                         onClick={() => addRoom("Cocina")}
+                        disabled={isReadOnly}
                         className="flex-1 min-w-[100px] h-14 flex-col gap-1 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
                       >
                         <Utensils className="h-5 w-5 text-slate-400 group-hover:text-orange-500" />
@@ -2724,6 +2758,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                       <Button
                         variant="outline"
                         onClick={() => addRoom("Dormitorio")}
+                        disabled={isReadOnly}
                         className="flex-1 min-w-[100px] h-14 flex-col gap-1 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
                       >
                         <Bed className="h-5 w-5 text-slate-400 group-hover:text-orange-500" />
@@ -2732,6 +2767,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                       <Button
                         variant="outline"
                         onClick={() => addRoom("Baño")}
+                        disabled={isReadOnly}
                         className="flex-1 min-w-[100px] h-14 flex-col gap-1 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
                       >
                         <Bath className="h-5 w-5 text-slate-400 group-hover:text-orange-500" />
@@ -2739,10 +2775,14 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                       </Button>
 
                       <div className="flex-1 min-w-[120px]">
-                        <Select value={selectedRoomType} onValueChange={(val) => {
-                          setSelectedRoomType(val as RoomType)
-                          addRoom(val as RoomType)
-                        }}>
+                        <Select
+                          disabled={isReadOnly}
+                          value={selectedRoomType}
+                          onValueChange={(val) => {
+                            setSelectedRoomType(val as RoomType)
+                            addRoom(val as RoomType)
+                          }}
+                        >
                           <SelectTrigger className="h-14 border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all group">
                             <div className="flex flex-col items-center gap-1">
                               <Plus className="h-4 w-4 text-slate-400 group-hover:text-orange-500" />
@@ -2766,7 +2806,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                         <Button
                           variant="ghost"
                           onClick={handleManualFloorPlanSync}
-                          disabled={isSaving}
+                          disabled={isSaving || isReadOnly}
                           className="h-9 px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-100 flex-1"
                           title="Importar medidas desde el plano guardado"
                         >
@@ -2794,6 +2834,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                     electricalConfig={electricalConfig}
                     demolitionRooms={rooms}
                     highlightedRoomId={highlightedRoomId}
+                    isReadOnly={isReadOnly}
                   />
                 </div>
               </div>
@@ -2827,7 +2868,9 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               rooms={reformRooms.length > 0 ? reformRooms : rooms}
               updateRoom={updateRoom}
               projectId={projectId}
+              isReadOnly={isReadOnly}
               onAddStandaloneWindow={() => {
+                // ... rest of the code is unchanged
                 // Llamar a la función local que implementamos
                 const handler = reformRooms.length > 0 || rooms.length === 0 ? setReformRooms : setRooms
                 const existingRooms = reformRooms.length > 0 || rooms.length === 0 ? reformRooms : rooms
@@ -2902,6 +2945,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               onUpdateConfig={handleElectricalConfigChange}
               onUpdateRoom={updateRoom}
               globalConfig={reformConfig}
+              isReadOnly={isReadOnly}
             />
           </TabsContent>
 
@@ -2913,6 +2957,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               onUpdatePartitions={setPartitions}
               onUpdateWallLinings={setWallLinings}
               reformRooms={reformRooms}
+              isReadOnly={isReadOnly}
             />
           </TabsContent>
 
@@ -2963,7 +3008,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                 "Sin guardar"
               )}
             </div>
-            <Button variant="outline" size="sm" onClick={() => handleSave(true)} disabled={isSaving}>
+            <Button variant="outline" size="sm" onClick={() => handleSave(true)} disabled={isSaving || isReadOnly}>
               Guardar
             </Button>
           </div>

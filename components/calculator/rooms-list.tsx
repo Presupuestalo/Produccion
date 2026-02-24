@@ -24,6 +24,7 @@ interface RoomsListProps {
   selectedRoomId?: string | null
   setSelectedRoomId?: (id: string | null) => void
   activeTab?: string
+  isReadOnly?: boolean
 }
 
 export function RoomsList({
@@ -39,6 +40,7 @@ export function RoomsList({
   duplicateRoom,
   demolitionRooms = [],
   highlightedRoomId,
+  isReadOnly = false,
 }: RoomsListProps) {
   const [viewMode, setViewMode] = useState<"list" | "slide">("list")
   const [activeIndex, setActiveIndex] = useState(0)
@@ -161,6 +163,7 @@ export function RoomsList({
                 isHighlighted={room.id === highlightedRoomId}
                 forceShowNumber={forceShowNumber}
                 existingRooms={rooms}
+                isReadOnly={isReadOnly}
               />
             </div>
           )

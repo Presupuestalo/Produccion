@@ -14,9 +14,10 @@ interface WindowPhotoUploadProps {
   windowId: string
   roomId: string
   onPhotoUploaded?: (photo: any) => void
+  isReadOnly?: boolean
 }
 
-export function WindowPhotoUpload({ projectId, windowId, roomId, onPhotoUploaded }: WindowPhotoUploadProps) {
+export function WindowPhotoUpload({ projectId, windowId, roomId, onPhotoUploaded, isReadOnly = false }: WindowPhotoUploadProps) {
   const [photos, setPhotos] = useState<any[]>([])
   const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -160,12 +161,14 @@ export function WindowPhotoUpload({ projectId, windowId, roomId, onPhotoUploaded
                   height={150}
                   className="rounded w-full h-32 object-cover"
                 />
-                <button
-                  onClick={() => handlePhotoDelete(photo.id)}
-                  className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
+                {!isReadOnly && (
+                  <button
+                    onClick={() => handlePhotoDelete(photo.id)}
+                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -180,14 +183,14 @@ export function WindowPhotoUpload({ projectId, windowId, roomId, onPhotoUploaded
               type="file"
               accept="image/*"
               onChange={handlePhotoUpload}
-              disabled={uploading}
+              disabled={uploading || isReadOnly}
               className="hidden"
               id={`camera-input-${windowId}`}
             />
             <label htmlFor={`camera-input-${windowId}`} className="block">
               <Button
                 asChild
-                disabled={uploading}
+                disabled={uploading || isReadOnly}
                 className="w-full cursor-pointer bg-transparent"
                 variant="outline"
                 size="sm"
@@ -207,14 +210,14 @@ export function WindowPhotoUpload({ projectId, windowId, roomId, onPhotoUploaded
               multiple
               accept="image/*"
               onChange={handlePhotoUpload}
-              disabled={uploading}
+              disabled={uploading || isReadOnly}
               className="hidden"
               id={`photo-input-${windowId}`}
             />
             <label htmlFor={`photo-input-${windowId}`} className="block">
               <Button
                 asChild
-                disabled={uploading}
+                disabled={uploading || isReadOnly}
                 className="w-full cursor-pointer bg-transparent"
                 variant="outline"
                 size="sm"

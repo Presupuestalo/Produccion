@@ -1514,23 +1514,26 @@ export class BudgetGenerator {
       }
 
       // Conteo de radiadores
-      let installRadiators = 0
-      let changeRadiators = 0
+      let installRadiatorsCount = 0
+      let changeRadiatorsCount = 0
 
-      if (reform?.rooms && reform.rooms.length > 0) {
+      const shouldInstallRadiators = reform?.config?.installRadiators === true
+      console.log("[v0] BudgetGenerator - Should install radiators:", shouldInstallRadiators)
+
+      if (shouldInstallRadiators && reform?.rooms && reform.rooms.length > 0) {
         reform.rooms.forEach((room: any) => {
           if (room.hasRadiator || (room.radiators && Array.isArray(room.radiators) && room.radiators.length > 0)) {
             const heaterCount = room.radiators?.length || 1
-            installRadiators += heaterCount
+            installRadiatorsCount += heaterCount
             console.log(`[v0] BudgetGenerator - ${room.type} ${room.number}: ${heaterCount} radiadores`)
           }
         })
       }
 
-      console.log("[v0] BudgetGenerator - Radiators to install:", installRadiators)
-      console.log("[v0] BudgetGenerator - Radiators to change:", changeRadiators)
+      console.log("[v0] BudgetGenerator - Radiators to installCount:", installRadiatorsCount)
+      console.log("[v0] BudgetGenerator - Radiators to changeCount:", changeRadiatorsCount)
 
-      const totalRadiators = installRadiators + changeRadiators
+      const totalRadiators = installRadiatorsCount + changeRadiatorsCount
 
       if (totalRadiators > 0) {
         console.log(`[v0] BudgetGenerator - Generando partida: Fijación de radiadores ${totalRadiators} ud`)

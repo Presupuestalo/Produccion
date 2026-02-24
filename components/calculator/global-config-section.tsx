@@ -32,6 +32,7 @@ interface GlobalConfigSectionProps {
   onUpdateRooms?: (rooms: any[]) => void
   onConfigUpdate?: (config: Partial<GlobalConfig>) => void
   onUpdateAllRoomsLowerCeiling?: (value: boolean) => void
+  isReadOnly?: boolean
 }
 
 
@@ -107,11 +108,13 @@ function WallDemolitionInput({
   onChange,
   placeholder,
   label,
+  disabled,
 }: {
   value: number
   onChange: (value: number) => void
   placeholder: string
   label: string
+  disabled?: boolean
 }) {
   const [localValue, setLocalValue] = useState(value.toFixed(2).replace(".", ","))
   const inputRef = useRef<HTMLInputElement>(null)
@@ -150,6 +153,7 @@ function WallDemolitionInput({
         onFocus={(e) => e.target.select()}
         className="mt-1"
         placeholder={placeholder}
+        disabled={disabled}
       />
     </div>
   )
@@ -164,6 +168,7 @@ export function GlobalConfigSection({
   onUpdateRooms,
   onConfigUpdate,
   onUpdateAllRoomsLowerCeiling,
+  isReadOnly = false,
 }: GlobalConfigSectionProps) {
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
@@ -184,6 +189,7 @@ export function GlobalConfigSection({
   const [installGasBoiler, setInstallGasBoiler] = useState(false)
   const [installGasConnection, setInstallGasConnection] = useState(false)
   const [installWaterHeater, setInstallWaterHeater] = useState(false)
+  const [installRadiators, setInstallRadiators] = useState(false)
 
   // Función para determinar si debe mostrar el checkbox "Retirar caldera"
   const shouldShowChangeBoiler = () => {
@@ -252,6 +258,12 @@ export function GlobalConfigSection({
       setInstallWaterHeater(config.installWaterHeater)
     }
   }, [config.installWaterHeater])
+
+  useEffect(() => {
+    if (config.installRadiators !== undefined) {
+      setInstallRadiators(config.installRadiators)
+    }
+  }, [config.installRadiators])
 
   const handleChangeBoilerToggle = (checked: boolean) => {
     setChangeBoiler(checked)
@@ -373,6 +385,7 @@ export function GlobalConfigSection({
       installGasBoiler: installGasBoiler,
       installGasConnection: installGasConnection,
       installWaterHeater: installWaterHeater,
+      installRadiators: installRadiators,
     }
 
     // Comparar con datos guardados anteriormente para evitar guardados innecesarios
@@ -434,6 +447,7 @@ export function GlobalConfigSection({
     config.lowerAllCeilings,
     config.removeWoodenFloor,
     installWaterHeater,
+    installRadiators,
   ])
 
   const updateConfigAndSave = (newConfig: Partial<GlobalConfig>) => {
@@ -658,6 +672,7 @@ export function GlobalConfigSection({
                   handleConfigUpdate({ heatingType: value as CalefaccionType })
                 }
               }}
+              disabled={isReadOnly}
             >
               <SelectTrigger className="h-9">
                 <SelectValue />
@@ -705,6 +720,7 @@ export function GlobalConfigSection({
                   onCheckedChange={(checked) => {
                     handleConfigUpdate({ installGasBoiler: checked as boolean })
                   }}
+                  disabled={isReadOnly}
                 />
                 <Label htmlFor="installGasBoiler" className="text-sm font-medium cursor-pointer">
                   Instalar caldera de gas
@@ -719,6 +735,7 @@ export function GlobalConfigSection({
                     onCheckedChange={(checked) => {
                       handleConfigUpdate({ installGasConnection: checked as boolean })
                     }}
+                    disabled={isReadOnly}
                   />
                   <Label htmlFor="installGasConnection" className="text-sm font-medium cursor-pointer">
                     Instalar acometida de gas
@@ -737,6 +754,7 @@ export function GlobalConfigSection({
                 onCheckedChange={(checked) => {
                   handleConfigUpdate({ installGasBoiler: checked as boolean })
                 }}
+                disabled={isReadOnly}
               />
               <Label htmlFor="installGasBoiler" className="text-sm font-medium cursor-pointer">
                 Instalar caldera de gas (para suelo radiante)
@@ -751,6 +769,7 @@ export function GlobalConfigSection({
                   onCheckedChange={(checked) => {
                     handleConfigUpdate({ installGasConnection: checked as boolean })
                   }}
+                  disabled={isReadOnly}
                 />
                 <Label htmlFor="installGasConnection" className="text-sm font-medium cursor-pointer">
                   Instalar acometida de gas
@@ -771,9 +790,27 @@ export function GlobalConfigSection({
                 onCheckedChange={(checked) => {
                   handleConfigUpdate({ installWaterHeater: checked as boolean })
                 }}
+                disabled={isReadOnly}
               />
               <Label htmlFor="installWaterHeater" className="text-sm font-medium cursor-pointer">
                 Instalar termo eléctrico
+              </Label>
+            </div>
+          )}
+
+        {isReform &&
+          ["Caldera + Radiadores", "Central", "Aerotermia", "Otra"].includes(config.reformHeatingType || "") && (
+            <div className="flex items-center gap-2 mt-4">
+              <Switch
+                id="installRadiators"
+                checked={config.installRadiators || false}
+                onCheckedChange={(checked) => {
+                  handleConfigUpdate({ installRadiators: checked as boolean })
+                }}
+                disabled={isReadOnly}
+              />
+              <Label htmlFor="installRadiators" className="text-sm font-medium cursor-pointer">
+                Instalar Radiadores
               </Label>
             </div>
           )}
@@ -795,6 +832,7 @@ export function GlobalConfigSection({
                     id="removeWaterHeater"
                     checked={getHeatingRemovalChecked()}
                     onCheckedChange={handleHeatingRemovalToggle}
+                    disabled={isReadOnly}
                   />
                 </div>
               </CardContent>
@@ -817,6 +855,7 @@ export function GlobalConfigSection({
                     onCheckedChange={(checked) => {
                       handleConfigUpdate({ removeWoodenFloor: checked as boolean })
                     }}
+                    disabled={isReadOnly}
                   />
                 </div>
               </CardContent>
@@ -839,6 +878,7 @@ export function GlobalConfigSection({
                     onCheckedChange={(checked) => {
                       handleConfigUpdate({ removeAllCeramic: checked as boolean })
                     }}
+                    disabled={isReadOnly}
                   />
                 </div>
               </CardContent>
@@ -861,6 +901,7 @@ export function GlobalConfigSection({
                     onCheckedChange={(checked) => {
                       handleConfigUpdate({ allWallsHaveGotele: checked as boolean })
                     }}
+                    disabled={isReadOnly}
                   />
                 </div>
               </CardContent>
@@ -888,6 +929,7 @@ export function GlobalConfigSection({
                       onCheckedChange={(checked) => {
                         handleConfigUpdate({ tileAllFloors: checked as boolean })
                       }}
+                      disabled={isReadOnly}
                     />
                   </div>
                 </CardContent>
@@ -910,6 +952,7 @@ export function GlobalConfigSection({
                       onCheckedChange={(checked) => {
                         handleConfigUpdate({ paintAndPlasterAll: checked as boolean })
                       }}
+                      disabled={isReadOnly}
                     />
                   </div>
                 </CardContent>
@@ -935,6 +978,7 @@ export function GlobalConfigSection({
                           onUpdateAllRoomsLowerCeiling(true)
                         }
                       }}
+                      disabled={isReadOnly}
                     />
                   </div>
                 </CardContent>
@@ -957,6 +1001,7 @@ export function GlobalConfigSection({
                       onCheckedChange={(checked) => {
                         handleConfigUpdate({ paintCeilings: checked as boolean })
                       }}
+                      disabled={isReadOnly}
                     />
                   </div>
                 </CardContent>
@@ -979,6 +1024,7 @@ export function GlobalConfigSection({
                       onCheckedChange={(checked) => {
                         handleConfigUpdate({ entranceDoorType: checked ? true : "No" })
                       }}
+                      disabled={isReadOnly}
                     />
                   </div>
                 </CardContent>
@@ -993,7 +1039,7 @@ export function GlobalConfigSection({
           <div className="mt-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold">Derribos de Tabiques</h3>
-              <Button onClick={addWallDemolition} size="sm" variant="outline" className="h-8 bg-transparent">
+              <Button onClick={addWallDemolition} size="sm" variant="outline" className="h-8 bg-transparent" disabled={isReadOnly}>
                 <Plus className="h-4 w-4 mr-1" />
                 Añadir
               </Button>
@@ -1009,6 +1055,7 @@ export function GlobalConfigSection({
                     size="icon"
                     onClick={() => removeWallDemolition(demolition.id)}
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    disabled={isReadOnly}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -1020,12 +1067,14 @@ export function GlobalConfigSection({
                     onChange={(numValue) => updateWallDemolition(demolition.id, { length: numValue })}
                     placeholder="0,00"
                     label="Metros lineales"
+                    disabled={isReadOnly}
                   />
                   <WallDemolitionInput
                     value={demolition.thickness}
                     onChange={(numValue) => updateWallDemolition(demolition.id, { thickness: numValue })}
                     placeholder="10,00"
                     label="Grosor (cm)"
+                    disabled={isReadOnly}
                   />
                 </div>
 
@@ -1043,6 +1092,7 @@ export function GlobalConfigSection({
                     onCheckedChange={(checked) => {
                       updateWallDemolition(demolition.id, { hasTiles: checked })
                     }}
+                    disabled={isReadOnly}
                   />
                   <Label htmlFor={`has-tiles-${demolition.id}`} className="text-sm">
                     Tiene azulejos
@@ -1060,6 +1110,7 @@ export function GlobalConfigSection({
                             tilesSides: value as "one" | "both",
                           })
                         }
+                        disabled={isReadOnly}
                       >
                         <SelectTrigger className="mt-1">
                           <SelectValue />
@@ -1075,6 +1126,7 @@ export function GlobalConfigSection({
                       onChange={(numValue) => updateWallDemolition(demolition.id, { tileThickness: numValue })}
                       placeholder="1,50"
                       label="Grosor azulejo (cm)"
+                      disabled={isReadOnly}
                     />
                   </div>
                 )}

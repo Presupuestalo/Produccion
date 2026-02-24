@@ -667,7 +667,7 @@ export async function generateBudgetPDF(
 
     console.log("[v0] Saving PDF...")
     // Guardar el PDF
-    doc.save(`Presupuesto_${budget.name.replace(/\s+/g, "_")}.pdf`)
+    doc.save(`${budget.name.replace(/\s+/g, "_")}.pdf`)
     console.log("[v0] PDF saved successfully!")
   } catch (error) {
     console.error("[v0] Error generating PDF:", error)

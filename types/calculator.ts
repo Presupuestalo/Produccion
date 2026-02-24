@@ -308,6 +308,7 @@ export interface GlobalConfig {
   installWaterHeater?: boolean
   electricalSettings?: any
   tiledWallSurfaceArea?: number
+  installRadiators?: boolean
 }
 
 // Modificar la interfaz DemolitionSummary para añadir la nueva propiedad

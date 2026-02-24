@@ -133,7 +133,7 @@ export function CreateProjectButton({ className }: { className?: string }) {
             setUserType(profile.user_type)
             setUserProfile({ ...profile, email: session.user.email })
             setSubscriptionPlan(profile.subscription_plan || "free")
-            setIsMaster(profile.role === "master")
+            setIsMaster(profile.role === "master" || profile.role === "admin")
 
             if (profile.user_type === "homeowner") {
               setFormData((prev) => ({
