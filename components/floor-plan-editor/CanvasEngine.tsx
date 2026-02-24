@@ -2166,9 +2166,41 @@ export const CanvasEngine = ({
             }
         }
 
-        // LÓGICA ANTIGUA DE GOMA CERÁMICA (Mantener por retrocompatibilidad si es necesario, pero el activeTool es preferible)
+        // LÓGICA DE GOMA CERÁMICA DESDE EL MENÚ DE HABITACIÓN
         if (isCeramicEraserActive && selectedRoomId) {
-            // ... (rest of old logic which I'll keep for now to avoid breaking the button in the menu)
+            const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
+            const room = rooms.find(r => r.id === selectedRoomId)
+            if (room && room.hasCeramicWalls) {
+                let bestSegWallId: string | null = null
+                let minDist = 30 / zoom
+                room.polygon.forEach((p1, k) => {
+                    const p2 = room.polygon[(k + 1) % room.polygon.length]
+                    const { point: proj } = getClosestPointOnSegment(pos, p1, p2)
+                    const d = Math.sqrt((pos.x - proj.x) ** 2 + (pos.y - proj.y) ** 2)
+                    if (d < minDist) {
+                        const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+                        const foundWall = walls.find(w => {
+                            const dx_w = w.end.x - w.start.x
+                            const dy_w = w.end.y - w.start.y
+                            const lengthSq = dx_w * dx_w + dy_w * dy_w
+                            if (lengthSq === 0) return false
+                            const t = Math.max(0, Math.min(1, ((midP.x - w.start.x) * dx_w + (midP.y - w.start.y) * dy_w) / lengthSq))
+                            const projX = w.start.x + t * dx_w
+                            const projY = w.start.y + t * dy_w
+                            return Math.sqrt((midP.x - projX) ** 2 + (midP.y - projY) ** 2) < 5.0
+                        })
+                        if (foundWall && !(room.disabledCeramicWalls || []).includes(foundWall.id)) {
+                            bestSegWallId = foundWall.id
+                            minDist = d
+                        }
+                    }
+                })
+                if (bestSegWallId) {
+                    const currentDisabled = room.disabledCeramicWalls || []
+                    onUpdateRoom(room.id, { disabledCeramicWalls: [...currentDisabled, bestSegWallId] })
+                    return
+                }
+            }
         }
 
         // Si pinchamos en algo (o cerca por el offset) y es tÃ¡ctil, disparamos su lÃ³gica

@@ -2541,14 +2541,18 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                         {isMobile && (
                                             <>
                                                 <div className="h-px bg-slate-100 my-1" />
-                                                <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("single") }} className="gap-3 py-2 cursor-pointer">
+                                                <DropdownMenuItem onSelect={() => { setActiveTool("door"); setCreationDoorType("single") }} className={`gap-3 py-2 cursor-pointer ${activeTool === "door" ? "bg-slate-100" : ""}`}>
                                                     <DoorOpen className="h-4 w-4" /> <span>Puerta</span>
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("single") }} className="gap-3 py-2 cursor-pointer">
+                                                <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("single") }} className={`gap-3 py-2 cursor-pointer ${activeTool === "window" ? "bg-slate-100" : ""}`}>
                                                     <RectangleVertical className="h-4 w-4" /> <span>Ventana</span>
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => { setActiveTool("window"); setCreationWindowType("balcony") }} className="gap-3 py-2 cursor-pointer">
-                                                    <BalconyWindowIcon className="h-4 w-4" /> <span>Balconera</span>
+                                                <div className="h-px bg-slate-100 my-1" />
+                                                <DropdownMenuItem onSelect={() => setActiveTool("ceramic")} className={`gap-3 py-2 cursor-pointer ${activeTool === "ceramic" ? "bg-slate-100" : ""}`}>
+                                                    <Grid3X3 className="h-4 w-4" /> <span>Cerámica</span>
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => setActiveTool("eraser")} className={`gap-3 py-2 cursor-pointer ${activeTool === "eraser" ? "bg-slate-100" : ""}`}>
+                                                    <Eraser className="h-4 w-4" /> <span>Borrador</span>
                                                 </DropdownMenuItem>
                                             </>
                                         )}
@@ -2680,7 +2684,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                 >
                                     <Ruler className="h-5 w-5" />
                                 </Button>
-                                <DropdownMenu>
+                                <DropdownMenu open={activeMenu === 'ruler'} onOpenChange={(open) => setActiveMenu(open ? 'ruler' : null)}>
                                     <DropdownMenuTrigger asChild>
                                         <Button
                                             variant="ghost"
@@ -2690,7 +2694,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                                             <ChevronRight className="h-3 w-3" />
                                         </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent side="right" align="start" sideOffset={10} className="w-56 ml-2">
+                                    <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-56 ml-2">
                                         <DropdownMenuItem onSelect={() => setActiveTool("ruler")} className={`gap-3 py-2 cursor-pointer ${activeTool === "ruler" ? "bg-slate-100" : ""}`}>
                                             <Ruler className="h-4 w-4" /> <span>Herramienta Regla</span>
                                         </DropdownMenuItem>
@@ -2709,26 +2713,38 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                             </div>
 
                             {/* HERRAMIENTA CERÁMICA */}
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setActiveTool("ceramic")}
-                                title={isMobile ? "Cerámica" : "Cerámica (H)"}
-                                className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "ceramic" ? "bg-slate-200 text-slate-900" : ""}`}
-                            >
-                                <Grid3X3 className="h-5 w-5" />
-                            </Button>
-
-                            {/* HERRAMIENTA GOMA (BORRAR MUROS O ALICATADO) */}
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setActiveTool("eraser")}
-                                title={isMobile ? "Borrador" : "Borrador (E)"}
-                                className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "eraser" ? "bg-slate-200 text-slate-900" : ""}`}
-                            >
-                                <Eraser className="h-5 w-5" />
-                            </Button>
+                            {!isMobile && (
+                                <div className="relative group">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setActiveTool("ceramic")}
+                                        title={isMobile ? "Cerámica" : "Cerámica (H)"}
+                                        className={`w-12 h-12 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors ${activeTool === "ceramic" ? "bg-slate-200 text-slate-900" : ""}`}
+                                    >
+                                        <Grid3X3 className="h-5 w-5" />
+                                    </Button>
+                                    <DropdownMenu open={activeMenu === 'ceramic'} onOpenChange={(open) => setActiveMenu(open ? 'ceramic' : null)}>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="absolute bottom-1 right-1 w-4 h-4 p-0 opacity-100 hover:bg-slate-200 transition-all rounded-sm z-50 text-slate-400 hover:text-slate-600"
+                                            >
+                                                <ChevronRight className="h-3 w-3" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent container={fullscreenContainer} side="right" align="start" sideOffset={10} className="w-48 ml-2 flex flex-col gap-1">
+                                            <DropdownMenuItem onSelect={() => setActiveTool("ceramic")} className={`gap-3 py-2 cursor-pointer ${activeTool === "ceramic" ? "bg-slate-100" : ""}`}>
+                                                <Grid3X3 className="h-4 w-4" /> <span>Cerámica (H)</span>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => setActiveTool("eraser")} className={`gap-3 py-2 cursor-pointer ${activeTool === "eraser" ? "bg-slate-100" : ""}`}>
+                                                <Eraser className="h-4 w-4" /> <span>Borrador (E)</span>
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                            )}
 
 
                             {/* 5. TRASH (Clear Plan) */}
