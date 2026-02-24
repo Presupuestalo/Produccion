@@ -307,7 +307,7 @@ export async function createProject(projectData: ProjectFormData, userProfile?: 
       door: projectData.door || "",
       city: projectData.city || "",
       province: projectData.province || "",
-      postal_code: projectData.postal_code || "",
+      // postal_code: projectData.postal_code || "", -- Removed due to schema mismatch in DB (column missing)
       country: projectData.country || "España", // @deprecated
       ceiling_height:
         typeof projectData.ceiling_height === "string"
@@ -441,7 +441,8 @@ export async function updateProject(id: string, projectData: Partial<Project>) {
     }
 
     if (dataToUpdate.postal_code !== undefined) {
-      dataToUpdate.postal_code = dataToUpdate.postal_code
+      // dataToUpdate.postal_code = dataToUpdate.postal_code -- Removed due to schema mismatch in DB (column missing)
+      delete dataToUpdate.postal_code
     }
 
     if (dataToUpdate.client_postal_code !== undefined) {

@@ -29,7 +29,7 @@ export interface Project {
   has_elevator?: string | number | boolean
   // Resto de campos del proyecto
   progress: number
-  status: "Borrador" | "Entregado" | "En Obra" | "Finalizado" | "Rechazado" | "Terminado"
+  status: "Borrador" | "Entregado" | "Aceptado" | "En Obra" | "Finalizado" | "Rechazado" | "Terminado" | "draft" | "sent" | "delivered" | "approved" | "accepted" | "rejected" | "in_progress" | "completed" | "en_obra" | "finalizado" | "terminado"
   duedate?: string
   dueDate?: string // Mantener esta para compatibilidad
   budget?: number
