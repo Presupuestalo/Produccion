@@ -295,10 +295,8 @@ export function GlobalConfigSection({
       const shouldAutoInstallBoiler =
         demolitionConfig?.changeBoiler === true && config.reformHeatingType === "Caldera + Radiadores"
 
-      if (shouldAutoInstallBoiler) {
-        if (!config.installGasBoiler) {
-          updateConfig({ installGasBoiler: true })
-        }
+      if (shouldAutoInstallBoiler && config.installGasBoiler === undefined) {
+        updateConfig({ installGasBoiler: true })
       }
     }
   }, [isReform, demolitionConfig?.changeBoiler, config.reformHeatingType, config.installGasBoiler, updateConfig])

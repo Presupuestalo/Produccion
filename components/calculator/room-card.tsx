@@ -391,8 +391,8 @@ export function RoomCard({
       updates.removeBathroomElements = true
     }
 
-    // Si es un baño, activar newBathroomElements por defecto (cambiar condición para que funcione correctamente)
-    if (room.type === "Baño" && !room.newBathroomElements) {
+    // Si es un baño, activar newBathroomElements por defecto (solo si no se ha definido aún)
+    if (room.type === "Baño" && room.newBathroomElements === undefined) {
       updates.newBathroomElements = true
     }
 
@@ -468,13 +468,13 @@ export function RoomCard({
   // </CHANGE> Auto-convert radiators to electric when electric heating is selected
   useEffect(() => {
     if (isReform && globalConfig?.reformHeatingType === "Eléctrica") {
-      // Enable radiator checkbox by default
-      if (!room.hasRadiator) {
+      // Enable radiator checkbox by default only if undefined
+      if (room.hasRadiator === undefined) {
         console.log("[v0] Enabling radiator for room:", room.name, "due to electric heating")
         updateRoom(room.id, { hasRadiator: true })
       }
 
-      // Set default radiator type to electric if not already set
+      // Set default radiator type to electric if none exist
       if (!room.radiators || room.radiators.length === 0) {
         console.log("[v0] Setting default electric radiator for room:", room.name)
         updateRoom(room.id, {
@@ -496,8 +496,8 @@ export function RoomCard({
       isReform &&
       (globalConfig?.reformHeatingType === "Caldera + Radiadores" || globalConfig?.reformHeatingType === "Central")
     ) {
-      // Enable radiator checkbox by default
-      if (!room.hasRadiator) {
+      // Enable radiator checkbox by default only if undefined
+      if (room.hasRadiator === undefined) {
         console.log("[v0] Enabling radiator for room:", room.name, "due to gas heating")
         updateRoom(room.id, { hasRadiator: true })
       }
@@ -521,8 +521,8 @@ export function RoomCard({
 
           updateRoom(room.id, { radiators: updatedRadiators })
         }
-      } else {
-        // No radiators exist, create default aluminum radiator
+      } else if (room.hasRadiator !== false) {
+        // No radiators exist, and not explicitly disabled, create default aluminum radiator
         const isBathroom = room.type === "Baño"
         const defaultType: RadiatorType = isBathroom ? "Toallero de aluminio" : "Radiador de Aluminio"
 
@@ -583,13 +583,13 @@ export function RoomCard({
       // No añadir radiador en terrazas
       if (isTerrace) return
 
-      // Activar el check de radiador si no está activo
-      if (!room.hasRadiator) {
+      // Activar el check de radiador si es undefined
+      if (room.hasRadiator === undefined) {
         updateRoom(room.id, { hasRadiator: true })
       }
 
-      // Crear radiador por defecto si no existe
-      if (!room.radiators || room.radiators.length === 0) {
+      // Crear radiador por defecto si no existe y no está explícitamente desactivado
+      if (room.hasRadiator !== false && (!room.radiators || room.radiators.length === 0)) {
         const defaultType: RadiatorType = isBathroom ? "Toallero de aluminio" : "Radiador de Aluminio"
         updateRoom(room.id, {
           hasRadiator: true,
@@ -601,8 +601,8 @@ export function RoomCard({
             },
           ],
         })
-      } else {
-        // Convertir radiadores existentes al tipo correcto
+      } else if (room.hasRadiator !== false && room.radiators) {
+        // Convertir radiadores existentes al tipo correcto si es necesario
         const targetType: RadiatorType = isBathroom ? "Toallero de aluminio" : "Radiador de Aluminio"
         const needsConversion = room.radiators.some((radiator) => radiator.type !== targetType)
 
@@ -616,7 +616,7 @@ export function RoomCard({
         }
       }
     }
-  }, [isReform, globalConfig?.reformHeatingType, room.id, room.type])
+  }, [isReform, globalConfig?.reformHeatingType, room.id, room.hasRadiator, room.radiators, room.type, updateRoom])
 
   // Modificar la función formatDecimal para que use comas en lugar de puntos:
   function formatDecimal(value: number): string {
@@ -1568,7 +1568,6 @@ export function RoomCard({
                             value={room.currentCeilingStatus || "no_false_ceiling"}
                             onValueChange={handleCurrentCeilingStatusChange}
                             className="flex-1"
-                            disabled={isReadOnly}
                           >
                             <TabsList className="grid grid-cols-3 h-8 p-1 bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
                               <TabsTrigger

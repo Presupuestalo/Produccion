@@ -414,7 +414,7 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom, isReadOnly = false
             <div key={room.id} className="bg-white rounded-lg border p-3">
               <div className="flex justify-between items-center mb-2">
                 <h4 className="font-medium">
-                  {room.type} {room.number > 1 ? room.number : ""} ({room.area.toFixed(2)} m²)
+                  {room.name || `${room.type} ${room.number > 1 ? room.number : ""}`} ({room.area.toFixed(2)} m²)
                 </h4>
               </div>
               <div className="grid grid-cols-3 gap-3 md:grid-cols-6">

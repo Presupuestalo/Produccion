@@ -2940,7 +2940,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
           <TabsContent value="electrical" className="space-y-3">
             <ElectricalSection
               projectId={projectId}
-              rooms={reformRooms.length > 0 ? reformRooms : rooms}
+              rooms={visibleReformRooms.length > 0 ? visibleReformRooms : visibleRooms}
               electricalConfig={electricalConfig}
               onUpdateConfig={handleElectricalConfigChange}
               onUpdateRoom={updateRoom}

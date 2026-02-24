@@ -87,7 +87,6 @@ export function RoomTemplates({ addRoom, standardHeight, projectId, activeTab = 
       removeBathroomElements: false,
       removeKitchenFurniture: false,
       removeBedroomFurniture: false,
-      hasRadiator: false,
       removeSewagePipes: false,
       hasDoors: false,
     }
