@@ -52,7 +52,13 @@ export function EditableLineItem({ item, isEditable, onUpdate, onDelete }: Edita
   const handleSave = async () => {
     try {
       setIsSaving(true)
-      await onUpdate(item.id, editedItem)
+      // Asegurarse de que quantity y unit_price se envían como números corregidos
+      const finalItem = {
+        ...editedItem,
+        quantity: Number.parseFloat(editedItem.quantity.toString().replace(",", ".")),
+        unit_price: Number.parseFloat(editedItem.unit_price.toString().replace(",", ".")),
+      }
+      await onUpdate(item.id, finalItem)
       setIsEditing(false)
     } catch (err) {
       console.error("[EditableLineItem] Error saving:", err)

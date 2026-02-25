@@ -619,6 +619,10 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
             "custom"
           )
 
+          const totalCost = Number.parseFloat(formData.unit_price.toString().replace(",", ".")) || 0
+          const materialCost = totalCost * 0.5
+          const laborCost = totalCost * 0.3
+
           const priceData = {
             id: self.crypto.randomUUID(),
             user_id: userData.user.id,
