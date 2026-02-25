@@ -5,35 +5,7 @@ import { cookies } from "next/headers"
 import { generateText } from "ai"
 import { extractText } from "unpdf"
 import { groqProvider, DEFAULT_GROQ_MODEL } from "@/lib/ia/groq"
-
-function getUserPriceTableByCountry(countryCode: string): string {
-  const countryTables: Record<string, string> = {
-    ES: "user_prices",
-    PE: "user_prices_peru",
-    BO: "user_prices_bolivia",
-    VE: "user_prices_venezuela",
-    MX: "user_prices_mexico",
-    CO: "user_prices_colombia",
-    AR: "user_prices_argentina",
-    CL: "user_prices_chile",
-    EC: "user_prices_ecuador",
-    GT: "user_prices_guatemala",
-    CU: "user_prices_cuba",
-    DO: "user_prices_dominicana",
-    HN: "user_prices_honduras",
-    PY: "user_prices_paraguay",
-    NI: "user_prices_nicaragua",
-    SV: "user_prices_salvador",
-    CR: "user_prices_costarica",
-    PA: "user_prices_panama",
-    UY: "user_prices_uruguay",
-    GQ: "user_prices_guinea",
-    US: "user_prices_usa",
-    GB: "user_prices",
-  }
-
-  return countryTables[countryCode] || "user_prices"
-}
+import { getUserPriceTableByCountry, getNextPriceCode } from "@/lib/services/price-service"
 
 export async function POST(request: NextRequest) {
   try {
@@ -101,10 +73,10 @@ Devuelve un array JSON con esta estructura exacta:
 [
   {
     "code": "código si existe o null",
-    "category": "DERRIBOS|ALBAí‘ILERíA|FONTANERíA|CARPINTERíA|ELECTRICIDAD|CALEFACCIí“N|PINTURA|LIMPIEZA|MATERIALES",
-    "subcategory": "CONCEPTO EN MAYíšSCULAS",
+    "category": "DERRIBOS|ALBAÑILERÍA|FONTANERÍA|CARPINTERÍA|ELECTRICIDAD|CALEFACCIÓN|PINTURA|LIMPIEZA|MATERIALES",
+    "subcategory": "CONCEPTO EN MAYÚSCULAS",
     "description": "Descripción detallada",
-    "unit": "mÂ²|ml|ud|etc",
+    "unit": "m²|ml|ud|etc",
     "labor_cost": número,
     "material_cost": número,
     "equipment_cost": número,
@@ -144,17 +116,28 @@ ${text.slice(0, 15000)}`,
 
     const categoryMap = new Map(categories?.map((c) => [c.name.toUpperCase(), c.id]) || [])
 
-    const pricesToInsert = prices.map((price: any) => {
+    const pricesToInsert = []
+    for (const price of prices) {
       const totalCost =
         (price.labor_cost || 0) + (price.material_cost || 0) + (price.equipment_cost || 0) + (price.other_cost || 0)
       const basePrice = totalCost
       const finalPrice = price.final_price || totalCost
 
-      return {
+      const categoryId = categoryMap.get(price.category.toUpperCase()) || null
+      const categoryName = price.category.toUpperCase()
+
+      // Generar código estructurado secuencialmente
+      const generatedCode = price.code || await getNextPriceCode(
+        categoryId || "general",
+        categoryName,
+        "imported"
+      )
+
+      pricesToInsert.push({
         user_id: user.id,
         base_price_id: null,
-        code: price.code || `IMPORT-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        category_id: categoryMap.get(price.category.toUpperCase()) || null,
+        code: generatedCode,
+        category_id: categoryId,
         subcategory: price.subcategory,
         description: price.description,
         unit: price.unit,
@@ -167,8 +150,8 @@ ${text.slice(0, 15000)}`,
         final_price: finalPrice,
         is_active: true,
         is_imported: true,
-      }
-    })
+      })
+    }
 
     console.log("[v0] Insertando en tabla:", userTable)
 
@@ -202,4 +185,3 @@ ${text.slice(0, 15000)}`,
     )
   }
 }
-

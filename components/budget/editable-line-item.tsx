@@ -140,22 +140,42 @@ export function EditableLineItem({ item, isEditable, onUpdate, onDelete }: Edita
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Cantidad ({item.unit})</label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={editedItem.quantity}
-                  onChange={(e) => setEditedItem({ ...editedItem, quantity: Number.parseFloat(e.target.value) || 0 })}
+                  type="text"
+                  inputMode="decimal"
+                  value={editedItem.quantity.toString().replace(".", ",")}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(",", ".")
+                    if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                      setEditedItem({ ...editedItem, quantity: val as any })
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const val = Number.parseFloat(e.target.value.replace(",", "."))
+                    if (!isNaN(val)) {
+                      setEditedItem({ ...editedItem, quantity: val.toFixed(2) as any })
+                    }
+                  }}
                 />
               </div>
 
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Precio Unitario (€)</label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={editedItem.unit_price}
-                  onChange={(e) => setEditedItem({ ...editedItem, unit_price: Number.parseFloat(e.target.value) || 0 })}
+                  type="text"
+                  inputMode="decimal"
+                  value={editedItem.unit_price.toString().replace(".", ",")}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(",", ".")
+                    if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                      setEditedItem({ ...editedItem, unit_price: val as any })
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const val = Number.parseFloat(e.target.value.replace(",", "."))
+                    if (!isNaN(val)) {
+                      setEditedItem({ ...editedItem, unit_price: val.toFixed(2) as any })
+                    }
+                  }}
                 />
               </div>
 

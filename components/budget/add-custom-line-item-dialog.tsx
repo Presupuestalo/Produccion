@@ -3,6 +3,16 @@
 import type React from "react"
 import { useState, useEffect, useMemo } from "react"
 import {
+  getPricesByCategory,
+  type PriceMaster,
+  getNextPriceCode,
+  createCustomPrice,
+  getPriceCategories,
+  type PriceCategory,
+  createCategory,
+} from "@/lib/services/price-service"
+import { getUserCountryFromProfile } from "@/lib/services/currency-service"
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -30,7 +40,7 @@ import * as SubscriptionLimitsService from "@/lib/services/subscription-limits-s
 import { Badge } from "@/components/ui/badge"
 import { AIPriceImportDialog } from "@/components/precios/ai-price-import-dialog"
 import { formatNumber } from "@/lib/utils/format"
-import { getPriceCategories, type PriceCategory, getNextPriceCode, createCategory } from "@/lib/services/price-service"
+
 
 interface AddCustomLineItemDialogProps {
   budgetId: string
@@ -366,8 +376,8 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
     setFormData({
       category: categoryName,
       concept_code: price.code,
-      concept: price.description,
-      description: price.subcategory || "",
+      concept: price.subcategory || "", // DB subcategory (Concepto) -> UI concept
+      description: price.description, // DB description (Descripción) -> UI description
       unit: price.unit,
       quantity: 1,
       unit_price: price.final_price,
@@ -572,29 +582,66 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
             }
           }
 
-          const totalCost = Number.parseFloat(formData.unit_price.toString()) || 0
-          const laborCost = totalCost * 0.6
-          const materialCost = totalCost * 0.4
+          // DETERMINAR TABLA DE DESTINO SEGÚN PAÍS
+          const userCountry = await getUserCountryFromProfile()
+          const countryCode = userCountry.code || "ES"
+
+          const countryTables: Record<string, string> = {
+            ES: "user_prices",
+            PE: "user_prices_peru",
+            BO: "user_prices_bolivia",
+            VE: "user_prices_venezuela",
+            MX: "user_prices_mexico",
+            CO: "user_prices_colombia",
+            AR: "user_prices_argentina",
+            CL: "user_prices_chile",
+            EC: "user_prices_ecuador",
+            GT: "user_prices_guatemala",
+            CU: "user_prices_cuba",
+            DO: "user_prices_dominicana",
+            HN: "user_prices_honduras",
+            PY: "user_prices_paraguay",
+            NI: "user_prices_nicaragua",
+            SV: "user_prices_salvador",
+            CR: "user_prices_costarica",
+            PA: "user_prices_panama",
+            UY: "user_prices_uruguay",
+            GQ: "user_prices_guinea",
+            US: "user_prices_usa",
+            GB: "user_prices",
+          }
+          const userTable = countryTables[countryCode] || "user_prices"
+
+          // Generar código estructurado (ej: 01-CUS-01)
+          const customCode = formData.concept_code || await getNextPriceCode(
+            categoryId,
+            cleanCategoryName || "GENERAL",
+            "custom"
+          )
 
           const priceData = {
             id: self.crypto.randomUUID(),
-            code: formData.concept_code || `CUSTOM-${Date.now()}`,
+            user_id: userData.user.id,
+            base_price_id: null, // New custom line item
+            code: customCode,
             category_id: categoryId,
-            subcategory: sentenceCaseDescription || null,
-            description: formData.concept.toUpperCase(),
+            subcategory: formData.concept.toUpperCase(), // UI concept (Concepto) -> DB subcategory
+            description: sentenceCaseDescription || null, // UI description (Descripción) -> DB description
             unit: formData.unit,
             material_cost: materialCost,
             labor_cost: laborCost,
+            equipment_cost: 0,
+            other_cost: 0,
             base_price: totalCost * 0.8,
-            profit_margin: 20,
+            margin_percentage: 0,
             final_price: totalCost,
-            is_custom: true,
             is_active: true,
-            user_id: userData.user.id,
-            created_by: userData.user.id,
+            is_custom: true,
+            is_imported: false,
+            notes: null,
           }
 
-          const { error: insertError } = await supabase.from("price_master").insert(priceData)
+          const { error: insertError } = await supabase.from(userTable).insert(priceData)
 
           if (insertError) {
             throw insertError
@@ -1012,11 +1059,21 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                   <div className="space-y-2">
                     <Label>Cantidad</Label>
                     <Input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={formData.quantity}
-                      onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                      type="text"
+                      inputMode="decimal"
+                      value={formData.quantity.toString().replace(".", ",")}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(",", ".")
+                        if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                          setFormData({ ...formData, quantity: val })
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const val = Number.parseFloat(e.target.value.replace(",", "."))
+                        if (!isNaN(val)) {
+                          setFormData({ ...formData, quantity: val.toFixed(2) })
+                        }
+                      }}
                     />
                   </div>
 
@@ -1024,11 +1081,21 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                     <div className="space-y-2">
                       <Label>Precio/Ud</Label>
                       <Input
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        value={formData.unit_price}
-                        onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
+                        type="text"
+                        inputMode="decimal"
+                        value={formData.unit_price.toString().replace(".", ",")}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(",", ".")
+                          if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                            setFormData({ ...formData, unit_price: val })
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const val = Number.parseFloat(e.target.value.replace(",", "."))
+                          if (!isNaN(val)) {
+                            setFormData({ ...formData, unit_price: val.toFixed(2) })
+                          }
+                        }}
                       />
                     </div>
                   )}
@@ -1138,11 +1205,21 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                   <Label htmlFor="quantity">Cantidad</Label>
                   <Input
                     id="quantity"
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.quantity.toString().replace(".", ",")}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(",", ".")
+                      if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                        setFormData({ ...formData, quantity: val })
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const val = Number.parseFloat(e.target.value.replace(",", "."))
+                      if (!isNaN(val)) {
+                        setFormData({ ...formData, quantity: val.toFixed(2) })
+                      }
+                    }}
                   />
                 </div>
 
@@ -1153,11 +1230,21 @@ export function AddCustomLineItemDialog({ budgetId, onItemAdded, isOwner = false
                     </Label>
                     <Input
                       id="price"
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={formData.unit_price}
-                      onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
+                      type="text"
+                      inputMode="decimal"
+                      value={formData.unit_price.toString().replace(".", ",")}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(",", ".")
+                        if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                          setFormData({ ...formData, unit_price: val })
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const val = Number.parseFloat(e.target.value.replace(",", "."))
+                        if (!isNaN(val)) {
+                          setFormData({ ...formData, unit_price: val.toFixed(2) })
+                        }
+                      }}
                     />
                   </div>
                 )}

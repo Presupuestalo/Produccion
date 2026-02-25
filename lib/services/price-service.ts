@@ -125,16 +125,25 @@ export async function createCategory(name: string, description?: string): Promis
 
 /**
  * Genera el siguiente código de precio siguiendo el formato:
- * [REF_NUM]-[CAT_ABB]-[ITEM_NUM]
- * Ejemplo: 01-DRY-01
+ * [REF_NUM]-[CAT_ABB/TYPE]-[ITEM_NUM]
+ * Ejemplo: 01-DRY-01, 01-CUS-01, 01-IMP-01
  */
-export async function getNextPriceCode(categoryId: string, categoryName: string): Promise<string> {
+export async function getNextPriceCode(
+  categoryId: string,
+  categoryName: string,
+  type: "master" | "custom" | "imported" = "master",
+): Promise<string> {
   try {
-    const prefix = categoryName
-      .trim()
-      .toUpperCase()
-      .replace(/^\d+\.\s*/, "") // Limpiar prefijos numéricos como "01. "
-      .substring(0, 3)
+    const prefix =
+      type === "custom"
+        ? "CUS"
+        : type === "imported"
+          ? "IMP"
+          : categoryName
+            .trim()
+            .toUpperCase()
+            .replace(/^\d+\.\s*/, "") // Limpiar prefijos numéricos como "01. "
+            .substring(0, 3)
 
     // 1. Obtener todas las categorías para calcular el REF_NUM (basado en el prefijo)
     const { data: categories } = await supabase.from("price_categories").select("id, name").order("name", { ascending: true })
@@ -156,8 +165,15 @@ export async function getNextPriceCode(categoryId: string, categoryName: string)
     const formattedRef = refNum.toString().padStart(2, "0")
 
     // 2. Obtener el número de items en esta categoría para el ITEM_NUM
-    // Consultamos price_master ya que es donde se guardan habitualmente
-    const { count } = await supabase.from("price_master").select("*", { count: "exact", head: true }).eq("category_id", categoryId)
+    // Consultamos la tabla correspondiente según el tipo
+    const userCountry = await getUserCountryFromProfile()
+    const table = type === "master" ? getPriceTableByCountry(userCountry.code) : getUserPriceTableByCountry(userCountry.code)
+
+    const { count } = await supabase
+      .from(table)
+      .select("*", { count: "exact", head: true })
+      .eq("category_id", categoryId)
+      .ilike("code", `${formattedRef}-${prefix}-%`)
 
     const itemNum = (count || 0) + 1
     const formattedItem = itemNum.toString().padStart(2, "0")
@@ -214,7 +230,7 @@ export async function deleteCategory(id: string): Promise<void> {
   }
 }
 
-function getUserPriceTableByCountry(countryCode: string): string {
+export function getUserPriceTableByCountry(countryCode: string): string {
   const countryTables: Record<string, string> = {
     ES: "user_prices", // España
     PE: "user_prices_peru",
@@ -592,7 +608,13 @@ export async function createCustomPrice(
   const basePrice = totalCost
   const finalPrice = basePrice * (1 + price.margin_percentage / 100)
 
-  const customCode = `CUSTOM-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+  // Get localized category name for the code generator if possible
+  const { data: categoryData } = await supabase.from("price_categories").select("name").eq("id", price.category_id).single()
+  const customCode = await getNextPriceCode(
+    price.category_id,
+    categoryData?.name || "GENERAL",
+    price.is_imported ? "imported" : "custom",
+  )
 
   const { data, error } = await supabase
     .from(userTable)
