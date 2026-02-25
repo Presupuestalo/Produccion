@@ -582,26 +582,28 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
               <AlertTriangle className="h-5 w-5" />
               ¿Eliminar plano del proyecto?
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <p>
-                Estás a punto de eliminar el plano <strong>"{planToDelete === "before" ? "Antes" : "Después"}"</strong>.
-              </p>
-              <Alert variant="destructive" className="bg-red-50 border-red-200 py-2">
-                <p className="text-xs font-medium text-red-800">
-                  ¡Atención! Este plano está vinculado a este proyecto. Al borrarlo, se perderán las referencias visuales en el calculador. Esta acción es definitiva.
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Estás a punto de eliminar el plano <strong>"{planToDelete === "before" ? "Antes" : "Después"}"</strong>.
                 </p>
-              </Alert>
-              <div className="space-y-2 pt-2">
-                <p className="text-sm font-bold text-slate-800">
-                  Para confirmar, escribe <span className="text-red-600 underline">ELIMINAR</span> a continuación:
-                </p>
-                <Input
-                  value={deleteConfirmationText}
-                  onChange={(e) => setDeleteConfirmationText(e.target.value)}
-                  placeholder="Escribe ELIMINAR aquí"
-                  className="border-red-200 focus:border-red-500 focus:ring-red-500"
-                  autoFocus
-                />
+                <Alert variant="destructive" className="bg-red-50 border-red-200 py-2">
+                  <p className="text-xs font-medium text-red-800">
+                    ¡Atención! Este plano está vinculado a este proyecto. Al borrarlo, se perderán las referencias visuales en el calculador. Esta acción es definitiva.
+                  </p>
+                </Alert>
+                <div className="space-y-2 pt-2">
+                  <p className="text-sm font-bold text-slate-800">
+                    Para confirmar, escribe <span className="text-red-600 underline">ELIMINAR</span> a continuación:
+                  </p>
+                  <Input
+                    value={deleteConfirmationText}
+                    onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                    placeholder="Escribe ELIMINAR aquí"
+                    className="border-red-200 focus:border-red-500 focus:ring-red-500"
+                    autoFocus
+                  />
+                </div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>

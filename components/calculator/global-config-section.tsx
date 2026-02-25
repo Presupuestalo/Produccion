@@ -796,23 +796,6 @@ export function GlobalConfigSection({
             </div>
           )}
 
-        {isReform &&
-          ["Caldera + Radiadores", "Central", "Aerotermia", "Otra"].includes(config.reformHeatingType || "") && (
-            <div className="flex items-center gap-2 mt-4">
-              <Switch
-                id="installRadiators"
-                checked={config.installRadiators || false}
-                onCheckedChange={(checked) => {
-                  handleConfigUpdate({ installRadiators: checked as boolean })
-                }}
-                disabled={isReadOnly}
-              />
-              <Label htmlFor="installRadiators" className="text-sm font-medium cursor-pointer">
-                Instalar Radiadores
-              </Label>
-            </div>
-          )}
-
         {!isReform && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-4">
             <Card className="border-2 border-red-100 hover:border-red-300 transition-colors duration-200 bg-gradient-to-br from-red-50/30 to-transparent">

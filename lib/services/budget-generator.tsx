@@ -1474,6 +1474,11 @@ export class BudgetGenerator {
 
       console.log(`[v0] BudgetGenerator - Total emisores eléctricos: ${totalElectricHeaters}`)
 
+      if (totalElectricHeaters === 0 && heatingType === "Eléctrica") {
+        totalElectricHeaters = Math.max(this.getRealRoomCount(), 3)
+        console.log(`[v0] BudgetGenerator - Fallback: set totalElectricHeaters to ${totalElectricHeaters} based on room count`)
+      }
+
       if (totalElectricHeaters > 0) {
         // 1. Fijación de emisor térmico (albañilería)
         console.log(`[v0] BudgetGenerator - Generando partida: Fijación emisores térmicos ${totalElectricHeaters} ud`)
@@ -1490,9 +1495,6 @@ export class BudgetGenerator {
         )
         // Store for later use in electrical section
         this.electricHeaterOutlets = totalElectricHeaters
-      } else {
-        console.log("[v0] BudgetGenerator - NO se generan partidas de calefacción eléctrica (0 emisores)")
-        this.electricHeaterOutlets = 0
       }
     }
 
@@ -1517,10 +1519,7 @@ export class BudgetGenerator {
       let installRadiatorsCount = 0
       let changeRadiatorsCount = 0
 
-      const shouldInstallRadiators = reform?.config?.installRadiators === true
-      console.log("[v0] BudgetGenerator - Should install radiators:", shouldInstallRadiators)
-
-      if (shouldInstallRadiators && reform?.rooms && reform.rooms.length > 0) {
+      if (reform?.rooms && reform.rooms.length > 0) {
         reform.rooms.forEach((room: any) => {
           if (room.hasRadiator || (room.radiators && Array.isArray(room.radiators) && room.radiators.length > 0)) {
             const heaterCount = room.radiators?.length || 1
@@ -1532,6 +1531,11 @@ export class BudgetGenerator {
 
       console.log("[v0] BudgetGenerator - Radiators to installCount:", installRadiatorsCount)
       console.log("[v0] BudgetGenerator - Radiators to changeCount:", changeRadiatorsCount)
+
+      if (installRadiatorsCount === 0 && (heatingType === "Caldera + Radiadores" || heatingType === "Central")) {
+        installRadiatorsCount = Math.max(this.getRealRoomCount(), 1)
+        console.log(`[v0] BudgetGenerator - Fallback: set installRadiatorsCount to ${installRadiatorsCount} based on room count`)
+      }
 
       const totalRadiators = installRadiatorsCount + changeRadiatorsCount
 
@@ -1654,6 +1658,7 @@ export class BudgetGenerator {
     let totalOutdoorOutlets = 0
     let totalTVOutlets = 0
     let totalRecessedLights = 0
+    let totalTimbres = 0
 
     reform.rooms.forEach((room: any) => {
       if (room.electricalElements && Array.isArray(room.electricalElements)) {
@@ -1694,6 +1699,10 @@ export class BudgetGenerator {
             case "Foco empotrado":
               totalRecessedLights += quantity
               break
+            case "Timbre":
+            case "timbre":
+              totalTimbres += quantity
+              break
           }
         })
       }
@@ -1717,6 +1726,7 @@ export class BudgetGenerator {
       outdoorOutlets: totalOutdoorOutlets,
       tvOutlets: totalTVOutlets,
       recessedLights: totalRecessedLights,
+      timbres: totalTimbres,
     })
 
     // If no electrical elements found in rooms, generate basic default installation 
@@ -1844,6 +1854,12 @@ export class BudgetGenerator {
     if (totalRecessedLights > 0) {
       console.log(`[v0] BudgetGenerator - Generando partida: Focos empotrados ${totalRecessedLights} ud`)
       this.addLineItem("06-E-14", totalRecessedLights, "Suministro y colocación focos")
+    }
+
+    // 06-E-15: Timbre (Interruptor puerta entrada)
+    if (totalTimbres > 0) {
+      console.log(`[v0] BudgetGenerator - Generando partida: Timbre ${totalTimbres} ud`)
+      this.addLineItem("06-E-15", totalTimbres, "Timbre de puerta de entrada")
     }
 
     // 06-E-16: Heating line (only if electric heating)

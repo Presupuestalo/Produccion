@@ -513,23 +513,9 @@ export async function deleteProject(id: string) {
       throw new Error("Supabase client not available")
     }
 
-    const { data: activeQuoteRequest, error: quoteCheckError } = await supabase
-      .from("quote_requests")
-      .select("id, status")
-      .eq("project_id", id)
-      .in("status", ["active", "pending"])
-      .maybeSingle()
+    // Las tablas quote_requests y quote_offers no tienen project_id (son flujos independientes)
+    // El marketplace correcto que usa project_id es lead_requests
 
-    if (quoteCheckError && quoteCheckError.code !== "42P01") {
-      console.error("[v0] Error al verificar presmarket:", quoteCheckError.message || quoteCheckError.details || quoteCheckError)
-    }
-
-    if (activeQuoteRequest) {
-      throw new Error(
-        "No puedes eliminar este proyecto porque está publicado en el presmarket. " +
-        "Debes esperar a que expire o cancelar la solicitud de presupuestos primero.",
-      )
-    }
 
     const { data: activeLeadRequest, error: leadCheckError } = await supabase
       .from("lead_requests")
@@ -549,22 +535,7 @@ export async function deleteProject(id: string) {
       )
     }
 
-    const { data: pendingOffers, error: offersCheckError } = await supabase
-      .from("quote_offers")
-      .select("id, status")
-      .eq("project_id", id)
-      .in("status", ["sent", "pending"])
 
-    if (offersCheckError && offersCheckError.code !== "42P01") {
-      console.error("[v0] Error al verificar ofertas:", offersCheckError.message || offersCheckError.details || offersCheckError)
-    }
-
-    if (pendingOffers && pendingOffers.length > 0) {
-      throw new Error(
-        `No puedes eliminar este proyecto porque tiene ${pendingOffers.length} propuesta(s) pendiente(s) de profesionales. ` +
-        "Debes aceptar o rechazar las propuestas antes de eliminar el proyecto.",
-      )
-    }
 
     // 1. Obtener URLs de archivos para eliminarlos del storage
     const { data: plans } = await supabase.from("project_floor_plans").select("image_url").eq("project_id", id)
@@ -654,10 +625,9 @@ export async function deleteProject(id: string) {
         // 6. Fotos de habitaciones
         supabase.from("room_photos").delete().eq("project_id", id),
 
-        // 7. Marketplace (Solicitudes y ofertas)
-        supabase.from("quote_requests").delete().eq("project_id", id),
-        supabase.from("quote_offers").delete().eq("project_id", id),
+        // 7. Marketplace (Solicitudes de leads)
         supabase.from("lead_requests").delete().eq("project_id", id),
+
       ]
 
       // Ejecutar todo en paralelo

@@ -137,6 +137,7 @@ export function RoomCard({
   const [isEditingName, setIsEditingName] = useState(false)
   const [showDimensions, setShowDimensions] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
+  const prevGlobalConfigRef = useRef<GlobalConfig | undefined>(globalConfig)
 
   useEffect(() => {
     if (isHighlighted && cardRef.current) {
@@ -355,9 +356,11 @@ export function RoomCard({
 
   // Efecto para actualizar el material de paredes cuando cambia paintAndPlasterAll
   useEffect(() => {
-    // Si estamos en reforma y paintAndPlasterAll está activado
-    if (isReform && globalConfig?.paintAndPlasterAll === true) {
-      // Y la habitación no es baño, terraza o cocina
+    const prev = prevGlobalConfigRef.current
+    // Solo aplicar si transitions de false/undefined/null a true
+    const justEnabled = globalConfig?.paintAndPlasterAll === true && (!prev || prev.paintAndPlasterAll !== true)
+
+    if (isReform && justEnabled) {
       if (
         room.type !== "Baño" &&
         room.type !== "Terraza" &&
@@ -365,7 +368,6 @@ export function RoomCard({
         room.type !== "Cocina Abierta" &&
         room.type !== "Cocina Americana"
       ) {
-        // Actualizar el material de paredes a "Lucir y pintar"
         if (room.wallMaterial !== "Lucir y pintar") {
           updateRoom(room.id, { wallMaterial: "Lucir y pintar" })
         }
@@ -410,10 +412,12 @@ export function RoomCard({
     updateRoom,
   ])
 
-  // Efecto para manejar removeAllCeramic - CORREGIDO para evitar bucles infinitos
+  // Efecto para manejar removeAllCeramic - Transition based
   useEffect(() => {
-    if (!isReform && globalConfig?.removeAllCeramic) {
-      // Solo actualizar si los valores actuales son diferentes
+    const prev = prevGlobalConfigRef.current
+    const justEnabled = globalConfig?.removeAllCeramic === true && (!prev || prev.removeAllCeramic !== true)
+
+    if (!isReform && justEnabled) {
       if (room.removeWallTiles !== true || room.removeFloor !== true) {
         updateRoom(room.id, {
           removeWallTiles: true,
@@ -423,60 +427,58 @@ export function RoomCard({
     }
   }, [globalConfig?.removeAllCeramic, isReform, room.id, room.removeWallTiles, room.removeFloor, updateRoom])
 
-  // Efecto para manejar allWallsHaveGotele - cambiar automáticamente el material de paredes
+  // Efecto para manejar allWallsHaveGotele - Transition based
   useEffect(() => {
-    if (!isReform && globalConfig?.allWallsHaveGotele) {
-      // Si el material actual es "Pintura", cambiar a "Gotelé"
+    const prev = prevGlobalConfigRef.current
+
+    if (!isReform && globalConfig?.allWallsHaveGotele === true && (!prev || prev.allWallsHaveGotele !== true)) {
       if (room.wallMaterial === "Pintura") {
         updateRoom(room.id, {
           wallMaterial: "Gotelé",
-          removeGotele: true, // Activar automáticamente "Retirar gotelé"
+          removeGotele: true,
         })
       }
-    } else if (!isReform && globalConfig?.allWallsHaveGotele === false) {
-      // Si se desactiva el switch global, cambiar de "Gotelé" a "Pintura"
+    } else if (!isReform && globalConfig?.allWallsHaveGotele === false && prev?.allWallsHaveGotele === true) {
       if (room.wallMaterial === "Gotelé") {
         updateRoom(room.id, {
           wallMaterial: "Pintura",
-          removeGotele: false, // Desactivar "Retirar gotelé"
+          removeGotele: false,
         })
       }
     }
   }, [globalConfig?.allWallsHaveGotele, isReform, room.id, room.wallMaterial, updateRoom])
 
-  // Efecto para manejar removeWoodenFloor global
+  // Efecto para manejar removeWoodenFloor global - Transition based
   useEffect(() => {
-    if (!isReform && globalConfig?.removeWoodenFloor && room.floorMaterial === "Madera") {
-      // Si el switch global está activado y la habitación tiene suelo de madera, activar removeFloor
-      if (room.removeFloor !== true) {
+    const prev = prevGlobalConfigRef.current
+    if (!isReform && globalConfig?.removeWoodenFloor === true && (!prev || prev.removeWoodenFloor !== true)) {
+      if (room.floorMaterial === "Madera" && room.removeFloor !== true) {
         updateRoom(room.id, { removeFloor: true })
       }
     }
   }, [globalConfig?.removeWoodenFloor, isReform, room.id, room.floorMaterial, room.removeFloor, updateRoom])
 
+  // Efecto para manejar tileAllFloors - Transition based
   useEffect(() => {
-    if (isReform && globalConfig?.tileAllFloors) {
-      console.log("[v0] Aplicando suelo cerámico a habitación:", room.name, "Material actual:", room.floorMaterial)
-      // Si el switch global está activado, cambiar todas las habitaciones a suelo cerámico
+    const prev = prevGlobalConfigRef.current
+    if (isReform && globalConfig?.tileAllFloors === true && (!prev || prev.tileAllFloors !== true)) {
       if (room.floorMaterial !== "Cerámico") {
-        console.log("[v0] Cambiando suelo de", room.floorMaterial, "a Cerámico en", room.name)
         updateRoom(room.id, { floorMaterial: "Cerámico" })
       }
     }
   }, [globalConfig?.tileAllFloors, isReform, room.id, room.floorMaterial, updateRoom])
 
-  // </CHANGE> Auto-convert radiators to electric when electric heating is selected
+  // </CHANGE> Auto-convert radiators to electric when electric heating is selected - Transition based
   useEffect(() => {
-    if (isReform && globalConfig?.reformHeatingType === "Eléctrica") {
-      // Enable radiator checkbox by default only if undefined
+    const prev = prevGlobalConfigRef.current
+    const justChangedToElectric = globalConfig?.reformHeatingType === "Eléctrica" && prev?.reformHeatingType !== "Eléctrica"
+
+    if (isReform && justChangedToElectric) {
       if (room.hasRadiator === undefined) {
-        console.log("[v0] Enabling radiator for room:", room.name, "due to electric heating")
         updateRoom(room.id, { hasRadiator: true })
       }
 
-      // Set default radiator type to electric if none exist
       if (!room.radiators || room.radiators.length === 0) {
-        console.log("[v0] Setting default electric radiator for room:", room.name)
         updateRoom(room.id, {
           radiators: [
             {
@@ -490,29 +492,24 @@ export function RoomCard({
     }
   }, [isReform, globalConfig?.reformHeatingType, room.id, room.hasRadiator, room.radiators, updateRoom, room.name])
 
-  // </CHANGE> Auto-convert radiators to aluminum when gas heating is selected
+  // </CHANGE> Auto-convert radiators to aluminum when gas heating is selected - Transition based
   useEffect(() => {
-    if (
-      isReform &&
-      (globalConfig?.reformHeatingType === "Caldera + Radiadores" || globalConfig?.reformHeatingType === "Central")
-    ) {
-      // Enable radiator checkbox by default only if undefined
+    const prev = prevGlobalConfigRef.current
+    const isGasCentral = globalConfig?.reformHeatingType === "Caldera + Radiadores" || globalConfig?.reformHeatingType === "Central"
+    const prevWasGasCentral = prev?.reformHeatingType === "Caldera + Radiadores" || prev?.reformHeatingType === "Central"
+    const justChangedToGasCentral = isGasCentral && !prevWasGasCentral
+
+    if (isReform && justChangedToGasCentral) {
       if (room.hasRadiator === undefined) {
-        console.log("[v0] Enabling radiator for room:", room.name, "due to gas heating")
         updateRoom(room.id, { hasRadiator: true })
       }
 
-      // Check if there are existing radiators and if they need to be converted
       if (room.radiators && room.radiators.length > 0) {
         const isBathroom = room.type === "Baño"
         const targetType: RadiatorType = isBathroom ? "Toallero de aluminio" : "Radiador de Aluminio"
-
-        // Check if any radiator needs conversion
         const needsConversion = room.radiators.some((radiator) => radiator.type !== targetType)
 
         if (needsConversion) {
-          console.log("[v0] Converting radiators to aluminum for room:", room.name)
-          // Convert all radiators to aluminum type
           const updatedRadiators = room.radiators.map((radiator) => ({
             ...radiator,
             type: targetType,
@@ -522,11 +519,9 @@ export function RoomCard({
           updateRoom(room.id, { radiators: updatedRadiators })
         }
       } else if (room.hasRadiator !== false) {
-        // No radiators exist, and not explicitly disabled, create default aluminum radiator
         const isBathroom = room.type === "Baño"
         const defaultType: RadiatorType = isBathroom ? "Toallero de aluminio" : "Radiador de Aluminio"
 
-        console.log("[v0] Setting default aluminum radiator for room:", room.name)
         updateRoom(room.id, {
           radiators: [
             {
@@ -549,74 +544,14 @@ export function RoomCard({
     room.name,
   ])
 
+  // Extra conversion check removed as it's handled above
+
+  // Extra conversion check removed as it's handled above
+
+  // Sincronizar el ref del globalConfig después de que se ejecuten los efectos
   useEffect(() => {
-    if (isReform && globalConfig?.reformHeatingType === "Eléctrica") {
-      // Check if there are existing aluminum radiators that need to be converted
-      if (room.radiators && room.radiators.length > 0) {
-        const needsConversion = room.radiators.some(
-          (radiator) => radiator.type === "Radiador de Aluminio" || radiator.type === "Toallero de aluminio",
-        )
-
-        if (needsConversion) {
-          console.log("[v0] Converting aluminum radiators to electric for room:", room.name)
-          // Convert all aluminum radiators to electric type
-          const updatedRadiators = room.radiators.map((radiator) => ({
-            ...radiator,
-            type: "Radiador eléctrico" as RadiatorType,
-            modules: 6,
-          }))
-
-          updateRoom(room.id, { radiators: updatedRadiators })
-        }
-      }
-    }
-  }, [isReform, globalConfig?.reformHeatingType, room.id, room.radiators, updateRoom, room.name])
-
-  useEffect(() => {
-    if (
-      isReform &&
-      (globalConfig?.reformHeatingType === "Caldera + Radiadores" || globalConfig?.reformHeatingType === "Central")
-    ) {
-      const isBathroom = room.type === "Baño"
-      const isTerrace = room.type === "Terraza"
-
-      // No añadir radiador en terrazas
-      if (isTerrace) return
-
-      // Activar el check de radiador si es undefined
-      if (room.hasRadiator === undefined) {
-        updateRoom(room.id, { hasRadiator: true })
-      }
-
-      // Crear radiador por defecto si no existe y no está explícitamente desactivado
-      if (room.hasRadiator !== false && (!room.radiators || room.radiators.length === 0)) {
-        const defaultType: RadiatorType = isBathroom ? "Toallero de aluminio" : "Radiador de Aluminio"
-        updateRoom(room.id, {
-          hasRadiator: true,
-          radiators: [
-            {
-              id: uuidv4(),
-              type: defaultType,
-              modules: isBathroom ? undefined : 6,
-            },
-          ],
-        })
-      } else if (room.hasRadiator !== false && room.radiators) {
-        // Convertir radiadores existentes al tipo correcto si es necesario
-        const targetType: RadiatorType = isBathroom ? "Toallero de aluminio" : "Radiador de Aluminio"
-        const needsConversion = room.radiators.some((radiator) => radiator.type !== targetType)
-
-        if (needsConversion) {
-          const updatedRadiators = room.radiators.map((radiator) => ({
-            ...radiator,
-            type: targetType,
-            modules: targetType === "Toallero de aluminio" ? undefined : radiator.modules || 6,
-          }))
-          updateRoom(room.id, { radiators: updatedRadiators })
-        }
-      }
-    }
-  }, [isReform, globalConfig?.reformHeatingType, room.id, room.hasRadiator, room.radiators, room.type, updateRoom])
+    prevGlobalConfigRef.current = globalConfig
+  }, [globalConfig])
 
   // Modificar la función formatDecimal para que use comas en lugar de puntos:
   function formatDecimal(value: number): string {
@@ -2320,7 +2255,6 @@ export function RoomCard({
                               id={`bathroomElement-inodoro-${room.id}`}
                               checked={isBathroomElementSelected("Inodoro")}
                               onCheckedChange={(checked) => handleBathroomElementChange("Inodoro", checked === true)}
-                              disabled={isReadOnly}
                               className="h-3.5 w-3.5"
                             />
                             <Label htmlFor={`bathroomElement-inodoro-${room.id}`} className="text-[10px] cursor-pointer">
@@ -2334,7 +2268,6 @@ export function RoomCard({
                               id={`bathroomElement-bide-${room.id}`}
                               checked={isBathroomElementSelected("Bidé")}
                               onCheckedChange={(checked) => handleBathroomElementChange("Bidé", checked === true)}
-                              disabled={isReadOnly}
                               className="h-3.5 w-3.5"
                             />
                             <Label htmlFor={`bathroomElement-bide-${room.id}`} className="text-[10px] cursor-pointer">
@@ -2350,7 +2283,6 @@ export function RoomCard({
                               onCheckedChange={(checked) =>
                                 handleBathroomElementChange("Ducheta Inodoro", checked === true)
                               }
-                              disabled={isReadOnly}
                               className="h-3.5 w-3.5"
                             />
                             <Label
@@ -2369,7 +2301,6 @@ export function RoomCard({
                               onCheckedChange={(checked) =>
                                 handleBathroomElementChange("Plato de ducha", checked === true)
                               }
-                              disabled={isReadOnly}
                               className="h-3.5 w-3.5"
                             />
                             <Label htmlFor={`bathroomElement-platoDucha-${room.id}`} className="text-[10px] cursor-pointer">
@@ -2383,7 +2314,6 @@ export function RoomCard({
                               id={`bathroomElement-banera-${room.id}`}
                               checked={isBathroomElementSelected("Bañera")}
                               onCheckedChange={(checked) => handleBathroomElementChange("Bañera", checked === true)}
-                              disabled={isReadOnly}
                               className="h-3.5 w-3.5"
                             />
                             <Label htmlFor={`bathroomElement-banera-${room.id}`} className="text-[10px] cursor-pointer">
@@ -2397,7 +2327,6 @@ export function RoomCard({
                               id={`bathroomElement-mampara-${room.id}`}
                               checked={isBathroomElementSelected("Mampara")}
                               onCheckedChange={(checked) => handleBathroomElementChange("Mampara", checked === true)}
-                              disabled={isReadOnly}
                               className="h-3.5 w-3.5"
                             />
                             <Label htmlFor={`bathroomElement-mampara-${room.id}`} className="text-[10px] cursor-pointer">
@@ -2413,7 +2342,6 @@ export function RoomCard({
                               onCheckedChange={(checked) =>
                                 handleBathroomElementChange("Mueble lavabo", checked === true)
                               }
-                              disabled={isReadOnly}
                               className="h-3.5 w-3.5"
                             />
                             <Label

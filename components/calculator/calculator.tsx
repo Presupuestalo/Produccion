@@ -908,8 +908,8 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         type: r.type,
         f: r.floorMaterial,
         w: r.wallMaterial,
-        win: r.windows?.map(w => ({ id: w.id, t: w.type })),
-        elec: r.electricalElements?.map(e => ({ id: e.id, q: e.quantity }))
+        win: Array.isArray(r.windows) ? r.windows.map(w => ({ id: w.id, t: w.type })) : [],
+        elec: Array.isArray(r.electricalElements) ? r.electricalElements.map(e => ({ id: e.id, q: e.quantity })) : []
       })),
       reformRooms: reformRooms.map(r => ({
         id: r.id,
@@ -918,8 +918,8 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         type: r.type,
         f: r.floorMaterial,
         w: r.wallMaterial,
-        win: r.windows?.map(w => ({ id: w.id, t: w.type })),
-        elec: r.electricalElements?.map(e => ({ id: e.id, q: e.quantity }))
+        win: Array.isArray(r.windows) ? r.windows.map(w => ({ id: w.id, t: w.type })) : [],
+        elec: Array.isArray(r.electricalElements) ? r.electricalElements.map(e => ({ id: e.id, q: e.quantity })) : []
       })),
       partitions: partitions.map(p => ({ id: p.id, linearMeters: p.linearMeters })),
       wallLiningsLength: wallLinings.length,
@@ -1106,7 +1106,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               console.log(`[SUPABASE] ${roomsData.length} habitaciones cargadas`)
               const roomsWithWindows = roomsData.map((room) => ({
                 ...room,
-                windows: room.windows || [],
+                windows: Array.isArray(room.windows) ? room.windows : [],
               }))
               setRooms(roomsWithWindows)
             } else {
@@ -1126,7 +1126,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
               let syncedReformRooms = reformRoomsData.map((room) => ({
                 ...room,
-                windows: room.windows || [],
+                windows: Array.isArray(room.windows) ? room.windows : [],
               }))
 
               if (savedSettings) {
@@ -1706,10 +1706,10 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
           id: uuidv4(),
         })),
         // Generar nuevos IDs para las ventanas si existen
-        windows: roomToDuplicate.windows?.map((window) => ({
+        windows: Array.isArray(roomToDuplicate.windows) ? roomToDuplicate.windows.map((window) => ({
           ...window,
           id: uuidv4(),
-        })),
+        })) : [],
         // Generar nuevos IDs para los radiadores si existen
         radiators: roomToDuplicate.radiators?.map((radiator) => ({
           ...radiator,
@@ -2176,18 +2176,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       setReformRooms(processedReformRooms)
     }
 
-    // Detección automática de puerta de entrada para activar el check en Reforma
-    const hasEntranceDoor = [...processedDemolitionRooms, ...processedReformRooms].some(room =>
-      room.doorList?.some(door => door.isEntrance)
-    )
 
-    if (hasEntranceDoor) {
-      console.log("[v0] Entrance door detected - enabling entrance door change in Reform configuration")
-      setReformConfig((prev) => ({
-        ...prev,
-        entranceDoorType: true,
-      }))
-    }
 
     setShowFloorPlanConfirm(false)
     setPendingDemolitionRooms([])

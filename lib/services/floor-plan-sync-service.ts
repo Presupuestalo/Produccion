@@ -283,9 +283,12 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
                         doorType = "Corredera exterior"
                     }
 
-                    // Detección de puerta de Entrada:
-                    // Es puerta principal si físicamente solo da a 1 habitación (muro exterior) y NO es una corredera
-                    const isEntrance = trueHostRoomIds.length === 1 && (doorType === "Abatible" || doorType === "Doble abatible")
+                    // Detección de puerta de Entrada refinada:
+                    // Es puerta principal si físicamente solo da a 1 habitación (muro exterior), 
+                    // NO es una corredera y está en un Hall o Pasillo.
+                    const isEntrance = trueHostRoomIds.length === 1 &&
+                        (doorType === "Abatible" || doorType === "Doble abatible") &&
+                        (normalizedType === "Hall" || normalizedType === "Pasillo")
 
                     doorList.push({
                         id: crypto.randomUUID(),

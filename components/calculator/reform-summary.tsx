@@ -87,6 +87,8 @@ interface SummaryData {
   puntoAireAcondicionado: number
   cuadroElectrico: number
   enchufesEmisores: number
+  timbre: number
+  portero: number
 
   // MATERIALES
   emisoresTermicos: number
@@ -153,6 +155,8 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
     puntoAireAcondicionado: 0,
     cuadroElectrico: 0,
     enchufesEmisores: 0,
+    timbre: 0,
+    portero: 0,
     emisoresTermicos: 0,
   })
 
@@ -245,6 +249,8 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
       puntoAireAcondicionado: 0,
       cuadroElectrico: 0,
       enchufesEmisores: 0,
+      timbre: 0,
+      portero: 0,
       emisoresTermicos: 0,
     }
 
@@ -455,6 +461,20 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
         }
       }
 
+      // Sumar elementos eléctricos
+      if (room.electricalElements && Array.isArray(room.electricalElements)) {
+        room.electricalElements.forEach((element: any) => {
+          const type = element.type || element.id
+          const quantity = element.quantity || 0
+          if (type === "Punto de luz techo") newSummary.puntoLuz += quantity
+          if (type === "Enchufe normal") newSummary.puntoEnchufe += quantity
+          if (type === "Toma de TV") newSummary.puntoTelefonoTV += quantity
+          if (type === "Interruptor" || type === "Interruptor sencillo") newSummary.puntoLuz += 0 // Luces ya sumadas
+          if (type === "Timbre") newSummary.timbre += quantity
+          if (type === "Portero") newSummary.portero += quantity
+        })
+      }
+
       if (room.heatingElements && room.heatingElements.includes("Termo eléctrico")) {
         newSummary.instalacionTermo += 1
       }
@@ -473,11 +493,15 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
     }
 
     if (electricalConfig) {
-      newSummary.puntoLuz = electricalConfig.numPoints || 0
-      newSummary.puntoEnchufe = electricalConfig.numSockets || 0
-      newSummary.puntoTelefonoTV = electricalConfig.numTVPoints || 0
-      newSummary.puntoAireAcondicionado = electricalConfig.numACPoints || 0
-      newSummary.cuadroElectrico = electricalConfig.hasNewPanel ? 1 : 0
+      if (electricalConfig.needsNewInstallation) {
+        newSummary.cuadroElectrico = electricalConfig.hasElectricalPanel ? 1 : 0
+      }
+    }
+
+    // Fallback para radiadores si el global está activo pero no hay en habitaciones
+    if (globalConfig?.installRadiators && newSummary.instalacionRadiadores === 0) {
+      newSummary.instalacionRadiadores = Math.max(rooms.filter(r => !isBathroom(r.type) && !isKitchen(r.type)).length, 1)
+      newSummary.redAlimentacionRadiador = newSummary.instalacionRadiadores
     }
 
     setSummary(newSummary)
@@ -894,6 +918,66 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
                     <div>Ventanas</div>
                     <div className="text-muted-foreground text-right shrink-0">ud</div>
                     <div className="text-right font-medium shrink-0">{summary.windows}</div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+      {/* ELECTRICIDAD */}
+      {(summary.puntoLuz > 0 ||
+        summary.puntoEnchufe > 0 ||
+        summary.puntoTelefonoTV > 0 ||
+        summary.cuadroElectrico > 0 ||
+        summary.timbre > 0 ||
+        summary.portero > 0) && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Electricidad</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1 text-sm">
+                {summary.cuadroElectrico > 0 && (
+                  <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-green-100 last:border-0">
+                    <div>Cuadro eléctrico</div>
+                    <div className="text-muted-foreground text-right shrink-0">ud</div>
+                    <div className="text-right font-medium shrink-0">{summary.cuadroElectrico}</div>
+                  </div>
+                )}
+                {summary.puntoLuz > 0 && (
+                  <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-green-100 last:border-0">
+                    <div>Puntos de luz</div>
+                    <div className="text-muted-foreground text-right shrink-0">ud</div>
+                    <div className="text-right font-medium shrink-0">{summary.puntoLuz}</div>
+                  </div>
+                )}
+                {summary.puntoEnchufe > 0 && (
+                  <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-green-100 last:border-0">
+                    <div>Puntos de enchufe</div>
+                    <div className="text-muted-foreground text-right shrink-0">ud</div>
+                    <div className="text-right font-medium shrink-0">{summary.puntoEnchufe}</div>
+                  </div>
+                )}
+                {summary.puntoTelefonoTV > 0 && (
+                  <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-green-100 last:border-0">
+                    <div>Tomas TV/Telf</div>
+                    <div className="text-muted-foreground text-right shrink-0">ud</div>
+                    <div className="text-right font-medium shrink-0">{summary.puntoTelefonoTV}</div>
+                  </div>
+                )}
+                {summary.timbre > 0 && (
+                  <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-green-100 last:border-0">
+                    <div>Timbre de puerta de entrada</div>
+                    <div className="text-muted-foreground text-right shrink-0">ud</div>
+                    <div className="text-right font-medium shrink-0">{summary.timbre}</div>
+                  </div>
+                )}
+                {summary.portero > 0 && (
+                  <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-green-100 last:border-0">
+                    <div>Instalación de portero</div>
+                    <div className="text-muted-foreground text-right shrink-0">ud</div>
+                    <div className="text-right font-medium shrink-0">{summary.portero}</div>
                   </div>
                 )}
               </div>
