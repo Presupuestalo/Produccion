@@ -126,7 +126,7 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
         // Fetch budget status
         const budgets = await BudgetService.getBudgetsByProject(project.id, supabase)
 
-        const allStatuses = budgets.map((b) => b.status).filter(Boolean)
+        const allStatuses: string[] = budgets.map((b) => b.status).filter(Boolean) as string[]
         if (project.status) allStatuses.push(project.status)
 
         if (allStatuses.length > 0) {

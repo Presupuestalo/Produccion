@@ -1144,7 +1144,7 @@ export class BudgetGenerator {
 
     if (!reform || !reform.rooms) return
 
-    const bathrooms = reform.rooms.filter((r: any) => r.type === "Baño").length
+    const bathrooms = reform.rooms.filter((r: any) => r.type === "Baño" && r.newBathroomElements !== false).length
     const kitchens = reform.rooms.filter((r: any) => r.type?.includes("Cocina")).length
 
     console.log(`[v0] BudgetGenerator - Bathrooms: ${bathrooms}, Kitchens: ${kitchens}`)
@@ -1212,7 +1212,7 @@ export class BudgetGenerator {
       let totalDuchetas = 0;
       let totalBaneras = 0;
 
-      reform.rooms.filter((r: any) => r.type === "Baño").forEach((room: any) => {
+      reform.rooms.filter((r: any) => r.type === "Baño" && r.newBathroomElements !== false).forEach((room: any) => {
         const elements = room.bathroomElements || ["Inodoro", "Plato de ducha", "Mampara", "Mueble lavabo"];
 
         if (elements.includes("Inodoro")) totalInodoros++;
@@ -1435,7 +1435,7 @@ export class BudgetGenerator {
     const demolition: any = this.calculatorData.demolition
     const reform: any = this.calculatorData.reform
 
-    const heatingType = reform?.config?.reformHeatingType || "No Tiene"
+    const heatingType = reform?.config?.reformHeatingType || demolition?.config?.heatingType || "No Tiene"
     console.log("[v0] BudgetGenerator - Heating type:", heatingType)
     console.log("[v0] BudgetGenerator - Reform config:", reform?.config)
 

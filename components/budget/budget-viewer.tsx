@@ -39,6 +39,7 @@ interface ProjectData {
   door?: string
   city?: string
   province?: string
+  postal_code?: string
 }
 
 interface LeadRequestStatus {
@@ -281,7 +282,7 @@ export function BudgetViewer({ projectId, budgetId, onBudgetUpdated }: BudgetVie
 
       const { data: project, error: projectError } = await supabase
         .from("projects")
-        .select("title, client, project_address, street, project_floor, door, city, province")
+        .select("title, client, project_address, street, project_floor, door, city, province, postal_code")
         .eq("id", projectId)
         .single()
 

@@ -694,7 +694,7 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
                 {projectData.street}
                 {projectData.project_floor && `, Planta ${projectData.project_floor}`}
                 {projectData.door && `, Puerta ${projectData.door}`}
-                {`, ${projectData.city}, ${projectData.province}`}
+                {`, ${projectData.postal_code ? projectData.postal_code + " " : ""}${projectData.city}, ${projectData.province}`}
               </p>
             </div>
           </div>

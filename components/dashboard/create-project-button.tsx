@@ -263,11 +263,11 @@ export function CreateProjectButton({ className }: { className?: string }) {
       return
     }
 
-    if (!formData.street?.trim() || !formData.city?.trim() || !formData.province?.trim()) {
+    if (!formData.street?.trim() || !formData.city?.trim() || !formData.province?.trim() || !formData.postal_code?.trim()) {
       console.log("[v0] ❌ Error: Ubicación requerida")
       toast({
         title: "Ubicación requerida",
-        description: "Por favor, completa todos los campos obligatorios de ubicación",
+        description: "Por favor, completa todos los campos obligatorios de ubicación (incluyendo el Código Postal)",
         variant: "destructive",
       })
       setActiveTab("location")
@@ -775,12 +775,13 @@ export function CreateProjectButton({ className }: { className?: string }) {
                       </div>
 
                       <div className="grid gap-2">
-                        <Label htmlFor="postal_code">Código Postal</Label>
+                        <Label htmlFor="postal_code">Código Postal *</Label>
                         <Input
                           id="postal_code"
                           placeholder="28001"
                           value={formData.postal_code}
                           onChange={handleChange}
+                          required
                         />
                       </div>
                     </div>

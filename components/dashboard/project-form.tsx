@@ -1293,12 +1293,13 @@ export function ProjectForm({
                     </div>
 
                     <div className="grid gap-2">
-                      <Label htmlFor="postal_code">Código Postal</Label>
+                      <Label htmlFor="postal_code">Código Postal *</Label>
                       <Input
                         id="postal_code"
                         placeholder="28001"
                         value={formData.postal_code || ""}
                         onChange={handleChange}
+                        required
                       />
                     </div>
                   </div>

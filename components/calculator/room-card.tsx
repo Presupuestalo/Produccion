@@ -1095,13 +1095,16 @@ export function RoomCard({
     updateRoom(room.id, { removeGotele: checked === true })
   }
 
-  const shouldShowRadiator = isReform
-    ? globalConfig?.reformHeatingType === "Caldera + Radiadores" ||
-    globalConfig?.reformHeatingType === "Central" ||
-    globalConfig?.reformHeatingType === "Eléctrica" ||
-    globalConfig?.reformHeatingType === "Aerotermia" ||
-    globalConfig?.reformHeatingType === "Otra"
-    : heatingType === "Caldera + Radiadores" || heatingType === "Central" || heatingType === "Eléctrica"
+  const currentHeatingType = isReform
+    ? (globalConfig?.reformHeatingType || globalConfig?.heatingType || "No")
+    : (heatingType || "No Tiene")
+
+  const shouldShowRadiator =
+    currentHeatingType === "Caldera + Radiadores" ||
+    currentHeatingType === "Central" ||
+    currentHeatingType === "Eléctrica" ||
+    currentHeatingType === "Aerotermia" ||
+    currentHeatingType === "Otra"
 
   // Debug logging for radiator visibility
   useEffect(() => {

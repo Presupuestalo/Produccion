@@ -269,7 +269,7 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
       newSummary.instalacionCaldera = 1
     }
 
-    if (globalConfig?.entranceDoorType) {
+    if (globalConfig?.entranceDoorType && globalConfig.entranceDoorType !== "No") {
       newSummary.puertaAcorazada = 1
     }
 
@@ -389,7 +389,7 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
 
       newSummary.windows += room.windows?.length || 0
 
-      if (isBathroom(room.type)) {
+      if (isBathroom(room.type) && room.newBathroomElements !== false) {
         newSummary.redesAguaBanos += 1
         newSummary.conductoExtraccionBano += 1
       }
@@ -398,7 +398,7 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
         newSummary.conductoExtraccionCocina += 1
       }
 
-      if (isBathroom(room.type) && room.bathroomElements && room.bathroomElements.length > 0) {
+      if (isBathroom(room.type) && room.newBathroomElements !== false && room.bathroomElements && room.bathroomElements.length > 0) {
         room.bathroomElements.forEach((element: BathroomElement) => {
           switch (element) {
             case "Inodoro":
@@ -435,7 +435,8 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
         newSummary.instalacionLavavajillas += 1
       }
 
-      const shouldHaveRadiators = globalConfig?.installRadiators === true
+      const isRadiatorHeating = reformHeatingType === "Caldera + Radiadores" || reformHeatingType === "Central"
+      const shouldHaveRadiators = globalConfig?.installRadiators === true || isRadiatorHeating
 
       if (reformHeatingType === "Eléctrica") {
         if (room.radiators && Array.isArray(room.radiators) && room.radiators.length > 0) {
@@ -499,7 +500,8 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
     }
 
     // Fallback para radiadores si el global está activo pero no hay en habitaciones
-    if (globalConfig?.installRadiators && newSummary.instalacionRadiadores === 0) {
+    const isRadiatorHeatingGlobal = reformHeatingType === "Caldera + Radiadores" || reformHeatingType === "Central"
+    if ((globalConfig?.installRadiators || isRadiatorHeatingGlobal) && newSummary.instalacionRadiadores === 0) {
       newSummary.instalacionRadiadores = Math.max(rooms.filter(r => !isBathroom(r.type) && !isKitchen(r.type)).length, 1)
       newSummary.redAlimentacionRadiador = newSummary.instalacionRadiadores
     }
@@ -507,7 +509,10 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
     setSummary(newSummary)
   }, [rooms, globalConfig, partitions, wallLinings, electricalConfig])
 
-  if (!rooms || !Array.isArray(rooms) || rooms.length === 0) {
+  const hasRooms = rooms && Array.isArray(rooms) && rooms.length > 0
+  const hasEntranceDoor = globalConfig?.entranceDoorType && globalConfig.entranceDoorType !== "No"
+
+  if (!hasRooms && !hasEntranceDoor) {
     return (
       <Card>
         <CardHeader>
