@@ -412,7 +412,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   })
   const [demolitionSettings, setDemolitionSettings] = useState<DemolitionSettingsType>({
     wallThickness: 10,
-    floorTileThickness: 0.01,
+    floorTileThickness: 0.07,
     wallTileThickness: 0.01,
     woodExpansionCoef: 1.4,
     ceramicExpansionCoef: 1.4,

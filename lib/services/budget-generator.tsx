@@ -2597,7 +2597,7 @@ export class BudgetGenerator {
       }
 
       if (room.removeFloor && room.floorMaterial === "Cerámico") {
-        const floorThickness = demolition.settings?.floorTileThickness || 0.01
+        const floorThickness = demolition.settings?.floorTileThickness || 0.07
         const expansionCoef = demolition.settings?.ceramicExpansionCoef || 1.4
         totalDebris += (room.area || 0) * floorThickness * expansionCoef
       }

@@ -100,7 +100,7 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
     // Force new default 0,01 instead of old 0,02
     settings.floorTileThickness && settings.floorTileThickness !== 0.02
       ? formatToXXCXX(settings.floorTileThickness)
-      : "0,01",
+      : "0,07",
   )
   const [woodExpansionCoefInput, setWoodExpansionCoefInput] = useState(
     settings.woodExpansionCoef ? formatToXXCXX(settings.woodExpansionCoef) : "",
@@ -225,7 +225,7 @@ export function DemolitionSettingsComponent({ settings, updateSettings, projectI
                       }
                     }}
                     onFocus={(e) => e.target.select()}
-                    placeholder="0,01"
+                    placeholder="0,07"
                     maxLength={5}
                   />
                 ) : (

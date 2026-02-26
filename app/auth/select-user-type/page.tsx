@@ -382,15 +382,15 @@ export default function SelectUserTypePage() {
             <h2 className="font-semibold text-gray-900 text-center mb-6">¿Cuál es tu perfil profesional?</h2>
             <div className="grid grid-cols-2 gap-4">
               {[
-                { id: "Empresa", label: "Empresa de Reformas" },
-                { id: "Coordinador de gremios", label: "Coordinador de Gremios" },
-                { id: "Diseñador", label: "Diseñador / Interiorista" },
-                { id: "Arquitecto", label: "Arquitecto / Aparejador" },
+                { id: "Empresa", label: "Empresa Reformas" },
+                { id: "Coordinador de gremios", label: "Coordinador" },
+                { id: "Diseñador", label: "Interiorista" },
+                { id: "Arquitecto", label: "Arquitecto" },
               ].map((role) => (
                 <Button
                   key={role.id}
                   variant={professionalRole === role.id ? "default" : "outline"}
-                  className={`h-16 text-md font-medium px-4 transition-all ${professionalRole === role.id ? "bg-orange-600 text-white hover:bg-orange-700 shadow-md scale-[1.02]" : "bg-white hover:border-orange-500 hover:text-orange-600 hover:bg-orange-50"
+                  className={`h-12 sm:h-16 text-xs sm:text-base font-medium px-2 sm:px-4 transition-all ${professionalRole === role.id ? "bg-orange-600 text-white hover:bg-orange-700 shadow-md scale-[1.02]" : "bg-white hover:border-orange-500 hover:text-orange-600 hover:bg-orange-50"
                     }`}
                   onClick={() => setProfessionalRole(role.id)}
                 >
