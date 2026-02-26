@@ -280,7 +280,7 @@ export default function ProjectPage() {
 
           {/* Row 1 Middle: Premium Company Branding */}
           {project?.user_type !== "owner" && project?.user_id && (
-            <div className="hidden lg:flex desktop:flex flex-none items-center justify-center px-2">
+            <div className="hidden lg:flex flex-none items-center justify-center px-2">
               <CompanyBrandingBlock userId={project.user_id} />
             </div>
           )}
