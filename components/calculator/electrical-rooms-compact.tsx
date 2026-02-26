@@ -417,7 +417,7 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom, isReadOnly = false
                   {room.name || `${room.type} ${room.number > 1 ? room.number : ""}`} ({room.area.toFixed(2)} m²)
                 </h4>
               </div>
-              <div className="grid grid-cols-3 gap-3 md:grid-cols-6">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
                 <div className="flex flex-col items-center bg-white rounded-lg p-2 border">
                   <Lightbulb className="h-5 w-5 text-amber-500 mb-1" />
                   <span className="text-xs text-center mb-1">Luz techo</span>
@@ -679,7 +679,7 @@ export function ElectricalRoomsCompact({ rooms, onUpdateRoom, isReadOnly = false
 
                 <div className="flex flex-col items-center bg-white rounded-lg p-2 border">
                   <Zap className="h-5 w-5 text-yellow-500 mb-1" />
-                  <span className="text-xs text-center mb-1">Focos empotrados</span>
+                  <span className="text-xs text-center mb-1">Focos</span>
                   <div className="flex items-center">
                     <button
                       type="button"

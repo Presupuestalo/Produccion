@@ -56,67 +56,16 @@ export async function generateBudgetPDF(
 
     const addFooter = () => {
       const pageCount = (doc as any).internal.getNumberOfPages()
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i)
-        doc.setFontSize(7)
+        doc.setFontSize(8)
         doc.setFont("helvetica", "normal")
-        doc.setTextColor(grayColor[0], grayColor[1], grayColor[2])
-        doc.text("presupuestalo.com", 195, 287, { align: "right" })
+        doc.setTextColor(150, 150, 150)
+        // Centrado en la parte inferior de cada página
+        doc.text("presupuestalo.com", pageWidth / 2, pageHeight - 5, { align: "center" })
       }
-    }
-
-    const drawWatermark = () => {
-      if (!showWatermark) return
-      const pageWidth = doc.internal.pageSize.getWidth()
-
-      // Guardar estado actual
-      const originalColor = doc.getTextColor()
-
-      // Estilo Ribbon de Esquina (Modern SaaS)
-      // Color gris muy suave pero definido
-      doc.setTextColor(230, 230, 230)
-      doc.setFont("helvetica", "bold")
-      doc.setFontSize(10)
-
-      // Texto en la esquina superior derecha cruzado diagonalmente
-      const text = "PRESUPUESTALO.COM"
-      const subtext = "PLAN GRATUITO"
-
-      // Dibujamos el texto rotado en la esquina superior derecha
-      doc.setFontSize(11)
-      doc.text(text, pageWidth - 35, 22, {
-        angle: 45,
-        align: "center"
-      })
-
-      doc.setFontSize(8)
-      doc.text(subtext, pageWidth - 28, 28, {
-        angle: 45,
-        align: "center"
-      })
-
-      // Refuerzo central ultra-sutil (tipo contorno)
-      // Solo el nombre de la web en el fondo de forma muy suave
-      doc.setFontSize(60)
-      doc.setTextColor(248, 248, 248)
-      doc.text("PRESUPUÉSTALO", pageWidth / 2, 150, {
-        align: "center",
-        angle: 45
-      })
-
-      // Restaurar color
-      doc.setTextColor(originalColor)
-    }
-
-    // Dibujar en la primera página
-    drawWatermark()
-
-    // Suscribirse a la creación de nuevas páginas para que siempre esté "detrás"
-    const originalAddPage = doc.addPage.bind(doc)
-    doc.addPage = (...args: any[]) => {
-      const result = originalAddPage(...args)
-      drawWatermark()
-      return result
     }
 
     // 1. CABECERA: Logo izquierda, datos empresa derecha
@@ -312,7 +261,7 @@ export async function generateBudgetPDF(
     categoryMap.forEach((items, category) => {
       console.log("[v0] Processing category:", category, "with", items.length, "items")
       // Verificar si necesitamos una nueva página
-      if (yPosition > 250) {
+      if (yPosition > 230) {
         doc.addPage()
         yPosition = 20
       }
@@ -402,7 +351,7 @@ export async function generateBudgetPDF(
         doc.text(formatCurrency(categoryTotals.get(category)!), 190, yPosition + 5.5, { align: "right" })
       }
 
-      yPosition += 12
+      yPosition += 22
     })
 
     console.log("[v0] All regular tables generated, yPosition:", yPosition)
@@ -410,7 +359,7 @@ export async function generateBudgetPDF(
     if (ownerItems.length > 0) {
       console.log("[v0] Adding owner custom items section...")
 
-      if (yPosition > 240) {
+      if (yPosition > 220) {
         doc.addPage()
         yPosition = 20
       }
@@ -486,7 +435,7 @@ export async function generateBudgetPDF(
     )
 
     if (adjustments.length > 0 && !hidePrices) {
-      if (yPosition > 240) {
+      if (yPosition > 220) {
         doc.addPage()
         yPosition = 20
       }
@@ -537,7 +486,7 @@ export async function generateBudgetPDF(
       yPosition = (doc as any).lastAutoTable.finalY + 6
     }
 
-    if (yPosition > 240) {
+    if (yPosition > 220) {
       doc.addPage()
       yPosition = 20
     }
@@ -639,7 +588,7 @@ export async function generateBudgetPDF(
     // 7. NOTAS ACLARATORIAS
     console.log("[DEBUG PDF] Checking additional notes:", settings?.additional_notes)
     if (settings?.additional_notes) {
-      if (yPosition > 240) {
+      if (yPosition > 220) {
         doc.addPage()
         yPosition = 20
       }

@@ -214,25 +214,26 @@ export function BudgetViewer({ projectId, budgetId, onBudgetUpdated, refreshTrig
         data: { user },
       } = await supabase.auth.getUser()
 
+      // Fetch company data for the professional who created this budget.
+      // We use an API endpoint because RLS only allows users to read their own
+      // user_company_settings row, but homeowners also need to see the
+      // professional's company info when exporting PDFs.
       let companyData = null
-      if (user) {
-        const { data: userCompanySettings, error: companyError } = await supabase
-          .from("user_company_settings")
-          .select(
-            "company_name, company_address, company_tax_id, company_phone, company_email, company_website, company_logo_url",
-          )
-          .eq("user_id", user.id)
-          .maybeSingle()
-
-        if (companyError) {
-          console.log("[v0] Error cargando datos de empresa:", companyError)
+      try {
+        const companyRes = await fetch(`/api/budget/company-data?budget_id=${budget.id}`)
+        if (companyRes.ok) {
+          const companyJson = await companyRes.json()
+          companyData = companyJson.companyData
+          console.log("[v0] Company data loaded via API:", companyData)
         } else {
-          companyData = userCompanySettings
-          console.log("[v0] Company data loaded:", companyData)
+          console.log("[v0] Error cargando datos de empresa via API:", companyRes.status)
         }
+      } catch (companyErr) {
+        console.log("[v0] Error cargando datos de empresa:", companyErr)
       }
 
-      // Load company defaults for texts and VAT
+      // Load company defaults for texts and VAT from the already-fetched company data
+      // (companyData includes default_presentation_text, default_clarification_notes, show_vat, vat_percentage)
       let companyDefaults = {
         presentation: "",
         notes: "",
@@ -240,22 +241,14 @@ export function BudgetViewer({ projectId, budgetId, onBudgetUpdated, refreshTrig
         vatPercentage: 21,
       }
 
-      if (user) {
-        const { data: userSettings } = await supabase
-          .from("user_company_settings")
-          .select("default_presentation_text, default_clarification_notes, show_vat, vat_percentage")
-          .eq("user_id", user.id)
-          .maybeSingle()
-
-        if (userSettings) {
-          companyDefaults = {
-            presentation: userSettings.default_presentation_text || "",
-            notes: userSettings.default_clarification_notes || "",
-            showVat: userSettings.show_vat ?? false,
-            vatPercentage: userSettings.vat_percentage ?? 21,
-          }
-          console.log("[DEBUG] Company defaults loaded:", companyDefaults)
+      if (companyData) {
+        companyDefaults = {
+          presentation: (companyData as any).default_presentation_text || "",
+          notes: (companyData as any).default_clarification_notes || "",
+          showVat: (companyData as any).show_vat ?? false,
+          vatPercentage: (companyData as any).vat_percentage ?? 21,
         }
+        console.log("[DEBUG] Company defaults loaded from API:", companyDefaults)
       }
 
       const defaultPresentation = "Nos permitimos hacerle entrega del presupuesto solicitado."
