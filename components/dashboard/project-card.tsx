@@ -347,7 +347,7 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
                   Duplicar
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                {(budgetStatus === "approved" || budgetStatus === "accepted" || budgetStatus === "delivered" || budgetStatus === "sent") && (
+                {(budgetStatus === "approved" || budgetStatus === "accepted") && (
                   <DropdownMenuItem onClick={() => handleStatusChange("in_progress")} className="text-orange-600 focus:text-orange-700 focus:bg-orange-50">
                     <Hammer className="h-4 w-4 mr-2" />
                     Empezar Obra

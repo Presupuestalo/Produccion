@@ -289,7 +289,7 @@ export async function generateBudgetPDF(
           item.concept.toUpperCase(), // Concepto (Subcategoría/Título)
           fullDescription, // Descripción completa
           item.unit, // Unidad
-          item.quantity.toString(), // Cantidad
+          Number(item.quantity).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), // Cantidad
         ]
 
         if (!hidePrices) {
@@ -393,7 +393,7 @@ export async function generateBudgetPDF(
           item.concept.toUpperCase(), // Concepto
           fullDescription, // Descripción
           item.unit, // Unidad
-          item.quantity.toString(), // Cantidad
+          Number(item.quantity).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), // Cantidad
         ]
       })
 
@@ -451,7 +451,7 @@ export async function generateBudgetPDF(
       const modificationsData = adjustments.map((mod: any) => [
         mod.description,
         mod.unit,
-        mod.quantity.toString(),
+        Number(mod.quantity).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         formatCurrency(mod.unit_price),
         formatCurrency(mod.total_price),
         mod.notes || "",
@@ -572,6 +572,11 @@ export async function generateBudgetPDF(
         doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2])
         doc.text("TOTAL:", totalsX, yPosition)
         doc.text(formatCurrency(subtotalWithAdjustments), totalsValueX, yPosition, { align: "right" })
+        yPosition += 5
+        doc.setFontSize(7)
+        doc.setFont("helvetica", "normal")
+        doc.setTextColor(grayColor[0], grayColor[1], grayColor[2])
+        doc.text("Impuestos no incluidos", totalsValueX, yPosition, { align: "right" })
       }
     } else {
       doc.setFontSize(10)

@@ -135,6 +135,12 @@ export type BathroomElement =
   | "Bidé"
   | "Mueble lavabo"
 
+// Configuración de instalación para cada elemento de baño
+export interface BathroomElementConfig {
+  element: BathroomElement
+  includeSupply: boolean // true = suministro + colocación; false = solo colocación
+}
+
 // Nuevos tipos para elementos eléctricos
 export type ElectricalElementType =
   | "Punto de luz techo"
@@ -197,6 +203,7 @@ export interface Room {
   radiatorType?: RadiatorType
   radiatorModules?: number
   bathroomElements?: BathroomElement[]
+  bathroomElementsConfig?: BathroomElementConfig[] // Nueva: configuración de suministro por elemento
   hasNiche?: boolean
   removeLivingRoomFurniture?: boolean // Nueva propiedad para retirar muebles de salón
   lowerCeiling?: boolean // Nueva propiedad para bajar techo

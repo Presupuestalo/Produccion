@@ -35,22 +35,28 @@ const CORRECCIONES_ORTOGRAFICAS: { [key: string]: string } = {
     dormitorio: "Dormitorio", trastero: "Trastero", vestidor: "Vestidor", pasillo: "Pasillo", otro: "Otro",
 }
 
-function normalizeRoomType(type: string | undefined): any {
-    if (!type) return "Otro"
-    const lowerType = type.toLowerCase().trim()
-    if (lowerType.includes("bano")) return "Baño"
-    if (lowerType.includes("cocina")) return "Cocina"
-    if (lowerType.includes("salon")) return "Salón"
-    if (lowerType.includes("dormitorio")) return "Dormitorio"
-    if (lowerType.includes("pasillo") || lowerType.includes("distribuidor")) return "Pasillo"
-    if (lowerType === "hall" || lowerType === "hll" || lowerType.includes("entrada") || lowerType.includes("recibidor")) return "Hall"
-    if (lowerType.includes("terraza") || lowerType.includes("balcon")) return "Terraza"
-    if (lowerType.includes("trastero")) return "Trastero"
-    if (lowerType.includes("vestidor")) return "Vestidor"
+function normalizeRoomType(room: any): string {
+    const rawType = room?.type || ""
+    const rawName = room?.name || ""
 
-    for (const [key, value] of Object.entries(CORRECCIONES_ORTOGRAFICAS)) {
-        if (lowerType.includes(key)) return value
-    }
+    // Combinamos nombre y tipo, y normalizamos quitando tildes para facilitar la búsqueda
+    const searchString = `${rawName} ${rawType}`
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+
+    if (!searchString) return "Otro"
+
+    if (searchString.includes("bano") || searchString.includes("aseo") || searchString.includes("ducha")) return "Baño"
+    if (searchString.includes("cocina")) return "Cocina"
+    if (searchString.includes("salon") || searchString.includes("estar") || searchString.includes("comedor")) return "Salón"
+    if (searchString.includes("dormitorio") || searchString.includes("habitacion") || searchString.includes("cuarto")) return "Dormitorio"
+    if (searchString.includes("pasillo") || searchString.includes("distribuidor")) return "Pasillo"
+    if (searchString.includes("hall") || searchString.includes("entrada") || searchString.includes("recibidor") || searchString.includes("vestibulo")) return "Hall"
+    if (searchString.includes("terraza") || searchString.includes("balcon") || searchString.includes("patio") || searchString.includes("tendedero") || searchString.includes("galeria")) return "Terraza"
+    if (searchString.includes("trastero") || searchString.includes("almacen") || searchString.includes("despensa") || searchString.includes("lavadero")) return "Trastero"
+    if (searchString.includes("vestidor")) return "Vestidor"
 
     return "Otro"
 }
@@ -66,17 +72,28 @@ function capitalizeWords(str: string): string {
 }
 
 function formatRoomName(room: any, index: number, allRooms: any[]): string {
-    const type = (room.type || "").toLowerCase().trim()
-    const name = (room.name || "").toLowerCase().trim()
+    const normalizedType = normalizeRoomType(room)
+    const rawName = (room.name || "").trim()
 
-    if (/\d/.test(room.name || "")) return capitalizeWords(room.name)
-    if (TIPOS_SIN_NUMERAR.some((t) => type.includes(t) || name.includes(t))) return capitalizeWords(room.name || room.type)
+    // Si el nombre ya contiene un número (ej: "Dormitorio 2"), lo respetamos
+    if (/\d/.test(rawName)) return capitalizeWords(rawName)
 
-    const sameTypeRooms = allRooms.filter((r) => (r.type || "").toLowerCase().trim() === type)
-    if (sameTypeRooms.length <= 1) return capitalizeWords(room.name || room.type)
+    // Si es un tipo que normalmente es único en una casa, usamos su nombre sin numerar
+    if (["Cocina", "Salón", "Hall", "Vestidor", "Trastero", "Terraza"].includes(normalizedType)) {
+        return capitalizeWords(rawName || normalizedType)
+    }
 
-    const indexInType = sameTypeRooms.findIndex((r) => r === room) + 1
-    const baseName = capitalizeWords(room.type)
+    // Para el resto (Baños, Dormitorios, Pasillos, etc.), comprobamos si hay varios del mismo tipo normalizado
+    const sameTypeRooms = allRooms.filter(r => normalizeRoomType(r) === normalizedType)
+
+    // Si solo hay 1 en toda la casa, no le ponemos número
+    if (sameTypeRooms.length <= 1) return capitalizeWords(rawName || normalizedType)
+
+    // Si hay varios, buscamos qué índice ocupa este dentro de los de su tipo
+    const indexInType = sameTypeRooms.findIndex(r => r === room) + 1
+
+    // Usamos el nombre base y le añadimos el número
+    const baseName = capitalizeWords(normalizedType === "Otro" ? rawName : normalizedType)
     return `${baseName} ${indexInType}`
 }
 
@@ -139,32 +156,18 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
     return editorData.rooms.map((editorRoom, i) => {
         roomTypeCounts[editorRoom.type] = (roomTypeCounts[editorRoom.type] || 0) + 1
 
-        const normalizedType = normalizeRoomType(editorRoom.type)
+        const normalizedType = normalizeRoomType(editorRoom)
         const roomName = formatRoomName(editorRoom, i, editorData.rooms)
 
-        const getDefaultMaterials = (roomType: string | undefined, isBeforeState: boolean): { floor: import("@/types/calculator").FloorMaterialType, wall: import("@/types/calculator").WallMaterialType, removeWallTiles: boolean, removeFloor: boolean } => {
-            if (!roomType) {
-                return isBeforeState
-                    ? { floor: "Madera", wall: "Pintura", removeWallTiles: false, removeFloor: true }
-                    : { floor: "Parquet flotante", wall: "Lucir y pintar", removeWallTiles: false, removeFloor: false };
-            }
-
-            const typeLower = roomType
-                .toLowerCase()
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "")
-                .trim()
-
+        const getDefaultMaterials = (normType: string, isBeforeState: boolean): { floor: import("@/types/calculator").FloorMaterialType, wall: import("@/types/calculator").WallMaterialType, removeWallTiles: boolean, removeFloor: boolean } => {
             if (
-                typeLower.includes("bano") ||
-                typeLower.includes("cocina") ||
-                typeLower.includes("aseo") ||
-                typeLower.includes("ducha")
+                normType === "Baño" ||
+                normType === "Cocina"
             ) {
                 return { floor: isBeforeState ? "Cerámica" : "Cerámico", wall: "Cerámica", removeWallTiles: isBeforeState, removeFloor: isBeforeState }
             }
 
-            if (typeLower.includes("terraza") || typeLower.includes("balcon")) {
+            if (normType === "Terraza" || normType === "Balcón") {
                 return { floor: isBeforeState ? "Cerámica" : "Cerámico", wall: "No se modifica", removeWallTiles: false, removeFloor: isBeforeState }
             }
 
@@ -175,7 +178,7 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
             }
         }
 
-        const defaultMaterials = getDefaultMaterials(editorRoom.type, isBefore)
+        const defaultMaterials = getDefaultMaterials(normalizedType, isBefore)
 
         // IMPORTANTE: Sobrescribir materiales si vienen marcados desde el editor (Ej: H2 con paredes cerámicas)
         if (editorRoom.hasCeramicFloor === true) {
@@ -256,7 +259,7 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
                         // Muro compartido real. Heurística: asignar a la habitación que NO sea pasillo/hall
                         const otherRoomId = trueHostRoomIds.find(id => id !== editorRoom.id);
                         const otherRoom = editorData.rooms.find(r => r.id === otherRoomId);
-                        const otherType = normalizeRoomType(otherRoom?.type);
+                        const otherType = normalizeRoomType(otherRoom || {});
 
                         // Si la habitación actual es un pasillo/hall y la otra NO, la puerta suele pertenecer a la otra (abre hacia dentro)
                         if ((normalizedType === "Hall" || normalizedType === "Pasillo") && (otherType !== "Hall" && otherType !== "Pasillo")) {

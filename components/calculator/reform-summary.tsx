@@ -398,9 +398,17 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
         newSummary.conductoExtraccionCocina += 1
       }
 
-      if (isBathroom(room.type) && room.newBathroomElements !== false && room.bathroomElements && room.bathroomElements.length > 0) {
-        room.bathroomElements.forEach((element: BathroomElement) => {
-          switch (element) {
+      if (isBathroom(room.type) && room.newBathroomElements !== false) {
+        // Combinar la nueva propiedad y la antigua para compatibilidad
+        const configs = room.bathroomElementsConfig?.length > 0
+          ? room.bathroomElementsConfig
+          : (room.bathroomElements || []).map((e: any) => ({
+            element: e,
+            includeSupply: true,
+          }))
+
+        configs.forEach((config: any) => {
+          switch (config.element) {
             case "Inodoro":
               newSummary.instalacionInodoro += 1
               break

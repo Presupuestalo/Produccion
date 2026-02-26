@@ -212,7 +212,7 @@ export function BudgetStatusManager({ budgetId, projectId, currentStatus, onStat
 
         {(userType === "professional" || userType === "company") && (
           <>
-            {currentStatus === "draft" && isMaster && (
+            {currentStatus === "draft" && (
               <Button size="sm" variant="outline" onClick={() => openDialog("delivered")}>
                 <Send className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Marcar como Entregado</span>

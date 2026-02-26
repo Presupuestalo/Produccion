@@ -464,7 +464,7 @@ export function BudgetViewer({ projectId, budgetId, onBudgetUpdated, refreshTrig
                 />
               )}
               <div className="hidden sm:flex sm:flex-1" />
-              {!isOwner && (
+              {!isOwner && !isAccepted && (
                 <Button variant="outline" size="sm" onClick={handleCreateCopy}>
                   <Copy className="h-4 w-4 sm:mr-2" />
                   <span className="hidden sm:inline">Crear Copia</span>
@@ -689,6 +689,7 @@ export function BudgetViewer({ projectId, budgetId, onBudgetUpdated, refreshTrig
                     <span className="font-bold">Total Final</span>
                     <span className="text-primary font-bold">{formatCurrency(subtotalWithAdjustments)}</span>
                   </div>
+                  <p className="text-xs text-muted-foreground text-right mt-1">Impuestos no incluidos</p>
                 </>
               )}
 

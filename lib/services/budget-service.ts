@@ -12,88 +12,36 @@ export class BudgetService {
     userId: string,
     calculatorData: CalculatorData,
     supabaseClient: SupabaseClient
-  ): Promise<BudgetWithLineItems> {
+  ): Promise<BudgetWithLineItems | null> {
     const supabase = supabaseClient
 
     let budgetId: string
     let userIdToUse: string = userId
-    let attempts = 0
-    let targetBudget: Budget | undefined
-    let existingBudgets: Budget[] = []
 
-    // Retry loop to handle concurrent creation attempts (race condition)
-    while (attempts < 3) {
-      attempts++
+    // 1. Buscar budgets existentes
+    const { data, error: fetchError } = await supabase
+      .from("budgets")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("version_number", { ascending: false })
 
-      // 1. Buscar budgest existentes
-      const { data, error: fetchError } = await supabase
-        .from("budgets")
-        .select("*")
-        .eq("project_id", projectId)
-        .order("version_number", { ascending: false })
+    if (fetchError) throw new Error("Error fetching existing budgets: " + fetchError.message)
+    const existingBudgets: Budget[] = data || []
 
-      if (fetchError) throw new Error("Error fetching existing budgets: " + fetchError.message)
-      existingBudgets = data || []
+    // Sincronización unificada: Buscamos el borrador más reciente del proyecto
+    const targetBudget = existingBudgets.find((b: Budget) => b.status === "draft")
 
-      // Sincronización unificada: Buscamos el borrador más reciente del proyecto
-      targetBudget = existingBudgets.find((b: Budget) => b.status === "draft")
-
-      if (targetBudget) {
-        console.log(`[v0] Syncing with latest draft budget: ${targetBudget.name} (v${targetBudget.version_number})`)
-        budgetId = targetBudget.id
-        userIdToUse = targetBudget.user_id
-        break // Encontrado, salimos del bucle
-      }
-
-      // No hay borrador, intentamos crear uno nuevo
-      console.log(`[v0] No suitable draft budget found for sync (attempt ${attempts}). Creating new version...`)
-      const { data: project } = await supabase.from("projects").select("user_id, title").eq("id", projectId).single()
-      userIdToUse = project?.user_id || userId
-      const projectTitle = project?.title || "Presupuesto"
-
-      const isFirstBudget = existingBudgets.length === 0
-      const nextVersion = existingBudgets.length > 0 ? (Math.max(...existingBudgets.map((b: Budget) => Number(b.version_number))) + 1) : 1
-
-      const { data: newBudget, error: createError } = await supabase
-        .from("budgets")
-        .insert({
-          project_id: projectId,
-          user_id: userIdToUse,
-          version_number: nextVersion,
-          name: `${projectTitle} v${nextVersion}`,
-          is_original: isFirstBudget,
-          status: "draft",
-          subtotal: 0,
-          tax_rate: 0,
-          tax_amount: 0,
-          total: 0,
-        })
-        .select()
-        .single()
-
-      if (!createError) {
-        budgetId = newBudget.id
-        break // Creado con éxito, salimos del bucle
-      }
-
-      // Si es un error de clave duplicada (Postgres code 23505 O mensaje de restricción única), 
-      // esperamos un poco y reintentamos buscar el presupuesto (alguien lo creó justo ahora)
-      const isUniqueViolation = createError.code === "23505" ||
-        createError.message?.toLowerCase().includes("unique constraint") ||
-        createError.message?.toLowerCase().includes("already exists")
-
-      if (isUniqueViolation && attempts < 5) {
-        console.warn(`[v0] Race condition detected during budget creation (v${nextVersion}). Retrying search in 500ms...`)
-        await new Promise(resolve => setTimeout(resolve, 500))
-        continue
-      }
-
-      throw new Error("Error creating budget for sync: " + createError.message)
+    if (!targetBudget) {
+      // No hay borrador activo — no crear uno automáticamente.
+      // La creación de nuevos presupuestos es responsabilidad del usuario.
+      console.log("[v0] syncRealtimeBudget: No draft budget found, skipping auto-sync.")
+      return null
     }
 
-    if (!budgetId!) {
-      throw new Error("Failed to find or create a budget for synchronization after multiple attempts.")
-    }
+    console.log(`[v0] Syncing with latest draft budget: ${targetBudget.name} (v${targetBudget.version_number})`)
+    budgetId = targetBudget.id
+    userIdToUse = targetBudget.user_id
+
 
     // 2. Generar nuevas partidas desde la calculadora
     console.log("[v0] Syncing V2 budget, generating new items...")

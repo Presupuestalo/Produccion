@@ -315,7 +315,7 @@ export class BudgetGenerator {
     console.log(`[v0] BudgetGenerator - Total prices in cache: ${this.priceCache.size}`)
   }
 
-  private addLineItem(priceCode: string, quantity = 1, customNotes?: string, customPrice?: number) {
+  private addLineItem(priceCode: string, quantity = 1, customNotes?: string, customPrice?: number, priceMultiplier = 1) {
     const trimmedCode = priceCode.trim()
     const priceItem = this.priceCache.get(trimmedCode)
     if (!priceItem) {
@@ -339,7 +339,8 @@ export class BudgetGenerator {
 
     const categoryInfo = categoryMap[priceCode.split("-")[0]]
 
-    const unitPrice = customPrice ?? priceItem.final_price
+    const baseUnitPrice = customPrice ?? priceItem.final_price
+    const unitPrice = baseUnitPrice * priceMultiplier
     const totalPrice = quantity * unitPrice
 
     console.log(`[v0] Adding line item with base_price_id:`, {
@@ -1192,77 +1193,94 @@ export class BudgetGenerator {
 
     // Instalación de sanitarios (contando elementos específicos seleccionados en cada baño)
     if (bathrooms > 0) {
-      let totalInodoros = 0;
-      let totalDuchas = 0;
-      let totalLavabos = 0;
-      let totalMamparas = 0;
-      let totalGrifosDucha = 0;
-      let totalGrifosLavabo = 0;
-      let totalBides = 0;
-      let totalDuchetas = 0;
-      let totalBaneras = 0;
+      // Contadores separados para elementos CON suministro y SIN suministro
+      const counts = {
+        inodoros: { withSupply: 0, withoutSupply: 0 },
+        duchas: { withSupply: 0, withoutSupply: 0 },
+        lavabos: { withSupply: 0, withoutSupply: 0 },
+        mamparas: { withSupply: 0, withoutSupply: 0 },
+        bides: { withSupply: 0, withoutSupply: 0 },
+        duchetas: { withSupply: 0, withoutSupply: 0 },
+        baneras: { withSupply: 0, withoutSupply: 0 },
+        grifosDucha: { withSupply: 0, withoutSupply: 0 },
+        grifosLavabo: { withSupply: 0, withoutSupply: 0 },
+      }
 
       reform.rooms.filter((r: any) => r.type === "Baño" && r.newBathroomElements !== false).forEach((room: any) => {
-        const elements = room.bathroomElements || ["Inodoro", "Plato de ducha", "Mampara", "Mueble lavabo"];
+        // Combinar la nueva propiedad y la antigua para compatibilidad
+        const configs = room.bathroomElementsConfig?.length > 0
+          ? room.bathroomElementsConfig
+          : (room.bathroomElements || ["Inodoro", "Plato de ducha", "Mampara", "Mueble lavabo"]).map((e: any) => ({
+            element: e,
+            includeSupply: true, // Legacy siempre incluye suministro por defecto
+          }))
 
-        if (elements.includes("Inodoro")) totalInodoros++;
-        if (elements.includes("Plato de ducha")) {
-          totalDuchas++;
-          totalGrifosDucha++; // Asumimos un grifo por ducha
-        }
-        if (elements.includes("Mueble lavabo")) {
-          totalLavabos++;
-          totalGrifosLavabo++; // Asumimos un grifo por lavabo
-        }
-        if (elements.includes("Mampara")) totalMamparas++;
-        if (elements.includes("Bidé")) totalBides++;
-        if (elements.includes("Ducheta Inodoro")) totalDuchetas++;
-        if (elements.includes("Bañera")) totalBaneras++;
+        configs.forEach((config: any) => {
+          const type = config.includeSupply ? "withSupply" : "withoutSupply"
+
+          switch (config.element) {
+            case "Inodoro":
+              counts.inodoros[type]++
+              break
+            case "Plato de ducha":
+              counts.duchas[type]++
+              counts.grifosDucha[type]++
+              break
+            case "Mueble lavabo":
+              counts.lavabos[type]++
+              counts.grifosLavabo[type]++
+              break
+            case "Mampara":
+              counts.mamparas[type]++
+              break
+            case "Bidé":
+              counts.bides[type]++
+              break
+            case "Ducheta Inodoro":
+              counts.duchetas[type]++
+              break
+            case "Bañera":
+              counts.baneras[type]++
+              break
+          }
+        })
       });
 
+      // Función auxiliar para agregar las partidas con o sin suministro
+      const addPlumbingItem = (code: string, count: { withSupply: number, withoutSupply: number }, name: string) => {
+        // Con suministro (precio normal, código estandar)
+        if (count.withSupply > 0) {
+          console.log(`[v0] BudgetGenerator - Generando partida: ${name} (con suministro) ${count.withSupply} ud`)
+          this.addLineItem(code, count.withSupply)
+        }
+
+        // SIN suministro (precio reducido, nombre adaptado)
+        if (count.withoutSupply > 0) {
+          console.log(`[v0] BudgetGenerator - Generando partida: Colocación ${name} s/suministro ${count.withoutSupply} ud`)
+          // Descuento del ~60% (se cobra un 40% estimado de mano de obra en instalaciones estándar)
+          const multiplier = 0.4
+          this.addLineItem(code, count.withoutSupply, `Colocación ${name} (s/suministro)`, undefined, multiplier)
+        }
+      }
+
       // Inodoro
-      if (totalInodoros > 0) {
-        console.log(`[v0] BudgetGenerator - Generando partida: Inodoro ${totalInodoros} ud`)
-        this.addLineItem("04-F-06", totalInodoros)
-      }
-      // Bidé (NUEVO: Verificar si existe el código, sino usar uno genérico o no asigar si no lo pide exactamente, pero lo añado asumiendo que pueda existir o se ignorará si no hay código)
-      // As in previous logic there was no Bidé, but I'll add the most basic tracking. If there's NO code, addLineItem handles it safely by warning.
-      if (totalBides > 0) {
-        this.addLineItem("04-F-14", totalBides) // Asignando código provisional, si no existe no romperá
-      }
+      addPlumbingItem("04-F-06", counts.inodoros, "Inodoro")
+      // Bidé
+      addPlumbingItem("04-F-14", counts.bides, "Bidé")
       // Ducheta inodoro
-      if (totalDuchetas > 0) {
-        this.addLineItem("04-F-15", totalDuchetas)
-      }
+      addPlumbingItem("04-F-15", counts.duchetas, "Ducheta Inodoro")
       // Bañera
-      if (totalBaneras > 0) {
-        this.addLineItem("04-F-16", totalBaneras)
-      }
+      addPlumbingItem("04-F-16", counts.baneras, "Bañera")
       // Plato de ducha
-      if (totalDuchas > 0) {
-        console.log(`[v0] BudgetGenerator - Generando partida: Plato de ducha ${totalDuchas} ud`)
-        this.addLineItem("04-F-07", totalDuchas)
-      }
+      addPlumbingItem("04-F-07", counts.duchas, "Plato de ducha")
       // Mueble lavabo
-      if (totalLavabos > 0) {
-        console.log(`[v0] BudgetGenerator - Generando partida: Mueble lavabo ${totalLavabos} ud`)
-        this.addLineItem("04-F-08", totalLavabos)
-      }
+      addPlumbingItem("04-F-08", counts.lavabos, "Mueble lavabo")
       // Mampara
-      if (totalMamparas > 0) {
-        console.log(`[v0] BudgetGenerator - Generando partida: Mampara ${totalMamparas} ud`)
-        this.addLineItem("04-F-09", totalMamparas)
-      }
+      addPlumbingItem("04-F-09", counts.mamparas, "Mampara")
       // Grifo ducha
-      if (totalGrifosDucha > 0) {
-        console.log(`[v0] BudgetGenerator - Generando partida: Grifo ducha ${totalGrifosDucha} ud`)
-        this.addLineItem("04-F-10", totalGrifosDucha)
-      }
+      addPlumbingItem("04-F-10", counts.grifosDucha, "Grifaría de ducha")
       // Grifo lavabo
-      if (totalGrifosLavabo > 0) {
-        console.log(`[v0] BudgetGenerator - Generando partida: Grifo lavabo ${totalGrifosLavabo} ud`)
-        this.addLineItem("04-F-11", totalGrifosLavabo)
-      }
+      addPlumbingItem("04-F-11", counts.grifosLavabo, "Grifaría de lavabo")
     } else {
       console.log("[v0] BudgetGenerator - NO se generan partidas de instalación de sanitarios (total bathrooms = 0)")
     }
@@ -1969,28 +1987,86 @@ export class BudgetGenerator {
   private generateMaterialsItems() {
     const { reform, globalConfig } = this.calculatorData
 
-    if (!reform || !reform.rooms) return
+    // Contadores de materiales de baño (por cada baño que tenga el objeto marcado CON suministro)
+    const materialCounts = {
+      ducha: 0,
+      valvula: 0,
+      inodoro: 0,
+      monomandoLavabo: 0,
+      termostatica: 0,
+      mampara: 0,
+      muebleLavabo: 0,
+    }
 
-    const bathrooms = reform.rooms.filter((r: any) => r.type === "Baño").length
+    reform.rooms.forEach((room: any) => {
+      if (room.type === "Baño" && room.newBathroomElements !== false) {
+        // En primer lugar, mapeamos de forma lógica las selecciones
+        const configs = room.bathroomElementsConfig?.length > 0
+          ? room.bathroomElementsConfig
+          : (room.bathroomElements || []).map((e: string) => ({ element: e, includeSupply: true }))
 
-    // Materiales de baño (por cada baño)
-    if (bathrooms > 0) {
-      console.log(`[v0] BudgetGenerator - Generando partida: Plato de ducha ${bathrooms} ud`)
-      this.addLineItem("10-M-01", bathrooms, "Plato de ducha")
-      console.log(`[v0] BudgetGenerator - Generando partida: Válvula ${bathrooms} ud`)
-      this.addLineItem("10-M-02", bathrooms, "Válvula")
-      console.log(`[v0] BudgetGenerator - Generando partida: Inodoro ${bathrooms} ud`)
-      this.addLineItem("10-M-03", bathrooms, "Inodoro")
-      console.log(`[v0] BudgetGenerator - Generando partida: Monomando lavabo ${bathrooms} ud`)
-      this.addLineItem("10-M-04", bathrooms, "Monomando lavabo")
-      console.log(`[v0] BudgetGenerator - Generando partida: Ducha termostática ${bathrooms} ud`)
-      this.addLineItem("10-M-05", bathrooms, "Ducha termostática")
-      console.log(`[v0] BudgetGenerator - Generando partida: Mampara ${bathrooms} ud`)
-      this.addLineItem("10-M-06", bathrooms, "Mampara")
-      console.log(`[v0] BudgetGenerator - Generando partida: Mueble con lavabo ${bathrooms} ud`)
-      this.addLineItem("10-M-07", bathrooms, "Mueble con lavabo")
+        configs.forEach((config: any) => {
+          if (!config.includeSupply) return // Solo contamos los de material para Materiales
+
+          switch (config.element) {
+            case "Inodoro":
+              materialCounts.inodoro += 1
+              break
+            case "Plato de ducha":
+              materialCounts.ducha += 1
+              materialCounts.valvula += 1 // Asociado al plato
+              materialCounts.termostatica += 1
+              break
+            case "Bañera":
+              materialCounts.valvula += 1
+              materialCounts.termostatica += 1
+              break
+            case "Mampara":
+              materialCounts.mampara += 1
+              break
+            case "Mueble lavabo":
+              materialCounts.muebleLavabo += 1
+              materialCounts.monomandoLavabo += 1
+              break
+          }
+        })
+      }
+    })
+
+    const hasAnyBathroomMaterial = Object.values(materialCounts).some(count => count > 0)
+
+    // Materiales de baño
+    if (hasAnyBathroomMaterial) {
+      if (materialCounts.ducha > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Plato de ducha ${materialCounts.ducha} ud`)
+        this.addLineItem("10-M-01", materialCounts.ducha, "Plato de ducha")
+      }
+      if (materialCounts.valvula > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Válvula ${materialCounts.valvula} ud`)
+        this.addLineItem("10-M-02", materialCounts.valvula, "Válvula")
+      }
+      if (materialCounts.inodoro > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Inodoro ${materialCounts.inodoro} ud`)
+        this.addLineItem("10-M-03", materialCounts.inodoro, "Inodoro")
+      }
+      if (materialCounts.monomandoLavabo > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Monomando lavabo ${materialCounts.monomandoLavabo} ud`)
+        this.addLineItem("10-M-04", materialCounts.monomandoLavabo, "Monomando lavabo")
+      }
+      if (materialCounts.termostatica > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Ducha termostática ${materialCounts.termostatica} ud`)
+        this.addLineItem("10-M-05", materialCounts.termostatica, "Ducha termostática")
+      }
+      if (materialCounts.mampara > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Mampara ${materialCounts.mampara} ud`)
+        this.addLineItem("10-M-06", materialCounts.mampara, "Mampara")
+      }
+      if (materialCounts.muebleLavabo > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Mueble con lavabo ${materialCounts.muebleLavabo} ud`)
+        this.addLineItem("10-M-07", materialCounts.muebleLavabo, "Mueble con lavabo")
+      }
     } else {
-      console.log("[v0] BudgetGenerator - NO se generan partidas de materiales de baño (total bathrooms = 0)")
+      console.log("[v0] BudgetGenerator - NO se generan partidas de materiales de baño (total suministros = 0)")
     }
 
     // Baldosa y azulejo (área total de alicatados y embaldosados)

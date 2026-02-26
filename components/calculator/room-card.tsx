@@ -31,7 +31,11 @@ import {
   Copy,
   Pencil,
   Layers,
-
+  Droplets,
+  ShowerHead,
+  Box,
+  Sparkles,
+  Droplet
 } from "lucide-react"
 
 import { checkRoomConflict } from "@/lib/room-validation"
@@ -55,6 +59,7 @@ import type {
   Door,
   RadiatorType,
   BathroomElement,
+  BathroomElementConfig,
   ElectricalConfig,
   CurrentCeilingStatus,
   CalefaccionType,
@@ -925,21 +930,53 @@ export function RoomCard({
     updateRoom(room.id, { radiatorType: value })
   }
 
-  // Función para manejar el cambio en los elementos de baño
-  const handleBathroomElementChange = (element: BathroomElement, checked: boolean) => {
-    const currentElements = room.bathroomElements || []
+  // Helpers para bathroomElementsConfig (nueva) con fallback a bathroomElements (legado)
+  const getElementsConfig = (): BathroomElementConfig[] => {
+    if (room.bathroomElementsConfig && room.bathroomElementsConfig.length > 0) {
+      return room.bathroomElementsConfig
+    }
+    // Migración automática desde bathroomElements legado
+    return (room.bathroomElements || []).map((element) => ({ element, includeSupply: true }))
+  }
 
+  const isElementInstalled = (element: BathroomElement): boolean => {
+    const config = getElementsConfig()
+    return config.some((c) => c.element === element)
+  }
+
+  const elementIncludesSupply = (element: BathroomElement): boolean => {
+    const config = getElementsConfig()
+    const entry = config.find((c) => c.element === element)
+    return entry ? entry.includeSupply : true
+  }
+
+  const handleBathroomElementInstall = (element: BathroomElement, checked: boolean) => {
+    const config = getElementsConfig()
+    let newConfig: BathroomElementConfig[]
     if (checked) {
-      // Añadir el elemento si no existe
-      if (!currentElements.includes(element)) {
-        updateRoom(room.id, { bathroomElements: [...currentElements, element] })
+      if (!config.some((c) => c.element === element)) {
+        newConfig = [...config, { element, includeSupply: true }]
+      } else {
+        newConfig = config
       }
     } else {
-      // Eliminar el elemento si existe
-      updateRoom(room.id, {
-        bathroomElements: currentElements.filter((item) => item !== element),
-      })
+      newConfig = config.filter((c) => c.element !== element)
     }
+    updateRoom(room.id, {
+      bathroomElementsConfig: newConfig,
+      bathroomElements: newConfig.map((c) => c.element), // mantener compatibilidad
+    })
+  }
+
+  const handleBathroomElementSupply = (element: BathroomElement, includeSupply: boolean) => {
+    const config = getElementsConfig()
+    const newConfig = config.map((c) => c.element === element ? { ...c, includeSupply } : c)
+    updateRoom(room.id, { bathroomElementsConfig: newConfig })
+  }
+
+  // Mantener por retrocompatibilidad (usado en código legado si quedara alguna referencia)
+  const handleBathroomElementChange = (element: BathroomElement, checked: boolean) => {
+    handleBathroomElementInstall(element, checked)
   }
 
   // Formatear el título de la habitación
@@ -1146,7 +1183,7 @@ export function RoomCard({
   // </CHANGE>
 
   const isBathroomElementSelected = (element: BathroomElement): boolean => {
-    return !!room.bathroomElements && room.bathroomElements.includes(element)
+    return isElementInstalled(element)
   }
 
   // Determinar si mostrar el checkbox de suelo de madera
@@ -2251,112 +2288,75 @@ export function RoomCard({
                       </div>
 
                       {room.newBathroomElements && (
-                        <div className="ml-4 space-y-1.5 grid grid-cols-2 gap-x-2">
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              disabled={isReadOnly}
-                              id={`bathroomElement-inodoro-${room.id}`}
-                              checked={isBathroomElementSelected("Inodoro")}
-                              onCheckedChange={(checked) => handleBathroomElementChange("Inodoro", checked === true)}
-                              className="h-3.5 w-3.5"
-                            />
-                            <Label htmlFor={`bathroomElement-inodoro-${room.id}`} className="text-[10px] cursor-pointer">
-                              Inodoro
-                            </Label>
-                          </div>
+                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {(["Inodoro", "Bidé", "Ducheta Inodoro", "Plato de ducha", "Bañera", "Mampara", "Mueble lavabo"] as BathroomElement[]).map((element) => {
+                            const isInstalled = isElementInstalled(element);
 
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              disabled={isReadOnly}
-                              id={`bathroomElement-bide-${room.id}`}
-                              checked={isBathroomElementSelected("Bidé")}
-                              onCheckedChange={(checked) => handleBathroomElementChange("Bidé", checked === true)}
-                              className="h-3.5 w-3.5"
-                            />
-                            <Label htmlFor={`bathroomElement-bide-${room.id}`} className="text-[10px] cursor-pointer">
-                              Bidé
-                            </Label>
-                          </div>
-
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              disabled={isReadOnly}
-                              id={`bathroomElement-duchetaInodoro-${room.id}`}
-                              checked={isBathroomElementSelected("Ducheta Inodoro")}
-                              onCheckedChange={(checked) =>
-                                handleBathroomElementChange("Ducheta Inodoro", checked === true)
+                            const getIcon = () => {
+                              switch (element) {
+                                case "Inodoro":
+                                case "Bidé": return <Droplets className="h-4 w-4 text-sky-500/80" />;
+                                case "Ducheta Inodoro":
+                                case "Plato de ducha": return <ShowerHead className="h-4 w-4 text-cyan-500/80" />;
+                                case "Bañera": return <Bath className="h-4 w-4 text-indigo-500/80" />;
+                                case "Mampara": return <Sparkles className="h-4 w-4 text-amber-500/80" />;
+                                case "Mueble lavabo": return <Box className="h-4 w-4 text-emerald-500/80" />;
+                                default: return <Droplet className="h-4 w-4 text-gray-500" />;
                               }
-                              className="h-3.5 w-3.5"
-                            />
-                            <Label
-                              htmlFor={`bathroomElement-duchetaInodoro-${room.id}`}
-                              className="text-[10px] cursor-pointer"
-                            >
-                              Ducheta Inod.
-                            </Label>
-                          </div>
+                            };
 
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              disabled={isReadOnly}
-                              id={`bathroomElement-platoDucha-${room.id}`}
-                              checked={isBathroomElementSelected("Plato de ducha")}
-                              onCheckedChange={(checked) =>
-                                handleBathroomElementChange("Plato de ducha", checked === true)
-                              }
-                              className="h-3.5 w-3.5"
-                            />
-                            <Label htmlFor={`bathroomElement-platoDucha-${room.id}`} className="text-[10px] cursor-pointer">
-                              Plato ducha
-                            </Label>
-                          </div>
+                            return (
+                              <div
+                                key={element}
+                                className={`relative flex flex-col gap-2 p-2.5 rounded-xl border transition-all duration-200 ${isInstalled
+                                    ? "bg-primary/[0.03] border-primary/30 shadow-sm"
+                                    : "bg-background border-border hover:bg-muted/40"
+                                  }`}
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <Checkbox
+                                    disabled={isReadOnly}
+                                    id={`bathInstall-${element}-${room.id}`}
+                                    checked={isInstalled}
+                                    onCheckedChange={(checked) => handleBathroomElementInstall(element, checked === true)}
+                                    className="h-4 w-4 rounded-[4px] data-[state=checked]:bg-primary"
+                                  />
+                                  <Label
+                                    htmlFor={`bathInstall-${element}-${room.id}`}
+                                    className={`flex items-center gap-2 text-sm cursor-pointer select-none transition-colors ${isInstalled ? "font-semibold text-foreground" : "text-muted-foreground font-medium"
+                                      }`}
+                                  >
+                                    {getIcon()}
+                                    {element === "Ducheta Inodoro" ? "Ducheta Inod." : element}
+                                  </Label>
+                                </div>
 
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              disabled={isReadOnly}
-                              id={`bathroomElement-banera-${room.id}`}
-                              checked={isBathroomElementSelected("Bañera")}
-                              onCheckedChange={(checked) => handleBathroomElementChange("Bañera", checked === true)}
-                              className="h-3.5 w-3.5"
-                            />
-                            <Label htmlFor={`bathroomElement-banera-${room.id}`} className="text-[10px] cursor-pointer">
-                              Bañera
-                            </Label>
-                          </div>
-
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              disabled={isReadOnly}
-                              id={`bathroomElement-mampara-${room.id}`}
-                              checked={isBathroomElementSelected("Mampara")}
-                              onCheckedChange={(checked) => handleBathroomElementChange("Mampara", checked === true)}
-                              className="h-3.5 w-3.5"
-                            />
-                            <Label htmlFor={`bathroomElement-mampara-${room.id}`} className="text-[10px] cursor-pointer">
-                              Mampara
-                            </Label>
-                          </div>
-
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              disabled={isReadOnly}
-                              id={`bathroomElement-muebleLavabo-${room.id}`}
-                              checked={isBathroomElementSelected("Mueble lavabo")}
-                              onCheckedChange={(checked) =>
-                                handleBathroomElementChange("Mueble lavabo", checked === true)
-                              }
-                              className="h-3.5 w-3.5"
-                            />
-                            <Label
-                              htmlFor={`bathroomElement-muebleLavabo-${room.id}`}
-                              className="text-[10px] cursor-pointer"
-                            >
-                              Mueble lavabo
-                            </Label>
-                          </div>
+                                {/* Suministro en la parte inferior, anidado */}
+                                <div
+                                  className={`overflow-hidden transition-all duration-300 ease-in-out pl-7 ${isInstalled ? "max-h-12 opacity-100 mt-0.5" : "max-h-0 opacity-0 mt-0"
+                                    }`}
+                                >
+                                  <div className="flex items-center gap-2 bg-background border px-2.5 py-1.5 rounded-md shadow-sm w-max">
+                                    <Checkbox
+                                      disabled={isReadOnly}
+                                      id={`bathSupply-${element}-${room.id}`}
+                                      checked={elementIncludesSupply(element)}
+                                      onCheckedChange={(checked) => handleBathroomElementSupply(element, checked === true)}
+                                      className="h-3.5 w-3.5 rounded-[3px]"
+                                    />
+                                    <Label
+                                      htmlFor={`bathSupply-${element}-${room.id}`}
+                                      className="text-[11px] text-muted-foreground cursor-pointer select-none font-medium"
+                                    >
+                                      + Material
+                                    </Label>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      )}
-                    </div>
+                      )}                    </div>
                   )}
                 </>
               )}

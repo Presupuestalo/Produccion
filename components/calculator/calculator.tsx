@@ -238,6 +238,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   const lastSavedHashRef = useRef<string>("")
   const isInitialLoadRef = useRef<boolean>(true)
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "unsaved">("saved")
+  const [usingFallbackPlan, setUsingFallbackPlan] = useState(false)
   const hasCompletedInitialLoadRef = useRef<boolean>(false)
   const isSavingRef = useRef<boolean>(false)
   const pendingSaveRef = useRef<boolean>(false)
@@ -2102,24 +2103,6 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       const beforePlan = await getProjectFloorPlanData(projectId, "before")
       const afterPlan = await getProjectFloorPlanData(projectId, "after")
 
-      // Si estamos en reforma y no hay plano de reforma, advertir
-      if (activeTab === "reform" && !afterPlan) {
-        if (beforePlan) {
-          toast({
-            title: "Plano de reforma no encontrado",
-            description: "No hay un plano 'Reforma' guardado. Se usarán los datos del plano 'Actual' como base.",
-            variant: "default",
-          })
-        } else {
-          toast({
-            title: "Planos no encontrados",
-            description: "No se encontró ningún plano guardado para este proyecto.",
-            variant: "destructive",
-          })
-          return
-        }
-      }
-
       if (!beforePlan && !afterPlan) {
         toast({
           title: "Planos no encontrados",
@@ -2129,28 +2112,57 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         return
       }
 
-      const demolitionRooms = beforePlan?.data && (activeTab === "demolition" || activeTab === "summary" || activeTab === "presupuesto")
-        ? mapEditorRoomsToCalculator(beforePlan.data, true)
-        : []
-      const reformRoomsResult = afterPlan?.data && (activeTab === "reform" || activeTab === "summary" || activeTab === "presupuesto")
-        ? mapEditorRoomsToCalculator(afterPlan.data, false)
-        : []
+      const hasOnlyOnePlan = (beforePlan && !afterPlan) || (!beforePlan && afterPlan)
+      const sourcePlanToUse = beforePlan || afterPlan // El único que exista de los dos, o Before si existen ambos
+
+      // Definir qué datos usamos para cada fase basados en qué planos existen
+      let demolitionRooms: any[] = []
+      let reformRoomsResult: any[] = []
+
+      if (hasOnlyOnePlan) {
+        // SCENARIO: Solo existe un plano. Se usa para ambas fases.
+        setUsingFallbackPlan(true)
+
+        if (activeTab === "demolition" || activeTab === "summary" || activeTab === "presupuesto" || activeTab === "reform") {
+          demolitionRooms = sourcePlanToUse?.data ? mapEditorRoomsToCalculator(sourcePlanToUse.data, true) : []
+          reformRoomsResult = sourcePlanToUse?.data ? mapEditorRoomsToCalculator(sourcePlanToUse.data, false) : []
+        }
+
+        toast({
+          title: "ℹ️ Importando plano único",
+          description: `Solo tienes un plano en este proyecto. Se importarán sus medidas tanto para demoliciones como para reformas.`,
+          variant: "default",
+        })
+      } else {
+        // SCENARIO NORMAL: Existen ambos planos.
+        setUsingFallbackPlan(false)
+
+        demolitionRooms = beforePlan?.data && (activeTab === "demolition" || activeTab === "summary" || activeTab === "presupuesto")
+          ? mapEditorRoomsToCalculator(beforePlan.data, true)
+          : []
+
+        reformRoomsResult = afterPlan?.data && (activeTab === "reform" || activeTab === "summary" || activeTab === "presupuesto")
+          ? mapEditorRoomsToCalculator(afterPlan.data, false)
+          : []
+      }
 
       // Calculate counts for doors and windows in the relevant plan
       let doorsCount = 0
       let windowsCount = 0
 
-      if (activeTab === "reform" && afterPlan?.data) {
-        doorsCount = afterPlan.data.doors?.length || 0
-        windowsCount = afterPlan.data.windows?.length || 0
-      } else if (beforePlan?.data) {
-        doorsCount = beforePlan.data.doors?.length || 0
-        windowsCount = beforePlan.data.windows?.length || 0
+      // Priorizar contar del plano origen o del "después" para reformas si existen ambos
+      const planToCountFrom = hasOnlyOnePlan ? sourcePlanToUse : (activeTab === "reform" ? afterPlan : beforePlan)
+
+      if (planToCountFrom?.data) {
+        doorsCount = planToCountFrom.data.doors?.length || 0
+        windowsCount = planToCountFrom.data.windows?.length || 0
       }
 
       setPendingDoorsCount(doorsCount)
       setPendingWindowsCount(windowsCount)
-      setImportTarget(activeTab === "reform" ? "reform" : activeTab === "demolition" ? "demolition" : "both")
+
+      // Si usas un único plano para ambas fases, forzamos target a "both" para que se rellenen las dos pestañas de la app
+      setImportTarget(hasOnlyOnePlan ? "both" : (activeTab === "reform" ? "reform" : activeTab === "demolition" ? "demolition" : "both"))
 
       if (demolitionRooms.length === 0 && reformRoomsResult.length === 0) {
         toast({
@@ -3197,6 +3209,16 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                   <p className="text-[10px] text-slate-500 font-medium pt-2 border-t mt-1">
                     ℹ️ Las ventanas se importarán en material <b>PVC</b>, como <b>Sencillas/Dobles</b> (según el plano), con apertura <b>Oscilo-Batiente</b>, color <b>Blanco</b> y <b>con Persiana</b> por defecto.
                   </p>
+
+                  {usingFallbackPlan && (
+                    <div className="bg-blue-50/80 border border-blue-200 p-2.5 rounded text-blue-800 mt-2 flex items-start gap-2">
+                      <span className="text-blue-500 mt-0.5">ℹ️</span>
+                      <p className="font-medium text-[11px] leading-tight">
+                        Solo se ha detectado <b>un plano disponible</b> en el proyecto. Sus medidas se utilizarán como base común para rellenar simultáneamente las habitaciones de las fases de Demolición y de Reforma. Comprueba los datos y modifícalos a mano cuando difieran.
+                      </p>
+                    </div>
+                  )}
+
                   <p className="text-[10px] text-amber-600 font-medium pt-1">
                     ⚠️ Se sobrescribirán los datos actuales de esta sección.
                   </p>
