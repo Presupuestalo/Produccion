@@ -400,3 +400,96 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
         }
     })
 }
+
+// === LÓGICA DE DETECCIÓN DE TABIQUES (DERRIBO Y NUEVA CONSTRUCCIÓN) ===
+// Comparamos muros de Antes vs Después para calcular metros cuadrados de diferencia.
+
+export function calculateWallDifferences(beforeData: EditorData | null, afterData: EditorData | null, defaultHeight: number = 2.50): { demolishedM2: number, newConstructedM2: number } {
+    if (!beforeData?.walls || !afterData?.walls) return { demolishedM2: 0, newConstructedM2: 0 }
+
+    const tol = 10.0 // Tolerancia en cm para considerar que dos puntos son el mismo
+
+    const isSameWallPoint = (p1: any, p2: any) => {
+        return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < tol
+    }
+
+    // Calcula la longitud en metros de un muro
+    const wallLengthM = (w: any) => {
+        return Math.sqrt(Math.pow(w.end.x - w.start.x, 2) + Math.pow(w.end.y - w.start.y, 2)) / 100 // asumiendo coords en cm
+    }
+
+    // Identificar muros del "Antes" geométricamente
+    let demolishedLengthM = 0
+    let newLengthM = 0
+
+    // Muros "Antes" que NO existen en el "Después" -> Demolidos
+    beforeData.walls.forEach(wBefore => {
+        // En lugar de comparar solo vértices, que pueden estar cortados,
+        // haríamos una comparación de intersección, pero por eficiencia y casuísticas complejas
+        // hacemos un chequeo heurístico simplificado:
+        // Buscamos si todo el segmento wBefore está cubierto por segmentos en afterData
+
+        // Enfoque robusto simplificado para presupuestos:
+        // Comparamos si un muro de antes tiene al menos un muro colineal montado encima en el "después".
+        // Si no detecta nada encima, es que se demolió por completo.
+
+        let foundOverlap = false
+
+        // Helper para ver si un punto p está sobre un segmento a-b
+        const isPointOnSegment = (p: any, a: any, b: any, tolerance = 5.0) => {
+            const dist = Math.sqrt(Math.pow(b.x - a.x, 2) + Math.pow(b.y - a.y, 2))
+            if (dist < 0.1) return false
+            const crossProduct = Math.abs((p.y - a.y) * (b.x - a.x) - (p.x - a.x) * (b.y - a.y))
+            if (crossProduct / dist > tolerance) return false
+            const dotProduct = (p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)
+            if (dotProduct < -tolerance) return false
+            if (dotProduct > dist * dist + tolerance) return false
+            return true
+        }
+
+        const midPoint = {
+            x: (wBefore.start.x + wBefore.end.x) / 2,
+            y: (wBefore.start.y + wBefore.end.y) / 2
+        }
+
+        const overlapWall = afterData.walls.find(wAfter =>
+            isPointOnSegment(midPoint, wAfter.start, wAfter.end, 8.0)
+        )
+
+        if (!overlapWall) {
+            demolishedLengthM += wallLengthM(wBefore)
+        }
+    })
+
+    // Muros "Después" que NO existen en el "Antes" -> Construidos
+    afterData.walls.forEach(wAfter => {
+        const isPointOnSegment = (p: any, a: any, b: any, tolerance = 5.0) => {
+            const dist = Math.sqrt(Math.pow(b.x - a.x, 2) + Math.pow(b.y - a.y, 2))
+            if (dist < 0.1) return false
+            const crossProduct = Math.abs((p.y - a.y) * (b.x - a.x) - (p.x - a.x) * (b.y - a.y))
+            if (crossProduct / dist > tolerance) return false
+            const dotProduct = (p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)
+            if (dotProduct < -tolerance) return false
+            if (dotProduct > dist * dist + tolerance) return false
+            return true
+        }
+
+        const midPoint = {
+            x: (wAfter.start.x + wAfter.end.x) / 2,
+            y: (wAfter.start.y + wAfter.end.y) / 2
+        }
+
+        const overlapWall = beforeData.walls.find(wBefore =>
+            isPointOnSegment(midPoint, wBefore.start, wBefore.end, 8.0)
+        )
+
+        if (!overlapWall) {
+            newLengthM += wallLengthM(wAfter)
+        }
+    })
+
+    return {
+        demolishedM2: parseFloat((demolishedLengthM * defaultHeight).toFixed(2)),
+        newConstructedM2: parseFloat((newLengthM * defaultHeight).toFixed(2))
+    }
+}

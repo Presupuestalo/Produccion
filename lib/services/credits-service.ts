@@ -16,7 +16,7 @@ export async function getUserCreditsBalance(): Promise<number> {
     .from("company_credits")
     .select("credits_balance")
     .eq("company_id", user.id)
-    .single()
+    .maybeSingle()
 
   if (error || !data) {
     return 0

@@ -56,7 +56,15 @@ export function WindowManager({ windows, updateWindows }: WindowManagerProps) {
   }
 
   // Función para eliminar una ventana
-  const removeWindow = (id: string) => {
+  const removeWindow = async (id: string) => {
+    // 1. Eliminar fotos en el servidor (fire and forget)
+    fetch("/api/window-photos/delete-by-window", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ windowId: id }),
+    }).catch(e => console.error("No se pudo limpiar el bucket para ventana eliminada", e))
+
+    // 2. Eliminar del estado UI
     const updatedWindows = windows.filter((window) => window.id !== id)
     updateWindows(updatedWindows)
   }

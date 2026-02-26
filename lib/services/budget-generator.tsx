@@ -641,6 +641,14 @@ export class BudgetGenerator {
       this.addLineItem("01-D-12", totalDoorsRemoval, "Desmontaje de puertas y marcos")
     }
 
+    // === NUEVO: Derribo de tabiques detectado automáticamente del plano ===
+    const globalConfig = this.calculatorData.globalConfig || {}
+    const autoDemolishedWallsM2 = globalConfig.demolishedWallAreaM2 || 0
+    if (autoDemolishedWallsM2 > 0) {
+      console.log(`[v0] BudgetGenerator - Generando partida automática de plano: Demolición de tabiquería ${autoDemolishedWallsM2} m²`)
+      this.addLineItem("01-D-01", autoDemolishedWallsM2, "Demolición de tabiquería interior (Autodetectado)")
+    }
+
     if (this.totalDoubleDoorsRemoval > 0) {
       console.log(`[v0] BudgetGenerator - Generando partida: Desmontaje de puertas dobles ${this.totalDoubleDoorsRemoval} ud`)
       this.addLineItem("01-D-21", this.totalDoubleDoorsRemoval, "Desmontaje de puerta doble abatible")
@@ -1114,8 +1122,12 @@ export class BudgetGenerator {
     }
 
     // 03-T-02: Tabiques de placa de yeso laminado (PYL) doble cara
-    if (plasterboardPartitionsArea > 0) {
-      this.addLineItem("03-T-02", plasterboardPartitionsArea, "Tabiques de Placa de yeso laminado (PYL) doble cara")
+    const globalConfig = this.calculatorData.globalConfig || {}
+    const autoNewConstructedWallM2 = globalConfig.newConstructedWallAreaM2 || 0
+
+    const finalPlasterboardArea = plasterboardPartitionsArea + autoNewConstructedWallM2
+    if (finalPlasterboardArea > 0) {
+      this.addLineItem("03-T-02", finalPlasterboardArea, "Tabiques de Placa de yeso laminado (PYL) doble cara")
     }
 
     // 03-T-03: Trasdosado autoportante en Placa de yeso laminado (Price 67.90)

@@ -40,7 +40,11 @@ import {
   getPartitions,
   getWallLinings,
 } from "@/lib/services/calculator-service"
-import { getProjectFloorPlanData, mapEditorRoomsToCalculator } from "@/lib/services/floor-plan-sync-service"
+import {
+  getProjectFloorPlanData,
+  mapEditorRoomsToCalculator,
+  calculateWallDifferences,
+} from "@/lib/services/floor-plan-sync-service"
 import { getSupabase } from "@/lib/supabase/client"
 import { canAddRoom } from "@/lib/services/subscription-limits-service"
 import { InfoIcon, Download } from "lucide-react"
@@ -494,6 +498,12 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   const [pendingReformRooms, setPendingReformRooms] = useState<Room[]>([])
   const [pendingDoorsCount, setPendingDoorsCount] = useState(0)
   const [pendingWindowsCount, setPendingWindowsCount] = useState(0)
+  const [externalShuntsCount, setExternalShuntsCount] = useState<number>(0)
+
+  // Estado para las diferencias geométricas de la tabiquería detectada entre planos
+  const [demolishedWallAreaM2, setDemolishedWallAreaM2] = useState<number>(0)
+  const [newConstructedWallAreaM2, setNewConstructedWallAreaM2] = useState<number>(0)
+
   const [importTarget, setImportTarget] = useState<"demolition" | "reform" | "both">("both")
 
   // Calculate Demolition Summary and Debris
@@ -577,10 +587,6 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               `[v0] ${room.type} ${room.number} - Sin superficie de pared cerámica calculada (área: ${room.area})`,
             )
           }
-        } else {
-          console.log(
-            `[v0] ${room.type} ${room.number} - NO picado paredes (removeWallTiles: ${room.removeWallTiles}, wallMaterial: ${room.wallMaterial})`,
-          )
         }
         // </CHANGE>
 
@@ -933,7 +939,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         type: r.type,
         f: r.floorMaterial,
         w: r.wallMaterial,
-        win: Array.isArray(r.windows) ? r.windows.map(w => ({ id: w.id, t: w.type })) : [],
+        win: Array.isArray(r.windows) ? r.windows.map(w => ({ id: w.id, t: w.type, w: w.width, h: w.height, p: w.price, m: w.material, o: w.opening, g: w.glassType })) : [],
         elec: Array.isArray(r.electricalElements) ? r.electricalElements.map(e => ({ id: e.id, q: e.quantity })) : []
       })),
       reformRooms: reformRooms.map(r => ({
@@ -943,7 +949,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         type: r.type,
         f: r.floorMaterial,
         w: r.wallMaterial,
-        win: Array.isArray(r.windows) ? r.windows.map(w => ({ id: w.id, t: w.type })) : [],
+        win: Array.isArray(r.windows) ? r.windows.map(w => ({ id: w.id, t: w.type, w: w.width, h: w.height, p: w.price, m: w.material, o: w.opening, g: w.glassType })) : [],
         elec: Array.isArray(r.electricalElements) ? r.electricalElements.map(e => ({ id: e.id, q: e.quantity })) : []
       })),
       partitions: partitions.map(p => ({ id: p.id, l: p.linearMeters, t: p.thickness })),
@@ -1104,7 +1110,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     wallLinings,
     calculateStateHash,
     isLoadingFromDB,
-    isV2Budget,
+    isV2Budget
   ])
 
   // Filtrar habitaciones para mostrar en la lista (ocultar "Otras ventanas")
@@ -1840,7 +1846,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
   const updateRoom = useCallback(
     (roomId: string, updatedRoomData: Partial<Room>) => {
-      // Actualizamos en ambas listas. 
+      // Actualizamos en ambas listas.
       // Si la habitación existe en una de ellas, se actualizará.
       // Si no, la lista permanecerá igual sin provocar re-renders innecesarios.
       setRooms((prev) => {
@@ -2026,10 +2032,16 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     setSaveStatus(forceSave ? "saving" : "saving") // Cambia a "saving" para indicar actividad
 
     try {
+      const enhancedDemolitionConfig = {
+        ...demolitionConfig,
+        demolishedWallAreaM2,
+        newConstructedWallAreaM2
+      }
+
       const dataToSave = {
         rooms,
         reformRooms,
-        demolitionConfig,
+        demolitionConfig: enhancedDemolitionConfig,
         reformConfig,
         demolitionSettings,
         electricalConfig,
@@ -2065,7 +2077,11 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                 electrical: {
                   config: electricalConfig,
                 },
-                globalConfig: demolitionConfig,
+                globalConfig: {
+                  ...demolitionConfig,
+                  demolishedWallAreaM2,
+                  newConstructedWallAreaM2
+                },
               }
               await BudgetService.syncRealtimeBudget(projectId, user.id, calculatorDataForSync, supabase)
               console.log("[v0] Sincronización de presupuesto V2 completada")
@@ -2160,6 +2176,26 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
       setPendingDoorsCount(doorsCount)
       setPendingWindowsCount(windowsCount)
+      // === NUEVO: Calcular áreas de tabiquería derribada y construida ===
+      if (!hasOnlyOnePlan && beforePlan?.data && afterPlan?.data) {
+        // En proyectos con dos planos (Antes y Después), comparamos la cantidad de metros de pared
+        // detectando aquellos que desaparecieron o se añadieron nuevos
+        const wallDiffData = calculateWallDifferences(beforePlan.data, afterPlan.data)
+        setDemolishedWallAreaM2(wallDiffData.demolishedM2)
+        setNewConstructedWallAreaM2(wallDiffData.newConstructedM2)
+
+        if (wallDiffData.demolishedM2 > 0 || wallDiffData.newConstructedM2 > 0) {
+          toast({
+            title: "Tabiquería modificada",
+            description: `Se han detectado cambios de distribución espacial: ${wallDiffData.demolishedM2}m² a demoler y ${wallDiffData.newConstructedM2}m² de nueva construcción.`,
+            variant: "default",
+          })
+        }
+      } else {
+        // Si solo hay un plano, no hay cambios de tabiquería calculables
+        setDemolishedWallAreaM2(0)
+        setNewConstructedWallAreaM2(0)
+      }
 
       // Si usas un único plano para ambas fases, forzamos target a "both" para que se rellenen las dos pestañas de la app
       setImportTarget(hasOnlyOnePlan ? "both" : (activeTab === "reform" ? "reform" : activeTab === "demolition" ? "demolition" : "both"))
@@ -2227,18 +2263,21 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       // Detección mejorada de cerámica (si viene marcada en el plano o por tipo de estancia)
       const hasCeramicDetected = room.removeWallTiles || isBathroomOrKitchen
 
+      // Búsqueda de habitación preexistente para prevenir borrado de UUID y de ventanas/puertas ya cargadas o manipuladas
+      const existingRoom = rooms.find((r) => r.type === room.type && r.number === room.number)
+
       return {
         ...room,
-        id: uuidv4(),
+        id: existingRoom ? existingRoom.id : uuidv4(),
         floorMaterial: room.floorMaterial || ((isBathroomOrKitchen || isTerrace || room.removeFloor ? "Cerámica" : "Madera") as FloorMaterialType),
         wallMaterial: room.wallMaterial || ((isTerrace ? "No se modifica" : hasCeramicDetected ? "Cerámica" : "Pintura") as WallMaterialType),
         removeWallTiles: room.removeWallTiles !== undefined ? room.removeWallTiles : hasCeramicDetected,
         removeFloor: room.removeFloor !== undefined ? room.removeFloor : (isBathroomOrKitchen || isTerrace || room.removeFloor ? true : false),
         hasDoors: true,
-        doorList: room.doorList || [{ id: uuidv4(), type: "Abatible", width: 0.72, height: 2.03 }],
-        windows: room.windows || [],
+        doorList: existingRoom ? existingRoom.doorList : (room.doorList || [{ id: uuidv4(), type: "Abatible", width: 0.72, height: 2.03 }]),
+        windows: existingRoom ? existingRoom.windows : (room.windows || []),
         name: room.name || `${room.type} ${room.number}`,
-        doors: room.doors || (room.doorList?.length || 1),
+        doors: existingRoom ? (existingRoom.doors || existingRoom.doorList?.length || 1) : (room.doors || room.doorList?.length || 1),
         falseCeiling: room.falseCeiling || false,
         moldings: room.moldings || false,
         measurementMode: room.measurementMode || "rectangular",
@@ -2264,14 +2303,18 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         normalizedType.includes("bano") || normalizedType.includes("cocina") || normalizedType.includes("aseo")
       const isTerrace = normalizedType.includes("terraza")
 
+      // Búsqueda de habitación preexistente para prevenir borrado de UUID y de ventanas ya manipuladas
+      const existingRoom = reformRooms.find((r) => r.type === room.type && r.number === room.number)
+
       return {
         ...room,
-        id: uuidv4(),
+        id: existingRoom ? existingRoom.id : uuidv4(),
         floorMaterial: room.floorMaterial || ((isBathroomOrKitchen || isTerrace ? "Cerámico" : "Parquet flotante") as FloorMaterialType),
         wallMaterial: room.wallMaterial || ((isTerrace ? "No se modifica" : isBathroomOrKitchen ? "Cerámica" : "Lucir y pintar") as WallMaterialType),
-        windows: room.windows || [],
+        doorList: existingRoom ? existingRoom.doorList : room.doorList,
+        windows: existingRoom ? existingRoom.windows : (room.windows || []),
         name: room.name || `${room.type} ${room.number}`,
-        doors: room.doors || (room.doorList?.length || 0),
+        doors: existingRoom ? (existingRoom.doors || existingRoom.doorList?.length || 0) : (room.doors || room.doorList?.length || 0),
         falseCeiling: room.falseCeiling || false,
         moldings: room.moldings || false,
         measurementMode: room.measurementMode || "rectangular",
@@ -3202,6 +3245,20 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                       <p className="flex justify-between">
                         <span>Ventanas:</span>
                         <span className="font-bold">{pendingWindowsCount}</span>
+                      </p>
+                    )}
+
+                    {(!usingFallbackPlan && demolishedWallAreaM2 > 0) && (
+                      <p className="flex justify-between text-amber-700">
+                        <span>Derribo de tabiques:</span>
+                        <span className="font-bold">~{demolishedWallAreaM2} m²</span>
+                      </p>
+                    )}
+
+                    {(!usingFallbackPlan && newConstructedWallAreaM2 > 0) && (
+                      <p className="flex justify-between text-emerald-700">
+                        <span>Tabiques nuevos (Pladur):</span>
+                        <span className="font-bold">~{newConstructedWallAreaM2} m²</span>
                       </p>
                     )}
                   </div>

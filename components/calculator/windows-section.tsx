@@ -643,8 +643,6 @@ export function WindowsSection({
     const parsedValue = Number.parseFloat(value.replace(",", "."))
 
     if (!isNaN(parsedValue) && parsedValue > 0) {
-      updateWindow(roomId, windowId, { [dimension]: parsedValue })
-
       const room = validRooms.find((r) => r.id === roomId)
       if (room) {
         const window = room.windows?.find((w) => w.id === windowId)
@@ -655,15 +653,20 @@ export function WindowsSection({
 
           const country = userProfile?.country || "ES"
           const pricePerSqm = WINDOW_PRICE_PER_SQM[country] || WINDOW_PRICE_PER_SQM.default
-          const estimatedPrice = sqm * pricePerSqm
+          const estimatedPrice = Math.round(sqm * pricePerSqm)
+
+          const windowUpdates: Partial<Window> = { [dimension]: parsedValue }
 
           if (window.price === 0 || !window.price) {
-            updateWindow(roomId, windowId, { price: estimatedPrice })
+            windowUpdates.price = estimatedPrice
+
             setPriceInputs((prev) => ({
               ...prev,
               [windowId]: estimatedPrice.toFixed(2).replace(".", ","),
             }))
           }
+
+          updateWindow(roomId, windowId, windowUpdates)
         }
       }
 
