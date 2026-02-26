@@ -230,251 +230,250 @@ export default function ProjectPage() {
   }
 
   return (
-    <div className="flex flex-col gap-3 py-2 border-b">
-      {/* Container for Identity and Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 min-w-0 px-1">
+    <TooltipProvider>
+      <div className="flex flex-col gap-4 py-3 border-b">
+        {/* Main Header Container: Identity + Actions */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 px-1">
 
-        {/* Identity Block */}
-        <div className="flex items-start gap-2 min-w-0 flex-1">
-          <Button asChild variant="ghost" size="icon" className="shrink-0 h-8 w-8 -ml-2">
-            <Link href="/dashboard/projects">
-              <ArrowLeft className="h-4 w-4" />
-              <span className="sr-only">Volver</span>
-            </Link>
-          </Button>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight truncate leading-tight">
-              {project?.title || project?.name || "Proyecto sin nombre"}
-            </h1>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-1">
-              <div className="text-[13px] font-medium text-slate-700 truncate leading-none flex items-center gap-2">
-                Cliente: <span className="text-muted-foreground font-normal">{project?.client || project?.client_name || "Sin cliente"}</span>
-                {project?.status && (
-                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 border-none shadow-none ${project.status === "Borrador" || String(project.status).toLowerCase() === "draft" ? "bg-slate-100 text-slate-600" :
-                    project.status === "Entregado" || String(project.status).toLowerCase() === "sent" ? "bg-blue-100 text-blue-600" :
-                      project.status === "Aceptado" || String(project.status).toLowerCase() === "approved" ? "bg-green-100 text-green-600" :
-                        project.status === "En Obra" || String(project.status).toLowerCase() === "in_progress" ? "bg-orange-100 text-orange-600" :
-                          project.status === "Terminado" || String(project.status).toLowerCase() === "completed" ? "bg-purple-100 text-purple-600" :
-                            "bg-slate-100 text-slate-600"
-                    }`}>
-                    {String(project.status).toUpperCase()}
-                  </Badge>
-                )}
-              </div>
-              <div className="hidden sm:block w-1 h-1 rounded-full bg-slate-200" />
-              <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground leading-none">
-                {project?.ceiling_height && (
-                  <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100 italic">Alt: {project.ceiling_height}m</span>
-                )}
-                {project?.structure_type && (
-                  <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100">{project.structure_type}</span>
-                )}
-                {project?.has_elevator && (
-                  <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100 font-medium">
-                    Asc: {project.has_elevator === "Si" || project.has_elevator === "Sí" || project.has_elevator === true || project.has_elevator === "true" ? "Sí" : "No"}
-                  </span>
-                )}
+          {/* Identity Block (Left side on desktop, Top on mobile) */}
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <Button asChild variant="ghost" size="icon" className="shrink-0 h-9 w-9 -ml-2">
+              <Link href="/dashboard/projects">
+                <ArrowLeft className="h-5 w-5" />
+                <span className="sr-only">Volver</span>
+              </Link>
+            </Button>
+            <div className="min-w-0 flex-1 space-y-1">
+              <h1 className="text-xl md:text-2xl font-bold tracking-tight truncate leading-tight">
+                {project?.title || project?.name || "Proyecto sin nombre"}
+              </h1>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-1.5">
+                <div className="text-[13px] font-medium text-slate-700 truncate leading-none flex items-center gap-2">
+                  Cliente: <span className="text-muted-foreground font-normal">{project?.client || project?.client_name || "Sin cliente"}</span>
+                  {project?.status && (
+                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 border-none shadow-none ${project.status === "Borrador" || String(project.status).toLowerCase() === "draft" ? "bg-slate-100 text-slate-600" :
+                      project.status === "Entregado" || String(project.status).toLowerCase() === "sent" ? "bg-blue-100 text-blue-600" :
+                        project.status === "Aceptado" || String(project.status).toLowerCase() === "approved" ? "bg-green-100 text-green-600" :
+                          project.status === "En Obra" || String(project.status).toLowerCase() === "in_progress" ? "bg-orange-100 text-orange-600" :
+                            project.status === "Terminado" || String(project.status).toLowerCase() === "completed" ? "bg-purple-100 text-purple-600" :
+                              "bg-slate-100 text-slate-600"
+                      }`}>
+                      {String(project.status).toUpperCase()}
+                    </Badge>
+                  )}
+                </div>
+                <div className="hidden sm:block w-1 h-1 rounded-full bg-slate-200" />
+                <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground leading-none">
+                  {project?.ceiling_height && (
+                    <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100 italic">Alt: {project.ceiling_height}m</span>
+                  )}
+                  {project?.structure_type && (
+                    <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100">{project.structure_type}</span>
+                  )}
+                  {project?.has_elevator && (
+                    <span className="bg-slate-50 px-1 py-0.5 rounded border border-slate-100 font-medium">
+                      Asc: {project.has_elevator === "Si" || project.has_elevator === "Sí" || project.has_elevator === true || project.has_elevator === "true" ? "Sí" : "No"}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Actions Block */}
-        <div className="flex flex-col items-end gap-2 shrink-0">
-          <div className="flex items-center gap-2">
+          {/* Actions Block (Right side on desktop, Bottom on mobile) */}
+          <div className="flex items-center justify-between md:justify-end gap-3 shrink-0 w-full md:w-auto mt-2 md:mt-0">
             {project?.user_type !== "owner" && (
-              <div className="flex items-center gap-2 mr-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={async () => {
-                          if (window.confirm("¿Seguro que quieres duplicar este proyecto?")) {
-                            setIsLoading(true);
-                            try {
-                              const { duplicateProject } = await import("@/lib/services/project-service");
-                              const newId = await duplicateProject(projectId);
-                              router.push(`/dashboard/projects/${newId}`);
-                              toast({ title: "Proyecto duplicado", description: "Se ha creado una copia de este proyecto." });
-                            } catch (e: any) {
-                              toast({ variant: "destructive", title: "Error", description: e.message || "No se pudo duplicar el proyecto" });
-                            } finally {
-                              setIsLoading(false);
-                            }
+              <div className="flex items-center gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={async () => {
+                        if (window.confirm("¿Seguro que quieres duplicar este proyecto?")) {
+                          setIsLoading(true);
+                          try {
+                            const { duplicateProject } = await import("@/lib/services/project-service");
+                            const newId = await duplicateProject(projectId);
+                            router.push(`/dashboard/projects/${newId}`);
+                            toast({ title: "Proyecto duplicado", description: "Se ha creado una copia de este proyecto." });
+                          } catch (e: any) {
+                            toast({ variant: "destructive", title: "Error", description: e.message || "No se pudo duplicar el proyecto" });
+                          } finally {
+                            setIsLoading(false);
                           }
-                        }}
-                        disabled={isLoading}
-                        className="h-9 w-9 text-slate-500 hover:text-orange-600 hover:bg-orange-50 hover:border-orange-200 transition-all shadow-sm border-slate-200 shrink-0"
-                      >
-                        <Copy className="h-4 w-4" />
-                        <span className="sr-only">Duplicar</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent align="end">
-                      <p>Duplicar proyecto</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                        }
+                      }}
+                      disabled={isLoading}
+                      className="h-10 w-10 text-slate-500 hover:text-orange-600 hover:bg-orange-50 hover:border-orange-200 transition-all shadow-sm border-slate-200 shrink-0"
+                    >
+                      <Copy className="h-5 w-5" />
+                      <span className="sr-only">Duplicar</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent align="end">
+                    <p>Duplicar proyecto</p>
+                  </TooltipContent>
+                </Tooltip>
 
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button asChild variant="outline" size="icon" className="h-9 w-9 text-slate-500 hover:text-orange-600 hover:bg-orange-50 hover:border-orange-200 transition-all shadow-sm border-slate-200 shrink-0">
-                        <Link href={`/dashboard/projects/${projectId}/edit`}>
-                          <Settings className="h-4 w-4" />
-                          <span className="sr-only">Ajustes</span>
-                        </Link>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent align="end">
-                      <p>Ajustes del proyecto</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button asChild variant="outline" size="icon" className="h-10 w-10 text-slate-500 hover:text-orange-600 hover:bg-orange-50 hover:border-orange-200 transition-all shadow-sm border-slate-200 shrink-0">
+                      <Link href={`/dashboard/projects/${projectId}/edit`}>
+                        <Settings className="h-5 w-5" />
+                        <span className="sr-only">Ajustes</span>
+                      </Link>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent align="end">
+                    <p>Ajustes del proyecto</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
             )}
 
-            {/* Status Button */}
-            <div className="flex items-center gap-2">
-              {project?.status && (String(project.status) === "approved" || String(project.status) === "Aceptado" || String(project.status) === "aceptado") && (
-                <Button
-                  size="sm"
-                  onClick={() => handleStatusChange("En Obra")}
-                  disabled={isLoading}
-                  className="bg-orange-500 hover:bg-orange-600 text-white font-bold gap-1.5 h-9 px-3 rounded-lg shadow-sm transition-all active:scale-95 text-xs"
-                >
-                  {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Hammer className="h-3 w-3" />}
-                  <span>EMPEZAR OBRA</span>
-                </Button>
-              )}
+            {/* Status Button and Note */}
+            <div className="flex flex-col items-end gap-1.5">
+              <div className="flex items-center gap-2">
+                {project?.status && (String(project.status) === "approved" || String(project.status) === "Aceptado" || String(project.status) === "aceptado") && (
+                  <Button
+                    size="sm"
+                    onClick={() => handleStatusChange("En Obra")}
+                    disabled={isLoading}
+                    className="bg-orange-500 hover:bg-orange-600 text-white font-bold gap-1.5 h-10 px-4 rounded-xl shadow-sm transition-all active:scale-95 text-xs"
+                  >
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hammer className="h-4 w-4" />}
+                    <span>EMPEZAR OBRA</span>
+                  </Button>
+                )}
 
-              {project?.status && (project.status === "En Obra" || String(project.status) === "en_obra") && (
-                <Button
-                  size="sm"
-                  onClick={() => handleStatusChange("Terminado")}
-                  disabled={isLoading}
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold gap-1.5 h-9 px-3 rounded-lg shadow-sm transition-all active:scale-95 text-xs"
-                >
-                  {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
-                  <span>TERMINAR</span>
-                </Button>
-              )}
+                {project?.status && (project.status === "En Obra" || String(project.status) === "en_obra") && (
+                  <Button
+                    size="sm"
+                    onClick={() => handleStatusChange("Terminado")}
+                    disabled={isLoading}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold gap-1.5 h-10 px-4 rounded-xl shadow-sm transition-all active:scale-95 text-xs"
+                  >
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                    <span>TERMINAR</span>
+                  </Button>
+                )}
 
-              {project?.status && (project.status === "Terminado" || String(project.status) === "Finalizado") && (
-                <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200 h-9 px-3 rounded-lg text-[10px] font-bold flex items-center gap-1.5">
-                  <CheckCircle className="h-3 w-3" />
-                  TERMINADO
-                </Badge>
+                {project?.status && (project.status === "Terminado" || String(project.status) === "Finalizado") && (
+                  <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200 h-10 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                    <CheckCircle className="h-4 w-4" />
+                    TERMINADO
+                  </Badge>
+                )}
+              </div>
+              {project?.status && (project.status === "Borrador" || String(project.status).toLowerCase() === "draft" || project.status === "Entregado" || String(project.status).toLowerCase() === "sent") && (
+                <p className="hidden lg:block text-[9px] text-muted-foreground italic px-2">
+                  * El estado cambia a "Aceptado" al aprobar un presupuesto
+                </p>
               )}
             </div>
           </div>
-          {project?.status && (project.status === "Borrador" || String(project.status).toLowerCase() === "draft" || project.status === "Entregado" || String(project.status).toLowerCase() === "sent") && (
-            <p className="hidden md:block text-[9px] text-muted-foreground italic px-2">
-              * El estado cambia a "Aceptado" al aprobar un presupuesto
-            </p>
-          )}
         </div>
-      </div>
 
-      {/* Row 2: Secondary Actions & Layout */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 border-slate-200 text-slate-600 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-all font-bold text-[11px] gap-1.5 px-3">
-                <Layout className="h-3.5 w-3.5" />
-                <span className="uppercase tracking-tight">Planos</span>
-                <ChevronDown className="h-3 w-3 opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
-              {linkedPlans.length > 0 && (
-                <>
+        {/* Row 2: Secondary Navigation and Budget Trigger */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-1">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 border-slate-200 text-slate-600 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-all font-bold text-[11px] gap-1.5 px-3">
+                  <Layout className="h-4 w-4" />
+                  <span className="uppercase tracking-tight">Planos</span>
+                  <ChevronDown className="h-3 w-3 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                {linkedPlans.length > 0 && (
+                  <>
+                    <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
+                      <Link href={`/dashboard/projects/${projectId}/plano`} className="flex items-center gap-2">
+                        <Eye className="h-4 w-4 opacity-70" />
+                        <span>Ver lista de planos</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                {beforePlan && (
                   <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
-                    <Link href={`/dashboard/projects/${projectId}/plano`} className="flex items-center gap-2">
-                      <Eye className="h-4 w-4 opacity-70" />
-                      <span>Ver lista de planos</span>
+                    <Link href={`/dashboard/editor-planos/editar/${beforePlan.id}`} className="flex items-center gap-2">
+                      <PencilRuler className="h-4 w-4 opacity-70" />
+                      <div className="flex flex-col">
+                        <span className="font-medium">Editar Plano ANTES</span>
+                        <span className="text-[10px] opacity-70">Estado actual del proyecto</span>
+                      </div>
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-              {beforePlan && (
+                )}
+                {afterPlan && (
+                  <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
+                    <Link href={`/dashboard/editor-planos/editar/${afterPlan.id}`} className="flex items-center gap-2">
+                      <PencilRuler className="h-4 w-4 opacity-70" />
+                      <div className="flex flex-col">
+                        <span className="font-medium">Editar Plano DESPUÉS</span>
+                        <span className="text-[10px] opacity-70">Propuesta de reforma</span>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {(beforePlan || afterPlan) && <DropdownMenuSeparator />}
                 <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
-                  <Link href={`/dashboard/editor-planos/editar/${beforePlan.id}`} className="flex items-center gap-2">
-                    <PencilRuler className="h-4 w-4 opacity-70" />
-                    <div className="flex flex-col">
-                      <span className="font-medium">Editar Plano ANTES</span>
-                      <span className="text-[10px] opacity-70">Estado actual del proyecto</span>
-                    </div>
+                  <Link href={`/dashboard/editor-planos/nuevo?projectId=${projectId}`} className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    <span className="font-bold uppercase text-[10px] tracking-tight">Crear Nuevo Plano</span>
                   </Link>
                 </DropdownMenuItem>
-              )}
-              {afterPlan && (
-                <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
-                  <Link href={`/dashboard/editor-planos/editar/${afterPlan.id}`} className="flex items-center gap-2">
-                    <PencilRuler className="h-4 w-4 opacity-70" />
-                    <div className="flex flex-col">
-                      <span className="font-medium">Editar Plano DESPUÉS</span>
-                      <span className="text-[10px] opacity-70">Propuesta de reforma</span>
-                    </div>
-                  </Link>
-                </DropdownMenuItem>
-              )}
-              {(beforePlan || afterPlan) && <DropdownMenuSeparator />}
-              <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
-                <Link href={`/dashboard/editor-planos/nuevo?projectId=${projectId}`} className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  <span className="font-bold uppercase text-[10px] tracking-tight">Crear Nuevo Plano</span>
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          <div className="h-3 w-px bg-slate-200 mx-0.5 hidden lg:block" />
+            <div className="h-4 w-px bg-slate-200 mx-1 hidden lg:block" />
 
-          <DualFloorPlanAnalyzer
-            projectId={projectId}
-            autoOpen={shouldOpenAnalyzer}
-            onRoomsDetected={(demolition, reform) => {
-              if (calculatorRef.current && "handleRoomsDetectedFromFloorPlan" in calculatorRef.current) {
-                calculatorRef.current.handleRoomsDetectedFromFloorPlan(demolition, reform)
-              }
-            }}
-          />
-
-          {isMaster && (
-            <ProjectGallery projectId={projectId} />
-          )}
-
-          {project?.user_type === "professional" && <PublishProjectButton project={project} />}
-        </div>
-
-        <div className="flex-1 md:flex-initial flex items-center justify-end">
-          {activeTab !== "presupuesto" && (
-            <Button
-              variant="default"
-              size="lg"
-              className="w-full md:w-auto md:px-12 bg-orange-600 hover:bg-orange-700 font-black h-10 shadow-lg shadow-orange-200/50 transition-all active:scale-95 text-xs uppercase tracking-widest rounded-xl border-b-2 border-orange-800"
-              onClick={() => {
-                if (calculatorRef.current && "setActiveTab" in calculatorRef.current) {
-                  calculatorRef.current.setActiveTab("presupuesto")
-                  setActiveTab("presupuesto")
+            <DualFloorPlanAnalyzer
+              projectId={projectId}
+              autoOpen={shouldOpenAnalyzer}
+              onRoomsDetected={(demolition, reform) => {
+                if (calculatorRef.current && "handleRoomsDetectedFromFloorPlan" in calculatorRef.current) {
+                  calculatorRef.current.handleRoomsDetectedFromFloorPlan(demolition, reform)
                 }
               }}
-            >
-              PRESUPUESTOS
-            </Button>
-          )}
+            />
+
+            {isMaster && (
+              <ProjectGallery projectId={projectId} />
+            )}
+
+            {project?.user_type === "professional" && <PublishProjectButton project={project} />}
+          </div>
+
+          {/* Large Primary Action: PRESUPUESTOS */}
+          <div className="w-full sm:w-auto flex items-center justify-center">
+            {activeTab !== "presupuesto" && (
+              <Button
+                variant="default"
+                size="lg"
+                className="w-full sm:w-auto sm:px-12 bg-orange-600 hover:bg-orange-700 font-black h-11 shadow-lg shadow-orange-200/50 transition-all active:scale-95 text-sm uppercase tracking-widest rounded-xl border-b-2 border-orange-800"
+                onClick={() => {
+                  if (calculatorRef.current && "setActiveTab" in calculatorRef.current) {
+                    calculatorRef.current.setActiveTab("presupuesto")
+                    setActiveTab("presupuesto")
+                  }
+                }}
+              >
+                PRESUPUESTOS
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Calculator Section */}
-      <div className="pt-1">
+      {/* Main Content: Calculator */}
+      <div className="pt-2">
         <Calculator ref={calculatorRef} projectId={projectId} onTabChange={setActiveTab} isV2Budget={true} />
       </div>
-    </div>
+    </TooltipProvider>
   )
 }
