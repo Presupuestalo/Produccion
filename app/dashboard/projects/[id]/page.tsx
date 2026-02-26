@@ -31,6 +31,7 @@ import { ProjectGallery } from "@/components/calculator/project-gallery"
 import { PublishProjectButton } from "@/components/professional-gallery/publish-project-button"
 import { isMasterUser } from "@/lib/services/auth-service"
 import { CompanyBrandingBlock } from "@/components/dashboard/company-branding-block"
+import { getSubscriptionLimits, type SubscriptionLimits } from "@/lib/services/subscription-limits-service"
 
 export default function ProjectPage() {
   const params = useParams()
@@ -47,6 +48,7 @@ export default function ProjectPage() {
   const [error, setError] = useState<string | null>(null)
   const [shouldOpenAnalyzer, setShouldOpenAnalyzer] = useState(false)
   const [isMaster, setIsMaster] = useState(false)
+  const [limits, setLimits] = useState<SubscriptionLimits | null>(null)
 
   const [linkedPlans, setLinkedPlans] = useState<{ id: string, variant: string }[]>([])
   const [activeTab, setActiveTab] = useState<string>("demolition")
@@ -67,6 +69,12 @@ export default function ProjectPage() {
       setIsMaster(masterStatus)
     }
     checkMaster()
+
+    async function fetchLimits() {
+      const subLimits = await getSubscriptionLimits()
+      setLimits(subLimits)
+    }
+    fetchLimits()
 
     const importPlans = searchParams.get("importPlans")
     if (importPlans === "true") {
@@ -280,6 +288,10 @@ export default function ProjectPage() {
             </div>
           </div>
 
+          <div className="hidden lg:flex flex-1 justify-center px-4">
+            <CompanyBrandingBlock userId={project?.user_id} />
+          </div>
+
           {/* Actions Block (Right side on desktop, Bottom on mobile) */}
           <div className="flex items-center justify-between md:justify-end gap-3 shrink-0 w-full md:w-auto mt-2 md:mt-0">
             {project?.user_type !== "owner" && (
@@ -378,69 +390,75 @@ export default function ProjectPage() {
         {/* Row 2: Secondary Navigation and Budget Trigger */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-1">
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9 border-slate-200 text-slate-600 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-all font-bold text-[11px] gap-1.5 px-3">
-                  <Layout className="h-4 w-4" />
-                  <span className="uppercase tracking-tight">Planos</span>
-                  <ChevronDown className="h-3 w-3 opacity-50" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                {linkedPlans.length > 0 && (
-                  <>
+            {(linkedPlans.length > 0 || limits?.aiFloorPlanUpload) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 border-slate-200 text-slate-600 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-all font-bold text-[11px] gap-1.5 px-3">
+                    <Layout className="h-4 w-4" />
+                    <span className="uppercase tracking-tight">Planos</span>
+                    <ChevronDown className="h-3 w-3 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  {linkedPlans.length > 0 && (
+                    <>
+                      <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
+                        <Link href={`/dashboard/projects/${projectId}/plano`} className="flex items-center gap-2">
+                          <Eye className="h-4 w-4 opacity-70" />
+                          <span>Ver lista de planos</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  {beforePlan && (
                     <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
-                      <Link href={`/dashboard/projects/${projectId}/plano`} className="flex items-center gap-2">
-                        <Eye className="h-4 w-4 opacity-70" />
-                        <span>Ver lista de planos</span>
+                      <Link href={`/dashboard/editor-planos/editar/${beforePlan.id}`} className="flex items-center gap-2">
+                        <PencilRuler className="h-4 w-4 opacity-70" />
+                        <div className="flex flex-col">
+                          <span className="font-medium">Editar Plano ANTES</span>
+                          <span className="text-[10px] opacity-70">Estado actual del proyecto</span>
+                        </div>
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-                {beforePlan && (
-                  <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
-                    <Link href={`/dashboard/editor-planos/editar/${beforePlan.id}`} className="flex items-center gap-2">
-                      <PencilRuler className="h-4 w-4 opacity-70" />
-                      <div className="flex flex-col">
-                        <span className="font-medium">Editar Plano ANTES</span>
-                        <span className="text-[10px] opacity-70">Estado actual del proyecto</span>
-                      </div>
-                    </Link>
-                  </DropdownMenuItem>
-                )}
-                {afterPlan && (
-                  <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
-                    <Link href={`/dashboard/editor-planos/editar/${afterPlan.id}`} className="flex items-center gap-2">
-                      <PencilRuler className="h-4 w-4 opacity-70" />
-                      <div className="flex flex-col">
-                        <span className="font-medium">Editar Plano DESPUÉS</span>
-                        <span className="text-[10px] opacity-70">Propuesta de reforma</span>
-                      </div>
-                    </Link>
-                  </DropdownMenuItem>
-                )}
-                {(beforePlan || afterPlan) && <DropdownMenuSeparator />}
-                <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
-                  <Link href={`/dashboard/editor-planos/nuevo?projectId=${projectId}`} className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    <span className="font-bold uppercase text-[10px] tracking-tight">Crear Nuevo Plano</span>
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  )}
+                  {afterPlan && (
+                    <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
+                      <Link href={`/dashboard/editor-planos/editar/${afterPlan.id}`} className="flex items-center gap-2">
+                        <PencilRuler className="h-4 w-4 opacity-70" />
+                        <div className="flex flex-col">
+                          <span className="font-medium">Editar Plano DESPUÉS</span>
+                          <span className="text-[10px] opacity-70">Propuesta de reforma</span>
+                        </div>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {(beforePlan || afterPlan) && <DropdownMenuSeparator />}
+                  {limits?.aiFloorPlanUpload && (
+                    <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
+                      <Link href={`/dashboard/editor-planos/nuevo?projectId=${projectId}`} className="flex items-center gap-2">
+                        <Plus className="h-4 w-4" />
+                        <span className="font-bold uppercase text-[10px] tracking-tight">Crear Nuevo Plano</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             <div className="h-4 w-px bg-slate-200 mx-1 hidden lg:block" />
 
-            <DualFloorPlanAnalyzer
-              projectId={projectId}
-              autoOpen={shouldOpenAnalyzer}
-              onRoomsDetected={(demolition, reform) => {
-                if (calculatorRef.current && "handleRoomsDetectedFromFloorPlan" in calculatorRef.current) {
-                  calculatorRef.current.handleRoomsDetectedFromFloorPlan(demolition, reform)
-                }
-              }}
-            />
+            {limits?.aiFloorPlanUpload && (
+              <DualFloorPlanAnalyzer
+                projectId={projectId}
+                autoOpen={shouldOpenAnalyzer}
+                onRoomsDetected={(demolition, reform) => {
+                  if (calculatorRef.current && "handleRoomsDetectedFromFloorPlan" in calculatorRef.current) {
+                    calculatorRef.current.handleRoomsDetectedFromFloorPlan(demolition, reform)
+                  }
+                }}
+              />
+            )}
 
             {isMaster && (
               <ProjectGallery projectId={projectId} />
@@ -472,7 +490,7 @@ export default function ProjectPage() {
 
       {/* Main Content: Calculator */}
       <div className="pt-2">
-        <Calculator ref={calculatorRef} projectId={projectId} onTabChange={setActiveTab} isV2Budget={true} />
+        <Calculator ref={calculatorRef} projectId={projectId} onTabChange={setActiveTab} externalTab={activeTab} isV2Budget={true} />
       </div>
     </TooltipProvider>
   )

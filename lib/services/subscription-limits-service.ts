@@ -39,16 +39,16 @@ export interface AIUsageResult {
 const PLAN_LIMITS: Record<string, SubscriptionLimits> = {
   free: {
     maxProjects: null, // Ilimitado
-    maxBudgets: 1,
-    maxRooms: 3,
-    aiDailyLimit: 3,
+    maxBudgets: null, // Ilimitado por petición de usuario
+    maxRooms: null, // Ilimitado por petición de usuario
+    aiDailyLimit: 3, // Restringido de nuevo
     maxCustomPrices: 0,
     aiPriceImport: false,
     aiFloorPlanUpload: false,
     pdfExport: true,
     pdfWatermark: true,
     templates: false,
-    quickEstimate: true,
+    quickEstimate: false,
     budgetComparator: false,
     designGenerator: false,
     proVisualizer: false,
@@ -58,30 +58,30 @@ const PLAN_LIMITS: Record<string, SubscriptionLimits> = {
     appointmentNotifications: false,
   },
   basic: {
-    maxProjects: null, // Ilimitado
-    maxBudgets: 3,
-    maxRooms: null, // Ilimitado
-    aiDailyLimit: 5,
-    maxCustomPrices: 100,
-    aiPriceImport: false,
-    aiFloorPlanUpload: false,
+    maxProjects: null,
+    maxBudgets: null,
+    maxRooms: null,
+    aiDailyLimit: null,
+    maxCustomPrices: null,
+    aiPriceImport: true,
+    aiFloorPlanUpload: true,
     pdfExport: true,
     pdfWatermark: false,
     templates: true,
     quickEstimate: true,
     budgetComparator: true,
-    designGenerator: false,
-    proVisualizer: false,
-    windowsFeature: false,
-    crm: false,
+    designGenerator: true,
+    proVisualizer: true,
+    windowsFeature: true,
+    crm: true,
     globalPercentageAdjuster: true,
     appointmentNotifications: true,
   },
   pro: {
-    maxProjects: null, // Ilimitado
-    maxBudgets: 5,
-    maxRooms: null, // Ilimitado
-    aiDailyLimit: null, // Ilimitado
+    maxProjects: null,
+    maxBudgets: null,
+    maxRooms: null,
+    aiDailyLimit: null,
     maxCustomPrices: null,
     aiPriceImport: true,
     aiFloorPlanUpload: true,

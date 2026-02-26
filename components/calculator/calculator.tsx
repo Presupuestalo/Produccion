@@ -209,6 +209,7 @@ type CalculatorProps = {
   project?: any // Añadido project prop
   onTabChange?: (tab: string) => void // New prop to notify parent of tab changes
   isV2Budget?: boolean // New V2 budget mode
+  externalTab?: string // Prop to sync tab from parent
 }
 
 export interface CalculatorHandle {
@@ -224,7 +225,7 @@ export interface CalculatorHandle {
 }
 
 const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calculator(
-  { projectId, onSave, initialData, project, onTabChange, isV2Budget },
+  { projectId, onSave, initialData, project, onTabChange, isV2Budget, externalTab },
   ref,
 ) {
   const { toast } = useToast()
@@ -265,7 +266,21 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   const [wallLinings, setWallLinings] = useState<WallLining[]>([])
 
   // States needed for UI elements and logic
-  const [activeTab, setActiveTab] = useState<string>("demolition") // Estado para la pestaña activa
+  const [activeTab, setActiveTabInternal] = useState<string>(externalTab || "demolition") // Estado para la pestaña activa
+
+  // Wrapper for setActiveTab to notify parent
+  const setActiveTab = useCallback((tab: string) => {
+    setActiveTabInternal(tab)
+    if (onTabChange) onTabChange(tab)
+  }, [onTabChange])
+
+  // Sync from externalTab prop
+  useEffect(() => {
+    if (externalTab && externalTab !== activeTab) {
+      console.log("[v0] Calculator - Syncing activeTab from prop:", externalTab)
+      setActiveTabInternal(externalTab)
+    }
+  }, [externalTab])
   const [selectedRoomType, setSelectedRoomType] = useState<RoomType>("Salón") // Estado para el tipo de habitación seleccionado
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null) // Estado para el ID de la habitación seleccionada
   const [isSaving, setIsSaving] = useState<boolean>(false) // Estado para indicar si se está guardando
@@ -2695,7 +2710,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                     </div>
 
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {projectId && (
+                      {projectId && !isFreePlan && (
                         <Button
                           variant="ghost"
                           onClick={handleManualFloorPlanSync}
@@ -2784,7 +2799,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
             <div className="lg:grid lg:grid-cols-[240px_1.5fr_1fr] lg:gap-6 lg:max-w-none lg:mx-0">
               {/* COLUMNA IZQUIERDA: Resumen de habitaciones y citas (solo desktop) */}
               <div className="hidden lg:block space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto pr-1">
-                {projectId && (
+                {projectId && !isFreePlan && (
                   <FloorPlanPreviews
                     projectId={projectId}
                   />
@@ -2883,7 +2898,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                     </div>
 
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {projectId && (
+                      {projectId && !isFreePlan && (
                         <Button
                           variant="ghost"
                           onClick={handleManualFloorPlanSync}

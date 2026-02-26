@@ -102,6 +102,17 @@ export class BudgetGenerator {
       project: flat.project || {}
     }
 
+    // Asegurar que newDoors sea booleano en todas las habitaciones
+    if (this.calculatorData.reform && Array.isArray(this.calculatorData.reform.rooms)) {
+      this.calculatorData.reform.rooms.forEach((room: any) => {
+        if (room.newDoors !== undefined) {
+          room.newDoors = room.newDoors === true || room.newDoors === "true"
+        } else {
+          room.newDoors = false
+        }
+      })
+    }
+
     console.log("[v0] BudgetGenerator - Normalized data:", JSON.stringify(this.calculatorData, null, 2))
   }
 
@@ -2460,16 +2471,20 @@ export class BudgetGenerator {
 
     let totalDoors = 0
 
-    reform.rooms.forEach((room: any) => {
-      if (room.doorList && room.doorList.length > 0) {
-        room.doorList.forEach((door: any) => {
-          totalDoors += 1
-        })
+    reform.rooms.forEach((room: any, index: number) => {
+      // Use newDoors flag and newDoorList for reform doors
+      const hasNewDoors = room.newDoors === true
+      const hasList = Array.isArray(room.newDoorList) && room.newDoorList.length > 0
+
+      if (hasNewDoors && hasList) {
+        console.log(`[v0] BudgetGenerator.countTotalDoors - Room ${index} (${room.type}) adding ${room.newDoorList.length} doors`)
+        totalDoors += room.newDoorList.length
       }
     })
 
     // Añadir puerta de entrada si existe
     if (reform.entryDoor) {
+      console.log(`[v0] BudgetGenerator.countTotalDoors - Adding entrance door (+1)`)
       totalDoors += 1
     }
 
@@ -2483,10 +2498,14 @@ export class BudgetGenerator {
 
     let swingDoors = 0
 
-    reform.rooms.forEach((room: any) => {
-      if (room.doorList && room.doorList.length > 0) {
-        room.doorList.forEach((door: any) => {
+    reform.rooms.forEach((room: any, index: number) => {
+      const hasNewDoors = room.newDoors === true
+      const hasList = Array.isArray(room.newDoorList) && room.newDoorList.length > 0
+
+      if (hasNewDoors && hasList) {
+        room.newDoorList.forEach((door: any, doorIndex: number) => {
           if (door.type === "Abatible") {
+            console.log(`[v0] BudgetGenerator.countSwingDoors - Room ${index} (${room.type}) adding swing door ${doorIndex}`)
             swingDoors += 1
           }
         })
@@ -2503,14 +2522,14 @@ export class BudgetGenerator {
 
     let slidingDoors = 0
 
-    reform.rooms.forEach((room: any) => {
-      if (room.doorList && room.doorList.length > 0) {
-        console.log(`[v0] BudgetGenerator - Room ${room.type} ${room.number} doors:`, room.doorList)
+    reform.rooms.forEach((room: any, index: number) => {
+      const hasNewDoors = room.newDoors === true
+      const hasList = Array.isArray(room.newDoorList) && room.newDoorList.length > 0
 
-        room.doorList.forEach((door: any) => {
-          console.log(`[v0] BudgetGenerator - Door type: "${door.type}", isExterior: ${door.isExterior}`)
-
+      if (hasNewDoors && hasList) {
+        room.newDoorList.forEach((door: any, doorIndex: number) => {
           if ((door.type === "Corredera" || door.type === "Corredera empotrada") && !door.isExterior) {
+            console.log(`[v0] BudgetGenerator.countSlidingDoors - Room ${index} (${room.type}) adding sliding door ${doorIndex}`)
             slidingDoors += 1
           }
         })
@@ -2527,10 +2546,14 @@ export class BudgetGenerator {
 
     let exteriorSlidingDoors = 0
 
-    reform.rooms.forEach((room: any) => {
-      if (room.doorList && room.doorList.length > 0) {
-        room.doorList.forEach((door: any) => {
+    reform.rooms.forEach((room: any, index: number) => {
+      const hasNewDoors = room.newDoors === true
+      const hasList = Array.isArray(room.newDoorList) && room.newDoorList.length > 0
+
+      if (hasNewDoors && hasList) {
+        room.newDoorList.forEach((door: any, doorIndex: number) => {
           if (door.type === "Corredera exterior" || door.type === "Corredera exterior con carril" || (door.type === "Corredera" && door.isExterior)) {
+            console.log(`[v0] BudgetGenerator.countExteriorSlidingDoors - Room ${index} (${room.type}) adding exterior sliding door ${doorIndex}`)
             exteriorSlidingDoors += 1
           }
         })
@@ -2547,10 +2570,14 @@ export class BudgetGenerator {
 
     let doubleSwingDoors = 0
 
-    reform.rooms.forEach((room: any) => {
-      if (room.doorList && room.doorList.length > 0) {
-        room.doorList.forEach((door: any) => {
+    reform.rooms.forEach((room: any, index: number) => {
+      const hasNewDoors = room.newDoors === true
+      const hasList = Array.isArray(room.newDoorList) && room.newDoorList.length > 0
+
+      if (hasNewDoors && hasList) {
+        room.newDoorList.forEach((door: any, doorIndex: number) => {
           if (door.type === "Doble abatible") {
+            console.log(`[v0] BudgetGenerator.countDoubleSwingDoors - Room ${index} (${room.type}) adding double swing door ${doorIndex}`)
             doubleSwingDoors += 1
           }
         })

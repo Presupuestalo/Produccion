@@ -50,7 +50,7 @@ export default function IAPage() {
       icon: Calculator,
       href: "/dashboard/ia/estimacion-rapida",
       gradient: "from-green-500 to-emerald-500",
-      requiresPro: false,
+      requiresPro: true,
     },
     {
       title: "Comparador de Presupuestos",
@@ -113,39 +113,34 @@ export default function IAPage() {
           </p>
         </div>
 
-        {/* Tools Grid - Cambiado a grid de 5 columnas para 5 herramientas */}
+        {/* Tools Grid - Filtered by plan */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-          {tools.map((tool) => (
-            <Link key={tool.title} href={tool.href} onClick={(e) => handleToolClick(e, tool)}>
-              <Card className={`group relative overflow-hidden bg-gray-800/50 border-gray-700 hover:border-orange-500/50 transition-all duration-300 h-full cursor-pointer ${tool.requiresPro && !isProUser ? 'opacity-90' : ''}`}>
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className={`inline-flex p-3 rounded-lg bg-gradient-to-br ${tool.gradient}`}>
-                      <tool.icon className="h-6 w-6 text-white" />
+          {tools
+            .filter((tool) => !tool.requiresPro || isProUser)
+            .map((tool) => (
+              <Link key={tool.title} href={tool.href} onClick={(e) => handleToolClick(e, tool)}>
+                <Card className={`group relative overflow-hidden bg-gray-800/50 border-gray-700 hover:border-orange-500/50 transition-all duration-300 h-full cursor-pointer`}>
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className={`inline-flex p-3 rounded-lg bg-gradient-to-br ${tool.gradient}`}>
+                        <tool.icon className="h-6 w-6 text-white" />
+                      </div>
                     </div>
-                    {tool.requiresPro && !isProUser && (
-                      <Badge variant="secondary" className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-none gap-1">
-                        <Crown className="w-3 h-3" />
-                        PRO
-                      </Badge>
-                    )}
+                    <h3 className="text-xl font-bold text-white mb-2 group-hover:text-orange-400 transition-colors flex items-center gap-2">
+                      {tool.title}
+                    </h3>
+                    <p className="text-gray-400 mb-4 text-sm leading-relaxed">{tool.description}</p>
+                    <div className="flex items-center text-orange-400 text-sm font-medium group-hover:gap-2 transition-all">
+                      Explorar
+                      <ArrowRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                    </div>
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-orange-400 transition-colors flex items-center gap-2">
-                    {tool.title}
-                    {tool.requiresPro && !isProUser && <Lock className="h-4 w-4 text-gray-500" />}
-                  </h3>
-                  <p className="text-gray-400 mb-4 text-sm leading-relaxed">{tool.description}</p>
-                  <div className="flex items-center text-orange-400 text-sm font-medium group-hover:gap-2 transition-all">
-                    {tool.requiresPro && !isProUser ? 'Mejorar Plan' : 'Explorar'}
-                    <ArrowRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </div>
-                <div
-                  className={`absolute inset-0 bg-gradient-to-br ${tool.gradient} opacity-0 group-hover:opacity-5 transition-opacity`}
-                />
-              </Card>
-            </Link>
-          ))}
+                  <div
+                    className={`absolute inset-0 bg-gradient-to-br ${tool.gradient} opacity-0 group-hover:opacity-5 transition-opacity`}
+                  />
+                </Card>
+              </Link>
+            ))}
         </div>
 
         {/* Features Section */}

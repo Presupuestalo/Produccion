@@ -222,13 +222,16 @@ export function DashboardSidebar() {
       console.log("[v0] Sidebar: NO añadiendo menú Precios. Tipo de usuario:", userType)
     }
 
-    if (isMaster) {
+    if (isMaster && isProUser) {
       baseItems.push({
         name: "IA Asistente",
         href: "/dashboard/ia",
         icon: Sparkles,
         comingSoon: false,
       })
+    }
+
+    if (isMaster) {
       baseItems.push({
         name: "Ofertas Disponibles",
         href: "/dashboard/professional/leads",

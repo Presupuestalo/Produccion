@@ -23,6 +23,7 @@ interface HomeownerDashboardProps {
 export function HomeownerDashboard({ data }: HomeownerDashboardProps) {
   const { totalProjects, completedProjects, inProgressProjects, pendingProjects, totalBudget } = data
   const [isMaster, setIsMaster] = React.useState(false)
+  const [isProUser, setIsProUser] = React.useState(false)
 
   React.useEffect(() => {
     const checkMaster = async () => {
@@ -32,10 +33,12 @@ export function HomeownerDashboard({ data }: HomeownerDashboardProps) {
       if (session?.user) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("role")
+          .select("role, subscription_plan")
           .eq("id", session.user.id)
           .single()
         setIsMaster(profile?.role === "master")
+        const plan = profile?.subscription_plan?.toLowerCase() || "free"
+        setIsProUser(["pro", "premium", "enterprise", "business"].includes(plan))
       }
     }
     checkMaster()
@@ -61,7 +64,7 @@ export function HomeownerDashboard({ data }: HomeownerDashboardProps) {
             un presupuesto detallado.
           </EmptyDescription>
           <EmptyActions className="flex-col sm:flex-row gap-3">
-            {isMaster && (
+            {isMaster && isProUser && (
               <Button asChild size="lg" className="bg-orange-600 hover:bg-orange-700">
                 <Link href="/dashboard/ia/estimacion-rapida" className="flex items-center gap-2">
                   <Zap className="h-5 w-5" />
@@ -81,7 +84,7 @@ export function HomeownerDashboard({ data }: HomeownerDashboardProps) {
         <>
           {/* Opciones principales para propietarios */}
           <div className="grid md:grid-cols-2 gap-6 mb-8">
-            {isMaster && (
+            {isMaster && isProUser && (
               <Card className="relative overflow-hidden border-2 border-orange-200 hover:border-orange-300 transition-colors">
                 <CardHeader className="pb-4">
                   <div className="flex items-center gap-3">
@@ -111,7 +114,7 @@ export function HomeownerDashboard({ data }: HomeownerDashboardProps) {
 
             <Card className={cn(
               "relative overflow-hidden border-2 border-blue-200 hover:border-blue-300 transition-colors",
-              !isMaster && "md:col-span-2"
+              (!isMaster || !isProUser) && "md:col-span-2"
             )}>
               <CardHeader className="pb-4">
                 <div className="flex items-center gap-3">

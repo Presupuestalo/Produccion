@@ -401,7 +401,7 @@ export function DashboardHeader() {
                   </Link>
                 </DropdownMenuItem>
               )}
-              {isMaster && (userType === "professional" || userType === "profesional" || userType === "company") && (
+              {isMaster && isProUser && (userType === "professional" || userType === "profesional" || userType === "company") && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
@@ -472,7 +472,7 @@ export function DashboardHeader() {
                 </Link>
               )
             })}
-            {(userType === "professional" || userType === "profesional" || userType === "company") && (
+            {isMaster && isProUser && (userType === "professional" || userType === "profesional" || userType === "company") && (
               <Link
                 href="/dashboard/referidos"
                 className="w-full justify-start text-orange-600 hover:text-gray-900 mt-4 flex items-center gap-2"
