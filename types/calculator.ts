@@ -431,6 +431,7 @@ export interface Partition {
   type: "ladrillo" | "placa_yeso"
   linearMeters: number
   height: number
+  thickness?: number
 }
 
 export interface WallLining {

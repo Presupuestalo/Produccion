@@ -5,6 +5,195 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 
 export class BudgetService {
   /**
+   * Sincroniza el presupuesto V2 en tiempo real con los datos de la calculadora
+   */
+  static async syncRealtimeBudget(
+    projectId: string,
+    userId: string,
+    calculatorData: CalculatorData,
+    supabaseClient: SupabaseClient
+  ): Promise<BudgetWithLineItems> {
+    const supabase = supabaseClient
+
+    let budgetId: string
+    let userIdToUse: string = userId
+    let attempts = 0
+    let targetBudget: Budget | undefined
+    let existingBudgets: Budget[] = []
+
+    // Retry loop to handle concurrent creation attempts (race condition)
+    while (attempts < 3) {
+      attempts++
+
+      // 1. Buscar budgest existentes
+      const { data, error: fetchError } = await supabase
+        .from("budgets")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("version_number", { ascending: false })
+
+      if (fetchError) throw new Error("Error fetching existing budgets: " + fetchError.message)
+      existingBudgets = data || []
+
+      // Sincronización unificada: Buscamos el borrador más reciente del proyecto
+      targetBudget = existingBudgets.find((b: Budget) => b.status === "draft")
+
+      if (targetBudget) {
+        console.log(`[v0] Syncing with latest draft budget: ${targetBudget.name} (v${targetBudget.version_number})`)
+        budgetId = targetBudget.id
+        userIdToUse = targetBudget.user_id
+        break // Encontrado, salimos del bucle
+      }
+
+      // No hay borrador, intentamos crear uno nuevo
+      console.log(`[v0] No suitable draft budget found for sync (attempt ${attempts}). Creating new version...`)
+      const { data: project } = await supabase.from("projects").select("user_id, title").eq("id", projectId).single()
+      userIdToUse = project?.user_id || userId
+      const projectTitle = project?.title || "Presupuesto"
+
+      const isFirstBudget = existingBudgets.length === 0
+      const nextVersion = existingBudgets.length > 0 ? (Math.max(...existingBudgets.map((b: Budget) => Number(b.version_number))) + 1) : 1
+
+      const { data: newBudget, error: createError } = await supabase
+        .from("budgets")
+        .insert({
+          project_id: projectId,
+          user_id: userIdToUse,
+          version_number: nextVersion,
+          name: `${projectTitle} v${nextVersion}`,
+          is_original: isFirstBudget,
+          status: "draft",
+          subtotal: 0,
+          tax_rate: 0,
+          tax_amount: 0,
+          total: 0,
+        })
+        .select()
+        .single()
+
+      if (!createError) {
+        budgetId = newBudget.id
+        break // Creado con éxito, salimos del bucle
+      }
+
+      // Si es un error de clave duplicada (Postgres code 23505 O mensaje de restricción única), 
+      // esperamos un poco y reintentamos buscar el presupuesto (alguien lo creó justo ahora)
+      const isUniqueViolation = createError.code === "23505" ||
+        createError.message?.toLowerCase().includes("unique constraint") ||
+        createError.message?.toLowerCase().includes("already exists")
+
+      if (isUniqueViolation && attempts < 5) {
+        console.warn(`[v0] Race condition detected during budget creation (v${nextVersion}). Retrying search in 500ms...`)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        continue
+      }
+
+      throw new Error("Error creating budget for sync: " + createError.message)
+    }
+
+    if (!budgetId!) {
+      throw new Error("Failed to find or create a budget for synchronization after multiple attempts.")
+    }
+
+    // 2. Generar nuevas partidas desde la calculadora
+    console.log("[v0] Syncing V2 budget, generating new items...")
+    const generator = new BudgetGenerator(calculatorData, supabase)
+    const generatedItems = await generator.generate()
+
+    // 3. Obtener partidas personalizadas existentes para preservarlas
+    const { data: existingItems } = await supabase
+      .from("budget_line_items")
+      .select("*")
+      .eq("budget_id", budgetId)
+
+    const customItems = existingItems?.filter(item => item.is_custom) || []
+
+    // 4. Limpiar partidas NO personalizadas
+    console.log(`[v0] Deleting non-custom items for budget ${budgetId}...`)
+    const { data: itemsBeforeDelete } = await supabase.from("budget_line_items").select("id").eq("budget_id", budgetId).eq("is_custom", false)
+    console.log(`[v0] Found ${itemsBeforeDelete?.length || 0} non-custom items before deletion`)
+
+    const { error: deleteError } = await supabase
+      .from("budget_line_items")
+      .delete()
+      .eq("budget_id", budgetId)
+      .eq("is_custom", false)
+
+    if (deleteError) {
+      console.error("[v0] Error cleaning V2 budget items:", deleteError)
+      throw new Error("Error cleaning V2 budget items: " + deleteError.message)
+    }
+    console.log("[v0] Non-custom items deleted successfully")
+
+    // 5. Insertar nuevas partidas generadas
+    console.log(`[v0] Inserting ${generatedItems.length} new generated items...`)
+    const lineItemsToInsert = generatedItems.map((item) => {
+      const isValidUUID =
+        item.base_price_id &&
+        typeof item.base_price_id === "string" &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.base_price_id)
+
+      return {
+        budget_id: budgetId,
+        category: item.category,
+        concept_code: item.code,
+        concept: item.concept,
+        description: item.description,
+        color: item.color,
+        brand: item.brand,
+        model: item.model,
+        unit: item.unit,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_price: item.total_price,
+        is_custom: false,
+        sort_order: item.sort_order,
+        base_price_id: isValidUUID ? item.base_price_id : null,
+        price_type: item.price_type || "master",
+      }
+    })
+
+    if (lineItemsToInsert.length > 0) {
+      const { error: insertError } = await supabase.from("budget_line_items").insert(lineItemsToInsert)
+      if (insertError) {
+        console.error("[v0] Error inserting V2 line items:", insertError)
+        throw new Error("Error inserting V2 line items: " + insertError.message)
+      }
+      console.log(`[v0] Successfully inserted ${lineItemsToInsert.length} items`)
+    } else {
+      console.log("[v0] No items to insert")
+    }
+
+    // 6. Recalcular totales (Generated + Custom)
+    const newSubtotal = lineItemsToInsert.reduce((sum, item) => sum + item.total_price, 0)
+    const customSubtotal = customItems.reduce((sum, item) => sum + (item.total_price || 0), 0)
+    const totalSubtotal = newSubtotal + customSubtotal
+    console.log(`[v0] Final totals for budget ${budgetId}: subtotal=${totalSubtotal}`)
+
+    // Obtener configuración de IVA
+    const { data: settings } = await supabase
+      .from("budget_settings")
+      .select("show_vat, vat_percentage")
+      .eq("project_id", projectId)
+      .maybeSingle()
+
+    const showVat = settings?.show_vat ?? false
+    const vatRate = showVat ? (settings?.vat_percentage ?? 21.0) : 0
+    const taxAmount = totalSubtotal * (vatRate / 100)
+    const total = totalSubtotal + taxAmount
+
+    // 7. Actualizar presupuesto
+    await supabase.from("budgets").update({
+      subtotal: totalSubtotal,
+      tax_rate: vatRate,
+      tax_amount: taxAmount,
+      total: total,
+    }).eq("id", budgetId)
+
+    return this.getBudgetById(budgetId, supabaseClient)
+  }
+
+  /**
    * Crea un nuevo presupuesto desde los datos de la calculadora
    */
   static async createBudgetFromCalculator(
@@ -53,78 +242,112 @@ export class BudgetService {
       }
     }
 
-    // Obtener el siguiente número de versión
-    const { data: existingBudgets } = await supabase
-      .from("budgets")
-      .select("version_number")
-      .eq("project_id", projectId)
-      .order("version_number", { ascending: false })
-      .limit(1)
+    // Validaciones iniciales
+    if (!projectId) throw new Error("PROJECT_ID_MISSING: No se puede crear un presupuesto sin un ID de proyecto.")
+    if (!userId) throw new Error("USER_ID_MISSING: No se puede crear un presupuesto sin un ID de usuario.")
 
-    const versionNumber = existingBudgets && existingBudgets.length > 0 ? existingBudgets[0].version_number + 1 : 1
-    console.log("[v0] Next version number:", versionNumber)
+    let attempts = 0
+    let budget: BudgetWithLineItems | null = null
 
-    // Obtener configuración de IVA del proyecto
-    const { data: settings } = await supabase
-      .from("budget_settings")
-      .select("show_vat, vat_percentage")
-      .eq("project_id", projectId)
-      .maybeSingle()
+    while (attempts < 3) {
+      attempts++
 
-    const showVat = settings?.show_vat ?? false
-    const vatRate = showVat ? (settings?.vat_percentage ?? 21.0) : 0
-    const taxAmount = subtotal * (vatRate / 100)
-    const total = subtotal + taxAmount
+      // 1. Obtener datos necesarios
+      // Obtener presupuestos existentes para calcular el número de versión
+      const { data: existingBudgets, error: fetchError } = await supabase
+        .from("budgets")
+        .select("version_number")
+        .eq("project_id", projectId)
+        .order("version_number", { ascending: false })
 
-    console.log("[v0] About to insert budget with data:", {
-      project_id: projectId,
-      user_id: userId,
-      version_number: versionNumber,
-      subtotal,
-      tax_rate: vatRate,
-      tax_amount: taxAmount,
-      total,
-    })
+      if (fetchError) {
+        console.error("[v0] Error fetching budgets for versioning:", fetchError)
+        throw new Error("Error al consultar versiones anteriores: " + fetchError.message)
+      }
 
-    // Obtener el título del proyecto para el nombre del presupuesto
-    const { data: project } = await supabase
-      .from("projects")
-      .select("title")
-      .eq("id", projectId)
-      .single()
-    const projectTitle = project?.title || "Presupuesto"
+      const versionNumber = existingBudgets && existingBudgets.length > 0 ? Number(existingBudgets[0].version_number) + 1 : 1
+      console.log(`[v0] Create budget attempt ${attempts}, version number:`, versionNumber)
 
-    // Crear el presupuesto
-    console.log("[v0] Inserting budget into database...")
-    const { data: budget, error: budgetError } = await supabase
-      .from("budgets")
-      .insert({
-        project_id: projectId,
-        user_id: userId,
-        version_number: versionNumber,
-        name: name || `${projectTitle} v${versionNumber}`,
-        is_original: true,
-        status: "draft",
-        subtotal,
-        tax_rate: vatRate,
-        tax_amount: taxAmount,
-        total: total,
+      // Obtener configuración de IVA del proyecto
+      const { data: settings } = await supabase
+        .from("budget_settings")
+        .select("show_vat, vat_percentage")
+        .eq("project_id", projectId)
+        .maybeSingle()
+
+      const showVat = settings?.show_vat ?? false
+      const vatRate = showVat ? (settings?.vat_percentage ?? 21.0) : 0
+
+      // Sanitización de subtotal (evitar NaN)
+      const sanitizedSubtotal = isNaN(subtotal) ? 0 : subtotal
+      const taxAmount = sanitizedSubtotal * (vatRate / 100)
+      const sanitizedTaxAmount = isNaN(taxAmount) ? 0 : taxAmount
+      const total = sanitizedSubtotal + sanitizedTaxAmount
+      const sanitizedTotal = isNaN(total) ? 0 : total
+
+      // Obtener el título del proyecto
+      const { data: project } = await supabase
+        .from("projects")
+        .select("title")
+        .eq("id", projectId)
+        .single()
+      const projectTitle = project?.title || "Presupuesto"
+
+      console.log("[v0] Inserting budget with sanitized data:", {
+        version: versionNumber,
+        subtotal: sanitizedSubtotal,
+        total: sanitizedTotal
       })
-      .select()
-      .single()
 
-    if (budgetError) {
-      console.error("[v0] Error creating budget:", budgetError)
-      console.error("[v0] Budget error details:", {
+      // 2. Intentar inserción
+      const { data: newBudget, error: budgetError } = await supabase
+        .from("budgets")
+        .insert({
+          project_id: projectId,
+          user_id: userId,
+          version_number: versionNumber,
+          name: name || `${projectTitle} v${versionNumber}`,
+          is_original: !existingBudgets || existingBudgets.length === 0,
+          status: "draft",
+          subtotal: sanitizedSubtotal,
+          tax_rate: vatRate,
+          tax_amount: sanitizedTaxAmount,
+          total: sanitizedTotal,
+        })
+        .select()
+        .single()
+
+      if (!budgetError) {
+        budget = newBudget as BudgetWithLineItems
+        console.log("[v0] Budget created successfully with ID:", budget.id)
+        break
+      }
+
+      // 3. Manejar errores de colisión (Race Condition)
+      const isUniqueViolation = budgetError.code === "23505" ||
+        budgetError.message?.toLowerCase().includes("unique constraint") ||
+        budgetError.message?.toLowerCase().includes("already exists")
+
+      if (isUniqueViolation && attempts < 3) {
+        console.warn(`[v0] Race condition in createBudgetFromCalculator (v${versionNumber}). Retrying in 500ms...`)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        continue
+      }
+
+      // Si no es un error de unicidad o ya agotamos intentos, lanzamos error detallado
+      console.error("[v0] CRITICAL: Error creating budget in creation flow:", {
+        code: budgetError.code,
         message: budgetError.message,
         details: budgetError.details,
         hint: budgetError.hint,
-        code: budgetError.code,
+        attempt: attempts
       })
-      throw new Error("Error al crear el presupuesto: " + budgetError.message)
+      throw new Error(`Error al crear el presupuesto: ${budgetError.message || "Error desconocido"}`)
     }
 
-    console.log("[v0] Budget created with ID:", budget.id)
+    if (!budget) {
+      throw new Error("No se pudo crear el presupuesto después de varios intentos.")
+    }
 
     const lineItemsToInsert = lineItems.map((item) => {
       // Only include base_price_id if it's a valid UUID format
@@ -561,6 +784,10 @@ export class BudgetService {
   static async deleteBudget(budgetId: string, supabaseClient: SupabaseClient): Promise<void> {
     const supabase = supabaseClient
 
+    // Obtener project_id del presupuesto a eliminar
+    const { data: budgetToDel } = await supabase.from("budgets").select("project_id").eq("id", budgetId).single()
+    const projectId = budgetToDel?.project_id
+
     // Verificar si hay solicitudes activas en el marketplace
     const { data: activeLeads, error: leadCheckError } = await supabase
       .from("lead_requests")
@@ -590,6 +817,22 @@ export class BudgetService {
     if (budgetError) {
       console.error("[BudgetService] Error deleting budget:", budgetError)
       throw new Error("Error al eliminar el presupuesto")
+    }
+
+    // Si tenemos el projectId, comprobamos si quedan presupuestos
+    if (projectId) {
+      const { count, error: countErr } = await supabase
+        .from("budgets")
+        .select("*", { count: "exact", head: true })
+        .eq("project_id", projectId)
+
+      if (!countErr && count === 0) {
+        // Resetear estado del proyecto
+        await supabase.from("projects").update({
+          status: "Borrador",
+          progress: 0
+        }).eq("id", projectId)
+      }
     }
   }
 
@@ -642,6 +885,12 @@ export class BudgetService {
       console.error("[BudgetService] Error deleting budgets:", budgetsError)
       throw new Error("Error al eliminar los presupuestos")
     }
+
+    // Resetear estado del proyecto
+    await supabase.from("projects").update({
+      status: "Borrador",
+      progress: 0
+    }).eq("id", projectId)
   }
 
   /**

@@ -157,6 +157,11 @@ export function ElectricalSection({
   const calculateElectricalSummary = () => {
     const summary: { [key: string]: number } = {}
 
+    // Si no se necesita nueva instalación, el resumen debe estar vacío
+    if (!config?.needsNewInstallation) {
+      return summary
+    }
+
     let electricHeaterOutlets = 0
     const reformHeatingType = globalConfig?.reformHeatingType || "No"
 
@@ -279,77 +284,88 @@ export function ElectricalSection({
             <ElectricalGeneralPanel config={defaultConfig} onUpdate={handleConfigUpdate} globalConfig={globalConfig} isReadOnly={isReadOnly} />
           </div>
 
-          {/* Lista de habitaciones (Siempre visible) */}
-          <div className="mt-6 bg-blue-50 p-4 rounded-lg border border-blue-100">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium text-blue-700">Elementos Eléctricos por Habitación</h3>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    // Recargar elementos predefinidos
-                    const savedSettings = localStorage.getItem("electrical_room_settings")
-                    if (savedSettings) {
-                      const parsedSettings = JSON.parse(savedSettings)
-                      safeRooms.forEach((room) => {
-                        const roomType = room.type
-                        const defaultElements = parsedSettings[roomType] ||
-                          parsedSettings["Otro"] || {
-                          puntosLuzTecho: 1,
-                          enchufes: 2,
-                          sencillo: 1,
-                          conmutados: 0,
-                          cruzamiento: 0,
-                          intemperie: 0,
-                        }
+          {/* Lista de habitaciones (Solo visible si se necesita nueva instalación) */}
+          {config?.needsNewInstallation ? (
+            <div className="mt-6 bg-blue-50 p-4 rounded-lg border border-blue-100">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-blue-700">Elementos Eléctricos por Habitación</h3>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Recargar elementos predefinidos
+                      const savedSettings = localStorage.getItem("electrical_room_settings")
+                      if (savedSettings) {
+                        const parsedSettings = JSON.parse(savedSettings)
+                        safeRooms.forEach((room) => {
+                          const roomType = room.type
+                          const defaultElements = parsedSettings[roomType] ||
+                            parsedSettings["Otro"] || {
+                            puntosLuzTecho: 1,
+                            enchufes: 2,
+                            sencillo: 1,
+                            conmutados: 0,
+                            cruzamiento: 0,
+                            intemperie: 0,
+                          }
 
-                        // Convertir a formato de elementos eléctricos
-                        const formattedElements: ElectricalElement[] = [
-                          {
-                            id: "puntosLuzTecho",
-                            type: "Punto de luz techo" as any,
-                            quantity: defaultElements.puntosLuzTecho,
-                          },
-                          { id: "enchufes", type: "Enchufe normal" as any, quantity: defaultElements.enchufes },
-                          { id: "sencillo", type: "Interruptor" as any, quantity: defaultElements.sencillo },
-                          { id: "conmutados", type: "Punto conmutado" as any, quantity: defaultElements.conmutados },
-                          {
-                            id: "cruzamiento",
-                            type: "Punto de cruzamiento" as any,
-                            quantity: defaultElements.crossoverPoints || defaultElements.cruzamiento,
-                          },
-                          { id: "intemperie", type: "Enchufe intemperie" as any, quantity: defaultElements.intemperie },
-                        ]
+                          // Convertir a formato de elementos eléctricos
+                          const formattedElements: ElectricalElement[] = [
+                            {
+                              id: "puntosLuzTecho",
+                              type: "Punto de luz techo" as any,
+                              quantity: defaultElements.puntosLuzTecho,
+                            },
+                            { id: "enchufes", type: "Enchufe normal" as any, quantity: defaultElements.enchufes },
+                            { id: "sencillo", type: "Interruptor" as any, quantity: defaultElements.sencillo },
+                            { id: "conmutados", type: "Punto conmutado" as any, quantity: defaultElements.conmutados },
+                            {
+                              id: "cruzamiento",
+                              type: "Punto de cruzamiento" as any,
+                              quantity: defaultElements.crossoverPoints || defaultElements.cruzamiento,
+                            },
+                            { id: "intemperie", type: "Enchufe intemperie" as any, quantity: defaultElements.intemperie },
+                          ]
 
-                        // Actualizar el estado local primero
-                        setRoomElectricalElements((prev) => ({
-                          ...prev,
-                          [room.id]: formattedElements,
-                        }))
+                          // Actualizar el estado local primero
+                          setRoomElectricalElements((prev) => ({
+                            ...prev,
+                            [room.id]: formattedElements,
+                          }))
 
-                        // Luego actualizar en el componente padre
-                        onUpdateRoom(room.id, { electricalElements: formattedElements })
-                      })
+                          // Luego actualizar en el componente padre
+                          onUpdateRoom(room.id, { electricalElements: formattedElements })
+                        })
 
-                      // Mostrar notificación
-                      toast({
-                        title: "Elementos recargados",
-                        description: "Se han aplicado los elementos predefinidos a todas las habitaciones",
-                        duration: 2000,
-                      })
-                    }
-                  }}
-                  className="border-blue-300 text-blue-700 hover:bg-blue-100"
-                  disabled={isReadOnly}
-                >
-                  <RefreshCw className="h-4 w-4 mr-1" />
-                  Recargar Predefinidos
-                </Button>
+                        // Mostrar notificación
+                        toast({
+                          title: "Elementos recargados",
+                          description: "Se han aplicado los elementos predefinidos a todas las habitaciones",
+                          duration: 2000,
+                        })
+                      }
+                    }}
+                    className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                    disabled={isReadOnly}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Recargar Predefinidos
+                  </Button>
+                </div>
               </div>
+              <ElectricalRoomsCompact rooms={safeRooms} onUpdateRoom={handleUpdateRoomElements} isReadOnly={isReadOnly} />
             </div>
-            <ElectricalRoomsCompact rooms={safeRooms} onUpdateRoom={handleUpdateRoomElements} isReadOnly={isReadOnly} />
-          </div>
+          ) : (
+            <div className="mt-6 bg-slate-50 p-6 rounded-lg border border-slate-200 text-center">
+              <p className="text-slate-600 font-medium">
+                La configuración por habitación está deshabilitada porque no se ha solicitado una nueva instalación eléctrica.
+              </p>
+              <p className="text-sm text-slate-500 mt-1">
+                Activa el selector superior para añadir puntos de luz, enchufes y otros elementos.
+              </p>
+            </div>
+          )}
 
           {Object.keys(electricalSummary).length > 0 && (
             <div className="mt-6 bg-white p-4 rounded-lg border border-blue-200">
@@ -368,6 +384,6 @@ export function ElectricalSection({
           )}
         </CardContent>
       </Card>
-    </div>
+    </div >
   )
 }

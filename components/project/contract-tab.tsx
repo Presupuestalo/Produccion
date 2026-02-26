@@ -657,12 +657,20 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
             }}
           >
             <p style={{ fontWeight: "bold", marginBottom: "2mm", fontSize: "11pt" }}>
-              IMPORTE DEL PRESUPUESTO ORIGINAL:
+              IMPORTE DEL PRESUPUESTO ACEPTADO:
             </p>
-            <p style={{ fontSize: "16pt", fontWeight: "bold", margin: "2mm 0" }}>
-              {new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(budgetAmount)}
-            </p>
-            <p style={{ fontSize: "9pt", color: "#666", margin: 0 }}>({vatText})</p>
+            {acceptedBudget ? (
+              <>
+                <p style={{ fontSize: "16pt", fontWeight: "bold", margin: "2mm 0" }}>
+                  {new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(budgetAmount)}
+                </p>
+                <p style={{ fontSize: "9pt", color: "#666", margin: 0 }}>({vatText})</p>
+              </>
+            ) : (
+              <p style={{ fontSize: "12pt", fontWeight: "bold", color: "#d97706", margin: "2mm 0" }}>
+                PENDIENTE DE ACEPTACIÓN
+              </p>
+            )}
           </div>
 
           <div
@@ -848,11 +856,20 @@ export function ContractTab({ projectId, projectData, acceptedBudget }: Contract
 
           <div className="space-y-4 text-sm">
             <div>
-              <p className="font-medium mb-2">IMPORTE DEL PRESUPUESTO ORIGINAL:</p>
-              <p className="text-2xl font-bold text-primary">
-                {new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(budgetAmount)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">({vatText})</p>
+              <p className="font-medium mb-2">IMPORTE DEL PRESUPUESTO ACEPTADO:</p>
+              {acceptedBudget ? (
+                <>
+                  <p className="text-2xl font-bold text-primary">
+                    {new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(budgetAmount)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">({vatText})</p>
+                </>
+              ) : (
+                <div className="bg-orange-50 border border-orange-200 text-orange-800 rounded-md p-3 text-sm mt-2">
+                  <p className="font-semibold mb-1">⚠️ Presupuesto no aceptado</p>
+                  <p>Para que el importe aparezca automáticamente en el contrato, primero debes cambiar el estado de al menos un presupuesto a <strong>Aceptado</strong> en la pestaña de presupuestos.</p>
+                </div>
+              )}
             </div>
 
             <div className="border-t pt-4">

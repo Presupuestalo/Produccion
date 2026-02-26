@@ -544,7 +544,10 @@ export function GlobalConfigSection({
   const updateWallDemolition = (id: string, updates: Partial<WallDemolition>) => {
     const newDemolitions = wallDemolitions.map((demolition) => {
       if (demolition.id === id) {
-        return { ...demolition, ...updates }
+        const updated = { ...demolition, ...updates }
+        const h = updated.wallHeight || config.standardHeight || DEFAULT_WALL_HEIGHT
+        updated.area = (updated.length || 0) * h
+        return updated
       }
       return demolition
     })

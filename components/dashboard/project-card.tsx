@@ -425,15 +425,17 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
               <FileText className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">Presupuestos</span>
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full text-[11px] h-9 bg-slate-50/50 hover:bg-slate-100 hover:text-orange-600 transition-all border-slate-200 gap-1.5 px-2"
-              onClick={() => router.push(`/dashboard/projects/${project.id}/edit?tab=contract`)}
-            >
-              <FileCheck className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">Contrato</span>
-            </Button>
+            {(budgetStatus === "accepted" || budgetStatus === "approved" || budgetStatus === "in_progress" || budgetStatus === "completed") && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-[11px] h-9 bg-slate-50/50 hover:bg-slate-100 hover:text-orange-600 transition-all border-slate-200 gap-1.5 px-2"
+                onClick={() => router.push(`/dashboard/projects/${project.id}/edit?tab=contract`)}
+              >
+                <FileCheck className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">Contrato</span>
+              </Button>
+            )}
             {hasPlans && (
               <Button
                 variant="outline"

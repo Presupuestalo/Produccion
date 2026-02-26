@@ -6,6 +6,7 @@ import { BudgetViewer } from "./budget-viewer"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, AlertCircle, X } from "lucide-react"
 import { BudgetService } from "@/lib/services/budget-service"
+import type { Budget } from "@/lib/types/budget"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertTriangle } from "lucide-react"
@@ -17,9 +18,10 @@ interface BudgetSectionProps {
   projectId: string
   calculatorData?: any
   calculatorLastSaved?: Date | null
+  isV2Mode?: boolean
 }
 
-export function BudgetSection({ projectId, calculatorData, calculatorLastSaved }: BudgetSectionProps) {
+export function BudgetSection({ projectId, calculatorData, calculatorLastSaved, isV2Mode }: BudgetSectionProps) {
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -51,6 +53,44 @@ export function BudgetSection({ projectId, calculatorData, calculatorLastSaved }
     localStorage.setItem("hideBudgetInfoAlert", "true")
     setShowInfoAlert(false)
   }
+
+  useEffect(() => {
+    const fetchV2Budget = async () => {
+      // Si estamos en modo V2 y no hay presupuesto seleccionado, buscamos el borrador adecuado
+      if (isV2Mode && !selectedBudgetId) {
+        try {
+          const supabase = await getSupabase()
+          const { data: existingBudgets } = await supabase
+            .from("budgets")
+            .select("id, status, name, version_number")
+            .eq("project_id", projectId)
+            .order("version_number", { ascending: false })
+
+          // Sincronización unificada: Buscamos simplemente el borrador más reciente del proyecto
+          const target = existingBudgets?.find((b: Budget) => b.status === "draft")
+
+          if (target) {
+            console.log("[v0] Auto-selecting latest draft:", target.name, `(v${target.version_number})`)
+            setSelectedBudgetId(target.id)
+          }
+        } catch (err) {
+          console.error("Error fetching V2 budget:", err)
+        }
+      }
+    }
+
+    fetchV2Budget()
+    // IMPORTANTE: No incluimos selectedBudgetId en las dependencias para evitar el bucle infinito
+    // al pulsar "Volver a la lista". Solo se dispara al cambiar de modo o proyecto.
+  }, [isV2Mode, projectId])
+
+  // Refresh data when calculator saves
+  useEffect(() => {
+    if (calculatorLastSaved) {
+      console.log("[v0] Calculator saved, triggering budget refresh...")
+      setRefreshKey((prev) => prev + 1)
+    }
+  }, [calculatorLastSaved])
 
   const handleCreateBudget = async () => {
     if (!calculatorData) {
@@ -154,6 +194,7 @@ export function BudgetSection({ projectId, calculatorData, calculatorLastSaved }
           projectId={projectId}
           budgetId={selectedBudgetId}
           onBudgetUpdated={() => setRefreshKey((prev) => prev + 1)}
+          refreshTrigger={refreshKey}
         />
       </div>
     )

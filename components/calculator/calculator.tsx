@@ -48,6 +48,8 @@ import { useUserProfile } from "@/hooks/use-user-profile"
 import { RoomsList } from "./rooms-list"
 import { checkRoomConflict } from "@/lib/room-validation"
 import { getProjectById } from "@/lib/services/project-service"
+import { BudgetService } from "@/lib/services/budget-service"
+import type { CalculatorData } from "@/lib/types/calculator"
 
 import { PartitionsSection, type Partition, type WallLining } from "./partitions-section"
 import { WindowsSection } from "./windows-section"
@@ -206,6 +208,7 @@ type CalculatorProps = {
   initialData?: any // Añadido initialData
   project?: any // Añadido project prop
   onTabChange?: (tab: string) => void // New prop to notify parent of tab changes
+  isV2Budget?: boolean // New V2 budget mode
 }
 
 export interface CalculatorHandle {
@@ -221,7 +224,7 @@ export interface CalculatorHandle {
 }
 
 const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calculator(
-  { projectId, onSave, initialData, project, onTabChange },
+  { projectId, onSave, initialData, project, onTabChange, isV2Budget },
   ref,
 ) {
   const { toast } = useToast()
@@ -629,6 +632,11 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         newSummary.totalArea += room.area || 0
       })
 
+      // <CHANGE> Añadir derribo de tabiques desde configuración global
+      newSummary.wallDemolition = demolitionConfig.wallDemolitionArea || 0
+      console.log(`[v0] DEMOLITION SUMMARY - Total wallDemolitionArea from GlobalConfig: ${newSummary.wallDemolition} m²`)
+      // </CHANGE>
+
       console.log(`[v0] DEMOLITION SUMMARY - Total wallTileRemoval: ${newSummary.wallTileRemoval} m²`)
       console.log(`[v0] DEMOLITION SUMMARY - Total floorTileRemoval: ${newSummary.floorTileRemoval} m²`)
     } else {
@@ -661,7 +669,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     console.log(`[v0] DEMOLITION SUMMARY - Total debris: ${totalDebris} m³`)
 
     setDebrisCalculation({
-      wallDebris: 0,
+      wallDebris: demolitionConfig.wallDebrisVolume || 0,
       floorTileDebris,
       wallTileDebris,
       woodenFloorDebris,
@@ -669,7 +677,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       totalDebris,
       containersNeeded,
     })
-  }, [rooms, demolitionSettings, demolitionConfig.standardHeight])
+  }, [rooms, demolitionSettings, demolitionConfig])
 
   // Update saveData ref when dependencies change, but don't trigger re-renders
   useEffect(() => {
@@ -901,6 +909,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   const calculateStateHash = useCallback(() => {
     // Escoger campos clave para el hash, evitando circularidad pero detectando cambios reales
     const stateToHash = {
+      v: 2, // Increment this to force a re-sync for all users (e.g. after generator logic changes)
       rooms: rooms.map(r => ({
         id: r.id,
         area: r.area,
@@ -921,10 +930,30 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         win: Array.isArray(r.windows) ? r.windows.map(w => ({ id: w.id, t: w.type })) : [],
         elec: Array.isArray(r.electricalElements) ? r.electricalElements.map(e => ({ id: e.id, q: e.quantity })) : []
       })),
-      partitions: partitions.map(p => ({ id: p.id, linearMeters: p.linearMeters })),
-      wallLiningsLength: wallLinings.length,
-      demolitionConfig: { h: demolitionConfig.standardHeight, s: demolitionConfig.structureType },
-      reformConfig: { h: reformConfig.standardHeight, t: reformConfig.reformHeatingType },
+      partitions: partitions.map(p => ({ id: p.id, l: p.linearMeters, t: p.thickness })),
+      wallLinings: wallLinings.map(l => ({ id: l.id, l: l.linearMeters })),
+      demolitionConfig: {
+        h: demolitionConfig.standardHeight,
+        s: demolitionConfig.structureType,
+        wd: demolitionConfig.wallDemolitions?.map(d => ({ id: d.id, l: d.length, t: d.thickness, ht: d.hasTiles, ts: d.tilesSides })),
+        cb: demolitionConfig.changeBoiler,
+        rwh: demolitionConfig.removeWaterHeater,
+        rac: demolitionConfig.removeAllCeramic
+      },
+      reformConfig: {
+        h: reformConfig.standardHeight,
+        t: reformConfig.reformHeatingType,
+        igb: reformConfig.installGasBoiler,
+        igc: reformConfig.installGasConnection,
+        iwh: reformConfig.installWaterHeater,
+        ir: reformConfig.installRadiators,
+        lac: reformConfig.lowerAllCeilings,
+        rwf: reformConfig.removeWoodenFloor,
+        taf: reformConfig.tileAllFloors,
+        ppa: reformConfig.paintAndPlasterAll,
+        pc: reformConfig.paintCeilings,
+        edt: reformConfig.entranceDoorType
+      },
       demolitionSettings: { t: demolitionSettings.wallThickness, c: demolitionSettings.containerSize },
       electrical: {
         n: electricalConfig.needsNewInstallation,
@@ -949,7 +978,8 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     }
 
     const now = Date.now()
-    if (now - lastSaveAttemptRef.current < 3000) {
+    const autoSaveDelay = isV2Budget ? 1500 : 3000
+    if (now - lastSaveAttemptRef.current < autoSaveDelay) {
       return
     }
 
@@ -1005,6 +1035,28 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         if (success) {
           lastSavedHashRef.current = currentHash
           setSaveStatus("saved")
+
+          // Synchronize budget in real-time if V2 mode is active
+          if (isV2Budget && projectId) {
+            console.log("[v0] AUTO-SAVE: Sincronizando presupuesto V2...")
+            try {
+              const supabase = await getSupabase()
+              const { data: { user } } = await supabase.auth.getUser()
+              if (user) {
+                const calculatorDataForSync: CalculatorData = {
+                  demolition: { rooms, config: demolitionConfig, settings: demolitionSettings },
+                  reform: { rooms: reformRooms, config: reformConfig, partitions, wallLinings },
+                  electrical: { config: electricalConfig },
+                  globalConfig: demolitionConfig,
+                }
+                await BudgetService.syncRealtimeBudget(projectId, user.id, calculatorDataForSync, supabase)
+              }
+            } catch (syncError) {
+              console.error("[v0] AUTO-SAVE: Error syncing V2 budget:", syncError)
+            }
+          }
+          // Update lastSaved AFTER sync is complete
+          setLastSaved(new Date())
         } else {
           setSaveStatus("unsaved")
         }
@@ -1020,10 +1072,10 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         // Si hay un guardado pendiente, ejecutarlo después de un delay mayor
         if (pendingSaveRef.current) {
           pendingSaveRef.current = false
-          setTimeout(() => triggerAutoSaveRef.current(), 3000)
+          setTimeout(() => triggerAutoSaveRef.current(), isV2Budget ? 1500 : 3000)
         }
       }
-    }, 3000) // Debounce de 3 segundos
+    }, isV2Budget ? 1500 : 3000) // Debounce más agresivo para V2
   }, [
     projectId,
     rooms,
@@ -1036,6 +1088,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     wallLinings,
     calculateStateHash,
     isLoadingFromDB,
+    isV2Budget,
   ])
 
   // Filtrar habitaciones para mostrar en la lista (ocultar "Otras ventanas")
@@ -1071,7 +1124,8 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     reformConfig,
     demolitionSettings,
     electricalConfig,
-    isLoadingFromDB
+    isLoadingFromDB,
+    isV2Budget
   ])
 
   // Verificar si la tabla existe y cargar datos desde la base de datos al iniciar
@@ -1450,6 +1504,9 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
             hasCompletedInitialLoadRef.current = true
             setIsLoadingFromDB(false)
             console.log("[v0] AUTO-SAVE: ✅ Carga inicial completada, autoguardado activado")
+
+            // Force a check right after load to detect hash version changes (v: 2)
+            triggerAutoSaveRef.current()
           }, 200)
         } catch (error: any) {
           console.error("[SUPABASE] Error al cargar datos desde la base de datos:", error)
@@ -1967,9 +2024,44 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
       if (success) {
         lastSavedHashRef.current = currentHash
-        setLastSaved(new Date())
         setSaveStatus("saved")
         console.log("[handleSave] Guardado exitoso.")
+
+        // Synchronize real-time budget for V2
+        if (isV2Budget && projectId) {
+          console.log("[v0] Sincronizando presupuesto V2 en tiempo real...")
+          try {
+            const supabase = await getSupabase()
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user) {
+              const calculatorDataForSync: CalculatorData = {
+                demolition: {
+                  rooms: rooms,
+                  config: demolitionConfig,
+                  settings: demolitionSettings,
+                },
+                reform: {
+                  rooms: reformRooms,
+                  config: reformConfig,
+                  partitions: partitions,
+                  wallLinings: wallLinings,
+                },
+                electrical: {
+                  config: electricalConfig,
+                },
+                globalConfig: demolitionConfig,
+              }
+              await BudgetService.syncRealtimeBudget(projectId, user.id, calculatorDataForSync, supabase)
+              console.log("[v0] Sincronización de presupuesto V2 completada")
+            }
+          } catch (syncError) {
+            console.error("[v0] Error syncing V2 budget:", syncError)
+          }
+        }
+
+        // Update lastSaved AFTER sync is complete
+        setLastSaved(new Date())
+
         if (forceSave && onSave) {
           onSave() // Llama al callback onSave si se está forzando el guardado
         }
@@ -2963,6 +3055,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
             {projectId && (
               <BudgetSection
                 projectId={projectId}
+                isV2Mode={isV2Budget}
                 calculatorData={{
                   demolition: {
                     rooms: rooms,

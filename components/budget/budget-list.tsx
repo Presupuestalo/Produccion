@@ -67,6 +67,15 @@ export function BudgetList({
         const data = await BudgetService.getBudgetsByProject(projectId, supabase)
         setBudgets(data)
 
+        // Self-heal: If there are 0 budgets, ensure project is not stuck in Aceptado
+        if (data && data.length === 0) {
+          const { data: projectState } = await supabase.from("projects").select("status").eq("id", projectId).single()
+          if (projectState && projectState.status !== "Borrador" && String(projectState.status).toLowerCase() !== "draft") {
+            await supabase.from("projects").update({ status: "Borrador", progress: 0 }).eq("id", projectId)
+            window.dispatchEvent(new Event("project-status-updated"))
+          }
+        }
+
         const acceptedBudget = data.find((b) => b.status === "approved")
         setHasAcceptedBudget(!!acceptedBudget)
 
@@ -101,6 +110,7 @@ export function BudgetList({
       await BudgetService.deleteBudget(budgetId, supabase)
       setBudgets((prev) => prev.filter((b) => b.id !== budgetId))
       setBudgetToDelete(null)
+      window.dispatchEvent(new Event("project-status-updated"))
       toast.success("Presupuesto eliminado", {
         description: "El presupuesto se ha eliminado correctamente",
       })
@@ -123,6 +133,7 @@ export function BudgetList({
       await BudgetService.deleteAllBudgets(projectId, supabase)
       setBudgets([])
       setShowDeleteAllDialog(false)
+      window.dispatchEvent(new Event("project-status-updated"))
       toast.success("Presupuestos eliminados", {
         description: "Se han eliminado todos los presupuestos del proyecto",
       })

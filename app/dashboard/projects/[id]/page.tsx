@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import Calculator, { type CalculatorHandle } from "@/components/calculator/calculator"
 import { useToast } from "@/components/ui/use-toast"
-import { AlertTriangle, ArrowLeft, Settings, PencilRuler, Eye, Layout, Plus, FileText, ChevronDown, Hammer, CheckCircle, Loader2, Copy } from "lucide-react"
+import { AlertTriangle, ArrowLeft, Settings, PencilRuler, Eye, Layout, Plus, FileText, ChevronDown, Hammer, CheckCircle, Loader2, Copy, Zap } from "lucide-react"
 import { updateProject, calculateProgress } from "@/lib/services/project-service"
 import type { Project } from "@/types/project"
 import {
@@ -47,8 +47,17 @@ export default function ProjectPage() {
   const [error, setError] = useState<string | null>(null)
   const [shouldOpenAnalyzer, setShouldOpenAnalyzer] = useState(false)
   const [isMaster, setIsMaster] = useState(false)
+
   const [linkedPlans, setLinkedPlans] = useState<{ id: string, variant: string }[]>([])
   const [activeTab, setActiveTab] = useState<string>("demolition")
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  // Listen for custom project status updates
+  useEffect(() => {
+    const handleUpdate = () => setRefreshKey(prev => prev + 1)
+    window.addEventListener('project-status-updated', handleUpdate)
+    return () => window.removeEventListener('project-status-updated', handleUpdate)
+  }, [])
 
   const calculatorRef = useRef<CalculatorHandle>(null)
 
@@ -139,7 +148,7 @@ export default function ProjectPage() {
     if (projectId) {
       fetchProject()
     }
-  }, [projectId, toast])
+  }, [projectId, toast, refreshKey])
 
   // Fetch linked floor plans
   useEffect(() => {
@@ -460,8 +469,9 @@ export default function ProjectPage() {
           </div>
 
           {/* BUDGET Button - Maximum Prominence, Aligned with Tabs below */}
-          {activeTab !== "presupuesto" && (
-            <div className="flex-1 md:flex-initial flex justify-end md:pr-1">
+          <div className="flex-1 md:flex-initial flex items-center justify-end gap-2 md:pr-1">
+
+            {activeTab !== "presupuesto" && (
               <Button
                 variant="default"
                 size="lg"
@@ -475,12 +485,12 @@ export default function ProjectPage() {
               >
                 PRESUPUESTOS
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
       <div className="pt-1">
-        <Calculator ref={calculatorRef} projectId={projectId} onTabChange={setActiveTab} />
+        <Calculator ref={calculatorRef} projectId={projectId} onTabChange={setActiveTab} isV2Budget={true} />
       </div>
     </div>
   )

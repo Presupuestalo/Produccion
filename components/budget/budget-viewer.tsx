@@ -28,6 +28,7 @@ interface BudgetViewerProps {
   projectId: string
   budgetId?: string
   onBudgetUpdated?: () => void
+  refreshTrigger?: number
 }
 
 interface ProjectData {
@@ -50,7 +51,7 @@ interface LeadRequestStatus {
   selected_company: string | null
 }
 
-export function BudgetViewer({ projectId, budgetId, onBudgetUpdated }: BudgetViewerProps) {
+export function BudgetViewer({ projectId, budgetId, onBudgetUpdated, refreshTrigger }: BudgetViewerProps) {
   const [budget, setBudget] = useState<BudgetWithLineItems | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -119,11 +120,19 @@ export function BudgetViewer({ projectId, budgetId, onBudgetUpdated }: BudgetVie
   useEffect(() => {
     loadBudget()
     if (budgetId) {
-      subscribeToBudgetChanges(budgetId, () => {
-        loadBudget()
+      const unsubscribe = subscribeToBudgetChanges(budgetId, () => {
+        loadBudget(true)
       })
+      return unsubscribe
     }
   }, [budgetId])
+
+  useEffect(() => {
+    if (refreshTrigger) {
+      console.log("[v0] refreshTrigger changed, reloading budget...")
+      loadBudget(true)
+    }
+  }, [refreshTrigger])
 
   const reloadBudgetSettings = async () => {
     try {

@@ -1056,7 +1056,7 @@ export class BudgetGenerator {
   private generatePartitionsItems() {
     const reform: any = this.calculatorData.reform
 
-    console.log("[v0] BudgetGenerator - generatePartitionsItems called")
+    console.log("[v0] BudgetGenerator - Starting generatePartitionsItems")
 
     if (!reform) {
       console.log("[v0] BudgetGenerator - NO reform data, skipping partitions items")
@@ -1067,15 +1067,11 @@ export class BudgetGenerator {
     let plasterboardPartitionsArea = 0
     let wallLiningsArea = 0
 
-    // Calcular desde partitions array
-    if (reform.partitions && Array.isArray(reform.partitions) && reform.partitions.length > 0) {
-      console.log("[v0] BudgetGenerator - Processing partitions array:", reform.partitions)
-
-      reform.partitions.forEach((partition: any) => {
-        const area = (partition.linearMeters || 0) * (partition.height || 2.6)
-        console.log(
-          `[v0] BudgetGenerator - Partition type: ${partition.type}, linearMeters: ${partition.linearMeters}, height: ${partition.height}, area: ${area}`,
-        )
+    // 1. Process partitions array (should contain Brick or Plasterboard items)
+    if (reform.partitions && Array.isArray(reform.partitions)) {
+      reform.partitions.forEach((partition: any, index: number) => {
+        const area = (Number(partition.linearMeters) || 0) * (Number(partition.height) || 2.6)
+        console.log(`[v0] BudgetGenerator - Partition #${index + 1}: type=${partition.type}, area=${area.toFixed(2)}m²`)
 
         if (partition.type === "ladrillo") {
           brickPartitionsArea += area
@@ -1085,51 +1081,34 @@ export class BudgetGenerator {
       })
     }
 
-    // Calcular desde wallLinings array
-    if (reform.wallLinings && Array.isArray(reform.wallLinings) && reform.wallLinings.length > 0) {
-      console.log("[v0] BudgetGenerator - Processing wallLinings array:", reform.wallLinings)
-
-      reform.wallLinings.forEach((lining: any) => {
-        const area = (lining.linearMeters || 0) * (lining.height || 2.6)
-        console.log(
-          `[v0] BudgetGenerator - Wall lining linearMeters: ${lining.linearMeters}, height: ${lining.height}, area: ${area}`,
-        )
+    // 2. Process wallLinings array (should contain Trasdosado items)
+    if (reform.wallLinings && Array.isArray(reform.wallLinings)) {
+      reform.wallLinings.forEach((lining: any, index: number) => {
+        const area = (Number(lining.linearMeters) || 0) * (Number(lining.height) || 2.6)
+        console.log(`[v0] BudgetGenerator - Wall lining #${index + 1}: area=${area.toFixed(2)}m²`)
         wallLiningsArea += area
       })
     }
 
-    console.log("[v0] BudgetGenerator - Calculated areas:", {
-      brickPartitions: brickPartitionsArea,
-      plasterboardPartitions: plasterboardPartitionsArea,
-      wallLinings: wallLiningsArea,
+    console.log("[v0] BudgetGenerator - Final areas:", {
+      brick: brickPartitionsArea.toFixed(2),
+      pladur: plasterboardPartitionsArea.toFixed(2),
+      trasdosado: wallLiningsArea.toFixed(2)
     })
 
-    // Trasdosado en Placa de yeso laminado
-    if (wallLiningsArea > 0) {
-      console.log(
-        `[v0] BudgetGenerator - Generando partida: Trasdosado en Placa de yeso laminado ${wallLiningsArea} m²`,
-      )
-      this.addLineItem("03-T-01", wallLiningsArea, "Trasdosado en Placa de yeso laminado")
-    } else {
-      console.log("[v0] BudgetGenerator - NO se genera partida de trasdosado (total = 0)")
-    }
-
-    // Tabiques de ladrillo
+    // 03-T-01: Tabiques de ladrillo cerámico (Price 41.40)
     if (brickPartitionsArea > 0) {
-      console.log(`[v0] BudgetGenerator - Generando partida: Tabiques de ladrillo ${brickPartitionsArea} m²`)
-      this.addLineItem("03-T-02", brickPartitionsArea, "Tabiques de ladrillo")
-    } else {
-      console.log("[v0] BudgetGenerator - NO se genera partida de tabiques de ladrillo (total = 0)")
+      this.addLineItem("03-T-01", brickPartitionsArea, "Tabiques de ladrillo cerámico")
     }
 
-    // Tabiques de Placa de yeso laminado
+    // 03-T-02: Tabiques de placa de yeso laminado (PYL) doble cara
     if (plasterboardPartitionsArea > 0) {
-      console.log(
-        `[v0] BudgetGenerator - Generando partida: Tabiques de Placa de yeso laminado ${plasterboardPartitionsArea} m²`,
-      )
-      this.addLineItem("03-T-03", plasterboardPartitionsArea, "Tabiques de Placa de yeso laminado")
-    } else {
-      console.log("[v0] BudgetGenerator - NO se genera partida de tabiques de placa de yeso (total = 0)")
+      this.addLineItem("03-T-02", plasterboardPartitionsArea, "Tabiques de Placa de yeso laminado (PYL) doble cara")
+    }
+
+    // 03-T-03: Trasdosado autoportante en Placa de yeso laminado (Price 67.90)
+    if (wallLiningsArea > 0) {
+      this.addLineItem("03-T-03", wallLiningsArea, "Trasdosado autoportante en Placa de yeso laminado")
     }
 
     console.log("[v0] BudgetGenerator - Partitions items generation completed")
@@ -1644,7 +1623,7 @@ export class BudgetGenerator {
 
     if (!needsNewInstallation) {
       console.log(
-        "[v0] BudgetGenerator - Electrical installation NOT needed (needsNewInstallation is false). General items (Panel, Certificate, Telecom, Portero, Lines) will be skipped, but room elements (Outlets, Lights) will be processed.",
+        "[v0] BudgetGenerator - Electrical installation NOT needed (needsNewInstallation is false). ALL electrical items will be skipped.",
       )
     } else {
       console.log("[v0] BudgetGenerator - NEW electrical installation requested (needsNewInstallation is true). General items will be processed.")
@@ -1808,82 +1787,77 @@ export class BudgetGenerator {
         console.log(`[v0] BudgetGenerator - [SKIP] 06-E-05 & 06-E-06 since it's a partial renovation (${this.getRealRoomCount()} rooms, hasMainRooms: ${hasMainRooms})`)
       }
     } else {
-      console.log("[v0] BudgetGenerator - SKIPPING GENERAL ELECTRICAL ITEMS (needsNewInstallation is false)")
+      console.log("[v0] BudgetGenerator - SKIPPING ALL ELECTRICAL ITEMS (needsNewInstallation is false)")
     }
 
-
-    // 06-E-07: Simple light points (ceiling lights + switches)
-    // Corrected logic: Simple light points should be total ceiling lights. Switches are separate.
-    const simpleLightPoints = totalCeilingLights
-    if (simpleLightPoints > 0) {
-      console.log(`[v0] BudgetGenerator - Generando partida: Puntos de luz sencillos ${simpleLightPoints} ud`)
-      this.addLineItem("06-E-07", simpleLightPoints, "Punto de luz sencillos")
-    }
-
-    // 06-E-08: Switched points (conmutados)
-    if (totalSwitchedPoints > 0) {
-      console.log(`[v0] BudgetGenerator - Generando partida: Puntos conmutados ${totalSwitchedPoints} ud`)
-      this.addLineItem("06-E-08", totalSwitchedPoints, "Puntos conmutados")
-    }
-
-    // 06-E-09: Crossover points (cruzamiento)
-    if (totalCrossoverPoints > 0) {
-      console.log(`[v0] BudgetGenerator - Generando partida: Puntos de cruzamiento ${totalCrossoverPoints} ud`)
-      this.addLineItem("06-E-09", totalCrossoverPoints, "Puntos de cruzamiento")
-    }
-
-    // 06-E-10: Outlets (now includes electric heater outlets if applicable)
-    if (totalOutlets > 0) {
-      console.log(`[v0] BudgetGenerator - Generando partida: Puntos de enchufes ${totalOutlets} ud`)
-      this.addLineItem("06-E-10", totalOutlets, "Puntos de enchufes")
-    }
-
-    // 06-E-12: TV outlets
-    if (totalTVOutlets > 0) {
-      console.log(`[v0] BudgetGenerator - Generando partida: Toma de TV ${totalTVOutlets} ud`)
-      this.addLineItem("06-E-12", totalTVOutlets, "Toma de TV")
-    }
-
-    // 06-E-11: Outdoor outlets
-    if (totalOutdoorOutlets > 0) {
-      console.log(`[v0] BudgetGenerator - Generando partida: Enchufes intemperie ${totalOutdoorOutlets} ud`)
-      this.addLineItem("06-E-11", totalOutdoorOutlets, "Enchufe intemperie")
-    }
-
-    // 06-E-14: Recessed lights (focos empotrados)
-    if (totalRecessedLights > 0) {
-      console.log(`[v0] BudgetGenerator - Generando partida: Focos empotrados ${totalRecessedLights} ud`)
-      this.addLineItem("06-E-14", totalRecessedLights, "Suministro y colocación focos")
-    }
-
-    // 06-E-15: Timbre (Interruptor puerta entrada)
-    if (totalTimbres > 0) {
-      console.log(`[v0] BudgetGenerator - Generando partida: Timbre ${totalTimbres} ud`)
-      this.addLineItem("06-E-15", totalTimbres, "Timbre de puerta de entrada")
-    }
-
-    // 06-E-16: Heating line (only if electric heating)
-    const heatingTypeForElectric = reform.config?.reformHeatingType
-    if (heatingTypeForElectric === "Eléctrica") {
-      console.log("[v0] BudgetGenerator - Generando partida: Línea de calefacción eléctrica 1 ud")
-      this.addLineItem("06-E-16", 1, "Línea de cuatro para calefacción eléctrica")
-    }
-
+    // Room-level electrical items: only if needsNewInstallation
     if (needsNewInstallation) {
+      // 06-E-07: Simple light points (ceiling lights + switches)
+      const simpleLightPoints = totalCeilingLights
+      if (simpleLightPoints > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Puntos de luz sencillos ${simpleLightPoints} ud`)
+        this.addLineItem("06-E-07", simpleLightPoints, "Punto de luz sencillos")
+      }
+
+      // 06-E-08: Switched points (conmutados)
+      if (totalSwitchedPoints > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Puntos conmutados ${totalSwitchedPoints} ud`)
+        this.addLineItem("06-E-08", totalSwitchedPoints, "Puntos conmutados")
+      }
+
+      // 06-E-09: Crossover points (cruzamiento)
+      if (totalCrossoverPoints > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Puntos de cruzamiento ${totalCrossoverPoints} ud`)
+        this.addLineItem("06-E-09", totalCrossoverPoints, "Puntos de cruzamiento")
+      }
+
+      // 06-E-10: Outlets
+      if (totalOutlets > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Puntos de enchufes ${totalOutlets} ud`)
+        this.addLineItem("06-E-10", totalOutlets, "Puntos de enchufes")
+      }
+
+      // 06-E-12: TV outlets
+      if (totalTVOutlets > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Toma de TV ${totalTVOutlets} ud`)
+        this.addLineItem("06-E-12", totalTVOutlets, "Toma de TV")
+      }
+
+      // 06-E-11: Outdoor outlets
+      if (totalOutdoorOutlets > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Enchufes intemperie ${totalOutdoorOutlets} ud`)
+        this.addLineItem("06-E-11", totalOutdoorOutlets, "Enchufe intemperie")
+      }
+
+      // 06-E-14: Recessed lights (focos empotrados)
+      if (totalRecessedLights > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Focos empotrados ${totalRecessedLights} ud`)
+        this.addLineItem("06-E-14", totalRecessedLights, "Suministro y colocación focos")
+      }
+
+      // 06-E-15: Timbre
+      if (totalTimbres > 0) {
+        console.log(`[v0] BudgetGenerator - Generando partida: Timbre ${totalTimbres} ud`)
+        this.addLineItem("06-E-15", totalTimbres, "Timbre de puerta de entrada")
+      }
+
+      // 06-E-16: Heating line (only if electric heating)
+      const heatingTypeForElectric = reform.config?.reformHeatingType
+      if (heatingTypeForElectric === "Eléctrica") {
+        console.log("[v0] BudgetGenerator - Generando partida: Línea de calefacción eléctrica 1 ud")
+        this.addLineItem("06-E-16", 1, "Línea de cuatro para calefacción eléctrica")
+      }
+
       // 06-E-17: Certification
       if (electricalConfig?.hasCertificate === true) {
         console.log("[v0] BudgetGenerator - [ADD] 06-E-17 (Boletín) because hasCertificate === true")
         this.addLineItem("06-E-17", 1, "Boletín y legalización")
-      } else {
-        console.log("[v0] BudgetGenerator - [SKIP] 06-E-17 (Boletín) because hasCertificate is not true")
       }
 
       // 06-E-18: Grounding installation
       if (electricalConfig?.hasGroundConnection === true) {
         console.log("[v0] BudgetGenerator - [ADD] 06-E-18 (Toma de tierra) because hasGroundConnection === true")
         this.addLineItem("06-E-18", 1, "Obligatorio para nueva instalación eléctrica")
-      } else {
-        console.log("[v0] BudgetGenerator - [SKIP] 06-E-18 (Toma de tierra) because hasGroundConnection is not true")
       }
     }
 
