@@ -133,6 +133,8 @@ export interface Room {
 export interface GlobalConfig {
   standardHeight: number
   structureType?: StructureType // Nuevo campo para tipo de estructura
+  demolishedWallAreaM2?: number
+  newConstructedWallAreaM2?: number
   heatingType?: CalefaccionType
   reformHeatingType?: ReformHeatingType // Añadido campo para calefacción de reforma
   removeWoodenFloor: boolean
