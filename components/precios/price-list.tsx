@@ -14,6 +14,7 @@ import {
   type PriceMaster,
   type PriceWithCategory,
 } from "@/lib/services/price-service"
+import { supabase } from "@/lib/supabase/client"
 import { PriceEditDialog } from "./price-edit-dialog"
 import { PriceCreateDialog } from "./price-create-dialog"
 import { PriceIncreaseDialog } from "./price-increase-dialog"
@@ -55,6 +56,7 @@ export function PriceList() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [adminEditingPrice, setAdminEditingPrice] = useState<PriceMaster | null>(null)
   const [userCountry, setUserCountry] = useState<any>(null)
+  const [pricesWithTiers, setPricesWithTiers] = useState<Set<string>>(new Set())
 
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
@@ -107,15 +109,26 @@ export function PriceList() {
     try {
       setLoading(true)
       const data = await getPricesByCategory(categoryId)
-      console.log(
-        "[v0] Precios cargados:",
-        data.length,
-        "personalizados:",
-        data.filter((p) => p.is_custom).length,
-        "importados:",
-        data.filter((p) => p.is_imported).length,
-      )
       setPrices(data)
+
+      // Load which prices have tiers defined
+      if (data.length > 0) {
+        const ids = data.map((p) => p.id)
+        const { data: tierRows } = await supabase
+          .from("price_tiers")
+          .select("price_master_id, user_price_id")
+          .or(`price_master_id.in.(${ids.join(",")}),user_price_id.in.(${ids.join(",")})`)
+        if (tierRows) {
+          const withTiers = new Set<string>()
+          tierRows.forEach((t: any) => {
+            if (t.price_master_id) withTiers.add(t.price_master_id)
+            if (t.user_price_id) withTiers.add(t.user_price_id)
+          })
+          setPricesWithTiers(withTiers)
+        }
+      } else {
+        setPricesWithTiers(new Set())
+      }
     } catch (error) {
       console.error("Error loading prices:", error)
     } finally {
@@ -450,6 +463,7 @@ export function PriceList() {
                   isAdmin={isAdmin}
                   onAdminEdit={setAdminEditingPrice}
                   hideCode={true}
+                  pricesWithTiers={pricesWithTiers}
                 />
               </div>
             )
@@ -471,6 +485,7 @@ export function PriceList() {
               isMaster={isMaster}
               isAdmin={isAdmin}
               onAdminEdit={setAdminEditingPrice}
+              pricesWithTiers={pricesWithTiers}
             />
           )}
         </div>

@@ -15,6 +15,7 @@ interface PriceTableProps {
   isAdmin: boolean
   onAdminEdit: (price: PriceMaster) => void
   hideCode?: boolean
+  pricesWithTiers?: Set<string> // Set of price IDs that have tiers
 }
 
 const formatPrice = (price: number) => {
@@ -31,6 +32,7 @@ export function PriceTable({
   isAdmin,
   onAdminEdit,
   hideCode = false,
+  pricesWithTiers = new Set(),
 }: PriceTableProps) {
   const [selectedPrice, setSelectedPrice] = useState<PriceMaster | null>(null)
 
@@ -73,7 +75,15 @@ export function PriceTable({
                 <td className="px-4 py-3 text-sm text-muted-foreground">{price.notes || "-"}</td>
                 <td className="px-4 py-3 text-sm">{price.unit}</td>
                 <td className="px-4 py-3 text-sm text-right font-medium text-green-600 whitespace-nowrap">
-                  {formatPrice(price.final_price)} {currencySymbol}
+                  <span>{formatPrice(price.final_price)} {currencySymbol}</span>
+                  {pricesWithTiers.has(price.id) && (
+                    <span
+                      title="Este precio tiene franjas variables"
+                      className="ml-1.5 inline-flex items-center px-1 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700"
+                    >
+                      ≈
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1">

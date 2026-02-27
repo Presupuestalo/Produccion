@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { createCustomPrice, type PriceCategory } from "@/lib/services/price-service"
+import { createCustomPrice, type PriceCategory, type PriceTier, saveTiersForPrice } from "@/lib/services/price-service"
 import { Loader2, Sparkles } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import * as SubscriptionLimitsService from "@/lib/services/subscription-limits-service"
@@ -22,6 +22,8 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import { isMasterUser } from "@/lib/services/auth-service"
 import { AIPriceImportDialog } from "./ai-price-import-dialog"
+import { PriceTiersEditor } from "./price-tiers-editor"
+import { getCurrencySymbol, getUserCountry } from "@/lib/services/currency-service"
 
 interface PriceCreateDialogProps {
   open: boolean
@@ -38,15 +40,18 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)
   const [hasAiAccess, setHasAiAccess] = useState<boolean | null>(null)
   const [isMaster, setIsMaster] = useState(false)
+  const [tiers, setTiers] = useState<PriceTier[]>([])
+  const [currencySymbol, setCurrencySymbol] = useState("€")
   const { toast } = useToast()
 
   useEffect(() => {
     async function checkAccess() {
       const limits = await SubscriptionLimitsService.getSubscriptionLimits()
       setHasAiAccess(limits?.aiPriceImport || false)
-
       const masterStatus = await isMasterUser()
       setIsMaster(masterStatus)
+      const country = await getUserCountry()
+      setCurrencySymbol(getCurrencySymbol(country))
     }
     checkAccess()
   }, [])
@@ -137,7 +142,7 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
 
       console.log("[v0] Creando precio personalizado en categoría:", formData.category_id)
 
-      await createCustomPrice({
+      const createdPrice = await createCustomPrice({
         code: autoCode,
         category_id: formData.category_id,
         subcategory: formData.subcategory.toUpperCase(),
@@ -158,6 +163,11 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
         model: formData.model || null,
       })
 
+      // Save tiers if any were defined
+      if (tiers.length > 0 && createdPrice?.id) {
+        await saveTiersForPrice(createdPrice.id, true, tiers)
+      }
+
       console.log("[v0] Precio creado exitosamente")
 
       const createdCategoryId = formData.category_id
@@ -172,6 +182,7 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
         brand: "",
         model: "",
       })
+      setTiers([])
 
       onSuccess(createdCategoryId)
       onOpenChange(false)
@@ -378,6 +389,14 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
               />
             </div>
           </div>
+
+          {/* Franjas de precio */}
+          <PriceTiersEditor
+            tiers={tiers}
+            unit={formData.unit}
+            currencySymbol={currencySymbol}
+            onChange={setTiers}
+          />
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

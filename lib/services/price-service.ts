@@ -70,6 +70,67 @@ export interface PriceWithCategory extends PriceMaster {
   category: PriceCategory
 }
 
+export interface PriceTier {
+  id?: string
+  price_master_id?: string | null
+  user_price_id?: string | null
+  min_quantity: number
+  max_quantity: number | null // null = sin límite (∞)
+  price_override: number
+  label?: string | null
+  sort_order?: number
+}
+
+// Obtener franjas de precio para un precio (maestro o usuario)
+export async function getTiersForPrice(priceId: string, isUserPrice = false): Promise<PriceTier[]> {
+  const column = isUserPrice ? "user_price_id" : "price_master_id"
+  const { data, error } = await supabase
+    .from("price_tiers")
+    .select("*")
+    .eq(column, priceId)
+    .order("sort_order", { ascending: true })
+
+  if (error) {
+    console.error("[price-service] Error loading tiers:", error)
+    return []
+  }
+  return data || []
+}
+
+// Guardar (reemplazar) todas las franjas de un precio
+export async function saveTiersForPrice(
+  priceId: string,
+  isUserPrice: boolean,
+  tiers: Omit<PriceTier, "id" | "price_master_id" | "user_price_id">[],
+): Promise<void> {
+  const column = isUserPrice ? "user_price_id" : "price_master_id"
+
+  // Borrar las franjas existentes
+  const { error: deleteError } = await supabase
+    .from("price_tiers")
+    .delete()
+    .eq(column, priceId)
+
+  if (deleteError) throw deleteError
+
+  if (tiers.length === 0) return
+
+  // Insertar las nuevas franjas
+  const rows = tiers.map((t, i) => ({
+    [column]: priceId,
+    min_quantity: t.min_quantity,
+    max_quantity: t.max_quantity,
+    price_override: t.price_override,
+    label: t.label || null,
+    sort_order: i,
+  }))
+
+  const { error: insertError } = await supabase.from("price_tiers").insert(rows)
+  if (insertError) throw insertError
+}
+
+
+
 // Obtener todas las categorías
 export async function getPriceCategories(): Promise<PriceCategory[]> {
   const { data, error } = await supabase

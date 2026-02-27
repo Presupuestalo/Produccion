@@ -48,6 +48,8 @@ export class BudgetGenerator {
   private sortOrder = 0
   private electricHeaterOutlets = 0
   private priceCache: Map<string, PriceItem> = new Map()
+  // Map<priceCode, sorted array of tiers from DB>
+  private tierCache: Map<string, { min: number; max: number | null; price: number }[]> = new Map()
 
   // Project data populated from calculator data
   private project: Partial<ProjectData> = {}
@@ -313,6 +315,49 @@ export class BudgetGenerator {
     }
 
     console.log(`[v0] BudgetGenerator - Total prices in cache: ${this.priceCache.size}`)
+
+    // 4. Cargar franjas de precio (price_tiers) para los precios del catálogo
+    // Cargamos en batch todos los tiers maestros y los del usuario actual
+    const priceIds = masterPrices?.map((p) => p.id) || []
+    const userPriceIds = userPrices?.map((p) => p.id) || []
+
+    if (priceIds.length > 0 || userPriceIds.length > 0) {
+      const { data: allTiers, error: tiersError } = await supabaseClient
+        .from("price_tiers")
+        .select("price_master_id, user_price_id, min_quantity, max_quantity, price_override, sort_order")
+        .or(
+          [
+            priceIds.length > 0 ? `price_master_id.in.(${priceIds.join(",")})` : null,
+            userPriceIds.length > 0 ? `user_price_id.in.(${userPriceIds.join(",")})` : null,
+          ]
+            .filter(Boolean)
+            .join(","),
+        )
+        .order("sort_order", { ascending: true })
+
+      if (tiersError) {
+        console.warn("[v0] BudgetGenerator - Could not load price tiers (table may not exist yet):", tiersError.message)
+      } else if (allTiers && allTiers.length > 0) {
+        console.log(`[v0] BudgetGenerator - Loaded ${allTiers.length} price tiers total`)
+        // Index tiers by the price code they belong to
+        const idToCode = new Map<string, string>()
+        masterPrices?.forEach((p) => idToCode.set(p.id, p.code?.trim()))
+        userPrices?.forEach((p) => idToCode.set(p.id, p.code?.trim()))
+
+        allTiers.forEach((tier) => {
+          const priceId = tier.price_master_id || tier.user_price_id
+          const code = idToCode.get(priceId)
+          if (!code) return
+          if (!this.tierCache.has(code)) this.tierCache.set(code, [])
+          this.tierCache.get(code)!.push({
+            min: Number(tier.min_quantity),
+            max: tier.max_quantity !== null ? Number(tier.max_quantity) : null,
+            price: Number(tier.price_override),
+          })
+        })
+        console.log(`[v0] BudgetGenerator - Tier cache has ${this.tierCache.size} prices with tiers`)
+      }
+    }
   }
 
   private addLineItem(priceCode: string, quantity = 1, customNotes?: string, customPrice?: number, priceMultiplier = 1) {
@@ -341,7 +386,23 @@ export class BudgetGenerator {
     const categoryInfo = categoryMap[priceCode.split("-")[0]]
 
     const baseUnitPrice = customPrice ?? priceItem.final_price
-    const unitPrice = baseUnitPrice * priceMultiplier
+
+    // Apply price tier if available and no customPrice was explicitly passed
+    let effectiveUnitPrice = baseUnitPrice
+    if (!customPrice) {
+      const tiers = this.tierCache.get(trimmedCode)
+      if (tiers && tiers.length > 0) {
+        const matchingTier = tiers.find(
+          (t) => quantity >= t.min && (t.max === null || quantity < t.max)
+        )
+        if (matchingTier) {
+          effectiveUnitPrice = matchingTier.price
+          console.log(`[v0] BudgetGenerator - Tier applied for ${trimmedCode}: qty=${quantity} => ${effectiveUnitPrice} (was ${baseUnitPrice})`)
+        }
+      }
+    }
+
+    const unitPrice = effectiveUnitPrice * priceMultiplier
     const totalPrice = quantity * unitPrice
 
     console.log(`[v0] Adding line item with base_price_id:`, {

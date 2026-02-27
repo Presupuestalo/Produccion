@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import {
   Dialog,
@@ -15,10 +14,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import type { PriceMaster } from "@/lib/services/price-service"
-import { updatePrice } from "@/lib/services/price-service"
+import type { PriceMaster, PriceTier } from "@/lib/services/price-service"
+import { updatePrice, getTiersForPrice, saveTiersForPrice } from "@/lib/services/price-service"
 import { Loader2, TrendingUp, TrendingDown } from "lucide-react"
 import { getCurrencySymbol, getUserCountry } from "@/lib/services/currency-service"
+import { PriceTiersEditor } from "./price-tiers-editor"
 
 interface PriceEditDialogProps {
   price: PriceMaster
@@ -30,6 +30,7 @@ interface PriceEditDialogProps {
 export function PriceEditDialog({ price, open, onOpenChange, onSuccess }: PriceEditDialogProps) {
   const [loading, setLoading] = useState(false)
   const [currencySymbol, setCurrencySymbol] = useState("€")
+  const [tiers, setTiers] = useState<PriceTier[]>([])
   const [formData, setFormData] = useState({
     subcategory: price.subcategory || "",
     description: price.description,
@@ -58,6 +59,9 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess }: PriceE
       model: price.model || "",
       notes: price.notes || "",
     })
+    // Load tiers for this price
+    const isUserPrice = price.is_custom || price.is_imported
+    getTiersForPrice(price.id, isUserPrice).then(setTiers).catch(() => setTiers([]))
   }, [price])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -71,7 +75,7 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess }: PriceE
       const laborCost = finalPrice * 0.7
       const materialCost = finalPrice * 0.3
 
-      await updatePrice(price.id, {
+      const updatedPrice = await updatePrice(price.id, {
         subcategory: formData.subcategory || null,
         description: formData.description,
         color: formData.color || null,
@@ -82,8 +86,13 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess }: PriceE
         material_cost: materialCost,
         equipment_cost: 0,
         other_cost: 0,
-        margin_percentage: 0, // Sin margen adicional, el precio final es el que el usuario especifica
+        margin_percentage: 0,
       })
+
+      // Save tiers against the resulting price ID (may be a new user_price copy)
+      const savedPriceId = updatedPrice?.id || price.id
+      const isUserPrice = true // After updatePrice, it always becomes a user price
+      await saveTiersForPrice(savedPriceId, isUserPrice, tiers)
 
       console.log("[v0] Precio actualizado correctamente")
       onSuccess()
@@ -226,6 +235,14 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess }: PriceE
               required
             />
           </div>
+
+          {/* Franjas de precio */}
+          <PriceTiersEditor
+            tiers={tiers}
+            unit={price.unit}
+            currencySymbol={currencySymbol}
+            onChange={setTiers}
+          />
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
