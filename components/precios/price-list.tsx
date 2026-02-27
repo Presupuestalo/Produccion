@@ -313,8 +313,8 @@ export function PriceList() {
   }, [deletingPrice])
 
   return (
-    <div className="w-full space-y-0 md:space-y-4">
-      <div className="md:hidden px-2 py-2 border-b flex items-center justify-between gap-2">
+    <div className="w-full space-y-0 lg:space-y-4">
+      <div className="lg:hidden px-2 py-2 border-b flex items-center justify-between gap-2">
         <button
           onClick={() => setIsSearchExpanded(!isSearchExpanded)}
           className="flex items-center justify-center w-8 h-8 rounded-lg border bg-background hover:bg-muted shrink-0"
@@ -358,7 +358,7 @@ export function PriceList() {
         </button>
       </div>
 
-      <div className="hidden md:flex items-center gap-4 px-6">
+      <div className="hidden lg:flex items-center gap-4 px-6">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
@@ -407,17 +407,17 @@ export function PriceList() {
 
       <div className="relative w-full border-b">
         {/* Gradientes para indicar scroll */}
-        <div className="md:hidden absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent pointer-events-none z-10" />
-        <div className="md:hidden absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
+        <div className="lg:hidden absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent pointer-events-none z-10" />
+        <div className="lg:hidden absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
 
-        <div className="overflow-x-auto scrollbar-hide px-0 md:px-6">
+        <div className="overflow-x-auto scrollbar-hide px-0 lg:px-6">
           <div className="flex items-center gap-0 min-w-max">
             {categories.map((category) => (
               <button
                 key={category.id}
                 onClick={() => setSelectedCategory(category.id)}
                 className={`
-                  px-3 md:px-6 py-2.5 md:py-4 text-xs md:text-sm font-medium whitespace-nowrap transition-colors border-b-2 shrink-0
+                  px-3 lg:px-6 py-2.5 lg:py-4 text-xs lg:text-sm font-medium whitespace-nowrap transition-colors border-b-2 shrink-0
                   ${selectedCategory === category.id
                     ? "border-primary text-primary bg-primary/5"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"

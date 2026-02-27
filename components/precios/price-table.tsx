@@ -41,8 +41,8 @@ export function PriceTable({
   return (
     <>
       {/* Desktop view */}
-      <div className="hidden md:block desktop:block rounded-lg border overflow-hidden">
-        <table className="w-full">
+      <div className="hidden lg:block desktop:block rounded-lg border overflow-x-auto">
+        <table className="w-full min-w-[800px]">
           <thead className="bg-muted/50">
             <tr>
               <th className="px-4 py-3 text-left text-sm font-medium">Concepto</th>
@@ -120,7 +120,7 @@ export function PriceTable({
         </table>
       </div>
 
-      <div className="md:hidden desktop:hidden space-y-2">
+      <div className="lg:hidden desktop:hidden space-y-2">
         {prices.map((price) => (
           <div key={price.id} className="border rounded-lg p-2.5 bg-card">
             <div className="flex items-start justify-between gap-2">

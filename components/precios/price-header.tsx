@@ -35,17 +35,17 @@ export function PriceHeader() {
     }
 
     return (
-        <div className="px-3 md:px-0 py-2 md:py-0 border-b md:border-b-0 mb-6">
-            <div className="flex items-center justify-between gap-2 md:gap-4">
-                <div className="flex items-center gap-2 md:gap-4">
-                    <Button asChild variant="ghost" size="icon" className="h-7 w-7 md:h-10 md:w-10">
+        <div className="px-3 lg:px-0 py-2 lg:py-0 border-b lg:border-b-0 mb-6">
+            <div className="flex items-center justify-between gap-2 lg:gap-4">
+                <div className="flex items-center gap-2 lg:gap-4">
+                    <Button asChild variant="ghost" size="icon" className="h-7 w-7 lg:h-10 lg:w-10">
                         <Link href="/dashboard">
-                            <ArrowLeft className="w-3.5 h-3.5 md:w-5 md:h-5" />
+                            <ArrowLeft className="w-3.5 h-3.5 lg:w-5 lg:h-5" />
                         </Link>
                     </Button>
                     <div>
-                        <h1 className="text-base md:text-3xl font-bold text-gray-900">Gestión de Precios</h1>
-                        <p className="hidden md:block text-sm text-gray-600">
+                        <h1 className="text-base lg:text-3xl font-bold text-gray-900">Gestión de Precios</h1>
+                        <p className="hidden lg:block text-sm text-gray-600">
                             Consulta y gestiona los precios de materiales y mano de obra
                         </p>
                     </div>
@@ -58,7 +58,7 @@ export function PriceHeader() {
                             variant="outline"
                             className={`
                   relative overflow-hidden group transition-all duration-300
-                  h-8 md:h-10 px-3 md:px-4
+                  h-8 lg:h-10 px-3 lg:px-4
                   border-purple-200 hover:border-purple-400 bg-white
                   shadow-sm hover:shadow-purple-100
                 `}
@@ -68,11 +68,11 @@ export function PriceHeader() {
                                 <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
 
                                 <div className="relative flex items-center gap-2">
-                                    <Brain className={`w-3.5 h-3.5 md:w-4 md:h-4 ${hasAIImport === false ? 'text-purple-500' : 'text-blue-500'}`} />
-                                    <span className="hidden md:inline font-semibold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-700">
+                                    <Brain className={`w-3.5 h-3.5 lg:w-4 lg:h-4 ${hasAIImport === false ? 'text-purple-500' : 'text-blue-500'}`} />
+                                    <span className="hidden lg:inline font-semibold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-700">
                                         Importar con IA
                                     </span>
-                                    <span className="md:hidden text-xs font-bold text-purple-600">IA</span>
+                                    <span className="lg:hidden text-xs font-bold text-purple-600">IA</span>
 
                                     {hasAIImport === false && (
                                         <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-700 border-purple-200 text-[10px] h-4 px-1 font-bold animate-pulse">
