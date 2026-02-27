@@ -95,7 +95,6 @@ export function PriceIncreaseDialog({ open, onOpenChange, onConfirm, title, desc
             <ul className="text-sm text-blue-700 space-y-0.5">
               <li>• 10% = aumenta los precios un 10%</li>
               <li>• -5% = reduce los precios un 5%</li>
-              <li>• 0% = no cambia los precios</li>
             </ul>
           </div>
         </div>

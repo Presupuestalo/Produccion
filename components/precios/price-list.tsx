@@ -411,11 +411,10 @@ export function PriceList() {
           Categorías
         </Button>
 
-        {isAdmin && (
-          <Button onClick={() => setShowGlobalIncreaseDialog(true)} variant="outline" className="gap-2">
-            <Percent className="h-4 w-4" />
-          </Button>
-        )}
+        <Button onClick={() => setShowGlobalIncreaseDialog(true)} variant="outline" className="gap-2">
+          <Percent className="h-4 w-4" />
+          Ajustar todos los precios
+        </Button>
       </div>
 
       <div className="relative w-full border-b">
@@ -505,7 +504,7 @@ export function PriceList() {
           onOpenChange={setShowGlobalIncreaseDialog}
           onConfirm={handleIncreaseAllPrices}
           title="Aumentador Global de Precios"
-          description="Ajusta todos los precios de todas las categorías por un porcentaje. Usa valores positivos para aumentar o negativos para reducir."
+          description="Ajusta todos los precios de todas las categorías por un porcentaje. Usa valores positivos para aumentar o negativos para reducir. La categoría MATERIALES queda excluida."
         />
       )}
 

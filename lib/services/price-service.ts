@@ -862,6 +862,13 @@ export async function increaseAllPrices(percentage: number): Promise<number> {
 
   console.log("[v0] AUMENTADOR GLOBAL: Precios de usuario existentes:", existingUserPrices?.length || 0)
 
+  // Load categories to get MATERIALES category ID(s) to exclude
+  const { data: allCategories } = await supabase.from("price_categories").select("id, name")
+  const materialesCategoryIds = new Set<string>(
+    (allCategories || []).filter((c: any) => c.name?.toUpperCase().includes("MATERIALES")).map((c: any) => c.id)
+  )
+  console.log("[v0] AUMENTADOR GLOBAL: Categorías excluidas (MATERIALES):", [...materialesCategoryIds])
+
   const multiplier = 1 + percentage / 100
   const userPriceMap = new Map(existingUserPrices?.map((p: any) => [p.base_price_id || p.code, p]) || [])
 
@@ -869,6 +876,9 @@ export async function increaseAllPrices(percentage: number): Promise<number> {
     if (!mp.category_id) {
       console.warn("[v0] AUMENTADOR GLOBAL: Saltando precio sin category_id:", mp.code)
       return false
+    }
+    if (materialesCategoryIds.has(mp.category_id)) {
+      return false // Skip MATERIALES
     }
     return !userPriceMap.has(mp.code)
   })
@@ -898,11 +908,14 @@ export async function increaseAllPrices(percentage: number): Promise<number> {
     model: mp.model,
   }))
 
-  // Prices to update (existing user prices)
-  const pricesToUpdate = (existingUserPrices || []).map((p: any) => ({
-    id: p.id,
-    final_price: p.final_price * multiplier,
-  }))
+  // Prices to update (existing user prices, excluding MATERIALES)
+  const pricesToUpdate = (existingUserPrices || [])
+    .filter((p: any) => !materialesCategoryIds.has(p.category_id))
+    .map((p: any) => ({
+      id: p.id,
+      final_price: p.final_price * multiplier,
+    }))
+
 
   console.log("[v0] AUMENTADOR GLOBAL: Precios maestros a copiar:", pricesToCreate.length)
   console.log("[v0] AUMENTADOR GLOBAL: Precios de usuario a actualizar:", pricesToUpdate.length)
