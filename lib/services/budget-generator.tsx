@@ -335,6 +335,7 @@ export class BudgetGenerator {
       "09": { category: "PINTURA", section: "painting" },
       "10": { category: "MATERIALES", section: "materials" },
       "11": { category: "VENTANAS", section: "windows" },
+      "12": { category: "TELECOMUNICACIONES", section: "telecom" },
     }
 
     const categoryInfo = categoryMap[priceCode.split("-")[0]]
@@ -1818,15 +1819,15 @@ export class BudgetGenerator {
         console.log("[v0] BudgetGenerator - [ADD] 06-E-06 (Línea alumbrado) because new installation is requested and it's a full renovation")
         this.addLineItem("06-E-06", 1, "Línea de alumbrado")
 
-        // 06-E-03: Intercom
-        console.log("[v0] BudgetGenerator - [ADD] 06-E-03 (Portero) because it's a full renovation")
-        this.addLineItem("06-E-03", 1, "Suministro e instalación de sistema de portero electrónico analógico")
+        // 12-TEL-01: TV Antena y cuadro telecomunicaciones
+        console.log("[v0] BudgetGenerator - [ADD] 12-TEL-01 (Antena TV) because it's a full renovation")
+        this.addLineItem("12-TEL-01", 1, "Instalación de cableado de antena de TV, cable coaxial DA-75 por tubo empotrado corrugado LH (libre de halógenos).")
 
         // 06-E-12: TV outlet (General)
         console.log("[v0] BudgetGenerator - [ADD] 06-E-12 (Toma TV) because it's a full renovation")
         this.addLineItem("06-E-12", 1, "Suministro y colocación de toma final de televisión")
       } else {
-        console.log(`[v0] BudgetGenerator - [SKIP] 06-E-03, 05, 06, 12 since it's a partial renovation`)
+        console.log(`[v0] BudgetGenerator - [SKIP] 12-TEL-01, 05, 06, 12 since it's a partial renovation`)
       }
     } else {
       console.log("[v0] BudgetGenerator - SKIPPING ALL ELECTRICAL ITEMS (needsNewInstallation is false)")
