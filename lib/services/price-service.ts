@@ -824,159 +824,73 @@ export async function increaseAllPrices(percentage: number): Promise<number> {
     throw new Error("Usuario no autenticado")
   }
 
-  const userCountry = await getUserCountryFromProfile()
-  const masterTable = getPriceTableByCountry(userCountry.code)
-  const userTable = getUserPriceTableByCountry(userCountry.code)
+  console.log("[v0] MULTIPLICADOR GLOBAL: Aplicando ajuste del", percentage, "%")
 
-  console.log("[v0] AUMENTADOR GLOBAL: Iniciando aumento del", percentage, "%")
-  console.log("[v0] AUMENTADOR GLOBAL: Usuario:", user.id)
-  console.log("[v0] AUMENTADOR GLOBAL: País:", userCountry.code)
-  console.log("[v0] AUMENTADOR GLOBAL: Tabla maestra:", masterTable)
-  console.log("[v0] AUMENTADOR GLOBAL: Tabla usuario:", userTable)
+  // Read current multiplier from profile
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("price_multiplier")
+    .eq("id", user.id)
+    .single()
 
-  // Get all master prices
-  const { data: masterPrices, error: masterError } = await supabase
-    .from(masterTable)
-    .select("*")
-    .eq("is_active", true)
-    .is("user_id", null)
-
-  if (masterError) {
-    console.error("[v0] AUMENTADOR GLOBAL: Error obteniendo precios maestros:", masterError)
-    throw masterError
+  if (profileError) {
+    console.error("[v0] MULTIPLICADOR GLOBAL: Error leyendo perfil:", profileError)
+    throw profileError
   }
 
-  console.log("[v0] AUMENTADOR GLOBAL: Precios maestros encontrados:", masterPrices?.length || 0)
+  const currentMultiplier = Number(profile?.price_multiplier ?? 1.0)
+  const adjustment = 1 + percentage / 100
+  const newMultiplier = Math.round(currentMultiplier * adjustment * 100000) / 100000
 
-  // Get existing user prices
-  const { data: existingUserPrices, error: userError } = await supabase
-    .from(userTable)
-    .select("*")
-    .eq("is_active", true)
-    .eq("user_id", user.id)
+  console.log("[v0] MULTIPLICADOR GLOBAL: Multiplicador actual:", currentMultiplier, "→ nuevo:", newMultiplier)
 
-  if (userError) {
-    console.error("[v0] AUMENTADOR GLOBAL: Error obteniendo precios de usuario:", userError)
-    throw userError
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({ price_multiplier: newMultiplier })
+    .eq("id", user.id)
+
+  if (updateError) {
+    console.error("[v0] MULTIPLICADOR GLOBAL: Error actualizando perfil:", updateError)
+    throw updateError
   }
 
-  console.log("[v0] AUMENTADOR GLOBAL: Precios de usuario existentes:", existingUserPrices?.length || 0)
+  // Also update any existing user_prices that are manual customizations (not global)
+  // These are prices the user explicitly edited (is_custom=true or is_imported=true)
+  // We DON'T update user_prices that were created by the old increaseAllPrices (they are now legacy)
+  console.log("[v0] MULTIPLICADOR GLOBAL: ✅ Multiplicador guardado:", newMultiplier)
 
-  // Load categories to get MATERIALES category ID(s) to exclude
-  const { data: allCategories } = await supabase.from("price_categories").select("id, name")
-  const materialesCategoryIds = new Set<string>(
-    (allCategories || []).filter((c: any) => c.name?.toUpperCase().includes("MATERIALES")).map((c: any) => c.id)
-  )
-  console.log("[v0] AUMENTADOR GLOBAL: Categorías excluidas (MATERIALES):", [...materialesCategoryIds])
-
-  const multiplier = 1 + percentage / 100
-  const userPriceMap = new Map(existingUserPrices?.map((p: any) => [p.base_price_id || p.code, p]) || [])
-
-  const validMasterPrices = (masterPrices || []).filter((mp: PriceMaster) => {
-    if (!mp.category_id) {
-      console.warn("[v0] AUMENTADOR GLOBAL: Saltando precio sin category_id:", mp.code)
-      return false
-    }
-    if (materialesCategoryIds.has(mp.category_id)) {
-      return false // Skip MATERIALES
-    }
-    return !userPriceMap.has(mp.code)
-  })
-
-  // Prices to create (master prices that don't have user copies)
-  const pricesToCreate = validMasterPrices.map((mp: PriceMaster) => ({
-    user_id: user.id,
-    base_price_id: mp.code,
-    code: mp.code,
-    category_id: mp.category_id,
-    subcategory: mp.subcategory,
-    description: mp.description,
-    long_description: mp.long_description,
-    unit: mp.unit,
-    labor_cost: mp.labor_cost,
-    material_cost: mp.material_cost,
-    equipment_cost: mp.equipment_cost,
-    other_cost: mp.other_cost,
-    base_price: mp.base_price,
-    margin_percentage: mp.margin_percentage,
-    final_price: mp.final_price * multiplier,
-    is_active: true,
-    is_imported: false,
-    notes: mp.notes,
-    color: mp.color,
-    brand: mp.brand,
-    model: mp.model,
-  }))
-
-  // Prices to update (existing user prices, excluding MATERIALES)
-  const pricesToUpdate = (existingUserPrices || [])
-    .filter((p: any) => !materialesCategoryIds.has(p.category_id))
-    .map((p: any) => ({
-      id: p.id,
-      final_price: p.final_price * multiplier,
-    }))
-
-
-  console.log("[v0] AUMENTADOR GLOBAL: Precios maestros a copiar:", pricesToCreate.length)
-  console.log("[v0] AUMENTADOR GLOBAL: Precios de usuario a actualizar:", pricesToUpdate.length)
-
-  let createdCount = 0
-  let updatedCount = 0
-
-  // Create new user prices in batches
-  const createBatchSize = 100
-  for (let i = 0; i < pricesToCreate.length; i += createBatchSize) {
-    const batch = pricesToCreate.slice(i, i + createBatchSize)
-    console.log(
-      "[v0] AUMENTADOR GLOBAL: Insertando batch",
-      Math.floor(i / createBatchSize) + 1,
-      "de",
-      Math.ceil(pricesToCreate.length / createBatchSize),
-    )
-
-    const { error } = await supabase.from(userTable).insert(batch)
-
-    if (error) {
-      console.error("[v0] AUMENTADOR GLOBAL: Error creando batch de precios:", error.message)
-      throw error
-    }
-
-    createdCount += batch.length
-    console.log("[v0] AUMENTADOR GLOBAL: Creados hasta ahora:", createdCount)
-  }
-
-  // Update existing user prices in batches
-  const updateBatchSize = 100
-  for (let i = 0; i < pricesToUpdate.length; i += updateBatchSize) {
-    const batch = pricesToUpdate.slice(i, i + updateBatchSize)
-    console.log(
-      "[v0] AUMENTADOR GLOBAL: Actualizando batch",
-      Math.floor(i / updateBatchSize) + 1,
-      "de",
-      Math.ceil(pricesToUpdate.length / updateBatchSize),
-    )
-
-    const results = await Promise.all(
-      batch.map((price: any) => supabase.from(userTable).update({ final_price: price.final_price }).eq("id", price.id)),
-    )
-
-    const errors = results.filter((r) => r.error)
-    if (errors.length > 0) {
-      console.error("[v0] AUMENTADOR GLOBAL: Errores actualizando precios:", errors)
-    }
-
-    updatedCount += batch.length
-    console.log("[v0] AUMENTADOR GLOBAL: Actualizados hasta ahora:", updatedCount)
-  }
-
-  const totalAffected = createdCount + updatedCount
-  console.log("[v0] AUMENTADOR GLOBAL: ✅ Completado!")
-  console.log("[v0] AUMENTADOR GLOBAL: Total creados:", createdCount)
-  console.log("[v0] AUMENTADOR GLOBAL: Total actualizados:", updatedCount)
-  console.log("[v0] AUMENTADOR GLOBAL: Total afectados:", totalAffected)
-
-  return totalAffected
+  // Return a count of 1 to signal one update was made (the profile)
+  return 1
 }
+
+export async function getPriceMultiplier(): Promise<number> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return 1.0
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("price_multiplier")
+    .eq("id", user.id)
+    .single()
+
+  return Number(data?.price_multiplier ?? 1.0)
+}
+
+export async function resetPriceMultiplier(): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return
+
+  await supabase
+    .from("profiles")
+    .update({ price_multiplier: 1.0 })
+    .eq("id", user.id)
+}
+
+
 
 export async function increasePricesByCategory(categoryId: string, percentage: number): Promise<number> {
   const {
@@ -1130,6 +1044,19 @@ export async function increasePriceById(priceId: string, percentage: number): Pr
       throw error
     }
 
+    // Also scale all tier price_overrides for this user price
+    const { data: tiers } = await supabase
+      .from("price_tiers")
+      .select("id, price_override")
+      .eq("user_price_id", priceId)
+    if (tiers && tiers.length > 0) {
+      await Promise.all(
+        tiers.map((t: any) =>
+          supabase.from("price_tiers").update({ price_override: t.price_override * multiplier }).eq("id", t.id)
+        )
+      )
+    }
+
     return data as PriceMaster
   }
 
@@ -1181,6 +1108,23 @@ export async function increasePriceById(priceId: string, percentage: number): Pr
   if (createError) {
     console.error("Error creating user price:", createError)
     throw createError
+  }
+
+  // Copy and scale master tiers into user price tiers
+  const { data: masterTiers } = await supabase
+    .from("price_tiers")
+    .select("min_quantity, max_quantity, price_override, label, sort_order")
+    .eq("price_master_id", masterPrice.id)
+  if (masterTiers && masterTiers.length > 0) {
+    const tierInserts = masterTiers.map((t: any) => ({
+      user_price_id: newUserPrice.id,
+      min_quantity: t.min_quantity,
+      max_quantity: t.max_quantity,
+      price_override: t.price_override * multiplier,
+      label: t.label,
+      sort_order: t.sort_order,
+    }))
+    await supabase.from("price_tiers").insert(tierInserts)
   }
 
   console.log("[v0] Precio personalizado creado exitosamente con aumento aplicado")

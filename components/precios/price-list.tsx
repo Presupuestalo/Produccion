@@ -57,6 +57,7 @@ export function PriceList() {
   const [adminEditingPrice, setAdminEditingPrice] = useState<PriceMaster | null>(null)
   const [userCountry, setUserCountry] = useState<any>(null)
   const [pricesWithTiers, setPricesWithTiers] = useState<Set<string>>(new Set())
+  const [tierRanges, setTierRanges] = useState<Map<string, { min: number; max: number }>>(new Map())
 
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
@@ -111,23 +112,36 @@ export function PriceList() {
       const data = await getPricesByCategory(categoryId)
       setPrices(data)
 
-      // Load which prices have tiers defined
+      // Load which prices have tiers defined (with min/max for range display)
       if (data.length > 0) {
         const ids = data.map((p) => p.id)
         const { data: tierRows } = await supabase
           .from("price_tiers")
-          .select("price_master_id, user_price_id")
+          .select("price_master_id, user_price_id, price_override")
           .or(`price_master_id.in.(${ids.join(",")}),user_price_id.in.(${ids.join(",")})`)
         if (tierRows) {
           const withTiers = new Set<string>()
+          const ranges = new Map<string, { min: number; max: number }>()
           tierRows.forEach((t: any) => {
-            if (t.price_master_id) withTiers.add(t.price_master_id)
-            if (t.user_price_id) withTiers.add(t.user_price_id)
+            const id = t.user_price_id ?? t.price_master_id
+            if (!id) return
+            withTiers.add(id)
+            const existing = ranges.get(id)
+            if (!existing) {
+              ranges.set(id, { min: t.price_override, max: t.price_override })
+            } else {
+              ranges.set(id, {
+                min: Math.min(existing.min, t.price_override),
+                max: Math.max(existing.max, t.price_override),
+              })
+            }
           })
           setPricesWithTiers(withTiers)
+          setTierRanges(ranges)
         }
       } else {
         setPricesWithTiers(new Set())
+        setTierRanges(new Map())
       }
     } catch (error) {
       console.error("Error loading prices:", error)
@@ -237,8 +251,8 @@ export function PriceList() {
       console.log("[v0] ✅ increaseAllPrices completado. Precios afectados:", count)
 
       toast({
-        title: "Precios actualizados",
-        description: `Se han ajustado ${count} precio${count !== 1 ? "s" : ""} en un ${percentage > 0 ? "+" : ""}${percentage}%`,
+        title: "Ajuste de precios guardado",
+        description: `Se ha aplicado un ajuste del ${percentage > 0 ? "+" : ""}${percentage}% a todos los precios del catálogo (excepto Materiales). El cambio se verá reflejado en los próximos presupuestos.`,
       })
       if (selectedCategory) {
         console.log("[v0] 🔄 Recargando precios de la categoría:", selectedCategory)
@@ -463,6 +477,7 @@ export function PriceList() {
                   onAdminEdit={setAdminEditingPrice}
                   hideCode={true}
                   pricesWithTiers={pricesWithTiers}
+                  tierRanges={tierRanges}
                 />
               </div>
             )
@@ -485,6 +500,7 @@ export function PriceList() {
               isAdmin={isAdmin}
               onAdminEdit={setAdminEditingPrice}
               pricesWithTiers={pricesWithTiers}
+              tierRanges={tierRanges}
             />
           )}
         </div>

@@ -50,6 +50,8 @@ export class BudgetGenerator {
   private priceCache: Map<string, PriceItem> = new Map()
   // Map<priceCode, sorted array of tiers from DB>
   private tierCache: Map<string, { min: number; max: number | null; price: number }[]> = new Map()
+  // Global price multiplier from user profile (applies to master prices not overridden by user)
+  private priceMultiplierGlobal = 1.0
 
   // Project data populated from calculator data
   private project: Partial<ProjectData> = {}
@@ -209,6 +211,17 @@ export class BudgetGenerator {
       console.log(`[v0] BudgetGenerator - Loaded ${categoriesData.length} price categories`)
     }
 
+    // 0.5 Cargar multiplicador global de precios del perfil del usuario
+    const { data: profile } = await supabaseClient
+      .from("profiles")
+      .select("price_multiplier")
+      .eq("id", user.id)
+      .single()
+    this.priceMultiplierGlobal = Number(profile?.price_multiplier ?? 1.0)
+    if (this.priceMultiplierGlobal !== 1.0) {
+      console.log(`[v0] BudgetGenerator - Global price multiplier: ${this.priceMultiplierGlobal}`)
+    }
+
     // 1. Cargar precios master
     const { data: masterPrices, error: masterError } = await supabaseClient
       .from("price_master")
@@ -231,7 +244,7 @@ export class BudgetGenerator {
       console.warn("[v0] BudgetGenerator - NO master prices loaded from database (is_active=true)")
     }
 
-    // Cache master prices first
+    // Cache master prices first (apply global multiplier to prices not overridden by user)
     masterPrices?.forEach((price) => {
       const trimmedCode = price.code?.trim()
       if (!trimmedCode) return
@@ -243,7 +256,7 @@ export class BudgetGenerator {
         subcategory: price.subcategory,
         description: price.description,
         unit: price.unit,
-        final_price: price.final_price,
+        final_price: price.final_price * this.priceMultiplierGlobal,
         notes: price.notes,
         color: price.color,
         brand: price.brand,
@@ -396,7 +409,9 @@ export class BudgetGenerator {
           (t) => quantity >= t.min && (t.max === null || quantity < t.max)
         )
         if (matchingTier) {
-          effectiveUnitPrice = matchingTier.price
+          // For master-based prices, apply the global multiplier to tier prices too
+          const tierMultiplier = (priceItem as any).source === "master" ? this.priceMultiplierGlobal : 1.0
+          effectiveUnitPrice = matchingTier.price * tierMultiplier
           console.log(`[v0] BudgetGenerator - Tier applied for ${trimmedCode}: qty=${quantity} => ${effectiveUnitPrice} (was ${baseUnitPrice})`)
         }
       }
