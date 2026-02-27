@@ -1776,14 +1776,7 @@ export class BudgetGenerator {
       console.log("[v0] BudgetGenerator - [ADD] 06-E-02 (Telecomunicaciones) because new installation is requested")
       this.addLineItem("06-E-02", 1, "Canalización TV y telecomunicaciones")
 
-      // 06-E-03: Intercom (solo si hay más de una habitación real)
-      const realRoomCount = this.getRealRoomCount()
-      if (realRoomCount > 1) {
-        console.log(`[v0] BudgetGenerator - [ADD] 06-E-03 (Portero) because realRoomCount is ${realRoomCount}`)
-        this.addLineItem("06-E-03", 1, "Suministro y instalación portero convencional")
-      } else {
-        console.log(`[v0] BudgetGenerator - [SKIP] 06-E-03 (Portero) because realRoomCount is ${realRoomCount}`)
-      }
+      // 06-E-03 moved inside isCompleteRenovation block
 
       // 06-E-04: Construction panel (provisional connection)
       if (electricalConfig?.hasConstructionPanel === true) {
@@ -1824,8 +1817,16 @@ export class BudgetGenerator {
         // 06-E-06: Lighting line
         console.log("[v0] BudgetGenerator - [ADD] 06-E-06 (Línea alumbrado) because new installation is requested and it's a full renovation")
         this.addLineItem("06-E-06", 1, "Línea de alumbrado")
+
+        // 06-E-03: Intercom
+        console.log("[v0] BudgetGenerator - [ADD] 06-E-03 (Portero) because it's a full renovation")
+        this.addLineItem("06-E-03", 1, "Suministro e instalación de sistema de portero electrónico analógico")
+
+        // 06-E-12: TV outlet (General)
+        console.log("[v0] BudgetGenerator - [ADD] 06-E-12 (Toma TV) because it's a full renovation")
+        this.addLineItem("06-E-12", 1, "Suministro y colocación de toma final de televisión")
       } else {
-        console.log(`[v0] BudgetGenerator - [SKIP] 06-E-05 & 06-E-06 since it's a partial renovation (${this.getRealRoomCount()} rooms, hasMainRooms: ${hasMainRooms})`)
+        console.log(`[v0] BudgetGenerator - [SKIP] 06-E-03, 05, 06, 12 since it's a partial renovation`)
       }
     } else {
       console.log("[v0] BudgetGenerator - SKIPPING ALL ELECTRICAL ITEMS (needsNewInstallation is false)")
