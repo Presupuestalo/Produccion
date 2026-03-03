@@ -436,7 +436,7 @@ export default function ProjectPage() {
                   {(beforePlan || afterPlan) && <DropdownMenuSeparator />}
                   {limits?.aiFloorPlanUpload && (
                     <DropdownMenuItem asChild className="focus:bg-orange-50 focus:text-orange-600 cursor-pointer">
-                      <Link href={`/dashboard/editor-planos/nuevo?projectId=${projectId}`} className="flex items-center gap-2">
+                      <Link href={`/dashboard/editor-planos/nuevo?projectId=${projectId}${project?.ceiling_height ? `&height=${Math.round(parseFloat(String(project.ceiling_height)) * 100)}` : ''}`} className="flex items-center gap-2">
                         <Plus className="h-4 w-4" />
                         <span className="font-bold uppercase text-[10px] tracking-tight">Crear Nuevo Plano</span>
                       </Link>

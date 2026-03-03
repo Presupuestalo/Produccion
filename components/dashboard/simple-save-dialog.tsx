@@ -100,6 +100,11 @@ export function SimpleSaveDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
                 container={container}
+                onOpenAutoFocus={(e) => {
+                    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                        e.preventDefault();
+                    }
+                }}
                 className="!fixed !top-0 !left-0 !translate-x-0 !translate-y-0 !w-full lg:!w-full lg:!max-w-[480px] lg:!left-[50%] lg:!top-[50%] lg:!translate-x-[-50%] lg:!translate-y-[-50%] p-3 gap-2 rounded-none lg:rounded-lg border-x-0 border-t-0 bg-white shadow-lg"
             >
                 <div className="hidden lg:block">

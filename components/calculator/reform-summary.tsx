@@ -338,8 +338,30 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
       )
 
       if (roomWallMaterial === "cerámica" || roomWallMaterial === "ceramica") {
-        newSummary.alicatadoParedes += wallArea
-        console.log("[v0] Sumando alicatado:", wallArea)
+        // Cerámica parcial: usar tiledWallSurfaceArea (m² exactos) si está definido
+        const ceramicArea = room.tiledWallSurfaceArea !== undefined
+          ? room.tiledWallSurfaceArea
+          : wallArea
+        newSummary.alicatadoParedes += ceramicArea
+        console.log("[v0] Sumando alicatado:", ceramicArea, room.tiledWallSurfaceArea !== undefined ? "(m² exactos)" : "(perímetro completo)")
+
+        // Si hay material restante (cerámica parcial), añadirlo a lucido/pintura
+        if (room.nonCeramicWallMaterial && room.tiledWallSurfaceArea !== undefined) {
+          const restArea = room.nonCeramicWallArea !== undefined
+            ? room.nonCeramicWallArea
+            : Math.max(0, wallArea - room.tiledWallSurfaceArea)
+          if (restArea > 0) {
+            const nonMat = (room.nonCeramicWallMaterial || "").toLowerCase()
+            if (nonMat === "lucir y pintar" || nonMat === "solo lucir") {
+              newSummary.lucidoParedes += restArea
+              console.log("[v0] Sumando lucido (resto cerámica parcial):", restArea)
+            }
+            if (nonMat === "lucir y pintar" || nonMat === "solo pintar" || nonMat === "pintura") {
+              newSummary.pinturaParedes += restArea
+              console.log("[v0] Sumando pintura (resto cerámica parcial):", restArea)
+            }
+          }
+        }
       }
 
       if (roomWallMaterial === "lucir y pintar" || roomWallMaterial === "solo lucir") {

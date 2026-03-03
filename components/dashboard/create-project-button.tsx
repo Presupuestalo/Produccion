@@ -349,7 +349,8 @@ export function CreateProjectButton({ className }: { className?: string }) {
       if (creationMode === "ai") {
         router.push(`/dashboard/projects/${projectId}?openFloorPlanAnalyzer=true`)
       } else if (creationMode === "floor-plan") {
-        router.push(`/dashboard/editor-planos/nuevo?projectId=${projectId}&variant=current`)
+        const hInCm = Math.round(parseFloat(String(dataToSubmit.ceiling_height)) * 100)
+        router.push(`/dashboard/editor-planos/nuevo?projectId=${projectId}&variant=current&height=${hInCm}`)
       } else {
         router.push(`/dashboard/projects/${projectId}`)
       }

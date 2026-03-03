@@ -141,6 +141,7 @@ export function RoomCard({
   const [doorList, setDoorList] = useState<Door[]>(room.doorList || [])
   const [isEditingName, setIsEditingName] = useState(false)
   const [showDimensions, setShowDimensions] = useState(false)
+  const [tiledAreaInput, setTiledAreaInput] = useState<string>(room.tiledWallSurfaceArea?.toString() ?? "")
   const cardRef = useRef<HTMLDivElement>(null)
   const prevGlobalConfigRef = useRef<GlobalConfig | undefined>(globalConfig)
 
@@ -157,6 +158,17 @@ export function RoomCard({
       setDoorList(room.doorList)
     }
   }, [room.doorList])
+
+  useEffect(() => {
+    if (room.tiledWallSurfaceArea !== undefined) {
+      const currentStr = room.tiledWallSurfaceArea.toString()
+      if (currentStr !== tiledAreaInput && parseFloat(tiledAreaInput) !== room.tiledWallSurfaceArea) {
+        setTiledAreaInput(currentStr)
+      }
+    } else {
+      setTiledAreaInput("")
+    }
+  }, [room.tiledWallSurfaceArea])
 
   const internalUpdateRoom = useCallback(
     (updates: Partial<Room>) => {
@@ -1463,181 +1475,313 @@ export function RoomCard({
 
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                     {/* Suelo */}
-                    <div className="space-y-1">
+                    <div className="flex flex-col space-y-1">
                       <Label htmlFor={`floorMaterial-${room.id}`} className="text-[9px] font-semibold text-slate-500 uppercase ml-1">
                         Suelo
                       </Label>
-                      <Select
-                        value={room.floorMaterial}
-                        onValueChange={(value) => updateRoom(room.id, { floorMaterial: value as FloorMaterialType })}
-                        disabled={isReadOnly}
-                      >
-                        <SelectTrigger id={`floorMaterial-${room.id}`} className="h-8 text-[11px] font-medium bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 transition-all">
-                          <SelectValue placeholder="Material" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {isReform ? (
-                            <>
-                              <SelectItem value="No se modifica">No se modifica</SelectItem>
-                              <SelectItem value="Cerámico">Cerámico</SelectItem>
-                              <SelectItem value="Parquet flotante">Parquet flotante</SelectItem>
-                              <SelectItem value="Suelo laminado">Suelo laminado</SelectItem>
-                              <SelectItem value="Suelo vinílico">Suelo vinílico</SelectItem>
-                              <SelectItem value="Otro">Otro</SelectItem>
-                            </>
-                          ) : (
-                            <>
-                              <SelectItem value="No se modifica">No se cambia</SelectItem>
-                              <SelectItem value="Madera">Madera</SelectItem>
-                              <SelectItem value="Cerámica">Cerámica</SelectItem>
-                            </>
-                          )}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-shrink-0 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-300">
+                          <img src="/images/illustrations/floor.png" alt="" className="h-7 w-7 object-contain" />
+                        </div>
+                        <Select
+                          value={room.floorMaterial}
+                          onValueChange={(value) => updateRoom(room.id, { floorMaterial: value as FloorMaterialType })}
+                          disabled={isReadOnly}
+                        >
+                          <SelectTrigger id={`floorMaterial-${room.id}`} className="h-8 text-[11px] font-medium bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 transition-all">
+                            <SelectValue placeholder="Material" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {isReform ? (
+                              <>
+                                <SelectItem value="No se modifica">No se modifica</SelectItem>
+                                <SelectItem value="Cerámico">Cerámico</SelectItem>
+                                <SelectItem value="Parquet flotante">Parquet flotante</SelectItem>
+                                <SelectItem value="Suelo laminado">Suelo laminado</SelectItem>
+                                <SelectItem value="Suelo vinílico">Suelo vinílico</SelectItem>
+                                <SelectItem value="Otro">Otro</SelectItem>
+                              </>
+                            ) : (
+                              <>
+                                <SelectItem value="No se modifica">No se cambia</SelectItem>
+                                <SelectItem value="Madera">Madera</SelectItem>
+                                <SelectItem value="Cerámica">Cerámica</SelectItem>
+                              </>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
 
                     {/* Paredes */}
-                    <div className="space-y-1">
+                    <div className="flex flex-col space-y-1 col-span-2 md:col-span-1">
                       <Label htmlFor={`wallMaterial-${room.id}`} className="text-[9px] font-semibold text-slate-500 uppercase ml-1">
                         Paredes
                       </Label>
-                      <Select
-                        value={wallMaterialValue}
-                        onValueChange={handleWallMaterialChange}
-                        disabled={isWallMaterialDisabled || isReadOnly}
-                        required
-                      >
-                        <SelectTrigger id={`wallMaterial-${room.id}`} className="h-8 text-[11px] font-medium bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 transition-all">
-                          <SelectValue placeholder="Seleccionar..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {isReform ? (
-                            <>
-                              <SelectItem value="No se modifica">No se modifica</SelectItem>
-                              <SelectItem value="Cerámica">Cerámica</SelectItem>
-                              <SelectItem value="Lucir y pintar">Lucir y pintar</SelectItem>
-                              <SelectItem value="Solo lucir">Solo lucir</SelectItem>
-                              <SelectItem value="Solo pintar">Solo pintar</SelectItem>
-                            </>
-                          ) : (
-                            <>
-                              <SelectItem value="No se modifica">No se cambia</SelectItem>
-                              <SelectItem value="Cerámica">Cerámica</SelectItem>
-                              <SelectItem value="Gotelé">Gotelé</SelectItem>
-                              <SelectItem value="Papel">Papel</SelectItem>
-                              <SelectItem value="Pintura">Pintura</SelectItem>
-                            </>
-                          )}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-shrink-0 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-300">
+                          <img src="/images/illustrations/wall.png" alt="" className="h-7 w-7 object-contain" />
+                        </div>
+                        <Select
+                          value={wallMaterialValue}
+                          onValueChange={(v) => {
+                            handleWallMaterialChange(v)
+                            // Si dejan de ser Cerámica, limpiar datos parciales
+                            if (v !== "Cerámica") {
+                              updateRoom(room.id, { tiledWallSurfaceArea: undefined, nonCeramicWallPerimeter: undefined, nonCeramicWallArea: undefined, nonCeramicWallMaterial: undefined })
+                            }
+                          }}
+                          disabled={isWallMaterialDisabled || isReadOnly}
+                          required
+                        >
+                          <SelectTrigger id={`wallMaterial-${room.id}`} className="h-8 text-[11px] font-medium bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 transition-all">
+                            <SelectValue placeholder="Seleccionar..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {isReform ? (
+                              <>
+                                <SelectItem value="No se modifica">No se modifica</SelectItem>
+                                <SelectItem value="Cerámica">Cerámica</SelectItem>
+                                <SelectItem value="Lucir y pintar">Lucir y pintar</SelectItem>
+                                <SelectItem value="Solo lucir">Solo lucir</SelectItem>
+                                <SelectItem value="Solo pintar">Solo pintar</SelectItem>
+                              </>
+                            ) : (
+                              <>
+                                <SelectItem value="No se modifica">No se cambia</SelectItem>
+                                <SelectItem value="Cerámica">Cerámica</SelectItem>
+                                <SelectItem value="Gotelé">Gotelé</SelectItem>
+                                <SelectItem value="Papel">Papel</SelectItem>
+                                <SelectItem value="Pintura">Pintura</SelectItem>
+                              </>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Bloque Avanzado: cerámica parcial — visible cuando wallMaterial es Cerámica */}
+                      {wallMaterialValue === "Cerámica" && (() => {
+                        const stdH = (() => {
+                          if (isReform && room.lowerCeiling && room.newCeilingHeight) return room.newCeilingHeight
+                          if (room.currentCeilingStatus === "lowered_keep" && room.currentCeilingHeight) return room.currentCeilingHeight
+                          return room.customHeight || standardHeight
+                        })()
+                        const totalWallM2 = parseFloat(((room.perimeter || 0) * stdH).toFixed(2))
+                        const ceramicM2 = room.tiledWallSurfaceArea ?? totalWallM2
+                        const restM2 = parseFloat(Math.max(0, totalWallM2 - ceramicM2).toFixed(2))
+                        const hasPartial = room.tiledWallSurfaceArea !== undefined && room.tiledWallSurfaceArea < totalWallM2 - 0.01
+                        return (
+                          <div className="mt-1 rounded-md border border-blue-100/50 dark:border-blue-900/30 bg-blue-50/30 dark:bg-blue-950/10 p-1 animate-in fade-in duration-200">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {/* m2 cerámica */}
+                              <div className="relative w-[75px]">
+                                <Input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={tiledAreaInput}
+                                  disabled={isReadOnly}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setTiledAreaInput(val);
+
+                                    if (val === "") {
+                                      updateRoom(room.id, {
+                                        tiledWallSurfaceArea: undefined,
+                                        nonCeramicWallPerimeter: undefined,
+                                        nonCeramicWallArea: undefined,
+                                        nonCeramicWallMaterial: undefined,
+                                      });
+                                      return;
+                                    }
+
+                                    const parsed = parseFloat(val.replace(',', '.'));
+                                    if (!isNaN(parsed)) {
+                                      const clamped = Math.min(Math.max(0, parsed), totalWallM2);
+                                      const rest = parseFloat(Math.max(0, totalWallM2 - clamped).toFixed(2));
+                                      updateRoom(room.id, {
+                                        tiledWallSurfaceArea: clamped,
+                                        nonCeramicWallPerimeter: rest > 0 ? rest / stdH : undefined,
+                                        nonCeramicWallArea: rest > 0 ? rest : undefined,
+                                        nonCeramicWallMaterial: rest > 0 ? (room.nonCeramicWallMaterial || (isReform ? "Lucir y pintar" : "Pintura")) : undefined,
+                                      });
+                                    }
+                                  }}
+                                  onBlur={() => {
+                                    if (tiledAreaInput === "" || isNaN(parseFloat(tiledAreaInput.replace(',', '.')))) {
+                                      setTiledAreaInput(room.tiledWallSurfaceArea?.toString() ?? "")
+                                    } else {
+                                      const val = parseFloat(tiledAreaInput.replace(',', '.'));
+                                      setTiledAreaInput(val.toString());
+                                    }
+                                  }}
+                                  className="h-6 text-[10px] font-bold pr-4 bg-white dark:bg-slate-950 border-blue-100 dark:border-blue-900/50"
+                                  placeholder="m² cer."
+                                />
+                                <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[7px] text-slate-400">m²</span>
+                              </div>
+
+                              {/* m2 restantes */}
+                              <div className="h-6 px-1.5 flex items-center text-[9px] font-medium text-slate-500 bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 rounded pointer-events-none whitespace-nowrap">
+                                <span className="opacity-60 mr-1">Resto:</span>
+                                <span className="font-bold">{restM2}m²</span>
+                              </div>
+
+                              {/* Material del resto */}
+                              {restM2 > 0 && (
+                                <div className="flex-1 min-w-[100px]">
+                                  <Select
+                                    value={(() => {
+                                      const val = room.nonCeramicWallMaterial || (isReform ? "Lucir y pintar" : "Pintura");
+                                      const validOptions = isReform ? ["Lucir y pintar", "Pintura", "No se modifica"] : ["Pintura", "Gotelé", "No se modifica"];
+                                      return validOptions.includes(val) ? val : (isReform ? "Lucir y pintar" : "Pintura");
+                                    })()}
+                                    onValueChange={(v) => updateRoom(room.id, { nonCeramicWallMaterial: v as any })}
+                                    disabled={isReadOnly}
+                                  >
+                                    <SelectTrigger className="h-6 text-[9px] bg-white dark:bg-slate-950 border-blue-100 dark:border-blue-900/50">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {isReform ? (
+                                        <>
+                                          <SelectItem value="Lucir y pintar">Lucir y pintar</SelectItem>
+                                          <SelectItem value="Pintura">Pintura</SelectItem>
+                                          <SelectItem value="No se modifica">No se modifica</SelectItem>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <SelectItem value="Pintura">Pintura</SelectItem>
+                                          <SelectItem value="Gotelé">Gotelé</SelectItem>
+                                          <SelectItem value="No se modifica">No se modifica</SelectItem>
+                                        </>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
+
+                              {/* Botón restablecer - Minimalista */}
+                              {hasPartial && (
+                                <button
+                                  type="button"
+                                  onClick={() => updateRoom(room.id, { tiledWallSurfaceArea: undefined, nonCeramicWallPerimeter: undefined, nonCeramicWallArea: undefined, nonCeramicWallMaterial: undefined })}
+                                  className="p-1 text-slate-400 hover:text-red-400 transition-colors rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                                  title="Restablecer cerámica completa"
+                                >
+                                  <RefreshCw className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </div>
 
                     {/* Techo - Integrado aquí para ahorrar espacio */}
-                    <div className="space-y-1 col-span-2 md:col-span-1">
+                    <div className="flex flex-col space-y-1 col-span-2 md:col-span-1">
                       <Label className="text-[9px] font-semibold text-slate-500 uppercase ml-1">
                         Techo
                       </Label>
-                      {!isReform ? (
-                        <div className="flex items-center gap-1.5">
-                          <Tabs
-                            value={room.currentCeilingStatus || "no_false_ceiling"}
-                            onValueChange={handleCurrentCeilingStatusChange}
-                            className="flex-1"
-                          >
-                            <TabsList className="grid grid-cols-3 h-8 p-1 bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
-                              <TabsTrigger
-                                value="no_false_ceiling"
-                                disabled={isReadOnly}
-                                className="text-[9px] h-6 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
+                      <div className="flex items-center gap-2">
+                        <div className="flex-shrink-0 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-300">
+                          <img src="/images/illustrations/ceiling.png" alt="" className="h-7 w-7 object-contain" />
+                        </div>
+                        <div className="flex-1">
+                          {!isReform ? (
+                            <div className="flex items-center gap-1.5">
+                              <Tabs
+                                value={room.currentCeilingStatus || "no_false_ceiling"}
+                                onValueChange={handleCurrentCeilingStatusChange}
+                                className="flex-1"
                               >
-                                Ninguno
-                              </TabsTrigger>
-                              <TabsTrigger
-                                value="lowered_remove"
-                                disabled={isReadOnly}
-                                className="text-[9px] h-6 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
-                              >
-                                Retirar
-                              </TabsTrigger>
-                              <TabsTrigger
-                                value="lowered_keep"
-                                disabled={isReadOnly}
-                                className="text-[9px] h-6 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
-                              >
-                                Mantener
-                              </TabsTrigger>
-                            </TabsList>
-                          </Tabs>
+                                <TabsList className="grid grid-cols-3 h-8 p-1 bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
+                                  <TabsTrigger
+                                    value="no_false_ceiling"
+                                    disabled={isReadOnly}
+                                    className="text-[9px] h-6 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
+                                  >
+                                    Ninguno
+                                  </TabsTrigger>
+                                  <TabsTrigger
+                                    value="lowered_remove"
+                                    disabled={isReadOnly}
+                                    className="text-[9px] h-6 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
+                                  >
+                                    Retirar
+                                  </TabsTrigger>
+                                  <TabsTrigger
+                                    value="lowered_keep"
+                                    disabled={isReadOnly}
+                                    className="text-[9px] h-6 px-1 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all font-medium"
+                                  >
+                                    Mantener
+                                  </TabsTrigger>
+                                </TabsList>
+                              </Tabs>
 
-                          {room.currentCeilingStatus === "lowered_keep" && (
-                            <div className="relative group animate-in fade-in slide-in-from-top-1 duration-200 w-20">
-                              <Input
-                                id={`currentCeilingHeight-${room.id}`}
-                                type="text"
-                                value={currentCeilingHeightInput}
-                                onChange={handleCurrentCeilingHeightChange}
-                                onBlur={saveCurrentCeilingHeight}
-                                disabled={isReadOnly}
-                                className="h-8 text-[11px] font-bold pr-5 bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800"
-                                placeholder="..."
-                              />
-                              <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-slate-400 font-medium">m</span>
+                              {room.currentCeilingStatus === "lowered_keep" && (
+                                <div className="relative group animate-in fade-in slide-in-from-top-1 duration-200 w-20">
+                                  <Input
+                                    id={`currentCeilingHeight-${room.id}`}
+                                    type="text"
+                                    value={currentCeilingHeightInput}
+                                    onChange={handleCurrentCeilingHeightChange}
+                                    onBlur={saveCurrentCeilingHeight}
+                                    disabled={isReadOnly}
+                                    className="h-8 text-[11px] font-bold pr-5 bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800"
+                                    placeholder="..."
+                                  />
+                                  <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-slate-400 font-medium">m</span>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-2 h-8 px-2 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-950 flex-1">
+                                <Checkbox
+                                  id={`lowerCeiling-integrated-${room.id}`}
+                                  checked={room.lowerCeiling === true}
+                                  onCheckedChange={(checked) => {
+                                    updateRoom(room.id, { lowerCeiling: checked === true })
+                                    if (checked) {
+                                      const defaultNewHeight = safeStandardHeight - 0.1
+                                      updateRoom(room.id, { newCeilingHeight: defaultNewHeight })
+                                      setCeilingHeightInput(formatDecimal(defaultNewHeight))
+                                    }
+                                  }}
+                                  disabled={isReadOnly}
+                                  className="h-3.5 w-3.5"
+                                />
+                                <Label htmlFor={`lowerCeiling-integrated-${room.id}`} className="text-[10px] cursor-pointer font-medium">Bajar techo</Label>
+                              </div>
+                              {room.lowerCeiling && (
+                                <div className="relative group w-20">
+                                  <Input
+                                    id={`newCeilingHeight-integrated-${room.id}`}
+                                    type="text"
+                                    value={ceilingHeightInput}
+                                    onChange={(e) => {
+                                      setCeilingHeightInput(e.target.value)
+                                      const numValue = Number.parseFloat(e.target.value.replace(",", "."))
+                                      if (!Number.isNaN(numValue)) {
+                                        updateRoom(room.id, { newCeilingHeight: numValue })
+                                      }
+                                    }}
+                                    disabled={isReadOnly}
+                                    className="h-8 text-[11px] font-bold pr-5 bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800"
+                                  />
+                                  <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-slate-400 font-medium">m</span>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5">
-                          <div className="flex items-center gap-2 h-8 px-2 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-950 flex-1">
-                            <Checkbox
-                              id={`lowerCeiling-integrated-${room.id}`}
-                              checked={room.lowerCeiling === true}
-                              onCheckedChange={(checked) => {
-                                updateRoom(room.id, { lowerCeiling: checked === true })
-                                if (checked) {
-                                  const defaultNewHeight = safeStandardHeight - 0.1
-                                  updateRoom(room.id, { newCeilingHeight: defaultNewHeight })
-                                  setCeilingHeightInput(formatDecimal(defaultNewHeight))
-                                }
-                              }}
-                              disabled={isReadOnly}
-                              className="h-3.5 w-3.5"
-                            />
-                            <Label htmlFor={`lowerCeiling-integrated-${room.id}`} className="text-[10px] cursor-pointer font-medium">Bajar techo</Label>
-                          </div>
-                          {room.lowerCeiling && (
-                            <div className="relative group w-20">
-                              <Input
-                                id={`newCeilingHeight-integrated-${room.id}`}
-                                type="text"
-                                value={ceilingHeightInput}
-                                onChange={(e) => {
-                                  setCeilingHeightInput(e.target.value)
-                                  const numValue = Number.parseFloat(e.target.value.replace(",", "."))
-                                  if (!isNaN(numValue) && numValue > safeStandardHeight) {
-                                    setCeilingHeightInput(formatDecimal(safeStandardHeight))
-                                    updateRoom(room.id, { newCeilingHeight: safeStandardHeight })
-                                  }
-                                }}
-                                onBlur={() => {
-                                  const numValue = Number.parseFloat(ceilingHeightInput.replace(",", "."))
-                                  if (!isNaN(numValue)) {
-                                    const finalValue = Math.min(numValue, safeStandardHeight)
-                                    updateRoom(room.id, { newCeilingHeight: finalValue })
-                                    setCeilingHeightInput(formatDecimal(finalValue))
-                                  }
-                                }}
-                                disabled={isReadOnly}
-                                className="h-8 text-[11px] font-bold pr-5"
-                              />
-                              <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-slate-400">m</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+
 
               {/* Measures Section Redesign */}
               <div className="bg-slate-50/50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden mt-2 shadow-sm">
@@ -2309,8 +2453,8 @@ export function RoomCard({
                               <div
                                 key={element}
                                 className={`relative flex flex-col gap-2 p-2.5 rounded-xl border transition-all duration-200 ${isInstalled
-                                    ? "bg-primary/[0.03] border-primary/30 shadow-sm"
-                                    : "bg-background border-border hover:bg-muted/40"
+                                  ? "bg-primary/[0.03] border-primary/30 shadow-sm"
+                                  : "bg-background border-border hover:bg-muted/40"
                                   }`}
                               >
                                 <div className="flex items-center gap-2.5">

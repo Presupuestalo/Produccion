@@ -325,6 +325,12 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     onConfirm: () => { },
   })
 
+  // States for importing floor plan when heights mismatch
+  const [pendingBeforePlanData, setPendingBeforePlanData] = useState<any>(null)
+  const [pendingAfterPlanData, setPendingAfterPlanData] = useState<any>(null)
+  const [importHeightConflict, setImportHeightConflict] = useState<{ planHeight: number, projectHeight: number } | null>(null)
+  const [selectedImportHeight, setSelectedImportHeight] = useState<"plan" | "project">("project")
+
   // Determine if the calculator should be read-only based on approved budget
   const isReadOnly = hasApprovedBudget
 
@@ -628,6 +634,22 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
           console.log(
             `[v0] ${room.type} ${room.number} - Retirada gotelé: ${goteleArea.toFixed(2)} m² (perimeter: ${room.perimeter}, height: ${wallHeight})`,
           )
+        }
+
+        // Cerámica parcial: si el material del RESTO de paredes también necesita demolición (ej. gotelé)
+        if (
+          room.wallMaterial === "Cerámica" &&
+          room.nonCeramicWallMaterial &&
+          room.tiledWallSurfaceArea !== undefined &&
+          room.nonCeramicWallArea !== undefined
+        ) {
+          const restArea = room.nonCeramicWallArea
+
+          if (room.nonCeramicWallMaterial === "Gotelé") {
+            newSummary.goteleRemoval += restArea
+            console.log(`[v0] ${room.type} ${room.number} - Retirada gotelé (resto cerámica parcial): ${restArea.toFixed(2)} m²`)
+          }
+          // Aquí se pueden añadir más materiales en el futuro (papel, etc.)
         }
 
         // Retirada de radiadores
@@ -2131,6 +2153,22 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       const hasOnlyOnePlan = (beforePlan && !afterPlan) || (!beforePlan && afterPlan)
       const sourcePlanToUse = beforePlan || afterPlan // El único que exista de los dos, o Before si existen ambos
 
+      // --- CHECK HEIGHT CONFLICT ---
+      const projectHeight = typeof demolitionConfig.standardHeight === 'number' ? demolitionConfig.standardHeight : parseFloat(String(demolitionConfig.standardHeight)) || 2.8
+      let conflictHeight: { planHeight: number, projectHeight: number } | null = null
+
+      if (sourcePlanToUse?.data?.ceilingHeight) {
+        const planHeightInMeters = sourcePlanToUse.data.ceilingHeight / 100
+        if (Math.abs(planHeightInMeters - projectHeight) > 0.05) {
+          conflictHeight = { planHeight: planHeightInMeters, projectHeight }
+        }
+      }
+
+      setImportHeightConflict(conflictHeight)
+      setSelectedImportHeight("project")
+      setPendingBeforePlanData(beforePlan?.data || null)
+      setPendingAfterPlanData(afterPlan?.data || null)
+
       // Definir qué datos usamos para cada fase basados en qué planos existen
       let demolitionRooms: any[] = []
       let reformRoomsResult: any[] = []
@@ -2140,8 +2178,8 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         setUsingFallbackPlan(true)
 
         if (activeTab === "demolition" || activeTab === "summary" || activeTab === "presupuesto" || activeTab === "reform") {
-          demolitionRooms = sourcePlanToUse?.data ? mapEditorRoomsToCalculator(sourcePlanToUse.data, true) : []
-          reformRoomsResult = sourcePlanToUse?.data ? mapEditorRoomsToCalculator(sourcePlanToUse.data, false) : []
+          demolitionRooms = sourcePlanToUse?.data ? mapEditorRoomsToCalculator(sourcePlanToUse.data, true, projectHeight) : []
+          reformRoomsResult = sourcePlanToUse?.data ? mapEditorRoomsToCalculator(sourcePlanToUse.data, false, projectHeight) : []
         }
 
         toast({
@@ -2154,11 +2192,11 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         setUsingFallbackPlan(false)
 
         demolitionRooms = beforePlan?.data && (activeTab === "demolition" || activeTab === "summary" || activeTab === "presupuesto")
-          ? mapEditorRoomsToCalculator(beforePlan.data, true)
+          ? mapEditorRoomsToCalculator(beforePlan.data, true, projectHeight)
           : []
 
         reformRoomsResult = afterPlan?.data && (activeTab === "reform" || activeTab === "summary" || activeTab === "presupuesto")
-          ? mapEditorRoomsToCalculator(afterPlan.data, false)
+          ? mapEditorRoomsToCalculator(afterPlan.data, false, projectHeight)
           : []
       }
 
@@ -2246,8 +2284,27 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   )
 
   const confirmRoomsImport = (dRooms?: Room[], rRooms?: Room[]) => {
-    const demolitionToProcess = dRooms || pendingDemolitionRooms
-    const reformToProcess = rRooms || pendingReformRooms
+    let demolitionToProcess = dRooms || pendingDemolitionRooms
+    let reformToProcess = rRooms || pendingReformRooms
+
+    if (importHeightConflict && selectedImportHeight === "plan") {
+      const h = importHeightConflict.planHeight
+      const hasOnlyOnePlan = (pendingBeforePlanData && !pendingAfterPlanData) || (!pendingBeforePlanData && pendingAfterPlanData)
+      const sourcePlanData = pendingBeforePlanData || pendingAfterPlanData
+
+      if (hasOnlyOnePlan) {
+        if (activeTab === "demolition" || activeTab === "summary" || activeTab === "presupuesto" || activeTab === "reform") {
+          demolitionToProcess = sourcePlanData ? mapEditorRoomsToCalculator(sourcePlanData, true, h) : []
+          reformToProcess = sourcePlanData ? mapEditorRoomsToCalculator(sourcePlanData, false, h) : []
+        }
+      } else {
+        demolitionToProcess = pendingBeforePlanData && (activeTab === "demolition" || activeTab === "summary" || activeTab === "presupuesto") ? mapEditorRoomsToCalculator(pendingBeforePlanData, true, h) : []
+        reformToProcess = pendingAfterPlanData && (activeTab === "reform" || activeTab === "summary" || activeTab === "presupuesto") ? mapEditorRoomsToCalculator(pendingAfterPlanData, false, h) : []
+      }
+
+      setDemolitionConfig(prev => ({ ...prev, standardHeight: h }))
+      setReformConfig(prev => ({ ...prev, standardHeight: h }))
+    }
 
     const processedDemolitionRooms = demolitionToProcess.map((room) => {
       const normalizedType = (room.type || "")
@@ -3214,7 +3271,36 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                 <p>
                   Se han encontrado datos en el editor de planos. ¿Deseas importarlos a la calculadora?
                 </p>
-                <div className="bg-slate-50 p-4 rounded-md text-xs space-y-2 border">
+
+                {importHeightConflict && (
+                  <div className="bg-amber-50 border border-amber-200 p-3 rounded-md mt-3 space-y-2">
+                    <p className="font-semibold text-amber-800 text-xs flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4" />
+                      Diferencia de altura detectada
+                    </p>
+                    <p className="text-[11px] text-amber-700 leading-tight mb-2">
+                      La altura en tu <b>Proyecto ({importHeightConflict.projectHeight}m)</b> es distinta
+                      a la del <b>Plano ({importHeightConflict.planHeight}m)</b>. ¿Qué altura debemos usar en los cálculos de los muros?
+                    </p>
+                    <div className="space-y-1.5 pt-1">
+                      <label className="flex items-start gap-2 text-xs cursor-pointer bg-white p-2 rounded border border-amber-100 font-medium">
+                        <input type="radio" name="import-height" className="mt-0.5" checked={selectedImportHeight === "project"} onChange={() => setSelectedImportHeight("project")} />
+                        <div className="flex flex-col">
+                          <span>Usar altura del Proyecto ({importHeightConflict.projectHeight}m)</span>
+                        </div>
+                      </label>
+                      <label className="flex items-start gap-2 text-xs cursor-pointer bg-white p-2 rounded border border-amber-100 font-medium">
+                        <input type="radio" name="import-height" className="mt-0.5" checked={selectedImportHeight === "plan"} onChange={() => setSelectedImportHeight("plan")} />
+                        <div className="flex flex-col">
+                          <span>Usar altura del Plano ({importHeightConflict.planHeight}m)</span>
+                          <span className="text-[10px] text-amber-600/70 font-normal leading-tight">La altura global del proyecto se actualizará a {importHeightConflict.planHeight}m</span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-slate-50 p-4 rounded-md text-xs space-y-2 border mt-3">
                   <p className="font-semibold text-slate-700 pb-1 border-b mb-1">
                     {importTarget === "reform" ? "Datos del plano de Reforma:" : "Datos del plano de Demolición:"}
                   </p>

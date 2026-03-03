@@ -2042,6 +2042,17 @@ export class BudgetGenerator {
         wallPaintingArea += room.perimeter * wallHeight
       }
 
+      // Paredes no cerámicas en habitaciones con cerámica parcial (importado desde plano)
+      if (room.nonCeramicWallPerimeter && room.nonCeramicWallPerimeter > 0) {
+        const nonCeramicMat = room.nonCeramicWallMaterial || ""
+        if (nonCeramicMat === "Lucir y pintar" || nonCeramicMat === "Pintura" || nonCeramicMat === "Solo pintar") {
+          const nonCeramicArea = room.nonCeramicWallPerimeter * wallHeight
+          wallPaintingArea += nonCeramicArea
+          console.log(
+            `[v0] BudgetGenerator - Pintura paredes no-cerámicas (${room.type} ${room.number || ""}): ${nonCeramicArea.toFixed(2)} m² (${nonCeramicMat})`,
+          )
+        }
+      }
       if (reform.config?.paintCeilings) {
         ceilingPaintingArea += room.area
       }
@@ -2551,22 +2562,33 @@ export class BudgetGenerator {
       let wallHeight = standardHeight
 
       if (room.lowerCeiling && room.newCeilingHeight) {
-        // Bajar techo en reforma - usar nueva altura
         wallHeight = room.newCeilingHeight
       } else if (room.currentCeilingStatus === "lowered_keep" && room.currentCeilingHeight) {
-        // Techos bajados que se quedan - usar altura actual
         wallHeight = room.currentCeilingHeight
       } else if (room.height) {
-        // Altura personalizada de la habitación
         wallHeight = room.height
       }
 
-      const perimeter = room.perimeter || 0
-      const wallArea = perimeter * wallHeight
-
-      console.log(
-        `[v0] BudgetGenerator - calculateWallTilingArea: ${room.type} ${room.number || ""} - perímetro: ${perimeter}m, altura: ${wallHeight}m, área: ${wallArea}m²`,
-      )
+      // Prioridad: 1) tiledWallSurfaceArea (m² exactos), 2) ceramicWallPerimeter × altura, 3) perímetro completo × altura
+      let wallArea: number
+      if (room.tiledWallSurfaceArea !== undefined) {
+        wallArea = room.tiledWallSurfaceArea
+        console.log(
+          `[v0] BudgetGenerator - calculateWallTilingArea: ${room.type} ${room.number || ""} - m² EXACTOS: ${room.tiledWallSurfaceArea.toFixed(2)}m² (total pared=${((room.perimeter || 0) * wallHeight).toFixed(2)}m²)`,
+        )
+      } else {
+        const perimeter = room.ceramicWallPerimeter ?? room.perimeter ?? 0
+        wallArea = perimeter * wallHeight
+        if (room.ceramicWallPerimeter !== undefined) {
+          console.log(
+            `[v0] BudgetGenerator - calculateWallTilingArea: ${room.type} ${room.number || ""} - PARCIAL: cerámico=${perimeter.toFixed(2)}m (total=${room.perimeter?.toFixed(2)}m), área: ${wallArea.toFixed(2)}m²`,
+          )
+        } else {
+          console.log(
+            `[v0] BudgetGenerator - calculateWallTilingArea: ${room.type} ${room.number || ""} - perímetro: ${perimeter}m, altura: ${wallHeight}m, área: ${wallArea}m²`,
+          )
+        }
+      }
 
       totalArea += wallArea
     })

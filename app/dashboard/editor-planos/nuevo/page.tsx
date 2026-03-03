@@ -18,6 +18,7 @@ export default function NuevoPlanoPage() {
   // URL-based pre-linking (from "Con Plano" project creation flow)
   const urlProjectId = searchParams.get("projectId")
   const urlVariant = searchParams.get("variant") || "current"
+  const urlHeight = searchParams.get("height")
 
   // 1. Intercept save request from Editor
   const handleEditorSave = (data: any, image: string) => {
@@ -56,7 +57,6 @@ export default function NuevoPlanoPage() {
           router.push(`/dashboard/editor-planos/editar/${result.id}`)
         }
         toast({ title: "Plano creado", description: "El nuevo plano se ha guardado correctamente." })
-        router.refresh()
       } else {
         const errorText = await response.text()
         console.error("Error saving plan:", errorText)
@@ -70,11 +70,14 @@ export default function NuevoPlanoPage() {
     }
   }
 
+  const initialData = urlHeight ? { ceilingHeight: Number(urlHeight) } : undefined
+
   return (
     <div className="h-[calc(100vh-4rem+2rem)] md:h-[calc(100vh-4rem+3rem)] -mx-4 -my-4 md:-mx-6 md:-my-6 bg-slate-50 overflow-hidden">
       <EditorContainer
         ref={editorRef}
         onSave={handleEditorSave}
+        initialData={initialData}
       />
 
       <SimpleSaveDialog

@@ -13,6 +13,7 @@ interface EditorRoom {
     ceilingHeight?: number
     hasCeramicFloor?: boolean
     hasCeramicWalls?: boolean
+    disabledCeramicWalls?: string[]
 }
 
 interface EditorData {
@@ -138,22 +139,22 @@ export async function getProjectFloorPlanData(projectId: string, planType: 'befo
 
 import { calculateRoomStats, isPointOnSegment } from "@/lib/utils/geometry"
 
-export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boolean): Room[] {
+export function mapEditorRoomsToCalculator(editorData: any, isBefore: boolean, standardHeight: number = 2.8): Room[] {
     if (!editorData || !editorData.rooms || editorData.rooms.length === 0) return []
 
     const roomTypeCounts: { [key: string]: number } = {}
 
     // 1. Mapear qué muros pertenecen a qué habitaciones (Pre-calculado para asignar puertas correctamente)
     const wallToRoomsMap = new Map<string, string[]>()
-    editorData.rooms.forEach(r => {
-        r.walls?.forEach(wId => {
+    editorData.rooms.forEach((r: any) => {
+        r.walls?.forEach((wId: string) => {
             const roomIds = wallToRoomsMap.get(wId) || []
             roomIds.push(r.id)
             wallToRoomsMap.set(wId, roomIds)
         })
     })
 
-    return editorData.rooms.map((editorRoom, i) => {
+    return editorData.rooms.map((editorRoom: any, i: number) => {
         roomTypeCounts[editorRoom.type] = (roomTypeCounts[editorRoom.type] || 0) + 1
 
         const normalizedType = normalizeRoomType(editorRoom)
@@ -204,12 +205,12 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
         // Fallback: Si no hay muros registrados, intentar identificarlos geométricamente usando el polígono
         if (roomWalls.length === 0 && (editorRoom.polygon || editorRoom.points) && editorData.walls) {
             const polygon = editorRoom.polygon || editorRoom.points || []
-            polygon.forEach((p, idx) => {
+            polygon.forEach((p: any, idx: number) => {
                 const p1 = p;
                 const p2 = polygon[(idx + 1) % polygon.length];
                 const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
 
-                const wall = editorData.walls.find(w => isPointOnSegment(midP, w.start, w.end, 1.0));
+                const wall = editorData.walls.find((w: any) => isPointOnSegment(midP, w.start, w.end, 1.0));
                 if (wall && !roomWalls.includes(wall.id)) {
                     roomWalls.push(wall.id);
                 }
@@ -217,7 +218,7 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
         }
 
         // Helper para verificar si un punto está en el perímetro de una habitación
-        const isPointOnRoomBoundary = (pt: { x: number, y: number }, room: EditorRoom) => {
+        const isPointOnRoomBoundary = (pt: { x: number, y: number }, room: any) => {
             const polygon = room.polygon || room.points || [];
             if (polygon.length < 3) return false;
             for (let i = 0; i < polygon.length; i++) {
@@ -231,9 +232,9 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
         // --- INICIO MAPEO DE PUERTAS REFINADO ---
         // 2. Determinar qué puertas pertenecen a ESTA habitación exclusivamente
         if (editorData.doors) {
-            editorData.doors.forEach(d => {
+            editorData.doors.forEach((d: any) => {
                 if (roomWalls.includes(d.wallId)) {
-                    const wall = editorData.walls?.find(w => w.id === d.wallId);
+                    const wall = editorData.walls?.find((w: any) => w.id === d.wallId);
                     if (!wall || d.t === undefined) return;
 
                     const doorCenter = {
@@ -249,7 +250,7 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
                     // Encontrar las habitaciones que comparten este muro y están físicamente tocando la puerta
                     const potentialRoomIds = wallToRoomsMap.get(d.wallId) || [];
                     const trueHostRoomIds = potentialRoomIds.filter(roomId => {
-                        const r = editorData.rooms.find(room => room.id === roomId);
+                        const r = editorData.rooms.find((room: any) => room.id === roomId);
                         if (!r) return false;
                         if (!r.polygon && !r.points) return true; // Fallback
                         return isPointOnRoomBoundary(doorCenter, r);
@@ -258,7 +259,7 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
                     if (trueHostRoomIds.length > 1) {
                         // Muro compartido real. Heurística: asignar a la habitación que NO sea pasillo/hall
                         const otherRoomId = trueHostRoomIds.find(id => id !== editorRoom.id);
-                        const otherRoom = editorData.rooms.find(r => r.id === otherRoomId);
+                        const otherRoom = editorData.rooms.find((r: any) => r.id === otherRoomId);
                         const otherType = normalizeRoomType(otherRoom || {});
 
                         // Si la habitación actual es un pasillo/hall y la otra NO, la puerta suele pertenecer a la otra (abre hacia dentro)
@@ -306,7 +307,7 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
         // --- FIN MAPEO DE PUERTAS REFINADO ---
 
         if (editorData.windows) {
-            editorData.windows.forEach(w => {
+            editorData.windows.forEach((w: any) => {
                 if (roomWalls.includes(w.wallId)) {
                     const openType = w.openType || "single"
                     const isBalcony = openType === "balcony"
@@ -341,6 +342,9 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
 
         // Calculate precise perimeter using geometry utils (wall subtraction, column additions, etc.)
         let calculatedPerimeter = editorRoom.perimeterArea || 0
+        let ceramicWallPerimeter: number | undefined = undefined
+        let nonCeramicWallPerimeter: number | undefined = undefined
+        let nonCeramicWallMaterial: string | undefined = undefined
         const roomPolygon = editorRoom.polygon || editorRoom.points
         if (roomPolygon && roomPolygon.length > 0 && editorData.walls) {
             try {
@@ -350,11 +354,27 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
                     polygon: roomPolygon,
                     area: editorRoom.area,
                     color: "",
-                    walls: editorRoom.walls || []
+                    walls: editorRoom.walls || [],
+                    hasCeramicWalls: editorRoom.hasCeramicWalls,
+                    disabledCeramicWalls: editorRoom.disabledCeramicWalls
                 }
                 const stats = calculateRoomStats(geoRoom, editorData.walls || [], editorData.shunts || [])
                 if (stats && stats.totalPerimeter && !isNaN(stats.totalPerimeter)) {
                     calculatedPerimeter = stats.totalPerimeter
+                }
+                // Cerámica parcial: si hay paredes desactivadas, calcular perímetros cerámico vs no cerámico
+                if (
+                    stats &&
+                    editorRoom.hasCeramicWalls &&
+                    editorRoom.disabledCeramicWalls &&
+                    editorRoom.disabledCeramicWalls.length > 0 &&
+                    stats.ceramicWallLength > 0
+                ) {
+                    ceramicWallPerimeter = stats.ceramicWallLength
+                    nonCeramicWallPerimeter = Math.max(0, (stats.totalPerimeter || calculatedPerimeter) - stats.ceramicWallLength)
+                    // Material por defecto según tipo de estancia y fase
+                    nonCeramicWallMaterial = isBefore ? "Pintura" : "Lucir y pintar"
+                    console.log(`[SYNC] Cerámica parcial en ${normalizedType}: cerámico=${ceramicWallPerimeter.toFixed(2)}m, no-cerámico=${nonCeramicWallPerimeter.toFixed(2)}m, material resto=${nonCeramicWallMaterial}`)
                 }
             } catch (e) {
                 console.error("Error calculating precise perimeter for room", editorRoom.name, e)
@@ -397,6 +417,15 @@ export function mapEditorRoomsToCalculator(editorData: EditorData, isBefore: boo
             customRoomType: normalizedType === "Otro" ? editorRoom.name : undefined,
             newDoors: !isBefore && doorList.length > 0,
             newDoorList: !isBefore && doorList.length > 0 ? doorList : undefined,
+            // Cerámica parcial: perímetros y material complementario (solo cuando hay disabledCeramicWalls)
+            ceramicWallPerimeter,
+            nonCeramicWallPerimeter,
+            nonCeramicWallArea: nonCeramicWallPerimeter !== undefined ? parseFloat((nonCeramicWallPerimeter * standardHeight).toFixed(2)) : undefined,
+            nonCeramicWallMaterial: nonCeramicWallMaterial as any,
+            // tiledWallSurfaceArea: m² exactos de cerámica (para bloqueAvanzado del UI y budget-generator)
+            tiledWallSurfaceArea: ceramicWallPerimeter !== undefined
+                ? parseFloat((ceramicWallPerimeter * standardHeight).toFixed(2))
+                : undefined,
         }
     })
 }

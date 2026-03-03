@@ -232,6 +232,10 @@ export interface Room {
   hasBedroomFurniture?: boolean
   hasRadiator?: boolean
   wallSurface?: number // Superficie de paredes (para cálculos de alicatado)
+  ceramicWallPerimeter?: number // Metros lineales de paredes CON cerámica (importado desde plano, respeta disabledCeramicWalls)
+  nonCeramicWallPerimeter?: number // Metros lineales de paredes SIN cerámica en habitaciones con cerámica parcial
+  nonCeramicWallArea?: number // Metros cuadrados (m2) de paredes SIN cerámica (cálculo exacto del UI / Sync)
+  nonCeramicWallMaterial?: WallMaterialType // Material para las paredes sin cerámica ("Lucir y pintar" / "Pintura")
   tiledWallSurfaceArea?: number // Superficie específica de alicatado
   removeMortarBase?: boolean // Para indicar si se debe retirar solera de mortero
   removeWallTiles?: boolean // Para indicar si se debe retirar alicatado
