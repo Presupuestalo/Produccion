@@ -1046,26 +1046,34 @@ export class BudgetGenerator {
       console.log("[v0] BudgetGenerator - NO se genera partida de alicatado de paredes (total = 0)")
     }
 
-    // 7. Lucido de paredes (calcular desde habitaciones que no tienen alicatado)
+    // 7. Lucido de paredes (calcular desde habitaciones que no tienen alicatado o tienen cerámica parcial)
     let plasteringArea = 0
     if (reform.rooms && reform.rooms.length > 0) {
       reform.rooms.forEach((room: any) => {
-        // Solo lucir paredes si el material es "Lucir y pintar" o "Solo lucir"
-        const shouldPlasterWalls = room.wallMaterial === "Lucir y pintar" || room.wallMaterial === "Solo lucir"
+        let wallHeight = reform.config?.standardHeight || 2.8
+        if (room.currentCeilingStatus === "lowered_keep" && room.currentCeilingHeight) {
+          wallHeight = room.currentCeilingHeight
+        } else if (room.lowerCeiling && room.newCeilingHeight) {
+          wallHeight = room.newCeilingHeight
+        }
 
-        if (shouldPlasterWalls && room.type !== "Baño" && room.type !== "Cocina" && room.type !== "Terraza") {
-          let wallHeight = reform.config?.standardHeight || 2.8
+        const wallMaterial = (room.wallMaterial || "").toLowerCase()
+        const isCeramicGroup = wallMaterial === "cerámica" || wallMaterial === "cerámico"
+        const isPlasterGroup = wallMaterial === "lucir y pintar" || wallMaterial === "solo lucir"
 
-          if (room.currentCeilingStatus === "lowered_keep" && room.currentCeilingHeight) {
-            // Techos bajados que se quedan - usar altura actual
-            wallHeight = room.currentCeilingHeight
-          } else if (room.lowerCeiling && room.newCeilingHeight) {
-            // Bajar techo en reforma - usar nueva altura
-            wallHeight = room.newCeilingHeight
-          }
-          // Si no hay condiciones especiales, usar standardHeight
-
+        // Caso 1: Habitación estándar (no baño/cocina/terraza) con material de lucido
+        if (isPlasterGroup && room.type !== "Baño" && room.type !== "Cocina" && room.type !== "Terraza") {
           plasteringArea += room.perimeter * wallHeight
+        }
+
+        // Caso 2: Habitación con cerámica parcial (venga del plano) -> lucir el resto
+        if (isCeramicGroup && room.nonCeramicWallPerimeter && room.nonCeramicWallPerimeter > 0) {
+          const nonCeramicMat = (room.nonCeramicWallMaterial || "").toLowerCase()
+          if (nonCeramicMat === "lucir y pintar" || nonCeramicMat === "solo lucir") {
+            const areaRest = room.nonCeramicWallPerimeter * wallHeight
+            plasteringArea += areaRest
+            console.log(`[v0] BudgetGenerator - Lucido paredes resto cerámica (${room.type}): ${areaRest.toFixed(2)}m²`)
+          }
         }
       })
     }
@@ -1077,13 +1085,15 @@ export class BudgetGenerator {
       console.log("[v0] BudgetGenerator - NO se genera partida de lucido de paredes (total = 0)")
     }
 
-    // 8. Bajada de techos (calcular desde habitaciones con techo bajo)
+    // 8. Bajada de techos (calcular desde habitaciones con techo bajo marcado o flag global)
     let ceilingLoweringArea = 0
+    const lowerAllCeilings = reform.config?.lowerAllCeilings === true
+
     if (reform.rooms && reform.rooms.length > 0) {
       reform.rooms.forEach((room: any) => {
-        // Si la habitación tiene una altura de techo nueva menor que la estándar, se baja el techo
-        if (room.newCeilingHeight && room.newCeilingHeight < 2.8) {
-          ceilingLoweringArea += room.area
+        // Usar flag individual o global para mayor robustez
+        if (room.lowerCeiling || lowerAllCeilings) {
+          ceilingLoweringArea += room.area || 0
         }
       })
     }
@@ -2041,10 +2051,13 @@ export class BudgetGenerator {
         wallHeight = room.newCeilingHeight
       }
 
+      const wallMaterialRaw = room.wallMaterial || ""
+      const normWall = wallMaterialRaw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
+
       const shouldPaintWalls =
-        room.wallMaterial === "Lucir y pintar" ||
-        room.wallMaterial === "Solo pintar" ||
-        (!room.wallMaterial && room.type !== "Baño" && room.type !== "Cocina" && room.type !== "Terraza")
+        normWall === "lucir y pintar" ||
+        normWall === "solo pintar" ||
+        (!wallMaterialRaw && room.type !== "Baño" && room.type !== "Cocina" && room.type !== "Terraza")
 
       if (shouldPaintWalls) {
         wallPaintingArea += room.perimeter * wallHeight
@@ -2052,18 +2065,20 @@ export class BudgetGenerator {
 
       // Paredes no cerámicas en habitaciones con cerámica parcial (importado desde plano)
       if (room.nonCeramicWallPerimeter && room.nonCeramicWallPerimeter > 0) {
-        const nonCeramicMat = room.nonCeramicWallMaterial || ""
-        if (nonCeramicMat === "Lucir y pintar" || nonCeramicMat === "Pintura" || nonCeramicMat === "Solo pintar") {
+        const nonCeramicMatRaw = room.nonCeramicWallMaterial || ""
+        const normNonCeramic = nonCeramicMatRaw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
+
+        if (normNonCeramic === "lucir y pintar" || normNonCeramic === "pintura" || normNonCeramic === "solo pintar") {
           const nonCeramicArea = room.nonCeramicWallPerimeter * wallHeight
           wallPaintingArea += nonCeramicArea
           console.log(
-            `[v0] BudgetGenerator - Pintura paredes no-cerámicas (${room.type} ${room.number || ""}): ${nonCeramicArea.toFixed(2)} m² (${nonCeramicMat})`,
+            `[v0] BudgetGenerator - Pintura paredes no-cerámicas (${room.type}): ${nonCeramicArea.toFixed(2)} m² (${nonCeramicMatRaw})`,
           )
         }
       }
       const shouldPaintCeilings = reform.config?.paintCeilings !== false
-      if (shouldPaintCeilings) {
-        ceilingPaintingArea += room.area
+      if (shouldPaintCeilings && room.type !== "Terraza") {
+        ceilingPaintingArea += room.area || 0
       }
     })
 
@@ -2193,14 +2208,22 @@ export class BudgetGenerator {
 
     if (reform.rooms && reform.rooms.length > 0) {
       reform.rooms.forEach((room: any) => {
+        const rawFloorMaterial = room.floorMaterial || ""
+        // Normalización robusta idéntica a Carpintería/Resumen
+        const normalizedFloor = rawFloorMaterial
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .trim()
+
         console.log(
-          `[v0] BudgetGenerator - Materials - Room ${room.type} ${room.number} floorMaterial: "${room.floorMaterial}", area: ${room.area}`,
+          `[v0] BudgetGenerator - Materials - Room ${room.type} ${room.number} floorMaterial: "${rawFloorMaterial}" (norm: "${normalizedFloor}"), area: ${room.area}`,
         )
 
-        if (room.floorMaterial === "Suelo laminado" || room.floorMaterial === "Parquet flotante") {
+        if (normalizedFloor === "suelo laminado" || normalizedFloor === "parquet flotante" || normalizedFloor === "madera") {
           console.log(`[v0] BudgetGenerator - Materials - Adding ${room.area} m² to laminateFlooringArea`)
           laminateFlooringArea += room.area || 0
-        } else if (room.floorMaterial === "Suelo vinílico") {
+        } else if (normalizedFloor === "suelo vinilico") {
           console.log(`[v0] BudgetGenerator - Materials - Adding ${room.area} m² to vinylFlooringArea`)
           vinylFlooringArea += room.area || 0
         }
@@ -2559,9 +2582,11 @@ export class BudgetGenerator {
 
     reform.rooms.forEach((room: any) => {
       // Solo alicatar si el material de paredes es Cerámica/Cerámico y no es "No se modifica"
-      const wallMaterial = (room.wallMaterial || "").toLowerCase()
-      const isCeramic = wallMaterial === "cerámica" || wallMaterial === "cerámico"
-      const isNotModified = wallMaterial === "no se modifica"
+      const wallMaterialRaw = room.wallMaterial || ""
+      const normWall = wallMaterialRaw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
+
+      const isCeramic = normWall === "ceramica" || normWall === "ceramico"
+      const isNotModified = normWall === "no se modifica"
 
       if (!isCeramic || isNotModified) {
         return // No alicatar esta habitación
