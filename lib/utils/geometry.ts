@@ -786,7 +786,7 @@ function calculatePolygonCentroid(points: Point[]): Point {
     return { x: x / points.length, y: y / points.length }
 }
 
-function calculatePolygonSignedArea(points: Point[]): number {
+export function calculatePolygonSignedArea(points: Point[]): number {
     let area = 0
     for (let i = 0; i < points.length; i++) {
         const j = (i + 1) % points.length

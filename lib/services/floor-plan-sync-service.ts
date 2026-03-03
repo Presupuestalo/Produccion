@@ -137,7 +137,7 @@ export async function getProjectFloorPlanData(projectId: string, planType: 'befo
     }
 }
 
-import { calculateRoomStats, isPointOnSegment } from "@/lib/utils/geometry"
+import { calculateRoomStats, isPointOnSegment, calculatePolygonSignedArea } from "@/lib/utils/geometry"
 
 export function mapEditorRoomsToCalculator(editorData: any, isBefore: boolean, standardHeight: number = 2.8): Room[] {
     if (!editorData || !editorData.rooms || editorData.rooms.length === 0) return []
@@ -389,14 +389,37 @@ export function mapEditorRoomsToCalculator(editorData: any, isBefore: boolean, s
             }
         }
 
+        // 4. Determinar Area y Perímetro Finales
+        // Priorizamos los valores nativos del editor si están disponibles (> 0)
+        let finalArea = editorRoom.area || 0
+        if (finalArea === 0 && roomPolygon && roomPolygon.length >= 3) {
+            // Si el área viene vacía del editor, la calculamos desde el polígono
+            finalArea = Math.abs(calculatePolygonSignedArea(roomPolygon))
+        }
+
+        let finalPerimeter = editorRoom.perimeterArea || 0
+        if (finalPerimeter === 0 || isNaN(finalPerimeter)) {
+            // Si no hay perímetro en el editor, usamos el calculado geométricamente
+            finalPerimeter = calculatedPerimeter
+        } else {
+            // Si hay perímetro en el editor, lo mantenemos. 
+            // Comprobamos si la diferencia es extrema solo por salud de datos,
+            // pero el usuario manda.
+            const diff = Math.abs(finalPerimeter - calculatedPerimeter)
+            if (diff > finalPerimeter * 0.5 && calculatedPerimeter > 0) {
+                console.warn(`[SYNC] Gran discrepancia en perímetro (${roomName}): Editor=${finalPerimeter} vs Calc=${calculatedPerimeter}. Usando calculado.`)
+                finalPerimeter = calculatedPerimeter
+            }
+        }
+
         return {
             id: crypto.randomUUID(),
             type: normalizedType as any,
             number: roomTypeCounts[editorRoom.type],
             width: 0, // Not perfectly accurate from 2D points alone
             length: 0,
-            area: editorRoom.area || 0,
-            perimeter: calculatedPerimeter,
+            area: parseFloat(finalArea.toFixed(2)),
+            perimeter: parseFloat(finalPerimeter.toFixed(2)),
             wallSurface: 0, // Calculator will compute this
             wallArea: 0,
             ceilingArea: 0,
