@@ -292,17 +292,21 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
 
       const wallArea = perimeter * effectiveHeight
 
-      const roomFloorMaterial = (room.floorMaterial || "").toLowerCase()
-      if (roomFloorMaterial === "cerámico" || roomFloorMaterial === "cerámica") {
+      const roomFloorMaterial = normalizeType(room.floorMaterial || "")
+      if (roomFloorMaterial === "ceramico" || roomFloorMaterial === "ceramica") {
         newSummary.embaldosado += area
       }
 
-      if (roomFloorMaterial === "parquet flotante") {
+      if (roomFloorMaterial === "parquet flotante" || roomFloorMaterial === "suelo laminado" || roomFloorMaterial === "madera") {
         newSummary.floatingParquet += area
       }
 
+      if (roomFloorMaterial === "suelo vinilico") {
+        newSummary.vinylFloor += area
+      }
+
       // Rodapié: sumar perímetro si el suelo NO es cerámico ni "No se modifica"
-      if (roomFloorMaterial !== "cerámico" && roomFloorMaterial !== "no se modifica" && room.type !== "Terraza") {
+      if (roomFloorMaterial !== "ceramico" && roomFloorMaterial !== "no se modifica" && room.type !== "Terraza") {
         newSummary.rodapie += perimeter
       }
 

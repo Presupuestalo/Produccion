@@ -173,7 +173,7 @@ export function mapEditorRoomsToCalculator(editorData: any, isBefore: boolean, s
             }
 
             if (isBeforeState) {
-                return { floor: "Madera", wall: "Pintura", removeWallTiles: false, removeFloor: true }
+                return { floor: "Parquet flotante", wall: "Pintura", removeWallTiles: false, removeFloor: true }
             } else {
                 return { floor: "Parquet flotante", wall: "Lucir y pintar", removeWallTiles: false, removeFloor: false }
             }
@@ -186,7 +186,7 @@ export function mapEditorRoomsToCalculator(editorData: any, isBefore: boolean, s
             defaultMaterials.floor = isBefore ? "Cerámica" : "Cerámico"
             if (isBefore) defaultMaterials.removeFloor = true
         } else if (editorRoom.hasCeramicFloor === false) {
-            defaultMaterials.floor = isBefore ? "Madera" : "Parquet flotante"
+            defaultMaterials.floor = "Parquet flotante"
         }
 
         if (editorRoom.hasCeramicWalls === true) {
@@ -401,7 +401,8 @@ export function mapEditorRoomsToCalculator(editorData: any, isBefore: boolean, s
             doors: doorsCount,
             doorList: doorList,
             windows: windowList,
-            falseCeiling: false,
+            falseCeiling: editorRoom.falseCeiling || false,
+            lowerCeiling: editorRoom.falseCeiling || false,
             moldings: false,
             demolishWall: false,
             demolishCeiling: false,

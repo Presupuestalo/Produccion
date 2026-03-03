@@ -1401,14 +1401,22 @@ export class BudgetGenerator {
 
     if (reform.rooms && reform.rooms.length > 0) {
       reform.rooms.forEach((room: any) => {
+        const rawFloorMaterial = room.floorMaterial || ""
+        // Normalización básica similar a reform-summary
+        const normalizedFloor = rawFloorMaterial
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .trim()
+
         console.log(
-          `[v0] BudgetGenerator - Room ${room.type} ${room.number} floorMaterial: "${room.floorMaterial}", area: ${room.area}`,
+          `[v0] BudgetGenerator - Room ${room.type} ${room.number} floorMaterial: "${rawFloorMaterial}" (norm: "${normalizedFloor}"), area: ${room.area}`,
         )
 
-        if (room.floorMaterial === "Suelo laminado" || room.floorMaterial === "Parquet flotante") {
+        if (normalizedFloor === "suelo laminado" || normalizedFloor === "parquet flotante") {
           console.log(`[v0] BudgetGenerator - Adding ${room.area} m² to laminateFlooringArea`)
           laminateFlooringArea += room.area || 0
-        } else if (room.floorMaterial === "Suelo vinílico") {
+        } else if (normalizedFloor === "suelo vinilico") {
           console.log(`[v0] BudgetGenerator - Adding ${room.area} m² to vinylFlooringArea`)
           vinylFlooringArea += room.area || 0
         }
@@ -2053,7 +2061,8 @@ export class BudgetGenerator {
           )
         }
       }
-      if (reform.config?.paintCeilings) {
+      const shouldPaintCeilings = reform.config?.paintCeilings !== false
+      if (shouldPaintCeilings) {
         ceilingPaintingArea += room.area
       }
     })
