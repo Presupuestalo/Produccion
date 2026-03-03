@@ -1041,10 +1041,10 @@ export class BudgetGenerator {
       // Si hay suelo radiante, usar partida específica
       if (reform.radiantFloor) {
         console.log(`[v0] BudgetGenerator - Generando partida: Embaldosado sobre suelo radiante ${floorTilingArea} m²`)
-        this.addLineItem("02-A-08", floorTilingArea, "Embaldosado sobre suelo radiante")
+        this.addLineItem("02-A-08", floorTilingArea, "Colocación de solado cerámico sobre suelo radiante")
       } else {
         console.log(`[v0] BudgetGenerator - Generando partida: Embaldosado de suelos ${floorTilingArea} m²`)
-        this.addLineItem("02-A-07", floorTilingArea, "Embaldosado de suelos")
+        this.addLineItem("02-A-07", floorTilingArea, "Colocación de solado cerámico")
       }
     } else {
       console.log("[v0] BudgetGenerator - NO se genera partida de embaldosado de suelos (total = 0)")

@@ -274,26 +274,21 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
     }
 
     rooms.forEach((room) => {
-      const area = room.width * room.length
+      const area = room.area || room.width * room.length
       const perimeter = room.perimeter || 2 * (room.width + room.length)
 
       const effectiveHeight = (() => {
-        // Si se baja el techo, usar la nueva altura
-        if (room.lowerCeiling && room.newCeilingHeight) {
-          return room.newCeilingHeight
-        }
-        // Si tiene techos bajados que se quedan, usar altura actual
-        if (room.currentCeilingStatus === "lowered_keep" && room.currentCeilingHeight) {
-          return room.currentCeilingHeight
-        }
-        // Si usa altura personalizada o altura estándar
+        if (room.lowerCeiling && room.newCeilingHeight) return room.newCeilingHeight
+        if (room.currentCeilingStatus === "lowered_keep" && room.currentCeilingHeight) return room.currentCeilingHeight
         return room.customHeight || room.height || standardHeight
       })()
 
       const wallArea = perimeter * effectiveHeight
-
       const roomFloorMaterial = normalizeType(room.floorMaterial || "")
-      if (roomFloorMaterial === "ceramico" || roomFloorMaterial === "ceramica") {
+      const isBathroomOrKitchen = isBathroom(room.type) || isKitchen(room.type)
+      const isCeramic = roomFloorMaterial === "ceramico" || roomFloorMaterial === "ceramica"
+
+      if (globalConfig?.tileAllFloors || isCeramic || isBathroomOrKitchen) {
         newSummary.embaldosado += area
       }
 
@@ -305,23 +300,12 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
         newSummary.vinylFloor += area
       }
 
-      // Rodapié: sumar perímetro si el suelo NO es cerámico ni "No se modifica"
-      if (roomFloorMaterial !== "ceramico" && roomFloorMaterial !== "no se modifica" && room.type !== "Terraza") {
+      if (!isCeramic && !isBathroomOrKitchen && roomFloorMaterial !== "no se modifica" && room.type !== "Terraza") {
         newSummary.rodapie += perimeter
       }
 
-      if (
-        isWoodenOrMixedStructure &&
-        (room.currentFloor === "flooring_ceramic" ||
-          room.currentFloor === "flooring_wood" ||
-          room.currentFloor === "other")
-      ) {
-        if (
-          room.type === "Baño" ||
-          room.type === "Cocina" ||
-          room.type === "Cocina Abierta" ||
-          room.type === "Cocina Americana"
-        ) {
+      if (isWoodenOrMixedStructure && (room.currentFloor === "flooring_ceramic" || room.currentFloor === "flooring_wood" || room.currentFloor === "other")) {
+        if (isBathroomOrKitchen) {
           newSummary.arlita += area
         } else if (room.type !== "Terraza") {
           newSummary.rastrelado += area
@@ -330,56 +314,27 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
 
       const roomWallMaterial = (room.wallMaterial || wallMaterial || "").toLowerCase()
 
-      console.log(
-        "[v0] Room:",
-        room.type,
-        "wallMaterial:",
-        room.wallMaterial,
-        "normalized:",
-        roomWallMaterial,
-        "wallArea:",
-        wallArea,
-      )
-
       if (roomWallMaterial === "cerámica" || roomWallMaterial === "ceramica") {
-        // Cerámica parcial: usar tiledWallSurfaceArea (m² exactos) si está definido
-        const ceramicArea = room.tiledWallSurfaceArea !== undefined
-          ? room.tiledWallSurfaceArea
-          : wallArea
+        const ceramicArea = room.tiledWallSurfaceArea !== undefined ? room.tiledWallSurfaceArea : wallArea
         newSummary.alicatadoParedes += ceramicArea
-        console.log("[v0] Sumando alicatado:", ceramicArea, room.tiledWallSurfaceArea !== undefined ? "(m² exactos)" : "(perímetro completo)")
 
-        // Si hay material restante (cerámica parcial), añadirlo a lucido/pintura
         if (room.nonCeramicWallMaterial && room.tiledWallSurfaceArea !== undefined) {
-          const restArea = room.nonCeramicWallArea !== undefined
-            ? room.nonCeramicWallArea
-            : Math.max(0, wallArea - room.tiledWallSurfaceArea)
+          const restArea = room.nonCeramicWallArea !== undefined ? room.nonCeramicWallArea : Math.max(0, wallArea - room.tiledWallSurfaceArea)
           if (restArea > 0) {
             const nonMat = (room.nonCeramicWallMaterial || "").toLowerCase()
-            if (nonMat === "lucir y pintar" || nonMat === "solo lucir") {
-              newSummary.lucidoParedes += restArea
-              console.log("[v0] Sumando lucido (resto cerámica parcial):", restArea)
-            }
-            if (nonMat === "lucir y pintar" || nonMat === "solo pintar" || nonMat === "pintura") {
-              newSummary.pinturaParedes += restArea
-              console.log("[v0] Sumando pintura (resto cerámica parcial):", restArea)
-            }
+            if (nonMat === "lucir y pintar" || nonMat === "solo lucir") newSummary.lucidoParedes += restArea
+            if (nonMat === "lucir y pintar" || nonMat === "solo pintar" || nonMat === "pintura") newSummary.pinturaParedes += restArea
           }
         }
       }
 
       if (roomWallMaterial === "lucir y pintar" || roomWallMaterial === "solo lucir") {
         newSummary.lucidoParedes += wallArea
-        console.log("[v0] Sumando lucido:", wallArea)
       }
 
       if (roomWallMaterial === "lucir y pintar" || roomWallMaterial === "solo pintar") {
         newSummary.pinturaParedes += wallArea
-        console.log("[v0] Sumando pintura:", wallArea)
       }
-
-      // Calcular metros cuadrados y lineales
-      const wallSurface = perimeter * projectHeight
 
       if (paintCeilings && room.type !== "Terraza") {
         newSummary.pinturaTechos += area
@@ -408,7 +363,6 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
           }
         })
       } else if (room.newDoors && room.newDoors > 0) {
-        // Fallback si solo hay contador sin lista
         newSummary.puertasAbatibles += room.newDoors
         newSummary.premarcos += room.newDoors
       }
@@ -418,52 +372,27 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
       if (isBathroom(room.type) && room.newBathroomElements !== false) {
         newSummary.redesAguaBanos += 1
         newSummary.conductoExtraccionBano += 1
-      }
-      if (isKitchen(room.type)) {
-        newSummary.redesAguaCocina += 1
-        newSummary.conductoExtraccionCocina += 1
-      }
 
-      if (isBathroom(room.type) && room.newBathroomElements !== false) {
-        // Combinar la nueva propiedad y la antigua para compatibilidad
         const configs = room.bathroomElementsConfig?.length > 0
           ? room.bathroomElementsConfig
-          : (room.bathroomElements || []).map((e: any) => ({
-            element: e,
-            includeSupply: true,
-          }))
+          : (room.bathroomElements || []).map((e: any) => ({ element: e, includeSupply: true }))
 
         configs.forEach((config: any) => {
           switch (config.element) {
-            case "Inodoro":
-              newSummary.instalacionInodoro += 1
-              break
-            case "Bidé":
-              newSummary.instalacionBide += 1
-              break
-            case "Ducheta Inodoro":
-              newSummary.instalacionDuchaInodoro += 1
-              break
-            case "Plato de ducha":
-              newSummary.instalacionPlatoDucha += 1
-              newSummary.instalacionGrifoDucha += 1
-              break
-            case "Bañera":
-              newSummary.instalacionBanera += 1
-              newSummary.instalacionGrifoDucha += 1
-              break
-            case "Mampara":
-              newSummary.instalacionMampara += 1
-              break
-            case "Mueble lavabo":
-              newSummary.instalacionMuebleLavabo += 1
-              newSummary.instalacionGrifoLavabo += 1
-              break
+            case "Inodoro": newSummary.instalacionInodoro += 1; break
+            case "Bidé": newSummary.instalacionBide += 1; break
+            case "Ducheta Inodoro": newSummary.instalacionDuchaInodoro += 1; break
+            case "Plato de ducha": newSummary.instalacionPlatoDucha += 1; newSummary.instalacionGrifoDucha += 1; break
+            case "Bañera": newSummary.instalacionBanera += 1; newSummary.instalacionGrifoDucha += 1; break
+            case "Mampara": newSummary.instalacionMampara += 1; break
+            case "Mueble lavabo": newSummary.instalacionMuebleLavabo += 1; newSummary.instalacionGrifoLavabo += 1; break
           }
         })
       }
 
       if (isKitchen(room.type)) {
+        newSummary.redesAguaCocina += 1
+        newSummary.conductoExtraccionCocina += 1
         newSummary.instalacionFregadero += 1
         newSummary.instalacionLavadora += 1
         newSummary.instalacionLavavajillas += 1
@@ -474,29 +403,18 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
 
       if (reformHeatingType === "Eléctrica") {
         if (room.radiators && Array.isArray(room.radiators) && room.radiators.length > 0) {
-          room.radiators.forEach(() => {
-            newSummary.fijacionEmisores += 1
-            newSummary.emisoresTermicos += 1
-          })
+          room.radiators.forEach(() => { newSummary.fijacionEmisores += 1; newSummary.emisoresTermicos += 1 })
         } else if (room.hasRadiator) {
-          newSummary.fijacionEmisores += 1
-          newSummary.emisoresTermicos += 1
+          newSummary.fijacionEmisores += 1; newSummary.emisoresTermicos += 1
         }
-      } else {
-        if (shouldHaveRadiators) {
-          if (room.radiators && Array.isArray(room.radiators) && room.radiators.length > 0) {
-            room.radiators.forEach(() => {
-              newSummary.redAlimentacionRadiador += 1
-              newSummary.instalacionRadiadores += 1
-            })
-          } else if (room.hasRadiator) {
-            newSummary.redAlimentacionRadiador += 1
-            newSummary.instalacionRadiadores += 1
-          }
+      } else if (shouldHaveRadiators) {
+        if (room.radiators && Array.isArray(room.radiators) && room.radiators.length > 0) {
+          room.radiators.forEach(() => { newSummary.redAlimentacionRadiador += 1; newSummary.instalacionRadiadores += 1 })
+        } else if (room.hasRadiator) {
+          newSummary.redAlimentacionRadiador += 1; newSummary.instalacionRadiadores += 1
         }
       }
 
-      // Sumar elementos eléctricos
       if (room.electricalElements && Array.isArray(room.electricalElements)) {
         room.electricalElements.forEach((element: any) => {
           const type = element.type || element.id
@@ -504,7 +422,6 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
           if (type === "Punto de luz techo") newSummary.puntoLuz += quantity
           if (type === "Enchufe normal") newSummary.puntoEnchufe += quantity
           if (type === "Toma de TV") newSummary.puntoTelefonoTV += quantity
-          if (type === "Interruptor" || type === "Interruptor sencillo") newSummary.puntoLuz += 0 // Luces ya sumadas
           if (type === "Timbre") newSummary.timbre += quantity
           if (type === "Portero") newSummary.portero += quantity
         })
@@ -516,24 +433,17 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
     })
 
     if (partitions && Array.isArray(partitions)) {
-      newSummary.partitionsArea = partitions.reduce((sum, partition) => {
-        return sum + partition.length * partition.height
-      }, 0)
+      newSummary.partitionsArea = partitions.reduce((sum, partition) => sum + partition.length * partition.height, 0)
     }
 
     if (wallLinings && Array.isArray(wallLinings)) {
-      newSummary.wallLiningsArea = wallLinings.reduce((sum, lining) => {
-        return sum + lining.length * lining.height
-      }, 0)
+      newSummary.wallLiningsArea = wallLinings.reduce((sum, lining) => sum + lining.length * lining.height, 0)
     }
 
-    if (electricalConfig) {
-      if (electricalConfig.needsNewInstallation) {
-        newSummary.cuadroElectrico = electricalConfig.hasElectricalPanel ? 1 : 0
-      }
+    if (electricalConfig?.needsNewInstallation) {
+      newSummary.cuadroElectrico = electricalConfig.hasElectricalPanel ? 1 : 0
     }
 
-    // Fallback para radiadores si el global está activo pero no hay en habitaciones
     const isRadiatorHeatingGlobal = reformHeatingType === "Caldera + Radiadores" || reformHeatingType === "Central"
     if ((globalConfig?.installRadiators || isRadiatorHeatingGlobal) && newSummary.instalacionRadiadores === 0) {
       newSummary.instalacionRadiadores = Math.max(rooms.filter(r => !isBathroom(r.type) && !isKitchen(r.type)).length, 1)
@@ -624,7 +534,7 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
                 )}
                 {summary.embaldosado > 0 && (
                   <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-green-100 last:border-0">
-                    <div>Embaldosado cerámico</div>
+                    <div>Colocación de solado cerámico</div>
                     <div className="text-muted-foreground text-right shrink-0">m²</div>
                     <div className="text-right font-medium shrink-0">{formatNumber(summary.embaldosado)}</div>
                   </div>
@@ -685,7 +595,8 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
         summary.instalacionGrifoLavabo > 0 ||
         summary.instalacionFregadero > 0 ||
         summary.instalacionLavadora > 0 ||
-        summary.instalacionLavavajillas > 0) && (
+        summary.instalacionLavavajillas > 0 ||
+        summary.instalacionTermo > 0) && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Fontanería</CardTitle>
@@ -858,6 +769,8 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
         summary.nivelarTablon > 0 ||
         summary.puertasAbatibles > 0 ||
         summary.puertasCorrederas > 0 ||
+        summary.puertasDobleAbatibles > 0 ||
+        summary.puertasCorrederasExteriores > 0 ||
         summary.premarcos > 0 ||
         summary.puertaAcorazada > 0 ||
         summary.windows > 0 ||
@@ -1092,37 +1005,10 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
                     <div className="text-right font-medium shrink-0">{summary.emisoresTermicos}</div>
                   </div>
                 )}
-                {summary.sueloRadiante > 0 && (
-                  <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-green-100 last:border-0">
-                    <div>Suelo radiante</div>
-                    <div className="text-muted-foreground text-right shrink-0">m²</div>
-                    <div className="text-right font-medium shrink-0">{formatNumber(summary.sueloRadiante)}</div>
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>
         )}
-
-      {/* MATERIALES */}
-      {summary.emisoresTermicos > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Materiales</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1 text-sm">
-              {summary.emisoresTermicos > 0 && (
-                <div className="grid grid-cols-[1fr_40px_70px] gap-2 items-center py-1 border-b border-green-100 last:border-0">
-                  <div>Radiador Eléctrico</div>
-                  <div className="text-muted-foreground text-right shrink-0">ud</div>
-                  <div className="text-right font-medium shrink-0">{summary.emisoresTermicos}</div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }
