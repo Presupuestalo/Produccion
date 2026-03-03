@@ -49,7 +49,7 @@ export type FloorMaterialType =
   | "Cerámica"
   | "Madera"
 
-export type WallMaterialType = "No se modifica" | "Cerámica" | "Gotelé" | "Lucida" | "Otra" | "Pintura" | "Papel" | "Lucir y pintar"
+export type WallMaterialType = "No se modifica" | "Cerámica" | "Gotelé" | "Lucida" | "Otra" | "Pintura" | "Papel" | "Lucir y pintar" | "Solo lucir" | "Solo pintar"
 
 export type CeilingMaterial = "Pintura" | "Gotelé" | "Papel" | "Placa de yeso laminado" | "Ladrillo" | "Madera" | "Otro" | "No se modifica"
 

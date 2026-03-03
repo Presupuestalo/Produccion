@@ -337,7 +337,7 @@ export function RoomCard({
         }
       }
     } else if (isReform && room.wallMaterial) {
-      const reformValues = ["No se modifica", "Cerámica", "Lucir y pintar", "Solo Lucir", "Solo pintar"]
+      const reformValues = ["No se modifica", "Cerámica", "Lucir y pintar", "Solo lucir", "Solo pintar"]
 
       // Si el valor actual no es válido para reforma
       if (!reformValues.includes(room.wallMaterial)) {
