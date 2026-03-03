@@ -942,8 +942,10 @@ export class BudgetGenerator {
         const willHaveTiling =
           tileAllFloors || (reformRoom && (reformRoom.type === "Baño" || reformRoom.type === "Cocina"))
 
+        const rawFloorMat = (room.floorMaterial || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
         // Levantado de suelo de madera
-        if ((room.removeFloor || demolition.config?.removeWoodenFloor) && room.floorMaterial === "Madera") {
+        if ((room.removeFloor || demolition.config?.removeWoodenFloor) && (rawFloorMat === "madera" || rawFloorMat === "parquet")) {
           console.log(
             `[v0] BudgetGenerator - Procesando suelo madera ${room.type} ${room.number}: ${room.area} m²`,
           )
@@ -963,7 +965,7 @@ export class BudgetGenerator {
         // Picado de baldosa cerámica
         const shouldRemoveCeramicFloor =
           (room.removeFloor || demolition.config?.removeAllCeramic) &&
-          (room.floorMaterial === "Cerámico" || room.floorMaterial === "Cerámica")
+          (rawFloorMat === "ceramico" || rawFloorMat === "ceramica")
 
         if (shouldRemoveCeramicFloor) {
           console.log(
@@ -2723,23 +2725,19 @@ export class BudgetGenerator {
         return
       }
 
-      if (tileAllFloors) {
+      const rawMaterial = room.floorMaterial || "";
+      const normFloor = rawMaterial.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      const isCeramic = normFloor === "ceramico" || normFloor === "ceramica";
+
+      if (tileAllFloors || isCeramic || room.type === "Baño" || room.type === "Cocina") {
         console.log(
-          `[v0] BudgetGenerator - calculateFloorTilingArea - Adding ${room.area} m² from ${room.type} ${room.number} (tileAllFloors)`,
+          `[v0] BudgetGenerator - calculateFloorTilingArea - Adding ${room.area} m² from ${room.type} ${room.number} (Reason: ${tileAllFloors ? 'tileAllFloors' : (isCeramic ? 'Ceramic Material' : 'Room Type')})`,
         )
-        totalArea += room.area
-      } else {
-        // Otherwise, only bathrooms and kitchens
-        if (room.type === "Baño" || room.type === "Cocina") {
-          console.log(
-            `[v0] BudgetGenerator - calculateFloorTilingArea - Adding ${room.area} m² from ${room.type} ${room.number}`,
-          )
-          totalArea += room.area
-        }
+        totalArea += room.area || 0
       }
     })
 
-    console.log(`[v0] BudgetGenerator - calculateFloorTilingArea - Total: ${totalArea} m²`)
+    console.log(`[v0] BudgetGenerator - calculateFloorTilingArea - Total: ${totalArea.toFixed(2)} m²`)
     return totalArea
   }
 
