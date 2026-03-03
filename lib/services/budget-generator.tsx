@@ -517,6 +517,14 @@ export class BudgetGenerator {
     let totalSewagePipesRemoval = 0
 
     demolition.rooms.forEach((room: any) => {
+      // Ignorar habitación técnica de ventanas
+      const roomName = (room.name || "").toLowerCase()
+      const roomType = (room.type || "").toLowerCase()
+      const customType = (room.customRoomType || "").toLowerCase()
+      if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+        return
+      }
+
       // Picado de pavimento cerámico - verificar tanto removeFloor como removeAllCeramic
       const shouldRemoveCeramicFloor =
         (room.removeFloor || demolition.config?.removeAllCeramic) &&
@@ -920,6 +928,14 @@ export class BudgetGenerator {
 
     if (demolition && demolition.rooms && demolition.rooms.length > 0) {
       demolition.rooms.forEach((room: any) => {
+        // Ignorar habitación técnica de ventanas
+        const roomName = (room.name || "").toLowerCase()
+        const roomType = (room.type || "").toLowerCase()
+        const customType = (room.customRoomType || "").toLowerCase()
+        if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+          return
+        }
+
         const isBathroomOrKitchen = room.type === "Baño" || room.type === "Cocina"
 
         const reformRoom = reform.rooms?.find((r: any) => r.type === room.type && r.number === room.number)
@@ -929,20 +945,17 @@ export class BudgetGenerator {
         // Levantado de suelo de madera
         if ((room.removeFloor || demolition.config?.removeWoodenFloor) && room.floorMaterial === "Madera") {
           console.log(
-            `[v0] BudgetGenerator - Procesando suelo madera ${room.type} ${room.number}: ${room.area} m² (willHaveTiling: ${willHaveTiling})`,
+            `[v0] BudgetGenerator - Procesando suelo madera ${room.type} ${room.number}: ${room.area} m²`,
           )
+
+          // El usuario pide que la capa compresora (solera) sea la suma de picado cerámica + madera
+          screedArea += room.area || 0
 
           if (isWoodenOrMixedStructure) {
             // Estructura de madera/mixta → Rastrelado solo si NO va a llevar baldosa
             if (!willHaveTiling) {
               rastreladoArea += room.area || 0
               console.log(`[v0] BudgetGenerator - ${room.type} ${room.number}: Agregado a RASTRELADO ${room.area} m²`)
-            }
-          } else {
-            // Estructura hormigón → Solera solo si va a llevar baldosa
-            if (willHaveTiling) {
-              screedArea += room.area || 0
-              console.log(`[v0] BudgetGenerator - ${room.type} ${room.number}: Agregado a SOLERA ${room.area} m²`)
             }
           }
         }
@@ -954,19 +967,16 @@ export class BudgetGenerator {
 
         if (shouldRemoveCeramicFloor) {
           console.log(
-            `[v0] BudgetGenerator - Procesando suelo cerámico ${room.type} ${room.number}: ${room.area} m² (willHaveTiling: ${willHaveTiling})`,
+            `[v0] BudgetGenerator - Procesando suelo cerámico ${room.type} ${room.number}: ${room.area} m²`,
           )
+
+          // El usuario pide que la capa compresora (solera) sea la suma de picado cerámica + madera
+          screedArea += room.area || 0
 
           if (isWoodenOrMixedStructure && isBathroomOrKitchen) {
             // Estructura madera/mixta + baño/cocina → Arlita
             arlitaArea += room.area || 0
             console.log(`[v0] BudgetGenerator - ${room.type} ${room.number}: Agregado a ARLITA ${room.area} m²`)
-          } else {
-            // Estructura hormigón → Solera solo si va a llevar baldosa
-            if (willHaveTiling) {
-              screedArea += room.area || 0
-              console.log(`[v0] BudgetGenerator - ${room.type} ${room.number}: Agregado a SOLERA ${room.area} m²`)
-            }
           }
         }
       })
@@ -1234,8 +1244,15 @@ export class BudgetGenerator {
 
     if (!reform || !reform.rooms) return
 
-    const bathrooms = reform.rooms.filter((r: any) => r.type === "Baño" && r.newBathroomElements !== false).length
-    const kitchens = reform.rooms.filter((r: any) => r.type?.includes("Cocina")).length
+    const realRooms = reform.rooms.filter((r: any) => {
+      const name = (r.name || "").toLowerCase()
+      const type = (r.type || "").toLowerCase()
+      const custom = (r.customRoomType || "").toLowerCase()
+      return !name.includes("otras ventanas") && !type.includes("otras ventanas") && !custom.includes("otras ventanas")
+    })
+
+    const bathrooms = realRooms.filter((r: any) => r.type === "Baño" && r.newBathroomElements !== false).length
+    const kitchens = realRooms.filter((r: any) => r.type?.includes("Cocina")).length
 
     console.log(`[v0] BudgetGenerator - Bathrooms: ${bathrooms}, Kitchens: ${kitchens}`)
 
@@ -1305,7 +1322,7 @@ export class BudgetGenerator {
         grifosLavabo: { withSupply: 0, withoutSupply: 0 },
       }
 
-      reform.rooms.filter((r: any) => r.type === "Baño" && r.newBathroomElements !== false).forEach((room: any) => {
+      realRooms.filter((r: any) => r.type === "Baño" && r.newBathroomElements !== false).forEach((room: any) => {
         // Combinar la nueva propiedad y la antigua para compatibilidad
         const configs = room.bathroomElementsConfig?.length > 0
           ? room.bathroomElementsConfig
@@ -1411,6 +1428,14 @@ export class BudgetGenerator {
 
     if (reform.rooms && reform.rooms.length > 0) {
       reform.rooms.forEach((room: any) => {
+        // Ignorar habitación técnica de ventanas
+        const roomName = (room.name || "").toLowerCase()
+        const roomType = (room.type || "").toLowerCase()
+        const customType = (room.customRoomType || "").toLowerCase()
+        if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+          return
+        }
+
         const rawFloorMaterial = room.floorMaterial || ""
         // Normalización básica similar a reform-summary
         const normalizedFloor = rawFloorMaterial
@@ -1579,6 +1604,14 @@ export class BudgetGenerator {
       let totalElectricHeaters = 0
       if (reform?.rooms && reform.rooms.length > 0) {
         reform.rooms.forEach((room: any) => {
+          // Ignorar habitación técnica de ventanas
+          const roomName = (room.name || "").toLowerCase()
+          const roomType = (room.type || "").toLowerCase()
+          const customType = (room.customRoomType || "").toLowerCase()
+          if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+            return
+          }
+
           if (room.hasRadiator || (room.radiators && Array.isArray(room.radiators) && room.radiators.length > 0)) {
             const heaterCount = room.radiators?.length || 1
             totalElectricHeaters += heaterCount
@@ -1636,6 +1669,14 @@ export class BudgetGenerator {
 
       if (reform?.rooms && reform.rooms.length > 0) {
         reform.rooms.forEach((room: any) => {
+          // Ignorar habitación técnica de ventanas
+          const roomName = (room.name || "").toLowerCase()
+          const roomType = (room.type || "").toLowerCase()
+          const customType = (room.customRoomType || "").toLowerCase()
+          if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+            return
+          }
+
           if (room.hasRadiator || (room.radiators && Array.isArray(room.radiators) && room.radiators.length > 0)) {
             const heaterCount = room.radiators?.length || 1
             installRadiatorsCount += heaterCount
@@ -1684,7 +1725,15 @@ export class BudgetGenerator {
       let radiantFloorArea = 0
       if (reform?.rooms && reform.rooms.length > 0) {
         reform.rooms.forEach((room: any) => {
-          const roomType = room.type?.toLowerCase() || ""
+          // Ignorar habitación técnica de ventanas
+          const roomName = (room.name || "").toLowerCase()
+          const roomType = (room.type || "").toLowerCase()
+          const customType = (room.customRoomType || "").toLowerCase()
+          if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+            return
+          }
+
+          const roomTypeStr = room.type?.toLowerCase() || ""
           const isOutdoorSpace =
             roomType.includes("terraza") ||
             roomType.includes("balcón") ||
@@ -1776,6 +1825,14 @@ export class BudgetGenerator {
     let totalTimbres = 0
 
     reform.rooms.forEach((room: any) => {
+      // Ignorar habitación técnica de ventanas
+      const roomName = (room.name || "").toLowerCase()
+      const roomType = (room.type || "").toLowerCase()
+      const customType = (room.customRoomType || "").toLowerCase()
+      if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+        return
+      }
+
       if (room.electricalElements && Array.isArray(room.electricalElements)) {
         room.electricalElements.forEach((element: any) => {
           const quantity = element.quantity || 0
@@ -1896,13 +1953,6 @@ export class BudgetGenerator {
         return type.includes("salón") || type.includes("salon") || type.includes("dormitorio") || type.includes("habitación") || type.includes("habitacion");
       });
       const isCompleteRenovation = this.getRealRoomCount() >= 4 && hasMainRooms;
-
-      console.log("[v0] BudgetGenerator - isCompleteRenovation debug:", {
-        realRoomCount: this.getRealRoomCount(),
-        hasMainRooms: hasMainRooms,
-        isComplete: isCompleteRenovation,
-        roomsList: reform.rooms.map((r: any) => r.type).join(", "),
-      });
 
       if (isCompleteRenovation) {
         // 06-E-05: Outlet line
@@ -2043,6 +2093,14 @@ export class BudgetGenerator {
     let ceilingPaintingArea = 0
 
     reform.rooms.forEach((room: any) => {
+      // Ignorar habitación técnica de ventanas
+      const roomName = (room.name || "").toLowerCase()
+      const roomType = (room.type || "").toLowerCase()
+      const customType = (room.customRoomType || "").toLowerCase()
+      if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+        return
+      }
+
       let wallHeight = reform.config?.standardHeight || 2.8
 
       if (room.currentCeilingStatus === "lowered_keep" && room.currentCeilingHeight) {
@@ -2124,6 +2182,14 @@ export class BudgetGenerator {
     }
 
     reform.rooms.forEach((room: any) => {
+      // Ignorar habitación técnica de ventanas
+      const roomName = (room.name || "").toLowerCase()
+      const roomType = (room.type || "").toLowerCase()
+      const customType = (room.customRoomType || "").toLowerCase()
+      if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+        return
+      }
+
       if (room.type === "Baño" && room.newBathroomElements !== false) {
         // En primer lugar, mapeamos de forma lógica las selecciones
         const configs = room.bathroomElementsConfig?.length > 0
@@ -2581,6 +2647,14 @@ export class BudgetGenerator {
     const standardHeight = reform.config?.standardHeight || 2.8
 
     reform.rooms.forEach((room: any) => {
+      // Ignorar habitación técnica de ventanas
+      const roomName = (room.name || "").toLowerCase()
+      const roomType = (room.type || "").toLowerCase()
+      const customType = (room.customRoomType || "").toLowerCase()
+      if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+        return
+      }
+
       // Solo alicatar si el material de paredes es Cerámica/Cerámico y no es "No se modifica"
       const wallMaterialRaw = room.wallMaterial || ""
       const normWall = wallMaterialRaw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
@@ -2641,6 +2715,14 @@ export class BudgetGenerator {
     let totalArea = 0
 
     reform.rooms.forEach((room: any) => {
+      // Ignorar habitación técnica de ventanas
+      const roomName = (room.name || "").toLowerCase()
+      const roomType = (room.type || "").toLowerCase()
+      const customType = (room.customRoomType || "").toLowerCase()
+      if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+        return
+      }
+
       if (tileAllFloors) {
         console.log(
           `[v0] BudgetGenerator - calculateFloorTilingArea - Adding ${room.area} m² from ${room.type} ${room.number} (tileAllFloors)`,
@@ -2667,6 +2749,14 @@ export class BudgetGenerator {
 
     // Sumar perimetro de habitaciones que NO sean Baño o Cocina (petición usuario: no rodapié cerámico por defecto)
     return reform.rooms.reduce((total: number, room: any) => {
+      // Ignorar habitación técnica de ventanas
+      const roomName = (room.name || "").toLowerCase()
+      const roomType = (room.type || "").toLowerCase()
+      const customType = (room.customRoomType || "").toLowerCase()
+      if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+        return total
+      }
+
       const type = (room.type || "").toLowerCase()
       const name = (room.name || "").toLowerCase()
 
@@ -2694,6 +2784,14 @@ export class BudgetGenerator {
     let totalDoors = 0
 
     reform.rooms.forEach((room: any, index: number) => {
+      // Ignorar habitación técnica de ventanas
+      const roomName = (room.name || "").toLowerCase()
+      const roomType = (room.type || "").toLowerCase()
+      const customType = (room.customRoomType || "").toLowerCase()
+      if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+        return
+      }
+
       // Use newDoors flag and newDoorList for reform doors
       const hasNewDoors = room.newDoors === true
       const hasList = Array.isArray(room.newDoorList) && room.newDoorList.length > 0
@@ -2721,6 +2819,14 @@ export class BudgetGenerator {
     let swingDoors = 0
 
     reform.rooms.forEach((room: any, index: number) => {
+      // Ignorar habitación técnica de ventanas
+      const roomName = (room.name || "").toLowerCase()
+      const roomType = (room.type || "").toLowerCase()
+      const customType = (room.customRoomType || "").toLowerCase()
+      if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+        return
+      }
+
       const hasNewDoors = room.newDoors === true
       const hasList = Array.isArray(room.newDoorList) && room.newDoorList.length > 0
 
@@ -2745,6 +2851,14 @@ export class BudgetGenerator {
     let slidingDoors = 0
 
     reform.rooms.forEach((room: any, index: number) => {
+      // Ignorar habitación técnica de ventanas
+      const roomName = (room.name || "").toLowerCase()
+      const roomType = (room.type || "").toLowerCase()
+      const customType = (room.customRoomType || "").toLowerCase()
+      if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+        return
+      }
+
       const hasNewDoors = room.newDoors === true
       const hasList = Array.isArray(room.newDoorList) && room.newDoorList.length > 0
 
@@ -2769,6 +2883,14 @@ export class BudgetGenerator {
     let exteriorSlidingDoors = 0
 
     reform.rooms.forEach((room: any, index: number) => {
+      // Ignorar habitación técnica de ventanas
+      const roomName = (room.name || "").toLowerCase()
+      const roomType = (room.type || "").toLowerCase()
+      const customType = (room.customRoomType || "").toLowerCase()
+      if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+        return
+      }
+
       const hasNewDoors = room.newDoors === true
       const hasList = Array.isArray(room.newDoorList) && room.newDoorList.length > 0
 
@@ -2793,6 +2915,14 @@ export class BudgetGenerator {
     let doubleSwingDoors = 0
 
     reform.rooms.forEach((room: any, index: number) => {
+      // Ignorar habitación técnica de ventanas
+      const roomName = (room.name || "").toLowerCase()
+      const roomType = (room.type || "").toLowerCase()
+      const customType = (room.customRoomType || "").toLowerCase()
+      if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+        return
+      }
+
       const hasNewDoors = room.newDoors === true
       const hasList = Array.isArray(room.newDoorList) && room.newDoorList.length > 0
 
@@ -2811,19 +2941,11 @@ export class BudgetGenerator {
   }
 
   private estimatePowerLines(): number {
-    const { reform } = this.calculatorData
-    if (!reform || !reform.rooms) return 0
-
-    // Estimación: 1 línea por cada 3 habitaciones
-    return Math.ceil(reform.rooms.length / 3)
+    return Math.ceil(this.getRealRoomCount() / 3)
   }
 
   private estimateLightingLines(): number {
-    const { reform } = this.calculatorData
-    if (!reform || !reform.rooms) return 0
-
-    // Estimación: 1 línea por cada 3 habitaciones
-    return Math.ceil(reform.rooms.length / 3)
+    return Math.ceil(this.getRealRoomCount() / 3)
   }
 
   private estimatePeriodicCleanings(): number {
@@ -2839,6 +2961,14 @@ export class BudgetGenerator {
 
     // Escombros de cerámica de suelo
     demolition.rooms.forEach((room: any) => {
+      // Ignorar habitación técnica de ventanas
+      const roomName = (room.name || "").toLowerCase()
+      const roomType = (room.type || "").toLowerCase()
+      const customType = (room.customRoomType || "").toLowerCase()
+      if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
+        return
+      }
+
       if (room.removeFalseCeiling || room.currentCeilingStatus === "lowered_remove" || room.falseCeiling) {
         const ceilingThickness = 0.015
         const expansionCoef = 1.4

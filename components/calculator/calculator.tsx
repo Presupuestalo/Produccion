@@ -3052,7 +3052,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               {/* COLUMNA DERECHA: Resumen de reforma (solo desktop) */}
               <div className="hidden lg:block lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
                 <ReformSummary
-                  rooms={reformRooms}
+                  rooms={visibleReformRooms}
                   globalConfig={reformConfig}
                   electricalConfig={electricalConfig}
                   partitions={partitions}
@@ -3064,7 +3064,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
             {/* Resumen de reforma en móvil (debajo de todo) */}
             <div className="lg:hidden">
               <ReformSummary
-                rooms={reformRooms}
+                rooms={visibleReformRooms}
                 globalConfig={reformConfig}
                 electricalConfig={electricalConfig}
                 partitions={partitions}

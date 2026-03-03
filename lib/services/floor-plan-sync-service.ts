@@ -142,11 +142,19 @@ import { calculateRoomStats, isPointOnSegment } from "@/lib/utils/geometry"
 export function mapEditorRoomsToCalculator(editorData: any, isBefore: boolean, standardHeight: number = 2.8): Room[] {
     if (!editorData || !editorData.rooms || editorData.rooms.length === 0) return []
 
+    // Filtrar habitaciones insignificantes (< 0.05 m²) que suelen ser errores de detección o habitación técnica "Otras ventanas" mal formada
+    const validRooms = editorData.rooms.filter((r: any) => (r.area || 0) > 0.05)
+
+    if (validRooms.length === 0) {
+        console.warn("[SYNC] No se encontraron habitaciones con área significativa (>0.05 m²)")
+        return []
+    }
+
     const roomTypeCounts: { [key: string]: number } = {}
 
     // 1. Mapear qué muros pertenecen a qué habitaciones (Pre-calculado para asignar puertas correctamente)
     const wallToRoomsMap = new Map<string, string[]>()
-    editorData.rooms.forEach((r: any) => {
+    validRooms.forEach((r: any) => {
         r.walls?.forEach((wId: string) => {
             const roomIds = wallToRoomsMap.get(wId) || []
             roomIds.push(r.id)
@@ -154,7 +162,7 @@ export function mapEditorRoomsToCalculator(editorData: any, isBefore: boolean, s
         })
     })
 
-    return editorData.rooms.map((editorRoom: any, i: number) => {
+    return validRooms.map((editorRoom: any, i: number) => {
         roomTypeCounts[editorRoom.type] = (roomTypeCounts[editorRoom.type] || 0) + 1
 
         const normalizedType = normalizeRoomType(editorRoom)
