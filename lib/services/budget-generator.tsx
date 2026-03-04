@@ -939,8 +939,20 @@ export class BudgetGenerator {
         const isBathroomOrKitchen = room.type === "Baño" || room.type === "Cocina"
 
         const reformRoom = reform.rooms?.find((r: any) => r.type === room.type && r.number === room.number)
-        const willHaveTiling =
-          tileAllFloors || (reformRoom && (reformRoom.type === "Baño" || reformRoom.type === "Cocina"))
+
+        let willHaveTiling = false
+        if (reformRoom) {
+          const rawFloorMat = (reformRoom.floorMaterial || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
+          const isCeramicMat = rawFloorMat === "ceramico" || rawFloorMat === "ceramica"
+          const isOtherMat = ["madera", "suelo laminado", "suelo vinilico", "parquet flotante"].includes(rawFloorMat)
+          const isNoMod = rawFloorMat === "no se modifica"
+
+          if (isCeramicMat) {
+            willHaveTiling = true
+          } else if (!isOtherMat && !isNoMod) {
+            willHaveTiling = tileAllFloors || (reformRoom.type === "Baño" || reformRoom.type === "Cocina")
+          }
+        }
 
         const rawFloorMat = (room.floorMaterial || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
@@ -2727,13 +2739,22 @@ export class BudgetGenerator {
 
       const rawMaterial = room.floorMaterial || "";
       const normFloor = rawMaterial.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-      const isCeramic = normFloor === "ceramico" || normFloor === "ceramica";
+      const isCeramicMaterial = normFloor === "ceramico" || normFloor === "ceramica";
+      const isOtherMaterial = ["madera", "suelo laminado", "suelo vinilico", "parquet flotante", "madera"].includes(normFloor);
+      const isNoModifica = normFloor === "no se modifica";
 
-      if (tileAllFloors || isCeramic || room.type === "Baño" || room.type === "Cocina") {
-        console.log(
-          `[v0] BudgetGenerator - calculateFloorTilingArea - Adding ${room.area} m² from ${room.type} ${room.number} (Reason: ${tileAllFloors ? 'tileAllFloors' : (isCeramic ? 'Ceramic Material' : 'Room Type')})`,
-        )
+      const isBathroomOrKitchen = room.type === "Baño" || room.type === "Cocina";
+
+      if (isCeramicMaterial) {
+        console.log(`[v0] BudgetGenerator - calculateFloorTilingArea - Adding ${room.area} m² from ${room.type} (Material: Ceramic)`)
         totalArea += room.area || 0
+      } else if (!isOtherMaterial && !isNoModifica) {
+        if (tileAllFloors || isBathroomOrKitchen) {
+          console.log(
+            `[v0] BudgetGenerator - calculateFloorTilingArea - Adding ${room.area} m² from ${room.type} (Reason: ${tileAllFloors ? 'tileAllFloors' : 'Room Type'})`,
+          )
+          totalArea += room.area || 0
+        }
       }
     })
 

@@ -284,24 +284,35 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
       })()
 
       const wallArea = perimeter * effectiveHeight
-      const roomFloorMaterial = normalizeType(room.floorMaterial || "")
       const isBathroomOrKitchen = isBathroom(room.type) || isKitchen(room.type)
-      const isCeramic = roomFloorMaterial === "ceramico" || roomFloorMaterial === "ceramica"
+      const normFloor = normalizeType(room.floorMaterial || "")
+      const isCeramicMaterial = normFloor === "ceramico" || normFloor === "ceramica"
+      const isOtherMaterial = ["madera", "suelo laminado", "suelo vinilico", "parquet flotante", "madera"].includes(normFloor)
+      const isNoModifica = normFloor === "no se modifica"
 
-      if (globalConfig?.tileAllFloors || isCeramic || isBathroomOrKitchen) {
+      // El material seleccionado por usuario tiene prioridad absoluta
+      if (isCeramicMaterial) {
         newSummary.embaldosado += area
+      } else if (!isOtherMaterial && !isNoModifica) {
+        // Si no hay un material "no-cerámico" explícito, aplicar reglas por defecto
+        if (globalConfig?.tileAllFloors || isBathroomOrKitchen) {
+          newSummary.embaldosado += area
+        }
       }
 
-      if (roomFloorMaterial === "parquet flotante" || roomFloorMaterial === "suelo laminado" || roomFloorMaterial === "madera") {
+      if (normFloor === "parquet flotante" || normFloor === "suelo laminado" || normFloor === "madera") {
         newSummary.floatingParquet += area
       }
 
-      if (roomFloorMaterial === "suelo vinilico") {
+      if (normFloor === "suelo vinilico") {
         newSummary.vinylFloor += area
       }
 
-      if (!isCeramic && !isBathroomOrKitchen && roomFloorMaterial !== "no se modifica" && room.type !== "Terraza") {
-        newSummary.rodapie += perimeter
+      if (!isCeramicMaterial && normFloor !== "no se modifica" && room.type !== "Terraza") {
+        // En baños/cocinas solo ponemos rodapié si el usuario ha elegido explícitamente madera/laminado
+        if (!isBathroomOrKitchen || (normFloor === "madera" || normFloor === "suelo laminado" || normFloor === "parquet flotante")) {
+          newSummary.rodapie += perimeter
+        }
       }
 
       if (isWoodenOrMixedStructure && (room.currentFloor === "flooring_ceramic" || room.currentFloor === "flooring_wood" || room.currentFloor === "other")) {
