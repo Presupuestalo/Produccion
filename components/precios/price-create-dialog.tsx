@@ -61,6 +61,7 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
     description: "",
     unit: "Ud",
     final_price: "",
+    waste_percentage: "",
     color: "",
     brand: "",
     model: "",
@@ -198,8 +199,6 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
       setLoading(false)
     }
   }
-
-  const isMaterialsCategory = formData.category_id === "MATERIALES"
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
