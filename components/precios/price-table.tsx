@@ -69,6 +69,11 @@ export function PriceTable({
                       <div className="w-2 h-2 rounded-full bg-amber-600 flex-shrink-0" title="Importado" />
                     )}
                     <span className="font-medium uppercase">{price.subcategory || price.description}</span>
+                    {price.waste_percentage > 0 && (
+                      <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-200/50 uppercase tracking-tight" title="Excedente por recortes aplicado">
+                        +{price.waste_percentage}% Exc.
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="px-4 py-3 text-sm text-muted-foreground max-w-md">
@@ -208,8 +213,13 @@ export function PriceTable({
       <Dialog open={!!selectedPrice} onOpenChange={(open) => !open && setSelectedPrice(null)}>
         <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg mx-4">
           <DialogHeader>
-            <DialogTitle className="uppercase text-sm">
+            <DialogTitle className="uppercase text-sm flex items-center gap-2">
               {selectedPrice?.subcategory || selectedPrice?.description}
+              {selectedPrice?.waste_percentage > 0 && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-200/50 uppercase tracking-tight">
+                  +{selectedPrice.waste_percentage}% Exc.
+                </span>
+              )}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">

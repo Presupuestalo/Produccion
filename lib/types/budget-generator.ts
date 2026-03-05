@@ -118,6 +118,7 @@ export interface PriceItem {
     description: string
     unit: string
     final_price: number
+    waste_percentage?: number
     notes?: string
     color?: string
     brand?: string

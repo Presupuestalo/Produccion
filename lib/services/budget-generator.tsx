@@ -225,7 +225,7 @@ export class BudgetGenerator {
     // 1. Cargar precios master
     const { data: masterPrices, error: masterError } = await supabaseClient
       .from("price_master")
-      .select("id, code, category_id, subcategory, description, unit, final_price, notes, color, brand, model")
+      .select("id, code, category_id, subcategory, description, unit, final_price, waste_percentage, notes, color, brand, model")
       .eq("is_active", true)
 
     if (masterError) {
@@ -257,6 +257,7 @@ export class BudgetGenerator {
         description: price.description,
         unit: price.unit,
         final_price: price.final_price * this.priceMultiplierGlobal,
+        waste_percentage: price.waste_percentage || 0,
         notes: price.notes,
         color: price.color,
         brand: price.brand,
@@ -268,7 +269,7 @@ export class BudgetGenerator {
     // 2. Cargar precios personalizados del usuario (sobrescriben los master)
     const { data: userPrices, error: userError } = await supabaseClient
       .from("user_prices")
-      .select("id, code, category_id, subcategory, description, unit, final_price, notes, color, brand, model")
+      .select("id, code, category_id, subcategory, description, unit, final_price, waste_percentage, notes, color, brand, model")
       .eq("user_id", user.id)
       .eq("is_active", true)
 
@@ -291,6 +292,7 @@ export class BudgetGenerator {
           description: userPrice.description,
           unit: userPrice.unit,
           final_price: userPrice.final_price,
+          waste_percentage: userPrice.waste_percentage || 0,
           notes: userPrice.notes,
           color: userPrice.color,
           brand: userPrice.brand,
@@ -381,6 +383,14 @@ export class BudgetGenerator {
       return
     }
 
+    let finalQuantity = quantity
+    let noteAddition = ""
+    if (priceItem.waste_percentage && priceItem.waste_percentage > 0 && priceItem.unit === "m²") {
+      finalQuantity = quantity * (1 + priceItem.waste_percentage / 100)
+      noteAddition = `(Incluye +${priceItem.waste_percentage}% de excedente por recortes)`
+      console.log(`[v0] BudgetGenerator - Waste percentage applied for ${trimmedCode}: ${priceItem.waste_percentage}%. Original qty: ${quantity}, Final: ${finalQuantity}`)
+    }
+
     const categoryMap: Record<string, CategoryInfo> = {
       "01": { category: "DERRIBOS", section: "demolition" },
       "02": { category: "ALBAÑILERÍA", section: "masonry" },
@@ -406,19 +416,19 @@ export class BudgetGenerator {
       const tiers = this.tierCache.get(trimmedCode)
       if (tiers && tiers.length > 0) {
         const matchingTier = tiers.find(
-          (t) => quantity >= t.min && (t.max === null || quantity < t.max)
+          (t) => finalQuantity >= t.min && (t.max === null || finalQuantity < t.max)
         )
         if (matchingTier) {
           // For master-based prices, apply the global multiplier to tier prices too
           const tierMultiplier = (priceItem as any).source === "master" ? this.priceMultiplierGlobal : 1.0
           effectiveUnitPrice = matchingTier.price * tierMultiplier
-          console.log(`[v0] BudgetGenerator - Tier applied for ${trimmedCode}: qty=${quantity} => ${effectiveUnitPrice} (was ${baseUnitPrice})`)
+          console.log(`[v0] BudgetGenerator - Tier applied for ${trimmedCode}: qty=${finalQuantity} => ${effectiveUnitPrice} (was ${baseUnitPrice})`)
         }
       }
     }
 
     const unitPrice = effectiveUnitPrice * priceMultiplier
-    const totalPrice = quantity * unitPrice
+    const totalPrice = finalQuantity * unitPrice
 
     console.log(`[v0] Adding line item with base_price_id:`, {
       code: priceItem.code,
@@ -429,6 +439,9 @@ export class BudgetGenerator {
         priceItem.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
     })
 
+    const finalNotesStr = customNotes ? customNotes : priceItem.notes || ""
+    const newNotes = noteAddition ? (finalNotesStr ? `${finalNotesStr}\n${noteAddition}` : noteAddition) : finalNotesStr
+
     this.lineItems.push({
       category: categoryInfo ? categoryInfo.category : priceItem.category,
       code: priceItem.code, // Código del precio (ej: "01-D-01")
@@ -438,7 +451,7 @@ export class BudgetGenerator {
       brand: priceItem.brand,
       model: priceItem.model,
       unit: priceItem.unit,
-      quantity,
+      quantity: finalQuantity,
       unit_price: unitPrice, // Solo precio final
       total_price: totalPrice,
       is_custom: false,
@@ -452,7 +465,7 @@ export class BudgetGenerator {
           ? priceItem.id
           : undefined,
       price_type: (priceItem as any).source === "user" ? "custom" : "master",
-      notes: customNotes || priceItem.notes, // Usar customNotes si se proporciona, sino el del catálogo
+      notes: newNotes || undefined, // Usar newNotes que incluye excedente
     })
   }
 

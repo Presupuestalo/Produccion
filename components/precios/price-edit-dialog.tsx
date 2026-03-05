@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { PriceMaster, PriceTier } from "@/lib/services/price-service"
 import { updatePrice, getTiersForPrice, saveTiersForPrice } from "@/lib/services/price-service"
-import { Loader2, TrendingUp, TrendingDown } from "lucide-react"
+import { Loader2, TrendingUp, TrendingDown, Sparkles } from "lucide-react"
 import { getCurrencySymbol, getUserCountry } from "@/lib/services/currency-service"
 import { PriceTiersEditor } from "./price-tiers-editor"
 
@@ -35,6 +35,7 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess }: PriceE
     subcategory: price.subcategory || "",
     description: price.description,
     final_price: price.final_price.toString(),
+    waste_percentage: price.waste_percentage !== undefined && price.waste_percentage !== null ? price.waste_percentage.toString() : "",
     color: price.color || "",
     brand: price.brand || "",
     model: price.model || "",
@@ -54,6 +55,7 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess }: PriceE
       subcategory: price.subcategory || "",
       description: price.description,
       final_price: price.final_price.toString(),
+      waste_percentage: price.waste_percentage !== undefined && price.waste_percentage !== null ? price.waste_percentage.toString() : "",
       color: price.color || "",
       brand: price.brand || "",
       model: price.model || "",
@@ -75,6 +77,8 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess }: PriceE
       const laborCost = finalPrice * 0.7
       const materialCost = finalPrice * 0.3
 
+      const finalWastePercentage = formData.waste_percentage ? Number.parseFloat(formData.waste_percentage) : 0
+
       const updatedPrice = await updatePrice(price.id, {
         subcategory: formData.subcategory || null,
         description: formData.description,
@@ -87,6 +91,7 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess }: PriceE
         equipment_cost: 0,
         other_cost: 0,
         margin_percentage: 0,
+        waste_percentage: finalWastePercentage,
       })
 
       // Save tiers against the resulting price ID (may be a new user_price copy)
@@ -166,37 +171,69 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess }: PriceE
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="color">Color</Label>
-              <Input
-                id="color"
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                placeholder="Ej: Blanco"
-              />
-            </div>
+          {/* Sección de Características y Merma */}
+          {(price.unit === "m²" || formData.color || formData.brand || formData.model) && (
+            <div className="space-y-4 pt-2 border-t border-gray-100">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span>Características y Merma</span>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="brand">Marca</Label>
-              <Input
-                id="brand"
-                value={formData.brand}
-                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                placeholder="Ej: Roca"
-              />
-            </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50/50 p-3 rounded-lg border border-gray-100">
+                {price.unit === "m²" && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="waste_percentage" className="text-[11px] uppercase tracking-wider text-gray-500">% Excedente</Label>
+                    <div className="relative">
+                      <Input
+                        id="waste_percentage"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        placeholder="0"
+                        value={formData.waste_percentage}
+                        onChange={(e) => setFormData({ ...formData, waste_percentage: e.target.value })}
+                        className="h-9 pr-7 text-sm border-amber-100 focus:border-amber-300 focus:ring-amber-100"
+                      />
+                      <span className="absolute right-2.5 top-2 text-xs font-medium text-amber-600">%</span>
+                    </div>
+                  </div>
+                )}
 
-            <div className="space-y-2">
-              <Label htmlFor="model">Modelo</Label>
-              <Input
-                id="model"
-                value={formData.model}
-                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                placeholder="Ej: Victoria"
-              />
+                <div className="space-y-1.5">
+                  <Label htmlFor="color" className="text-[11px] uppercase tracking-wider text-gray-500">Color</Label>
+                  <Input
+                    id="color"
+                    value={formData.color}
+                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                    placeholder="Blanco"
+                    className="h-9 text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="brand" className="text-[11px] uppercase tracking-wider text-gray-500">Marca</Label>
+                  <Input
+                    id="brand"
+                    value={formData.brand}
+                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                    placeholder="Ej: Roca"
+                    className="h-9 text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="model" className="text-[11px] uppercase tracking-wider text-gray-500">Modelo</Label>
+                  <Input
+                    id="model"
+                    value={formData.model}
+                    onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                    placeholder="Ej: Victoria"
+                    className="h-9 text-sm"
+                  />
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">

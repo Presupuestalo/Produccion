@@ -110,6 +110,7 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
         description: data.description || "",
         unit: data.unit || "Ud",
         final_price: data.final_price?.toString() || "",
+        waste_percentage: "",
         color: data.color || "",
         brand: data.brand || "",
         model: data.model || "",
@@ -142,6 +143,8 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
 
       console.log("[v0] Creando precio personalizado en categoría:", formData.category_id)
 
+      const finalWastePercentage = formData.waste_percentage ? Number.parseFloat(formData.waste_percentage) : 0
+
       const createdPrice = await createCustomPrice({
         code: autoCode,
         category_id: formData.category_id,
@@ -154,6 +157,7 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
         equipment_cost: 0,
         other_cost: finalPrice,
         margin_percentage: 0,
+        waste_percentage: finalWastePercentage,
         is_active: true,
         is_custom: true,
         is_imported: false,
@@ -178,6 +182,7 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
         description: "",
         unit: "Ud",
         final_price: "",
+        waste_percentage: "",
         color: "",
         brand: "",
         model: "",
@@ -321,61 +326,89 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
             />
           </div>
 
-          {isMaterialsCategory && (
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="color">Color</Label>
-                <Input
-                  id="color"
-                  value={formData.color}
-                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                  placeholder="Ej: Blanco"
-                />
+          {/* Sección de Características y Merma */}
+          {(formData.unit === "m²" || formData.color || formData.brand || formData.model) && (
+            <div className="space-y-4 pt-2 border-t border-gray-100">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span>Características y Merma</span>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="brand">Marca</Label>
-                <Input
-                  id="brand"
-                  value={formData.brand}
-                  onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                  placeholder="Ej: Roca"
-                />
-              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50/50 p-3 rounded-lg border border-gray-100">
+                {formData.unit === "m²" && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="waste_percentage" className="text-[11px] uppercase tracking-wider text-gray-500">% Excedente</Label>
+                    <div className="relative">
+                      <Input
+                        id="waste_percentage"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        placeholder="0"
+                        value={formData.waste_percentage}
+                        onChange={(e) => setFormData({ ...formData, waste_percentage: e.target.value })}
+                        className="h-9 pr-7 text-sm border-amber-100 focus:border-amber-300 focus:ring-amber-100"
+                      />
+                      <span className="absolute right-2.5 top-2 text-xs font-medium text-amber-600">%</span>
+                    </div>
+                  </div>
+                )}
 
-              <div className="space-y-2">
-                <Label htmlFor="model">Modelo</Label>
-                <Input
-                  id="model"
-                  value={formData.model}
-                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                  placeholder="Ej: Victoria"
-                />
+                <div className="space-y-1.5">
+                  <Label htmlFor="color" className="text-[11px] uppercase tracking-wider text-gray-500">Color</Label>
+                  <Input
+                    id="color"
+                    value={formData.color}
+                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                    placeholder="Blanco"
+                    className="h-9 text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="brand" className="text-[11px] uppercase tracking-wider text-gray-500">Marca</Label>
+                  <Input
+                    id="brand"
+                    value={formData.brand}
+                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                    placeholder="Ej: Roca"
+                    className="h-9 text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="model" className="text-[11px] uppercase tracking-wider text-gray-500">Modelo</Label>
+                  <Input
+                    id="model"
+                    value={formData.model}
+                    onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                    placeholder="Ej: Victoria"
+                    className="h-9 text-sm"
+                  />
+                </div>
               </div>
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">
-            {!isMaterialsCategory && (
-              <div className="space-y-2">
-                <Label htmlFor="unit">Unidad *</Label>
-                <Select value={formData.unit} onValueChange={(value) => setFormData({ ...formData, unit: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Ud">Ud (Unidad)</SelectItem>
-                    <SelectItem value="m²">m² (Metro cuadrado)</SelectItem>
-                    <SelectItem value="ml">ml (Metro lineal)</SelectItem>
-                    <SelectItem value="m³">m³ (Metro cúbico)</SelectItem>
-                    <SelectItem value="kg">kg (Kilogramo)</SelectItem>
-                    <SelectItem value="H">H (Hora)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="unit">Unidad *</Label>
+              <Select value={formData.unit} onValueChange={(value) => setFormData({ ...formData, unit: value })}>
+                <SelectTrigger className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Ud">Ud (Unidad)</SelectItem>
+                  <SelectItem value="m²">m² (Metro cuadrado)</SelectItem>
+                  <SelectItem value="ml">ml (Metro lineal)</SelectItem>
+                  <SelectItem value="m³">m³ (Metro cúbico)</SelectItem>
+                  <SelectItem value="kg">kg (Kilogramo)</SelectItem>
+                  <SelectItem value="H">H (Hora)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <div className={`space-y-2 ${isMaterialsCategory ? "col-span-2" : ""}`}>
+            <div className="space-y-2">
               <Label htmlFor="final_price">Precio (€) *</Label>
               <Input
                 id="final_price"
@@ -385,6 +418,7 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
                 value={formData.final_price}
                 onChange={(e) => setFormData({ ...formData, final_price: e.target.value })}
                 placeholder="0.00"
+                className="h-10 font-medium text-green-600"
                 required
               />
             </div>

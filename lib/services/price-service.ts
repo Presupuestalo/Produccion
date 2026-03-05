@@ -27,6 +27,7 @@ export interface PriceMaster {
   base_price: number
   margin_percentage: number
   final_price: number
+  waste_percentage: number
   is_active: boolean
   is_custom: boolean
   is_imported: boolean
@@ -56,6 +57,7 @@ export interface UserPrice {
   base_price: number
   margin_percentage: number
   final_price: number
+  waste_percentage: number
   is_active: boolean
   is_imported: boolean
   notes: string | null
@@ -364,6 +366,7 @@ function mergeMasterAndUserPrices(masterPrices: PriceMaster[], userPrices: UserP
       ...price,
       is_custom: false,
       is_imported: false,
+      waste_percentage: price.waste_percentage || 0, // Fallback en caso de que venga null de BD
     })
   })
 
@@ -388,6 +391,7 @@ function mergeMasterAndUserPrices(masterPrices: PriceMaster[], userPrices: UserP
       base_price: userPrice.base_price,
       margin_percentage: userPrice.margin_percentage,
       final_price: userPrice.final_price,
+      waste_percentage: userPrice.waste_percentage || 0, // Fallback en caso de que venga null de BD
       is_active: userPrice.is_active,
       is_custom: true,
       is_imported: userPrice.is_imported,
@@ -569,6 +573,7 @@ export async function updatePrice(priceId: string, updates: Partial<PriceMaster>
         base_price: basePrice,
         margin_percentage: marginPercentage,
         final_price: finalPrice,
+        waste_percentage: updates.waste_percentage ?? existingUserPrice.waste_percentage ?? 0,
         notes: updates.notes ?? existingUserPrice.notes,
         color: updates.color ?? existingUserPrice.color,
         brand: updates.brand ?? existingUserPrice.brand,
@@ -629,6 +634,7 @@ export async function updatePrice(priceId: string, updates: Partial<PriceMaster>
       base_price: basePrice,
       margin_percentage: marginPercentage,
       final_price: finalPrice,
+      waste_percentage: updates.waste_percentage ?? masterPrice.waste_percentage ?? 0,
       is_active: true,
       is_imported: updates.is_imported ?? false,
       notes: updates.notes ?? masterPrice.notes,
@@ -695,6 +701,7 @@ export async function createCustomPrice(
       base_price: basePrice,
       margin_percentage: price.margin_percentage,
       final_price: finalPrice,
+      waste_percentage: price.waste_percentage || 0,
       is_active: true,
       is_custom: true,
       is_imported: price.is_imported || false,
