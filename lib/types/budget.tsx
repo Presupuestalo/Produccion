@@ -43,6 +43,7 @@ export interface BudgetLineItem {
   sort_order: number
   base_price_id?: string // Referencia UUID a price_master.id
   price_type?: "master" | "custom" | "imported" // Tipo de origen del precio
+  is_locked?: boolean // Si true, la partida no se sobrescribe al sincronizar con la calculadora
   created_at: string
   updated_at: string
 }

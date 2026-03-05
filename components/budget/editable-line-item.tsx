@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
-import { Check, X, Pencil, Trash2 } from "lucide-react"
+import { Check, X, Pencil, Trash2, Lock } from "lucide-react"
 import type { BudgetLineItem } from "@/lib/types/budget"
 import { formatCurrency } from "@/lib/utils/format"
 import {
@@ -216,6 +216,15 @@ export function EditableLineItem({ item, isEditable, onUpdate, onDelete }: Edita
           <h4 className="font-semibold text-base">{item.concept}</h4>
           {item.concept_code && (
             <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">{item.concept_code}</span>
+          )}
+          {item.is_locked && (
+            <span
+              className="inline-flex items-center gap-1 text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded whitespace-nowrap"
+              title="Esta partida ha sido editada manualmente y su precio o cantidad no se sobrescribirá si el presupuesto se actualiza automáticamente con los datos de la calculadora."
+            >
+              <Lock className="h-3 w-3" />
+              Modificado
+            </span>
           )}
           {item.is_custom && (
             <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded whitespace-nowrap">

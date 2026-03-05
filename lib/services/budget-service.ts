@@ -57,49 +57,62 @@ export class BudgetService {
     const customItems = existingItems?.filter(item => item.is_custom) || []
 
     // 4. Limpiar partidas NO personalizadas
-    console.log(`[v0] Deleting non-custom items for budget ${budgetId}...`)
-    const { data: itemsBeforeDelete } = await supabase.from("budget_line_items").select("id").eq("budget_id", budgetId).eq("is_custom", false)
-    console.log(`[v0] Found ${itemsBeforeDelete?.length || 0} non-custom items before deletion`)
+    console.log(`[v0] Deleting unlocked non-custom items for budget ${budgetId}...`)
+    const { data: itemsBeforeDelete } = await supabase.from("budget_line_items").select("id").eq("budget_id", budgetId).eq("is_custom", false).neq("is_locked", true)
+    console.log(`[v0] Found ${itemsBeforeDelete?.length || 0} unlocked non-custom items before deletion`)
 
     const { error: deleteError } = await supabase
       .from("budget_line_items")
       .delete()
       .eq("budget_id", budgetId)
       .eq("is_custom", false)
+      .neq("is_locked", true)
 
     if (deleteError) {
       console.error("[v0] Error cleaning V2 budget items:", deleteError)
       throw new Error("Error cleaning V2 budget items: " + deleteError.message)
     }
-    console.log("[v0] Non-custom items deleted successfully")
+    console.log("[v0] Unlocked non-custom items deleted successfully")
 
-    // 5. Insertar nuevas partidas generadas
-    console.log(`[v0] Inserting ${generatedItems.length} new generated items...`)
-    const lineItemsToInsert = generatedItems.map((item) => {
-      const isValidUUID =
-        item.base_price_id &&
-        typeof item.base_price_id === "string" &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.base_price_id)
+    // Recuperar items bloqueados para evitar generarlos de nuevo
+    const { data: lockedItemsData } = await supabase
+      .from("budget_line_items")
+      .select("concept_code")
+      .eq("budget_id", budgetId)
+      .eq("is_locked", true)
 
-      return {
-        budget_id: budgetId,
-        category: item.category,
-        concept_code: item.code,
-        concept: item.concept,
-        description: item.description,
-        color: item.color,
-        brand: item.brand,
-        model: item.model,
-        unit: item.unit,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total_price: item.total_price,
-        is_custom: false,
-        sort_order: item.sort_order,
-        base_price_id: isValidUUID ? item.base_price_id : null,
-        price_type: item.price_type || "master",
-      }
-    })
+    const lockedConceptCodes = new Set(lockedItemsData?.filter(item => item.concept_code).map(item => item.concept_code))
+    console.log(`[v0] Found ${lockedConceptCodes.size} locked items to preserve`)
+
+    // 5. Insertar nuevas partidas generadas, filtrando las que ya están bloqueadas
+    console.log(`[v0] Processing ${generatedItems.length} new generated items...`)
+    const lineItemsToInsert = generatedItems
+      .filter(item => !item.code || !lockedConceptCodes.has(item.code))
+      .map((item) => {
+        const isValidUUID =
+          item.base_price_id &&
+          typeof item.base_price_id === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.base_price_id)
+
+        return {
+          budget_id: budgetId,
+          category: item.category,
+          concept_code: item.code,
+          concept: item.concept,
+          description: item.description,
+          color: item.color,
+          brand: item.brand,
+          model: item.model,
+          unit: item.unit,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_price: item.total_price,
+          is_custom: false,
+          sort_order: item.sort_order,
+          base_price_id: isValidUUID ? item.base_price_id : null,
+          price_type: item.price_type || "master",
+        }
+      })
 
     if (lineItemsToInsert.length > 0) {
       const { error: insertError } = await supabase.from("budget_line_items").insert(lineItemsToInsert)
@@ -112,10 +125,17 @@ export class BudgetService {
       console.log("[v0] No items to insert")
     }
 
-    // 6. Recalcular totales (Generated + Custom)
+    // 6. Recalcular totales (Generated + Custom + Locked)
+    // Recuperar TODAS las partidas actuales del presupuesto para el cálculo total
+    const { data: allCurrentItems } = await supabase
+      .from("budget_line_items")
+      .select("total_price")
+      .eq("budget_id", budgetId)
+
+    // Y añadir `lineItemsToInsert` que aún no se han insertado
     const newSubtotal = lineItemsToInsert.reduce((sum, item) => sum + item.total_price, 0)
-    const customSubtotal = customItems.reduce((sum, item) => sum + (item.total_price || 0), 0)
-    const totalSubtotal = newSubtotal + customSubtotal
+    const existingSubtotal = allCurrentItems?.reduce((sum, item) => sum + (item.total_price || 0), 0) || 0
+    const totalSubtotal = newSubtotal + existingSubtotal
     console.log(`[v0] Final totals for budget ${budgetId}: subtotal=${totalSubtotal}`)
 
     // Obtener configuración de IVA
@@ -519,6 +539,7 @@ export class BudgetService {
       is_custom: item.is_custom,
       base_price_id: item.base_price_id,
       price_type: item.price_type || "master",
+      is_locked: item.is_locked,
       sort_order: item.sort_order,
     }))
 
@@ -537,7 +558,7 @@ export class BudgetService {
    */
   static async updateLineItem(
     lineItemId: string,
-    updates: Partial<Pick<BudgetLineItem, "quantity" | "unit_price" | "description" | "color" | "brand" | "model">>,
+    updates: Partial<Pick<BudgetLineItem, "quantity" | "unit_price" | "description" | "color" | "brand" | "model" | "is_locked">>,
     supabaseClient: SupabaseClient,
   ): Promise<void> {
     const supabase = supabaseClient
@@ -567,6 +588,11 @@ export class BudgetService {
           total_price: newQuantity * newUnitPrice,
         } as any
       }
+    }
+
+    // Automaticamente bloquear la partida si se edita manualmante (a no ser que pasen is_locked: false explícitamente)
+    if (updates.is_locked === undefined) {
+      updates.is_locked = true
     }
 
     console.log("[v0] Final updates to apply:", updates)
