@@ -215,9 +215,9 @@ export function PriceTable({
           <DialogHeader>
             <DialogTitle className="uppercase text-sm flex items-center gap-2">
               {selectedPrice?.subcategory || selectedPrice?.description}
-              {selectedPrice?.waste_percentage > 0 && (
+              {(selectedPrice?.waste_percentage ?? 0) > 0 && (
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-200/50 uppercase tracking-tight">
-                  +{selectedPrice.waste_percentage}% Exc.
+                  +{selectedPrice?.waste_percentage}% Exc.
                 </span>
               )}
             </DialogTitle>
