@@ -2824,7 +2824,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                     </div>
 
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {projectId && !isFreePlan && (
+                      {projectId && (!isFreePlan || userProfile?.user_type === "professional") && (
                         <Button
                           variant="ghost"
                           onClick={handleManualFloorPlanSync}
@@ -3012,7 +3012,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                     </div>
 
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {projectId && !isFreePlan && (
+                      {projectId && (!isFreePlan || userProfile?.user_type === "professional") && (
                         <Button
                           variant="ghost"
                           onClick={handleManualFloorPlanSync}
