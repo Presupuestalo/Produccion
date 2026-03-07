@@ -134,10 +134,8 @@ export class BudgetService {
       .select("total_price")
       .eq("budget_id", budgetId)
 
-    // Y añadir `lineItemsToInsert` que aún no se han insertado
-    const newSubtotal = lineItemsToInsert.reduce((sum, item) => sum + item.total_price, 0)
-    const existingSubtotal = allCurrentItems?.reduce((sum, item) => sum + (item.total_price || 0), 0) || 0
-    const totalSubtotal = newSubtotal + existingSubtotal
+    // Ya están insertados, así que `allCurrentItems` contiene TANTO los manuales/bloqueados COMO los recién generados
+    const totalSubtotal = allCurrentItems?.reduce((sum, item) => sum + (item.total_price || 0), 0) || 0
     console.log(`[v0] Final totals for budget ${budgetId}: subtotal=${totalSubtotal}`)
 
     // Obtener configuración de IVA
