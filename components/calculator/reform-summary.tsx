@@ -290,13 +290,17 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
       const isOtherMaterial = ["madera", "suelo laminado", "suelo vinilico", "parquet flotante", "madera"].includes(normFloor)
       const isNoModifica = normFloor === "no se modifica"
 
+      let willHaveCeramic = false;
+
       // El material seleccionado por usuario tiene prioridad absoluta
       if (isCeramicMaterial) {
         newSummary.embaldosado += area
+        willHaveCeramic = true;
       } else if (!isOtherMaterial && !isNoModifica) {
         // Si no hay un material "no-cerámico" explícito, aplicar reglas por defecto
         if (globalConfig?.tileAllFloors || isBathroomOrKitchen) {
           newSummary.embaldosado += area
+          willHaveCeramic = true;
         }
       }
 
@@ -315,10 +319,10 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
         }
       }
 
-      if (isWoodenOrMixedStructure && (room.currentFloor === "flooring_ceramic" || room.currentFloor === "flooring_wood" || room.currentFloor === "other")) {
-        if (isBathroomOrKitchen) {
+      if (isWoodenOrMixedStructure && room.type !== "Terraza") {
+        if (willHaveCeramic) {
           newSummary.arlita += area
-        } else if (room.type !== "Terraza") {
+        } else {
           newSummary.rastrelado += area
         }
       }

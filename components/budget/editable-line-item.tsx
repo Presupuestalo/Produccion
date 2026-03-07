@@ -234,7 +234,7 @@ export function EditableLineItem({ item, isEditable, onUpdate, onDelete }: Edita
           )}
         </div>
         <p className="text-sm text-muted-foreground whitespace-pre-wrap">{item.description}</p>
-        {item.waste_percentage && item.waste_percentage > 0 && (
+        {(item.waste_percentage ?? 0) > 0 && (
           <div className="mt-1">
             <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 text-[10px] py-0">
               Incluye margen del {item.waste_percentage}% de desperdicio

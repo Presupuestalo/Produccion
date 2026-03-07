@@ -478,7 +478,7 @@ export function BudgetLineItemsEditor({
                             )}
                           </div>
                           <p className="text-sm text-muted-foreground">{item.description}</p>
-                          {item.waste_percentage && item.waste_percentage > 0 && (
+                          {(item.waste_percentage ?? 0) > 0 && (
                             <div className="mt-1">
                               <Badge
                                 variant="outline"
