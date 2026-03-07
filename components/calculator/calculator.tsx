@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type {
   Room,
   GlobalConfig,
+  StructureType,
   DemolitionSummary as DemolitionSummaryType,
   DemolitionSettings as DemolitionSettingsType,
   DebrisCalculation,
