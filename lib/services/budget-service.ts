@@ -111,6 +111,8 @@ export class BudgetService {
           sort_order: item.sort_order,
           base_price_id: isValidUUID ? item.base_price_id : null,
           price_type: item.price_type || "master",
+          notes: item.notes,
+          waste_percentage: item.waste_percentage,
         }
       })
 
@@ -341,6 +343,8 @@ export class BudgetService {
         sort_order: item.sort_order,
         base_price_id: isValidUUID ? item.base_price_id : null,
         price_type: item.price_type || "master",
+        notes: item.notes,
+        waste_percentage: item.waste_percentage,
       }
     })
 

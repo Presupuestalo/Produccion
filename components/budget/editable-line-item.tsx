@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Check, X, Pencil, Trash2, Lock } from "lucide-react"
 import type { BudgetLineItem } from "@/lib/types/budget"
 import { formatCurrency } from "@/lib/utils/format"
+import { Badge } from "@/components/ui/badge"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -107,7 +108,7 @@ export function EditableLineItem({ item, isEditable, onUpdate, onDelete }: Edita
                 <Textarea
                   value={editedItem.description}
                   onChange={(e) => setEditedItem({ ...editedItem, description: e.target.value })}
-                  className="min-h-[60px]"
+                  className="min-h-[60px] whitespace-pre-wrap"
                   placeholder="Descripción de la partida"
                 />
               </div>
@@ -232,7 +233,14 @@ export function EditableLineItem({ item, isEditable, onUpdate, onDelete }: Edita
             </span>
           )}
         </div>
-        <p className="text-sm text-muted-foreground">{item.description}</p>
+        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{item.description}</p>
+        {item.waste_percentage && item.waste_percentage > 0 && (
+          <div className="mt-1">
+            <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 text-[10px] py-0">
+              Incluye margen del {item.waste_percentage}% de desperdicio
+            </Badge>
+          </div>
+        )}
         {(item.color || item.brand || item.model) && (
           <p className="text-xs text-muted-foreground mt-1">
             {[

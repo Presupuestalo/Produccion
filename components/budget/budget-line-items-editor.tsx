@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { EditableLineItem } from "./editable-line-item"
 import { AddCustomLineItemDialog } from "./add-custom-line-item-dialog"
 import type { BudgetCategory } from "@/lib/types/budget"
@@ -272,7 +273,14 @@ export function BudgetLineItemsEditor({
                             <div className="flex-1">
                               <div className="font-medium">{item.concept}</div>
                               {item.description && (
-                                <div className="text-muted-foreground text-xs mt-1">{item.description}</div>
+                                <div className="text-muted-foreground text-xs mt-1 whitespace-pre-wrap">{item.description}</div>
+                              )}
+                              {item.description?.includes("margen de desperdicio") && (
+                                <div className="mt-1">
+                                  <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 text-[10px] py-0">
+                                    Incluye margen de desperdicio
+                                  </Badge>
+                                </div>
                               )}
                               {(item.color || item.brand || item.model) && (
                                 <div className="text-muted-foreground text-xs mt-1">
@@ -470,6 +478,16 @@ export function BudgetLineItemsEditor({
                             )}
                           </div>
                           <p className="text-sm text-muted-foreground">{item.description}</p>
+                          {item.waste_percentage && item.waste_percentage > 0 && (
+                            <div className="mt-1">
+                              <Badge
+                                variant="outline"
+                                className="bg-amber-50 text-amber-600 border-amber-200 text-[10px] py-0"
+                              >
+                                Incluye margen del {item.waste_percentage}% de desperdicio
+                              </Badge>
+                            </div>
+                          )}
                           {(item.color || item.brand || item.model) && (
                             <p className="text-xs text-muted-foreground mt-1">
                               {[

@@ -44,6 +44,8 @@ export interface BudgetLineItem {
   base_price_id?: string // Referencia UUID a price_master.id
   price_type?: "master" | "custom" | "imported" // Tipo de origen del precio
   is_locked?: boolean // Si true, la partida no se sobrescribe al sincronizar con la calculadora
+  notes?: string | null // Notas adicionales de la partida
+  waste_percentage?: number | null // Porcentaje de desperdicio aplicado
   created_at: string
   updated_at: string
 }
@@ -1003,7 +1005,7 @@ export const PRICE_CATALOG: PriceCatalogItem[] = [
   {
     id: "10-M-11",
     category: "10. MATERIALES",
-    concept: "MANTA SUELO PARQUET FLOTANTE",
+    concept: "BASE AISLANTE SUELO PARQUET FLOTANTE",
     description: "Suministro de lámina aislante bajo tarima.",
     unit: "m²",
     base_price: 4,

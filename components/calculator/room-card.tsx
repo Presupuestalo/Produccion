@@ -360,7 +360,7 @@ export function RoomCard({
         updateRoom(room.id, { floorMaterial: defaults.floor as FloorMaterialType })
       }
     } else if (isReform && room.floorMaterial) {
-      const reformValues = ["No se modifica", "Cerámico", "Parquet flotante", "Suelo laminado", "Suelo vinílico", "Otro"]
+      const reformValues = ["No se modifica", "Cerámico", "Parquet flotante", "Suelo vinílico", "Otro"]
 
       // Si el valor actual no es válido para reforma (ej. "Madera" o "Cerámica" de demolición)
       if (!reformValues.includes(room.floorMaterial)) {
@@ -1497,7 +1497,6 @@ export function RoomCard({
                                 <SelectItem value="No se modifica">No se modifica</SelectItem>
                                 <SelectItem value="Cerámico">Cerámico</SelectItem>
                                 <SelectItem value="Parquet flotante">Parquet flotante</SelectItem>
-                                <SelectItem value="Suelo laminado">Suelo laminado</SelectItem>
                                 <SelectItem value="Suelo vinílico">Suelo vinílico</SelectItem>
                                 <SelectItem value="Otro">Otro</SelectItem>
                               </>

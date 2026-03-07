@@ -70,8 +70,8 @@ export function PriceTable({
                     )}
                     <span className="font-medium uppercase">{price.subcategory || price.description}</span>
                     {price.waste_percentage > 0 && price.code.startsWith("10-") && (
-                      <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-200/50 uppercase tracking-tight" title="Excedente por recortes aplicado">
-                        +{price.waste_percentage}% Exc.
+                      <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-200/50 uppercase tracking-tight" title="Margen de desperdicio por recortes aplicado">
+                        +{price.waste_percentage}% Desp.
                       </span>
                     )}
                   </div>
@@ -225,7 +225,7 @@ export function PriceTable({
               {selectedPrice?.subcategory || selectedPrice?.description}
               {(selectedPrice?.waste_percentage ?? 0) > 0 && selectedPrice?.code?.startsWith("10-") && (
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-200/50 uppercase tracking-tight">
-                  +{selectedPrice?.waste_percentage}% Exc.
+                  +{selectedPrice?.waste_percentage}% Desp.
                 </span>
               )}
             </DialogTitle>

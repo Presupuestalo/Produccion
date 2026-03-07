@@ -29,6 +29,7 @@ interface GeneratedLineItem {
   price_type?: "master" | "custom" | "imported" // Tipo de precio
   volume?: number // Volumen de la partida
   volume_unit?: string // Unidad del volumen (m³, L, etc.)
+  waste_percentage?: number // Porcentaje de desperdicio
 }
 
 // Alias for GeneratedLineItem for clarity in updates
@@ -388,13 +389,29 @@ export class BudgetGenerator {
 
     // El excedente (merma) solo se aplica a partidas de MATERIALES (Categoría 10)
     // para evitar cobrar excedente en la mano de obra (Albañilería, etc.)
-    const isMaterialItem = priceCode.startsWith("10-")
+    const isMaterialItem = trimmedCode.startsWith("10-")
+    // Robust normalization: remove special chars and accents
+    const rawUnit = (priceItem.unit || "").toLowerCase().trim()
+    const normalizedUnit = rawUnit
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[.\s]/g, "")
+      .trim()
+
+    // More aggressive matching for units that should have waste
+    const isWasteUnit =
+      normalizedUnit === "m2" ||
+      normalizedUnit === "ml" ||
+      rawUnit.includes("m²") ||
+      rawUnit.includes("m2") ||
+      rawUnit.includes("metro lineal")
+
+    console.log(`[v0] addLineItem debug: code=${trimmedCode}, unit=${priceItem.unit}, normUnit=${normalizedUnit}, waste%=${priceItem.waste_percentage}, isWasteUnit=${isWasteUnit}, isMaterial=${isMaterialItem}`)
 
     if (priceItem.waste_percentage && priceItem.waste_percentage > 0 &&
-      (priceItem.unit === "m²" || priceItem.unit === "ml") &&
+      isWasteUnit &&
       isMaterialItem) {
       finalQuantity = quantity * (1 + priceItem.waste_percentage / 100)
-      noteAddition = `\n* Incluye un margen adicional del ${priceItem.waste_percentage}% para mermas y recortes durante la instalación.`
       console.log(`[v0] BudgetGenerator - Waste percentage applied for ${trimmedCode}: ${priceItem.waste_percentage}%. Original qty: ${quantity}, Final: ${finalQuantity}`)
     }
 
@@ -451,19 +468,18 @@ export class BudgetGenerator {
 
     this.lineItems.push({
       category: categoryInfo ? categoryInfo.category : priceItem.category,
-      code: priceItem.code, // Código del precio (ej: "01-D-01")
-      concept: priceItem.subcategory, // Concepto desde subcategory
-      description: priceItem.description + (noteAddition || ""), // Descripción completa con coletilla de excedente si aplica
+      code: priceItem.code, // Usar code para que BudgetService lo mapee a concept_code
+      concept: priceItem.subcategory,
+      description: priceItem.description || "",
       color: priceItem.color,
       brand: priceItem.brand,
       model: priceItem.model,
       unit: priceItem.unit,
       quantity: finalQuantity,
-      unit_price: unitPrice, // Solo precio final
+      unit_price: unitPrice,
       total_price: totalPrice,
       is_custom: false,
       sort_order: this.sortOrder++,
-      // Only set base_price_id for price_master records (FK constraint references price_master)
       base_price_id:
         (priceItem as any).source === "master" &&
           priceItem.id &&
@@ -472,7 +488,8 @@ export class BudgetGenerator {
           ? priceItem.id
           : undefined,
       price_type: (priceItem as any).source === "user" ? "custom" : "master",
-      notes: newNotes || undefined, // Usar newNotes que incluye excedente
+      notes: finalNotesStr || undefined,
+      waste_percentage: priceItem.waste_percentage,
     })
   }
 
@@ -2394,8 +2411,8 @@ export class BudgetGenerator {
     if (laminateFlooringArea > 0) {
       console.log(`[v0] BudgetGenerator - Generando partida: Parquet flotante ${laminateFlooringArea} m²`)
       this.addLineItem("10-M-09", laminateFlooringArea)
-      console.log(`[v0] BudgetGenerator - Generando partida: Manta parquet flotante ${laminateFlooringArea} m²`)
-      this.addLineItem("10-M-11", laminateFlooringArea, "Manta")
+      console.log(`[v0] BudgetGenerator - Generando partida: Base aislante parquet flotante ${laminateFlooringArea} m²`)
+      this.addLineItem("10-M-11", laminateFlooringArea, "Base aislante")
     } else {
       console.log("[v0] BudgetGenerator - NO se generan partidas de parquet flotante (total = 0)")
     }

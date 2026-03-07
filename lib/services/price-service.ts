@@ -138,6 +138,50 @@ export async function saveTiersForPrice(
   }
 }
 
+// Obtener múltiples precios por sus códigos para un usuario
+export async function getPricesByCodes(codes: string[]): Promise<PriceMaster[]> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const country = await getUserCountryFromProfile()
+  const masterTable = getPriceTableByCountry(country.code)
+  const userTable = getUserPriceTableByCountry(country.code)
+
+  // 1. Buscar en precios de usuario personalizados
+  const { data: userPrices, error: userError } = await supabase
+    .from(userTable)
+    .select("*")
+    .eq("user_id", user.id)
+    .in("code", codes)
+
+  if (userError) {
+    console.error("[price-service] Error fetching user prices by codes:", userError)
+  }
+
+  // 2. Buscar en precios maestros para los que falten o para todos (y luego filtrar)
+  const { data: masterPrices, error: masterError } = await supabase
+    .from(masterTable)
+    .select("*")
+    .in("code", codes)
+
+  if (masterError) {
+    console.error("[price-service] Error fetching master prices by codes:", masterError)
+  }
+
+  // Combinar: preferir el precio de usuario si existe para ese código
+  const combined = new Map<string, PriceMaster>()
+
+  if (masterPrices) {
+    masterPrices.forEach((p: PriceMaster) => combined.set(p.code, { ...p, is_custom: false, is_imported: false } as PriceMaster))
+  }
+
+  if (userPrices) {
+    userPrices.forEach((p: UserPrice) => combined.set(p.code, { ...p, is_custom: true, is_imported: !!p.is_imported } as unknown as PriceMaster))
+  }
+
+  return codes.map(code => combined.get(code)).filter(Boolean) as PriceMaster[]
+}
+
 
 
 // Obtener todas las categorías

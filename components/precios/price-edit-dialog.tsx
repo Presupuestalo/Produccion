@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { PriceMaster, PriceTier } from "@/lib/services/price-service"
-import { updatePrice, getTiersForPrice, saveTiersForPrice } from "@/lib/services/price-service"
+import { updatePrice, getTiersForPrice, saveTiersForPrice, getPricesByCodes } from "@/lib/services/price-service"
 import { Loader2, TrendingUp, TrendingDown, Sparkles } from "lucide-react"
 import { getCurrencySymbol, getUserCountry } from "@/lib/services/currency-service"
 import { PriceTiersEditor } from "./price-tiers-editor"
@@ -27,6 +27,8 @@ interface PriceEditDialogProps {
   onSuccess: () => void
   isAdmin?: boolean
 }
+
+const LINKED_FLOORING_CODES = ["10-M-09", "10-M-11", "10-M-12"]
 
 export function PriceEditDialog({ price, open, onOpenChange, onSuccess, isAdmin = false }: PriceEditDialogProps) {
   const [loading, setLoading] = useState(false)
@@ -42,6 +44,12 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess, isAdmin 
     model: price.model || "",
     notes: price.notes || "",
   })
+
+  // State for linked prices linking (Flooring -> Underlay & Baseboard)
+  const [linkedPrices, setLinkedPrices] = useState<PriceMaster[]>([])
+  const [showLinkingInfo, setShowLinkingInfo] = useState(false)
+  const [linkedWaste, setLinkedWaste] = useState<Record<string, string>>({})
+  const [applyingToLinked, setApplyingToLinked] = useState(false)
 
   useEffect(() => {
     async function loadCurrency() {
@@ -65,6 +73,23 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess, isAdmin 
     // Load tiers for this price
     const isUserPrice = price.is_custom || price.is_imported
     getTiersForPrice(price.id, isUserPrice).then(setTiers).catch(() => setTiers([]))
+
+    // Check if this is a flooring item that should trigger linking
+    if (LINKED_FLOORING_CODES.includes(price.code)) {
+      setShowLinkingInfo(true)
+      const otherCodes = LINKED_FLOORING_CODES.filter(c => c !== price.code)
+      getPricesByCodes(otherCodes).then(prices => {
+        setLinkedPrices(prices)
+        const initialWaste: Record<string, string> = {}
+        prices.forEach(p => {
+          initialWaste[p.code] = (p.waste_percentage !== undefined && p.waste_percentage !== null) ? p.waste_percentage.toString() : ""
+        })
+        setLinkedWaste(initialWaste)
+      })
+    } else {
+      setShowLinkingInfo(false)
+      setLinkedPrices([])
+    }
   }, [price])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -94,6 +119,18 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess, isAdmin 
         margin_percentage: 0,
         waste_percentage: finalWastePercentage,
       })
+
+      // Update linked prices if applicable
+      if (LINKED_FLOORING_CODES.includes(price.code) && applyingToLinked) {
+        for (const linkedPrice of linkedPrices) {
+          const wasteStr = linkedWaste[linkedPrice.code]
+          const wasteVal = wasteStr ? Number.parseFloat(wasteStr) : 0
+
+          await updatePrice(linkedPrice.id, {
+            waste_percentage: wasteVal
+          })
+        }
+      }
 
       // Save tiers against the resulting price ID
       const savedPriceId = updatedPrice?.id || price.id
@@ -197,13 +234,13 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess, isAdmin 
               <div className="space-y-4 pt-2 border-t border-gray-100">
                 <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Sparkles className="w-4 h-4 text-amber-500" />
-                  <span>Características y Merma</span>
+                  <span>Características y Desperdicio</span>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50/50 p-3 rounded-lg border border-gray-100">
                   {(price.unit === "m²" || price.unit === "ml") && price.code.startsWith("10-") && (
                     <div className="space-y-1.5">
-                      <Label htmlFor="waste_percentage" className="text-[11px] uppercase tracking-wider text-gray-500">% Excedente</Label>
+                      <Label htmlFor="waste_percentage" className="text-[11px] uppercase tracking-wider text-gray-500">% Desperdicio</Label>
                       <div className="relative">
                         <Input
                           id="waste_percentage"
@@ -255,6 +292,66 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess, isAdmin 
                 </div>
               </div>
             )}
+
+          {/* Vinculación de Desperdicio (Solo para Parquet Flotante) */}
+          {showLinkingInfo && linkedPrices.length > 0 && (
+            <div className="space-y-3 pt-3 border-t border-blue-100 bg-blue-50/30 p-4 rounded-xl border border-blue-100/50">
+              <div className="flex items-center gap-2 text-sm font-semibold text-blue-700">
+                <Sparkles className="w-4 h-4 text-blue-500" />
+                <span>Vinculación de Desperdicio</span>
+              </div>
+
+              <p className="text-xs text-blue-600/80 leading-relaxed">
+                Este material suele ir acompañado de {
+                  price.code === "10-M-09" ? "**base aislante** y **rodapié**" :
+                    price.code === "10-M-11" ? "**parquet flotante** y **rodapié**" :
+                      "**parquet flotante** y **base aislante**"
+                }.
+                ¿Deseas aplicarles también un margen de desperdicio?
+              </p>
+
+              <div className="flex items-center gap-2 mb-3">
+                <input
+                  type="checkbox"
+                  id="apply_to_linked"
+                  title="Aplicar a elementos vinculados"
+                  checked={applyingToLinked}
+                  onChange={(e) => setApplyingToLinked(e.target.checked)}
+                  className="rounded border-blue-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                />
+                <Label htmlFor="apply_to_linked" className="text-sm font-medium text-blue-800 cursor-pointer">
+                  Sí, aplicar desperdicio a elementos vinculados
+                </Label>
+              </div>
+
+              {applyingToLinked && (
+                <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                  {linkedPrices.map(linked => (
+                    <div key={linked.code} className="space-y-1.5 p-2 bg-white rounded-lg border border-blue-100 shadow-sm">
+                      <Label className="text-[10px] uppercase font-bold text-blue-900/60 block truncate">
+                        {linked.subcategory || linked.code}
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          value={linkedWaste[linked.code] || ""}
+                          onChange={(e) => setLinkedWaste({
+                            ...linkedWaste,
+                            [linked.code]: e.target.value
+                          })}
+                          className="h-8 pr-7 text-xs border-blue-200 focus:border-blue-400 focus:ring-blue-100"
+                          placeholder="0"
+                        />
+                        <span className="absolute right-2 top-1.5 text-[10px] font-bold text-blue-400">%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">

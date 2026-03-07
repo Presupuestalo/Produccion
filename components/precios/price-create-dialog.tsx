@@ -340,13 +340,13 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
             <div className="space-y-4 pt-2 border-t border-gray-100">
               <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>Características y Merma</span>
+                <span>Características y Desperdicio</span>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50/50 p-3 rounded-lg border border-gray-100">
                 {(formData.unit === "m²" || formData.unit === "ml") && isMaterialCategory && (
                   <div className="space-y-1.5">
-                    <Label htmlFor="waste_percentage" className="text-[11px] uppercase tracking-wider text-gray-500">% Excedente</Label>
+                    <Label htmlFor="waste_percentage" className="text-[11px] uppercase tracking-wider text-gray-500">% Desperdicio</Label>
                     <div className="relative">
                       <Input
                         id="waste_percentage"
