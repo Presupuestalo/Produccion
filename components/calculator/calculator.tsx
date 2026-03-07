@@ -1283,7 +1283,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               : config?.standardHeight || 2.6
 
             if (config) {
-              const projectStructureType = project?.structure_type || config.structureType || "Hormigón"
+              const projectStructureType = (project?.structure_type || config.structureType || "Hormigón") as StructureType
               const configWithDefaults = {
                 ...config,
                 standardHeight: projectHeight,
