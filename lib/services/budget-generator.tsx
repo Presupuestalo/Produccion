@@ -394,7 +394,7 @@ export class BudgetGenerator {
       (priceItem.unit === "m²" || priceItem.unit === "ml") &&
       isMaterialItem) {
       finalQuantity = quantity * (1 + priceItem.waste_percentage / 100)
-      noteAddition = `(Incluye +${priceItem.waste_percentage}% de excedente por recortes)`
+      noteAddition = `\n* Incluye un margen adicional del ${priceItem.waste_percentage}% para mermas y recortes durante la instalación.`
       console.log(`[v0] BudgetGenerator - Waste percentage applied for ${trimmedCode}: ${priceItem.waste_percentage}%. Original qty: ${quantity}, Final: ${finalQuantity}`)
     }
 
@@ -453,7 +453,7 @@ export class BudgetGenerator {
       category: categoryInfo ? categoryInfo.category : priceItem.category,
       code: priceItem.code, // Código del precio (ej: "01-D-01")
       concept: priceItem.subcategory, // Concepto desde subcategory
-      description: priceItem.description, // Descripción completa
+      description: priceItem.description + (noteAddition || ""), // Descripción completa con coletilla de excedente si aplica
       color: priceItem.color,
       brand: priceItem.brand,
       model: priceItem.model,
