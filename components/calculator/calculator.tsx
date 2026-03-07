@@ -1087,11 +1087,12 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               const supabase = await getSupabase()
               const { data: { user } } = await supabase.auth.getUser()
               if (user) {
-                const calculatorDataForSync: CalculatorData = {
+                const calculatorDataForSync: CalculatorData | any = {
                   demolition: { rooms, config: demolitionConfig, settings: demolitionSettings },
                   reform: { rooms: reformRooms, config: reformConfig, partitions, wallLinings },
                   electrical: { config: electricalConfig },
                   globalConfig: demolitionConfig,
+                  project: { id: projectId, structure_type: demolitionConfig.structureType }
                 }
                 await BudgetService.syncRealtimeBudget(projectId, user.id, calculatorDataForSync, supabase)
               }
@@ -1282,7 +1283,13 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
               : config?.standardHeight || 2.6
 
             if (config) {
-              const configWithDefaults = { ...config, standardHeight: projectHeight, projectId }
+              const projectStructureType = project?.structure_type || config.structureType || "Hormigón"
+              const configWithDefaults = {
+                ...config,
+                standardHeight: projectHeight,
+                structureType: projectStructureType,
+                projectId
+              }
               setDemolitionConfig((prev) => ({ ...prev, ...configWithDefaults }))
 
               console.log("[v0] LOAD - Intentando cargar reformConfig desde Supabase...")

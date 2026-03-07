@@ -25,9 +25,10 @@ interface PriceEditDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
+  isAdmin?: boolean
 }
 
-export function PriceEditDialog({ price, open, onOpenChange, onSuccess }: PriceEditDialogProps) {
+export function PriceEditDialog({ price, open, onOpenChange, onSuccess, isAdmin = false }: PriceEditDialogProps) {
   const [loading, setLoading] = useState(false)
   const [currencySymbol, setCurrencySymbol] = useState("€")
   const [tiers, setTiers] = useState<PriceTier[]>([])
@@ -94,17 +95,32 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess }: PriceE
         waste_percentage: finalWastePercentage,
       })
 
-      // Save tiers against the resulting price ID (may be a new user_price copy)
+      // Save tiers against the resulting price ID
       const savedPriceId = updatedPrice?.id || price.id
-      const isUserPrice = true // After updatePrice, it always becomes a user price
-      await saveTiersForPrice(savedPriceId, isUserPrice, tiers)
+      // If the resulting price has a user_id, it is a user-specific price (customization)
+      // If user_id is null, it is a master price (updated or created by admin)
+      const isActuallyUserPrice = !!updatedPrice.user_id
+
+      await saveTiersForPrice(savedPriceId, isActuallyUserPrice, tiers)
 
       console.log("[v0] Precio actualizado correctamente")
       onSuccess()
       onOpenChange(false)
     } catch (error) {
-      console.error("Error updating price:", error)
-      alert(`Error al actualizar el precio: ${error instanceof Error ? error.message : "Error desconocido"}`)
+      console.error("CRITICAL: Error updating price:", error)
+
+      let errorMessage = "Error desconocido"
+
+      if (error instanceof Error) {
+        errorMessage = error.message
+      } else if (typeof error === 'object' && error !== null) {
+        // Try various common error properties
+        errorMessage = (error as any).message || (error as any).error_description || (error as any).msg || JSON.stringify(error)
+      } else if (typeof error === 'string') {
+        errorMessage = error
+      }
+
+      alert(`Error al actualizar el precio:\n\n${errorMessage}`)
     } finally {
       setLoading(false)
     }
@@ -125,7 +141,9 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess }: PriceE
             {price.is_custom && !price.is_imported && <span className="text-blue-500">Precio Personalizado</span>}
             {price.is_imported && <span className="text-purple-500">Precio Importado</span>}
             {!price.is_custom && !price.is_imported && (
-              <span className="text-muted-foreground">Precio Maestro (se creará copia personalizada)</span>
+              <span className="text-muted-foreground">
+                {isAdmin ? "Editando Precio Maestro (Cambio Global)" : "Precio Maestro (se creará copia personalizada)"}
+              </span>
             )}
             {" | "}Unidad: {price.unit}
           </DialogDescription>
@@ -172,68 +190,71 @@ export function PriceEditDialog({ price, open, onOpenChange, onSuccess }: PriceE
           </div>
 
           {/* Sección de Características y Merma */}
-          {(price.unit === "m²" || formData.color || formData.brand || formData.model) && (
-            <div className="space-y-4 pt-2 border-t border-gray-100">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>Características y Merma</span>
-              </div>
+          {((price.code.startsWith("10-") && (price.unit === "m²" || price.unit === "ml")) ||
+            formData.color ||
+            formData.brand ||
+            formData.model) && (
+              <div className="space-y-4 pt-2 border-t border-gray-100">
+                <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span>Características y Merma</span>
+                </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50/50 p-3 rounded-lg border border-gray-100">
-                {price.unit === "m²" && (
-                  <div className="space-y-1.5">
-                    <Label htmlFor="waste_percentage" className="text-[11px] uppercase tracking-wider text-gray-500">% Excedente</Label>
-                    <div className="relative">
-                      <Input
-                        id="waste_percentage"
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        placeholder="0"
-                        value={formData.waste_percentage}
-                        onChange={(e) => setFormData({ ...formData, waste_percentage: e.target.value })}
-                        className="h-9 pr-7 text-sm border-amber-100 focus:border-amber-300 focus:ring-amber-100"
-                      />
-                      <span className="absolute right-2.5 top-2 text-xs font-medium text-amber-600">%</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50/50 p-3 rounded-lg border border-gray-100">
+                  {(price.unit === "m²" || price.unit === "ml") && price.code.startsWith("10-") && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="waste_percentage" className="text-[11px] uppercase tracking-wider text-gray-500">% Excedente</Label>
+                      <div className="relative">
+                        <Input
+                          id="waste_percentage"
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          placeholder="0"
+                          value={formData.waste_percentage}
+                          onChange={(e) => setFormData({ ...formData, waste_percentage: e.target.value })}
+                          className="h-9 pr-7 text-sm border-amber-100 focus:border-amber-300 focus:ring-amber-100"
+                        />
+                        <span className="absolute right-2.5 top-2 text-xs font-medium text-amber-600">%</span>
+                      </div>
                     </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="color" className="text-[11px] uppercase tracking-wider text-gray-500">Color</Label>
+                    <Input
+                      id="color"
+                      value={formData.color}
+                      onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                      placeholder="Blanco"
+                      className="h-9 text-sm"
+                    />
                   </div>
-                )}
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="color" className="text-[11px] uppercase tracking-wider text-gray-500">Color</Label>
-                  <Input
-                    id="color"
-                    value={formData.color}
-                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                    placeholder="Blanco"
-                    className="h-9 text-sm"
-                  />
-                </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="brand" className="text-[11px] uppercase tracking-wider text-gray-500">Marca</Label>
+                    <Input
+                      id="brand"
+                      value={formData.brand}
+                      onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                      placeholder="Ej: Roca"
+                      className="h-9 text-sm"
+                    />
+                  </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="brand" className="text-[11px] uppercase tracking-wider text-gray-500">Marca</Label>
-                  <Input
-                    id="brand"
-                    value={formData.brand}
-                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                    placeholder="Ej: Roca"
-                    className="h-9 text-sm"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="model" className="text-[11px] uppercase tracking-wider text-gray-500">Modelo</Label>
-                  <Input
-                    id="model"
-                    value={formData.model}
-                    onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                    placeholder="Ej: Victoria"
-                    className="h-9 text-sm"
-                  />
+                  <div className="space-y-1.5">
+                    <Label htmlFor="model" className="text-[11px] uppercase tracking-wider text-gray-500">Modelo</Label>
+                    <Input
+                      id="model"
+                      value={formData.model}
+                      onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                      placeholder="Ej: Victoria"
+                      className="h-9 text-sm"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">

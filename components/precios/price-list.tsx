@@ -549,6 +549,7 @@ export function PriceList() {
           price={editingPrice}
           open={!!editingPrice}
           onOpenChange={(open) => !open && setEditingPrice(null)}
+          isAdmin={isAdmin}
           onSuccess={() => {
             if (searchQuery) {
               handleSearch(searchQuery)

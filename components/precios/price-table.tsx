@@ -1,7 +1,7 @@
 "use client"
 
 import type { PriceMaster, PriceWithCategory } from "@/lib/services/price-service"
-import { Edit2, Trash2, Percent, Info } from "lucide-react"
+import { Edit2, Trash2, Percent, Info, Globe } from "lucide-react"
 import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
@@ -69,7 +69,7 @@ export function PriceTable({
                       <div className="w-2 h-2 rounded-full bg-amber-600 flex-shrink-0" title="Importado" />
                     )}
                     <span className="font-medium uppercase">{price.subcategory || price.description}</span>
-                    {price.waste_percentage > 0 && (
+                    {price.waste_percentage > 0 && price.code.startsWith("10-") && (
                       <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-200/50 uppercase tracking-tight" title="Excedente por recortes aplicado">
                         +{price.waste_percentage}% Exc.
                       </span>
@@ -103,40 +103,39 @@ export function PriceTable({
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1">
-                    {isAdmin ? (
+                    {isAdmin && (
                       <button
                         onClick={() => onAdminEdit(price)}
                         className="p-2 hover:bg-muted rounded-lg transition-colors"
-                        title="Editar como administrador"
+                        title="Precios por país"
                       >
-                        <Edit2 className="h-4 w-4 text-muted-foreground" />
+                        <Globe className="h-4 w-4 text-muted-foreground" />
                       </button>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => onEdit(price)}
-                          className="p-2 hover:bg-muted rounded-lg transition-colors"
-                          title="Editar precio"
-                        >
-                          <Edit2 className="h-4 w-4 text-muted-foreground" />
-                        </button>
-                        <button
-                          onClick={() => onIncrease(price)}
-                          className="p-2 hover:bg-muted rounded-lg transition-colors"
-                          title="Ajustar precio"
-                        >
-                          <Percent className="h-4 w-4 text-muted-foreground" />
-                        </button>
-                        {(price.is_custom || price.user_id) && (
-                          <button
-                            onClick={() => onDelete(price)}
-                            className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Eliminar precio"
-                          >
-                            <Trash2 className="h-4 w-4 text-red-600" />
-                          </button>
-                        )}
-                      </>
+                    )}
+                    <button
+                      onClick={() => onEdit(price)}
+                      className="p-2 hover:bg-muted rounded-lg transition-colors"
+                      title={isAdmin ? "Editar Precio Maestro" : "Editar precio"}
+                    >
+                      <Edit2 className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                    {!isAdmin && (
+                      <button
+                        onClick={() => onIncrease(price)}
+                        className="p-2 hover:bg-muted rounded-lg transition-colors"
+                        title="Ajustar precio"
+                      >
+                        <Percent className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    )}
+                    {(price.is_custom || price.user_id || isAdmin) && (
+                      <button
+                        onClick={() => onDelete(price)}
+                        className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                        title={isAdmin ? "Eliminar Precio Maestro" : "Eliminar precio"}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </button>
                     )}
                   </div>
                 </td>
@@ -177,13 +176,22 @@ export function PriceTable({
               {/* Right: Actions */}
               <div className="flex flex-col gap-1">
                 {isAdmin ? (
-                  <button
-                    onClick={() => onAdminEdit(price)}
-                    className="p-1 hover:bg-muted rounded transition-colors"
-                    title="Editar"
-                  >
-                    <Edit2 className="h-3.5 w-3.5 text-primary" />
-                  </button>
+                  <>
+                    <button
+                      onClick={() => onAdminEdit(price)}
+                      className="p-1 hover:bg-muted rounded transition-colors"
+                      title="Precios por país"
+                    >
+                      <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                    <button
+                      onClick={() => onEdit(price)}
+                      className="p-1 hover:bg-muted rounded transition-colors"
+                      title="Editar Maestro"
+                    >
+                      <Edit2 className="h-3.5 w-3.5 text-primary" />
+                    </button>
+                  </>
                 ) : (
                   <>
                     <button
@@ -215,7 +223,7 @@ export function PriceTable({
           <DialogHeader>
             <DialogTitle className="uppercase text-sm flex items-center gap-2">
               {selectedPrice?.subcategory || selectedPrice?.description}
-              {(selectedPrice?.waste_percentage ?? 0) > 0 && (
+              {(selectedPrice?.waste_percentage ?? 0) > 0 && selectedPrice?.code?.startsWith("10-") && (
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-200/50 uppercase tracking-tight">
                   +{selectedPrice?.waste_percentage}% Exc.
                 </span>

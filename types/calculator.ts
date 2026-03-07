@@ -322,6 +322,7 @@ export interface GlobalConfig {
   electricalSettings?: any
   tiledWallSurfaceArea?: number
   installRadiators?: boolean
+  postalCode?: string // Añadido para persistencia dual
 }
 
 // Modificar la interfaz DemolitionSummary para añadir la nueva propiedad

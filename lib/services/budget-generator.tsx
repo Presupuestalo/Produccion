@@ -385,7 +385,14 @@ export class BudgetGenerator {
 
     let finalQuantity = quantity
     let noteAddition = ""
-    if (priceItem.waste_percentage && priceItem.waste_percentage > 0 && priceItem.unit === "m²") {
+
+    // El excedente (merma) solo se aplica a partidas de MATERIALES (Categoría 10)
+    // para evitar cobrar excedente en la mano de obra (Albañilería, etc.)
+    const isMaterialItem = priceCode.startsWith("10-")
+
+    if (priceItem.waste_percentage && priceItem.waste_percentage > 0 &&
+      (priceItem.unit === "m²" || priceItem.unit === "ml") &&
+      isMaterialItem) {
       finalQuantity = quantity * (1 + priceItem.waste_percentage / 100)
       noteAddition = `(Incluye +${priceItem.waste_percentage}% de excedente por recortes)`
       console.log(`[v0] BudgetGenerator - Waste percentage applied for ${trimmedCode}: ${priceItem.waste_percentage}%. Original qty: ${quantity}, Final: ${finalQuantity}`)
@@ -930,14 +937,23 @@ export class BudgetGenerator {
     let arlitaArea = 0 // Solo baños y cocinas con suelo picado (estructura madera/mixta)
     let rastreladoArea = 0 // Otras habitaciones con suelo de madera levantado (estructura madera/mixta)
 
-    const structureType = this.project.structure_type || "Hormigón"
-    const isWoodenOrMixedStructure = structureType === "Madera" || structureType === "Mixta"
+    const globalConfig = this.calculatorData.globalConfig || this.calculatorData.reform?.config || {};
+    // [FIX] Priorizamos el tipo de estructura oficial del proyecto (this.project) sobre la config local
+    // si el oficial está definido. Esto evita que el valor por defecto "Hormigón" de la UI machaque el real.
+    const rawStructureType = this.project?.structure_type || globalConfig.structureType || "Hormigon";
+    const structureTypeStr = String(rawStructureType)
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
+    const isWoodenOrMixedStructure = structureTypeStr === "madera" || structureTypeStr === "mixta" || structureTypeStr === "mixto";
+
     console.log(
-      `[v0] BudgetGenerator - Tipo de estructura: ${structureType}, Es madera o mixta: ${isWoodenOrMixedStructure}`,
+      `[v0] BudgetGenerator - Estructura: ${rawStructureType} ( Madera: ${isWoodenOrMixedStructure} )`
     )
 
     const floorTilingArea = this.calculateFloorTilingArea()
-    console.log(`[v0] BudgetGenerator - Área que llevará embaldosado: ${floorTilingArea} m²`)
 
     if (demolition && demolition.rooms && demolition.rooms.length > 0) {
       demolition.rooms.forEach((room: any) => {
@@ -945,11 +961,13 @@ export class BudgetGenerator {
         const roomName = (room.name || "").toLowerCase()
         const roomType = (room.type || "").toLowerCase()
         const customType = (room.customRoomType || "").toLowerCase()
+
         if (roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas")) {
           return
         }
 
-        const isBathroomOrKitchen = room.type === "Baño" || room.type === "Cocina"
+        const isBathroomOrKitchen = roomType.includes("baño") || roomType.includes("cocina") || roomType.includes("aseo") ||
+          roomName.includes("baño") || roomName.includes("cocina") || roomName.includes("aseo");
 
         const reformRoom = reform.rooms?.find((r: any) => r.type === room.type && r.number === room.number)
 
@@ -963,7 +981,7 @@ export class BudgetGenerator {
           if (isCeramicMat) {
             willHaveTiling = true
           } else if (!isOtherMat && !isNoMod) {
-            willHaveTiling = tileAllFloors || (reformRoom.type === "Baño" || reformRoom.type === "Cocina")
+            willHaveTiling = tileAllFloors || isBathroomOrKitchen
           }
         }
 
@@ -971,18 +989,12 @@ export class BudgetGenerator {
 
         // Levantado de suelo de madera
         if ((room.removeFloor || demolition.config?.removeWoodenFloor) && (rawFloorMat === "madera" || rawFloorMat === "parquet")) {
-          console.log(
-            `[v0] BudgetGenerator - Procesando suelo madera ${room.type} ${room.number}: ${room.area} m²`,
-          )
-
-          // El usuario pide que la capa compresora (solera) sea la suma de picado cerámica + madera
-          screedArea += room.area || 0
+          const areaValue = room.area || (room.width * room.length) || 0;
+          screedArea += areaValue;
 
           if (isWoodenOrMixedStructure) {
-            // Estructura de madera/mixta → Rastrelado solo si NO va a llevar baldosa
             if (!willHaveTiling) {
-              rastreladoArea += room.area || 0
-              console.log(`[v0] BudgetGenerator - ${room.type} ${room.number}: Agregado a RASTRELADO ${room.area} m²`)
+              rastreladoArea += areaValue;
             }
           }
         }
@@ -993,29 +1005,81 @@ export class BudgetGenerator {
           (rawFloorMat === "ceramico" || rawFloorMat === "ceramica")
 
         if (shouldRemoveCeramicFloor) {
-          console.log(
-            `[v0] BudgetGenerator - Procesando suelo cerámico ${room.type} ${room.number}: ${room.area} m²`,
-          )
-
-          // El usuario pide que la capa compresora (solera) sea la suma de picado cerámica + madera
-          screedArea += room.area || 0
+          const areaValue = room.area || (room.width * room.length) || 0;
+          screedArea += areaValue;
 
           if (isWoodenOrMixedStructure && isBathroomOrKitchen) {
-            // Estructura madera/mixta + baño/cocina → Arlita
-            arlitaArea += room.area || 0
-            console.log(`[v0] BudgetGenerator - ${room.type} ${room.number}: Agregado a ARLITA ${room.area} m²`)
+            arlitaArea += areaValue;
           }
         }
       })
     }
 
-    // La solera solo se aplica donde hay embaldosado, no en zonas con tarima/parquet
+    // OVERRIDE: Lógica definitiva para estructuras de Madera o Mixta
+    if (isWoodenOrMixedStructure) {
+      let interiorTotalArea = 0;
+      let interiorCeramicArea = 0;
+
+      if (reform && reform.rooms) {
+        reform.rooms.forEach((room: any) => {
+          const roomName = (room.name || "").toLowerCase()
+          const roomType = (room.type || "").toLowerCase()
+          const customType = (room.customRoomType || "").toLowerCase()
+
+          // Detectar si es zona exterior (Terraza/Balcón) o técnica
+          const isExterior = roomName.includes("terraza") || roomType.includes("terraza") || customType.includes("terraza") ||
+            roomName.includes("balco") || roomType.includes("balco") || customType.includes("balco") ||
+            roomName.includes("balcó") || roomType.includes("balcó") || customType.includes("balcó");
+
+          const isTech = roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas");
+
+          if (isTech) return;
+
+          const area = room.area || (room.width * room.length) || 0;
+
+          if (!isExterior) {
+            interiorTotalArea += area;
+          }
+
+          const normFloor = (room.floorMaterial || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+          const isCeramicMat = normFloor === "ceramico" || normFloor === "ceramica";
+          const isOtherMat = ["madera", "suelo laminado", "suelo vinilico", "parquet flotante"].includes(normFloor);
+          const isNoMod = normFloor === "no se modifica";
+          const isBathroomOrKitchenResult = roomType.includes("baño") || roomType.includes("cocina") || roomType.includes("aseo") ||
+            roomName.includes("baño") || roomName.includes("cocina") || roomName.includes("aseo");
+
+          let willHaveCeramic = false;
+          if (isCeramicMat) {
+            willHaveCeramic = true;
+          } else if (!isOtherMat && !isNoMod) {
+            if (tileAllFloors || isBathroomOrKitchenResult) {
+              willHaveCeramic = true;
+            }
+          }
+
+          if (willHaveCeramic && !isExterior) {
+            interiorCeramicArea += area;
+          }
+        })
+      }
+
+      arlitaArea = interiorCeramicArea;
+      screedArea = 0;
+
+      const calcRastrelado = interiorTotalArea - interiorCeramicArea;
+      rastreladoArea = calcRastrelado > 0 ? calcRastrelado : 0;
+
+      console.log(`[v0] BudgetGenerator [WOOD OVERRIDE] -> interiorTotal=${interiorTotalArea.toFixed(2)}, arlitaArea=${arlitaArea.toFixed(2)}, rastreladoArea=${rastreladoArea.toFixed(2)}`);
+    }
 
     console.log(
       `[v0] BudgetGenerator - Total screedArea: ${screedArea} m², arlitaArea: ${arlitaArea} m², rastreladoArea: ${rastreladoArea} m²`,
     )
 
     const hasRadiantFloor = reform.radiantFloor || false
+
+    // Si es madera, el override ya puso todo en arlitaArea y screedArea=0
+    // Si NO es madera, seguimos el flujo normal
 
     if (arlitaArea > 0 && !hasRadiantFloor) {
       console.log(
@@ -1024,11 +1088,11 @@ export class BudgetGenerator {
       this.addLineItem("02-A-01", arlitaArea, "Formación capa mortero aligerado arcilla expandida (ARLITA)")
     }
 
-    // 1b. Formación de solera (capa compresora) normal - SIEMPRE PRIMERO, excepto si hay suelo radiante
-    if (screedArea > 0 && !hasRadiantFloor) {
+    // 1b. Formación de solera (capa compresora) normal - SOLO si no se ha usado arlitaArea (para evitar duplicados 02-A-01)
+    if (screedArea > 0 && arlitaArea === 0 && !hasRadiantFloor) {
       console.log(`[v0] BudgetGenerator - Generando partida: Formación solera mortero y arlita ${screedArea} m²`)
       this.addLineItem("02-A-01", screedArea, "Formación solera mortero y arlita")
-    } else if (hasRadiantFloor && screedArea > 0) {
+    } else if (hasRadiantFloor && (screedArea > 0 || arlitaArea > 0)) {
       console.log(
         "[v0] BudgetGenerator - NO se genera partida de formación de solera porque hay suelo radiante (capa compresora incluida)",
       )

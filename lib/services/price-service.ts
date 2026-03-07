@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase/client"
 import { getUserCountryFromProfile } from "./currency-service"
+import { isSuperMasterUser } from "./auth-service"
 
 export interface PriceCategory {
   id: string
@@ -113,7 +114,10 @@ export async function saveTiersForPrice(
     .delete()
     .eq(column, priceId)
 
-  if (deleteError) throw deleteError
+  if (deleteError) {
+    console.error("Error deleting existing tiers:", deleteError)
+    throw new Error(deleteError.message)
+  }
 
   if (tiers.length === 0) return
 
@@ -128,7 +132,10 @@ export async function saveTiersForPrice(
   }))
 
   const { error: insertError } = await supabase.from("price_tiers").insert(rows)
-  if (insertError) throw insertError
+  if (insertError) {
+    console.error("Error inserting new tiers:", insertError)
+    throw new Error(insertError.message)
+  }
 }
 
 
@@ -533,7 +540,74 @@ export async function updatePrice(priceId: string, updates: Partial<PriceMaster>
   const masterTable = getPriceTableByCountry(userCountry.code)
   const userTable = getUserPriceTableByCountry(userCountry.code)
 
-  console.log("[v0] Actualizando precio:", priceId)
+  const isAdmin = await isSuperMasterUser()
+
+  if (isAdmin) {
+    console.log("[v0] Usuario administrador detectado, gestionando precio maestro")
+    // Para administradores, si el precio no está en user_prices, lo buscamos en master y lo actualizamos allí.
+    // O si ya está en master, preferimos actualizar el master.
+
+    // Primero ver si el ID pertenece a masterTable
+    const { data: masterCheck } = await supabase
+      .from(masterTable)
+      .select("id")
+      .eq("id", priceId)
+      .maybeSingle()
+
+    if (masterCheck) {
+      console.log("[v0] Actualizando precio en tabla maestra")
+      const { data: masterData, error: masterFetchError } = await supabase
+        .from(masterTable)
+        .select("*")
+        .eq("id", priceId)
+        .single()
+
+      if (masterFetchError) {
+        console.error("Error fetching master price:", masterFetchError)
+        throw new Error(masterFetchError.message)
+      }
+
+      const totalCost =
+        (updates.labor_cost ?? masterData.labor_cost) +
+        (updates.material_cost ?? masterData.material_cost) +
+        (updates.equipment_cost ?? masterData.equipment_cost) +
+        (updates.other_cost ?? masterData.other_cost)
+
+      const basePrice = totalCost
+      const marginPercentage = updates.margin_percentage ?? masterData.margin_percentage
+      const finalPrice = basePrice * (1 + marginPercentage / 100)
+
+      const { data, error } = await supabase
+        .from(masterTable)
+        .update({
+          description: updates.description ?? masterData.description,
+          long_description: updates.long_description ?? masterData.long_description,
+          labor_cost: updates.labor_cost ?? masterData.labor_cost,
+          material_cost: updates.material_cost ?? masterData.material_cost,
+          equipment_cost: updates.equipment_cost ?? masterData.equipment_cost,
+          other_cost: updates.other_cost ?? masterData.other_cost,
+          base_price: basePrice,
+          margin_percentage: marginPercentage,
+          final_price: finalPrice,
+          waste_percentage: updates.waste_percentage ?? masterData.waste_percentage ?? 0,
+          notes: updates.notes ?? masterData.notes,
+          color: updates.color ?? masterData.color,
+          brand: updates.brand ?? masterData.brand,
+          model: updates.model ?? masterData.model,
+          is_imported: updates.is_imported ?? masterData.is_imported,
+        })
+        .eq("id", priceId)
+        .select()
+        .single()
+
+      if (error) {
+        console.error("Error updating master price:", error)
+        throw new Error(error.message)
+      }
+      if (!data) throw new Error("No se pudo obtener el precio actualizado")
+      return data as PriceMaster
+    }
+  }
 
   const { data: existingUserPrice, error: userCheckError } = await supabase
     .from(userTable)
@@ -586,8 +660,9 @@ export async function updatePrice(priceId: string, updates: Partial<PriceMaster>
 
     if (error) {
       console.error("Error updating user price:", error)
-      throw error
+      throw new Error(error.message)
     }
+    if (!data) throw new Error("No se pudo obtener el precio personalizado actualizado")
 
     return data as PriceMaster
   }
@@ -647,8 +722,9 @@ export async function updatePrice(priceId: string, updates: Partial<PriceMaster>
 
   if (createError) {
     console.error("Error creating user price:", createError)
-    throw createError
+    throw new Error(createError.message)
   }
+  if (!newUserPrice) throw new Error("No se pudo crear la copia personalizada del precio")
 
   console.log("[v0] Precio personalizado creado exitosamente")
   return newUserPrice as PriceMaster
@@ -670,6 +746,10 @@ export async function createCustomPrice(
 
   const userCountry = await getUserCountryFromProfile()
   const userTable = getUserPriceTableByCountry(userCountry.code)
+  const isAdmin = await isSuperMasterUser()
+  const targetTable = isAdmin ? getPriceTableByCountry(userCountry.code) : userTable
+
+  console.log("[v0] Creando precio en tabla:", targetTable)
 
   const totalCost = price.labor_cost + price.material_cost + price.equipment_cost + price.other_cost
   const basePrice = totalCost
@@ -680,13 +760,13 @@ export async function createCustomPrice(
   const customCode = await getNextPriceCode(
     price.category_id,
     categoryData?.name || "GENERAL",
-    price.is_imported ? "imported" : "custom",
+    isAdmin ? "master" : (price.is_imported ? "imported" : "custom"),
   )
 
   const { data, error } = await supabase
-    .from(userTable)
+    .from(targetTable)
     .insert({
-      user_id: user.id,
+      user_id: isAdmin ? null : user.id,
       base_price_id: null,
       code: customCode,
       category_id: price.category_id,
@@ -727,8 +807,21 @@ export async function deleteCustomPrice(priceId: string): Promise<void> {
     throw new Error("Usuario no autenticado")
   }
 
+  const isAdmin = await isSuperMasterUser()
   const userCountry = await getUserCountryFromProfile()
   const userTable = getUserPriceTableByCountry(userCountry.code)
+  const masterTable = getPriceTableByCountry(userCountry.code)
+
+  if (isAdmin) {
+    // Si es admin, intentamos borrar de masterTable si el ID está allí
+    const { data: isInMaster } = await supabase.from(masterTable).select("id").eq("id", priceId).maybeSingle()
+    if (isInMaster) {
+      console.log("[v0] Administrador borrando precio maestro")
+      const { error } = await supabase.from(masterTable).delete().eq("id", priceId)
+      if (error) throw error
+      return
+    }
+  }
 
   const { error } = await supabase.from(userTable).delete().eq("id", priceId).eq("user_id", user.id)
 
@@ -1114,7 +1207,7 @@ export async function increasePriceById(priceId: string, percentage: number): Pr
 
   if (createError) {
     console.error("Error creating user price:", createError)
-    throw createError
+    throw new Error(createError.message)
   }
 
   // Copy and scale master tiers into user price tiers

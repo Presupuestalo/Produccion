@@ -318,12 +318,18 @@ export function ProjectForm({
         door: project.door || "",
         city: project.city || "",
         province: project.province || "",
+        postal_code: project.postal_code || "",
         country: project.country || "",
         country_code: project.country_code || "ES",
         ceiling_height: project.ceiling_height ?? "",
         structure_type: project.structure_type || "",
         has_elevator: project.has_elevator || "",
         client_dni: project.client_dni || "",
+        client_country: project.client_country || "ES",
+        client_street: project.client_street || "",
+        client_city: project.client_city || "",
+        client_province: project.client_province || "",
+        client_postal_code: project.client_postal_code || "",
         // Campos que se añadieron después de la creación inicial del proyecto
         progress: project.progress || 0,
         status: project.status || "Borrador",
@@ -361,6 +367,11 @@ export function ProjectForm({
         .then((config) => {
           if (config) {
             setCalculatorConfig(config)
+
+            // Si la columna postal_code de projects está vacía, intentar usar la de la config
+            if (!project?.postal_code && config.postalCode) {
+              setFormData(prev => ({ ...prev, postal_code: config.postalCode }))
+            }
 
             // Si hay ajustes eléctricos guardados, cargarlos
             if (config.electricalSettings) {
@@ -932,6 +943,9 @@ export function ProjectForm({
       }
 
       const demolitionSettingsChanged = hasDemolitionSettingsChanged(demolitionSettings, initialDemolitionSettings)
+      const structureTypeChanged = formData.structure_type !== initialFormData.structure_type
+      const postalCodeChanged = formData.postal_code !== initialFormData.postal_code
+
       if (demolitionSettingsChanged) {
         try {
           await saveProjectDemolitionSettings(projectId, numericDemolitionSettings)
@@ -941,9 +955,9 @@ export function ProjectForm({
         }
       }
 
-      // Guardar ajustes eléctricos si cambiaron
+      // Guardar ajustes eléctricos si cambiaron, cambió el tipo de estructura o el CP (para sincronizar)
       const electricalSettingsChanged = hasElectricalSettingsChanged(electricalSettings, initialElectricalSettings)
-      if (electricalSettingsChanged || demolitionSettingsChanged) {
+      if (electricalSettingsChanged || demolitionSettingsChanged || structureTypeChanged || postalCodeChanged) {
         try {
           console.log("[v0] SUBMIT - Actualizando configuración de calculadora")
           const currentConfig = await getCalculatorConfig(projectId)
@@ -965,11 +979,38 @@ export function ProjectForm({
               configToSave.electricalSettings = JSON.stringify(electricalSettings)
             }
 
+            // [FIX] Sincronizar siempre el tipo de estructura y CP con la calculadora
+            if (dataToSubmit.structure_type) {
+              // Normalizar el valor eliminando tildes y ajustando a StructureType
+              let normalizedStructure = dataToSubmit.structure_type;
+              if (normalizedStructure === "Hormigón") normalizedStructure = "Hormigon";
+              if (normalizedStructure === "Mixta") normalizedStructure = "Mixto";
+
+              configToSave.structureType = normalizedStructure as any;
+            }
+
+            if (formData.postal_code) {
+              configToSave.postalCode = formData.postal_code;
+            }
+
             await saveCalculatorConfig(projectId, configToSave)
-          } else if (electricalSettingsChanged) {
-            await saveCalculatorConfig(projectId, {
-              electricalSettings: JSON.stringify(electricalSettings),
-            })
+          } else {
+            // Si no hay configuración, crear una básica con el tipo de estructura
+            const newConfig: any = {}
+            if (electricalSettingsChanged) {
+              newConfig.electricalSettings = JSON.stringify(electricalSettings)
+            }
+            if (dataToSubmit.structure_type) {
+              let normalizedStructure = dataToSubmit.structure_type;
+              if (normalizedStructure === "Hormigón") normalizedStructure = "Hormigon";
+              if (normalizedStructure === "Mixta") normalizedStructure = "Mixto";
+
+              newConfig.structureType = normalizedStructure as any;
+            }
+            if (formData.postal_code) {
+              newConfig.postalCode = formData.postal_code;
+            }
+            await saveCalculatorConfig(projectId, newConfig)
           }
         } catch (configError) {
           console.error("[v0] SUBMIT - Error al actualizar configuración de la calculadora:", configError)

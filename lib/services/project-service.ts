@@ -307,7 +307,7 @@ export async function createProject(projectData: ProjectFormData, userProfile?: 
       door: projectData.door || "",
       city: projectData.city || "",
       province: projectData.province || "",
-      // postal_code: projectData.postal_code || "", -- Removed due to schema mismatch in DB (column missing)
+      postal_code: projectData.postal_code || "",
       country: projectData.country || "España", // @deprecated
       ceiling_height:
         typeof projectData.ceiling_height === "string"
@@ -320,8 +320,38 @@ export async function createProject(projectData: ProjectFormData, userProfile?: 
     const { data, error } = await supabase.from("projects").insert(newProject).select()
 
     if (error) {
-      console.error("Error al insertar proyecto:", error)
-      throw error
+      console.error("[v0] createProject - Error al insertar proyecto:", error)
+
+      // Si el error es por la columna postal_code, reintentamos sin ella
+      if (error.message.includes("postal_code") || error.message.includes("column \"postal_code\" of relation \"projects\" does not exist")) {
+        console.warn("[v0] createProject - Reintentando sin la columna postal_code...")
+        const { postal_code, ...projectWithoutPC } = newProject
+        const { data: retryData, error: retryError } = await supabase.from("projects").insert(projectWithoutPC).select()
+
+        if (!retryError && retryData && retryData.length > 0) {
+          // Si logramos insertar el proyecto, guardamos el CP en la calculadora
+          if (newProject.postal_code) {
+            const { saveCalculatorConfig } = await import("./calculator-config-service")
+            await saveCalculatorConfig(newProject.id, {
+              postalCode: newProject.postal_code,
+              structureType: newProject.structure_type as any
+            })
+          }
+          return normalizeProject(retryData[0])
+        }
+        if (retryError) throw retryError
+      } else {
+        throw error
+      }
+    }
+
+    // Si todo fue bien, sincronizar con la calculadora por si acaso
+    if (newProject.id) {
+      const { saveCalculatorConfig } = await import("./calculator-config-service")
+      await saveCalculatorConfig(newProject.id, {
+        postalCode: newProject.postal_code,
+        structureType: newProject.structure_type as any
+      })
     }
 
     return normalizeProject(data[0])
@@ -441,8 +471,9 @@ export async function updateProject(id: string, projectData: Partial<Project>) {
     }
 
     if (dataToUpdate.postal_code !== undefined) {
-      // dataToUpdate.postal_code = dataToUpdate.postal_code -- Removed due to schema mismatch in DB (column missing)
-      delete dataToUpdate.postal_code
+      // Intento de guardado en columna, pero si falla no bloqueamos el resto del proceso
+      // La persistencia real garantizada será en calculator_data
+      dataToUpdate.postal_code = dataToUpdate.postal_code
     }
 
     if (dataToUpdate.client_postal_code !== undefined) {
@@ -487,9 +518,35 @@ export async function updateProject(id: string, projectData: Partial<Project>) {
     const { data, error } = await supabase.from("projects").update(dataToUpdate).eq("id", id).select()
 
     if (error) {
-      console.error("[v0] updateProject - Error de Supabase:", error.message)
-      throw new Error(error.message)
+      console.error(`[v0] updateProject - Error al actualizar el proyecto con ID ${id}:`, error.message || error)
+
+      // Si el error es por la columna postal_code, reintentamos sin ella
+      if (error.message?.includes("postal_code") || error.message?.includes("column \"postal_code\" of relation \"projects\" does not exist")) {
+        console.warn("[v0] updateProject - Reintentando sin la columna postal_code...")
+        const { postal_code, ...dataWithoutPC } = dataToUpdate
+        const { data: retryData, error: retryError } = await supabase.from("projects").update(dataWithoutPC).eq("id", id).select()
+
+        if (!retryError && retryData && retryData.length > 0) {
+          // Si logramos actualizar el proyecto, guardamos el CP en la calculadora para que no se pierda
+          const { saveCalculatorConfig } = await import("./calculator-config-service")
+          await saveCalculatorConfig(id, {
+            postalCode: dataToUpdate.postal_code,
+            structureType: dataToUpdate.structure_type as any
+          })
+          return normalizeProject(retryData[0])
+        }
+        if (retryError) throw new Error(retryError.message)
+      } else {
+        throw new Error(error.message)
+      }
     }
+
+    // Sincronizar siempre con la calculadora para asegurar consistencia
+    const { saveCalculatorConfig } = await import("./calculator-config-service")
+    await saveCalculatorConfig(id, {
+      postalCode: dataToUpdate.postal_code,
+      structureType: dataToUpdate.structure_type as any
+    })
 
     if (!data || data.length === 0) {
       console.error("[v0] updateProject - RLS rechazó la actualización: no hay datos devueltos")

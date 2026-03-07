@@ -25,10 +25,20 @@ export async function saveCalculatorConfig(projectId: string, config: Partial<Gl
 
     let result
     if (existingData) {
+      // Obtener la configuración actual para no perder datos al hacer el merge
+      const { data: currentData } = await supabase
+        .from("calculator_data")
+        .select("global_config")
+        .eq("id", existingData.id)
+        .single()
+
+      const currentConfig = (currentData?.global_config as any) || {}
+      const mergedConfig = { ...currentConfig, ...config }
+
       result = await supabase
         .from("calculator_data")
         .update({
-          global_config: config,
+          global_config: mergedConfig,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existingData.id)

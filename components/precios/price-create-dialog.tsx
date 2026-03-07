@@ -67,6 +67,10 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
     model: "",
   })
 
+  const selectedCategory = categories.find((c) => c.id === formData.category_id)
+  const isMaterialCategory =
+    selectedCategory?.name.startsWith("10.") || selectedCategory?.name.toUpperCase().includes("MATERIAL")
+
   function capitalizeFirstLetter(text: string): string {
     if (!text) return text
     return text.charAt(0).toUpperCase() + text.slice(1)
@@ -170,7 +174,8 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
 
       // Save tiers if any were defined
       if (tiers.length > 0 && createdPrice?.id) {
-        await saveTiersForPrice(createdPrice.id, true, tiers)
+        const isActuallyUserPrice = !!createdPrice.user_id
+        await saveTiersForPrice(createdPrice.id, isActuallyUserPrice, tiers)
       }
 
       console.log("[v0] Precio creado exitosamente")
@@ -194,7 +199,12 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
       onOpenChange(false)
     } catch (error) {
       console.error("Error creating price:", error)
-      alert("Error al crear el precio")
+      const errorMessage = error instanceof Error
+        ? error.message
+        : (typeof error === 'object' && error !== null && 'message' in error)
+          ? (error as any).message
+          : JSON.stringify(error) || "Error desconocido"
+      alert(`Error al crear el precio: ${errorMessage}`)
     } finally {
       setLoading(false)
     }
@@ -326,7 +336,7 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
           </div>
 
           {/* Sección de Características y Merma */}
-          {(formData.unit === "m²" || formData.color || formData.brand || formData.model) && (
+          {(formData.unit === "m²" || formData.unit === "ml" || formData.color || formData.brand || formData.model) && (
             <div className="space-y-4 pt-2 border-t border-gray-100">
               <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <Sparkles className="w-4 h-4 text-amber-500" />
@@ -334,7 +344,7 @@ export function PriceCreateDialog({ open, onOpenChange, categories, onSuccess }:
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50/50 p-3 rounded-lg border border-gray-100">
-                {formData.unit === "m²" && (
+                {(formData.unit === "m²" || formData.unit === "ml") && isMaterialCategory && (
                   <div className="space-y-1.5">
                     <Label htmlFor="waste_percentage" className="text-[11px] uppercase tracking-wider text-gray-500">% Excedente</Label>
                     <div className="relative">
