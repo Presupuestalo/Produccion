@@ -1,0 +1,118 @@
+﻿node.exe : 
+(node:17112) [DEP0180] 
+DeprecationWarning: 
+fs.Stats constructor 
+is deprecated.
+En línea: 1 Carácter: 1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Users\barak\AppData
+\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: ((node:17112)    
+ [D... is deprecate    
+d.:String) [], Rem    
+oteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+(Use `node 
+--trace-deprecation 
+...` to show where the 
+warning was created)
+(node:17112) [MODULE_TY
+PELESS_PACKAGE_JSON] 
+Warning: Module type 
+of file:///F:/PRESUPUES
+TALO/WEB-PRODUCCION/scr
+ipts/inspect-plans.ts 
+is not specified and 
+it doesn't parse as 
+CommonJS.
+Reparsing as ES module 
+because module syntax 
+was detected. This 
+incurs a performance 
+overhead.
+To eliminate this 
+warning, add "type": 
+"module" to F:\PRESUPUE
+STALO\WEB-PRODUCCION\pa
+ckage.json.
+(Use `node 
+--trace-warnings ...` 
+to show where the 
+warning was created)
+Fetching latest projects with floor plans...
+
+--- Project: db5c4e01-edf5-4b4f-9fd9-8af0ddef60cb ---
+Plan ID: 8b54e884-b980-417c-bd06-bf823fc9ca79
+  Name: "VERONIVA ANTES"
+  Plan Type: before
+  Variant: current
+  Updated At: 2026-03-07T11:50:49.894+00:00
+  Image URL: https://auth.presupuestalo.com/storage/v1/object/p...
+Plan ID: 4694d670-cc86-433d-b6c3-830cb256ad27
+  Name: "VERONICA DESPUES"
+  Plan Type: before
+  Variant: proposal
+  Updated At: 2026-03-06T09:56:12.775+00:00
+  Image URL: https://auth.presupuestalo.com/storage/v1/object/p...
+
+--- Project: null ---
+Error fetching plans: {
+  code: '22P02',
+  details: null,
+  hint: null,
+  message: 'invalid 
+input syntax for type 
+uuid: "null"'
+}
+
+--- Project: a7e9d9ea-b35d-407a-aed4-14a91203525b ---
+Plan ID: ce7c9e5d-c06c-4ac1-a3cd-caa77d6ac128
+  Name: "DAVID DESPUES"
+  Plan Type: before
+  Variant: proposal
+  Updated At: 2026-03-06T08:46:11.716+00:00
+  Image URL: https://auth.presupuestalo.com/storage/v1/object/p...
+Plan ID: d364d09f-6fc5-4d8a-bcde-1e11f4a1825d
+  Name: "DAVID ANTES"
+  Plan Type: before
+  Variant: current
+  Updated At: 2026-03-03T21:11:22.591+00:00
+  Image URL: https://auth.presupuestalo.com/storage/v1/object/p...
+
+--- Project: 15a2159f-c152-43a8-a3f6-576ecd67a1e9 ---
+Plan ID: 889a49aa-ebee-41fa-b18c-4e14ee4d2b70
+  Name: "DAVID DESPUES"
+  Plan Type: before
+  Variant: proposal
+  Updated At: 2026-03-03T22:23:05.565+00:00
+  Image URL: https://auth.presupuestalo.com/storage/v1/object/p...
+Plan ID: 88496aff-0db0-4f8f-9f3c-06daad7d77d5
+  Name: "DAVID ANTES"
+  Plan Type: before
+  Variant: current
+  Updated At: 2026-03-03T21:11:22.591+00:00
+  Image URL: https://auth.presupuestalo.com/storage/v1/object/p...
+
+--- Project: 3559231e-e7e1-4f2e-83f7-07e9fedd393d ---
+Plan ID: bd157e8b-7e73-490f-b387-e730b9da0e46
+  Name: "DANIEL DESPUES"
+  Plan Type: before
+  Variant: proposal
+  Updated At: 2026-03-03T19:05:38.769+00:00
+  Image URL: https://auth.presupuestalo.com/storage/v1/object/p...
+Plan ID: 3913373d-8f41-41ef-bba3-d9441abe905c
+  Name: "DANIEL ANTES"
+  Plan Type: before
+  Variant: current
+  Updated At: 2026-03-03T19:05:11.203+00:00
+  Image URL: https://auth.presupuestalo.com/storage/v1/object/p...

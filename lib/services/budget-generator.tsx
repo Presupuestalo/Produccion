@@ -1039,20 +1039,19 @@ export class BudgetGenerator {
 
       if (reform && reform.rooms) {
         reform.rooms.forEach((room: any) => {
-          const roomName = (room.name || "").toLowerCase()
-          const roomType = (room.type || "").toLowerCase()
-          const customType = (room.customRoomType || "").toLowerCase()
+          const roomName = (room.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          const roomType = (room.type || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          const customType = (room.customRoomType || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
           // Detectar si es zona exterior (Terraza/Balcón) o técnica
           const isExterior = roomName.includes("terraza") || roomType.includes("terraza") || customType.includes("terraza") ||
-            roomName.includes("balco") || roomType.includes("balco") || customType.includes("balco") ||
-            roomName.includes("balcó") || roomType.includes("balcó") || customType.includes("balcó");
+            roomName.includes("balco") || roomType.includes("balco") || customType.includes("balco");
 
           const isTech = roomName.includes("otras ventanas") || roomType.includes("otras ventanas") || customType.includes("otras ventanas");
 
           if (isTech) return;
 
-          const area = room.area || (room.width * room.length) || 0;
+          const area = Number(room.area || (Number(room.width || 0) * Number(room.length || 0)) || 0);
 
           if (!isExterior) {
             interiorTotalArea += area;
@@ -1062,20 +1061,27 @@ export class BudgetGenerator {
           const isCeramicMat = normFloor === "ceramico" || normFloor === "ceramica";
           const isOtherMat = ["madera", "suelo laminado", "suelo vinilico", "parquet flotante"].includes(normFloor);
           const isNoMod = normFloor === "no se modifica";
-          const isBathroomOrKitchenResult = roomType.includes("baño") || roomType.includes("cocina") || roomType.includes("aseo") ||
-            roomName.includes("baño") || roomName.includes("cocina") || roomName.includes("aseo");
 
-          let willHaveCeramic = false;
+          // Usamos términos normalizados sin acentos, incluyendo customType
+          const isBathroomOrKitchenResult = roomType.includes("bano") || roomType.includes("cocina") || roomType.includes("aseo") ||
+            roomName.includes("bano") || roomName.includes("cocina") || roomName.includes("aseo") ||
+            customType.includes("bano") || customType.includes("cocina") || customType.includes("aseo");
+
+          let willHaveArlita = false;
           if (isCeramicMat) {
-            willHaveCeramic = true;
+            willHaveArlita = true;
+          } else if (isBathroomOrKitchenResult && !isNoMod) {
+            // [NUEVO] En zonas húmedas de estructura madera/mixta, siempre va arlita si se reforma el suelo
+            // incluso si el acabado final es parqué, vinilo, etc.
+            willHaveArlita = true;
           } else if (!isOtherMat && !isNoMod) {
-            if (tileAllFloors || isBathroomOrKitchenResult) {
-              willHaveCeramic = true;
+            if (tileAllFloors) {
+              willHaveArlita = true;
             }
           }
 
-          if (willHaveCeramic && !isExterior) {
-            interiorCeramicArea += area;
+          if (willHaveArlita && !isExterior) {
+            interiorCeramicArea += area; // Usamos el nombre 'ceramicArea' aunque ahora incluya otros materiales en zonas húmedas
           }
         })
       }

@@ -55,23 +55,33 @@ export function FloorPlanPreviews({ projectId }: FloorPlanPreviewsProps) {
                         const planType = (plan.plan_type || "").toLowerCase()
                         const variant = (plan.variant || "").toLowerCase()
 
+                        // Heurística para ANTES
                         const isBefore =
                             variant === "current" ||
-                            planType === "before" ||
-                            planName.includes("antes") ||
-                            planName.includes("actual") ||
-                            planName.includes("original") ||
-                            planName.includes("existente") ||
-                            planName.includes("estado actual")
+                            (planType === "before" && variant !== "proposal") ||
+                            ((planName.includes("antes") ||
+                                planName.includes("actual") ||
+                                planName.includes("original") ||
+                                planName.includes("existente") ||
+                                planName.includes("estado actual")) &&
+                                !planName.includes("reforma") &&
+                                !planName.includes("propuesta") &&
+                                variant !== "proposal")
 
+                        // Heurística para DESPUÉS
                         const isAfter =
                             variant === "proposal" ||
-                            planType === "after" ||
+                            (planType === "after" && variant !== "current") ||
                             planName.includes("despues") ||
+                            planName.includes("después") ||
                             planName.includes("reforma") ||
                             planName.includes("propuesta") ||
                             planName.includes("nuevo") ||
-                            planName.includes("opcion")
+                            planName.includes("opcion") ||
+                            planName.includes("opción") ||
+                            planName.includes("proyecto") ||
+                            planName.includes("americana") ||
+                            planName.includes("modificado")
 
                         if (isBefore && !result.before) {
                             result.before = { id: plan.id, thumbnail: plan.image_url || undefined, name: plan.name || "Plano Antes" }

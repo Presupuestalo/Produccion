@@ -45,7 +45,12 @@ export class BudgetService {
 
     // 2. Generar nuevas partidas desde la calculadora
     console.log("[v0] Syncing V2 budget, generating new items...")
-    const generator = new BudgetGenerator(calculatorData, supabase)
+
+    // [FIX] Inject project into calculatorData so generator knows structure_type
+    const { data: project } = await supabase.from("projects").select("*").eq("id", projectId).single()
+    const calculatorDataWithProject = { ...calculatorData, project: project || {} }
+
+    const generator = new BudgetGenerator(calculatorDataWithProject, supabase)
     const generatedItems = await generator.generate()
 
     // 3. Obtener partidas personalizadas existentes para preservarlas
@@ -177,7 +182,11 @@ export class BudgetService {
     const supabase = supabaseClient
 
     console.log("[v0] Creating BudgetGenerator...")
-    const generator = new BudgetGenerator(calculatorData, supabase)
+    // [FIX] Inject project into calculatorData so generator knows structure_type
+    const { data: project } = await supabase.from("projects").select("*").eq("id", projectId).single()
+    const calculatorDataWithProject = { ...calculatorData, project: project || {} }
+
+    const generator = new BudgetGenerator(calculatorDataWithProject, supabase)
 
     console.log("[v0] Generating line items...")
     const lineItems = await generator.generate()

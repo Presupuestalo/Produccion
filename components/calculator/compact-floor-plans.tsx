@@ -73,10 +73,28 @@ export function CompactFloorPlans({ projectId }: CompactFloorPlansProps) {
 
         // Procesar los planos encontrados
         data.forEach((plan: any) => {
-          if (plan.plan_type === "before" || plan.plan_type === "after") {
-            // Añadir un timestamp para evitar el caché del navegador
+          const planName = (plan.name || "").toLowerCase()
+          const planType = (plan.plan_type || "").toLowerCase()
+          const variant = (plan.variant || "").toLowerCase()
+
+          const isBefore =
+            variant === "current" ||
+            (planType === "before" && variant !== "proposal") ||
+            ((planName.includes("antes") || planName.includes("actual") || planName.includes("original")) &&
+              !planName.includes("reforma") && !planName.includes("propuesta") && variant !== "proposal")
+
+          const isAfter =
+            variant === "proposal" ||
+            (planType === "after" && variant !== "current") ||
+            planName.includes("despues") || planName.includes("después") ||
+            planName.includes("reforma") || planName.includes("propuesta") ||
+            planName.includes("americana")
+
+          const targetType = isBefore ? "before" : (isAfter ? "after" : null)
+
+          if (targetType && !plans[targetType]) {
             const timestamp = new Date().getTime()
-            plans[plan.plan_type as PlanType] = `${plan.image_url}?t=${timestamp}`
+            plans[targetType] = `${plan.image_url}?t=${timestamp}`
           }
         })
 

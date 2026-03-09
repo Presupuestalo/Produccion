@@ -134,24 +134,35 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
       }
 
       if (data && data.length > 0) {
-        // Procesar los planos encontrados con heurísticas similares a FloorPlanPreviews
+        // Procesar los planos encontrados con heurísticas reforzadas
         data.forEach((plan: any) => {
           const planName = (plan.name || "").toLowerCase()
           const planType = (plan.plan_type || "").toLowerCase()
           const variant = (plan.variant || "").toLowerCase()
 
-          const isBefore =
+          // Heurística para ANTES: 
+          // 1. variant es 'current'
+          // 2. plan_type es 'before' (si variant no es 'proposal')
+          // 3. El nombre indica estado actual y NO indica reforma/propuesta
+          const isBeforeCandidate =
             variant === "current" ||
-            planType === "before" ||
-            planName.includes("antes") ||
-            planName.includes("actual") ||
-            planName.includes("original") ||
-            planName.includes("existente") ||
-            planName.includes("estado actual")
+            (planType === "before" && variant !== "proposal") ||
+            ((planName.includes("antes") ||
+              planName.includes("actual") ||
+              planName.includes("original") ||
+              planName.includes("existente") ||
+              planName.includes("estado actual")) &&
+              !planName.includes("reforma") &&
+              !planName.includes("propuesta") &&
+              variant !== "proposal")
 
-          const isAfter =
+          // Heurística para DESPUÉS:
+          // 1. variant es 'proposal'
+          // 2. plan_type es 'after' (si variant no es 'current')
+          // 3. El nombre indica un cambio/propuesta/reforma
+          const isAfterCandidate =
             variant === "proposal" ||
-            planType === "after" ||
+            (planType === "after" && variant !== "current") ||
             planName.includes("despues") ||
             planName.includes("después") ||
             planName.includes("reforma") ||
@@ -160,35 +171,29 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
             planName.includes("opcion") ||
             planName.includes("opción") ||
             planName.includes("proyecto") ||
-            planName.includes("modificado") ||
-            planName.includes("cambio")
+            planName.includes("americana") ||
+            planName.includes("modificado")
 
-          if (isBefore && !plans.before) {
+          if (isBeforeCandidate && !plans.before) {
             const timestamp = new Date().getTime()
             plans.before = `${plan.image_url}?t=${timestamp}`
             ids.before = plan.id
-          } else if (isAfter && !plans.after) {
+          } else if (isAfterCandidate && !plans.after) {
             const timestamp = new Date().getTime()
             plans.after = `${plan.image_url}?t=${timestamp}`
             ids.after = plan.id
           }
         })
 
-        // Heurística final: si no hemos asignado 'before' y hay datos, asignamos el primero disponible que no sea after
+        // Heurística final: si no hemos asignado 'before' y hay datos sobrantes, asignar
         if (!plans.before && data.length > 0) {
-          const firstNotAfter = data.find((p: any) => {
-            const name = (p.name || "").toLowerCase()
-            return !name.includes("despues") && !name.includes("reforma") && p.variant !== "proposal"
-          }) || data[0]
-
-          if (firstNotAfter) {
-            const timestamp = new Date().getTime()
-            plans.before = `${firstNotAfter.image_url}?t=${timestamp}`
-            ids.before = firstNotAfter.id
-          }
+          const firstAvailable = data.find((p: any) => p.id !== ids.after) || data[0]
+          const timestamp = new Date().getTime()
+          plans.before = `${firstAvailable.image_url}?t=${timestamp}`
+          ids.before = firstAvailable.id
         }
 
-        // Heurística para 'after': si sigue vacío y hay más planos, asignar el primero que no sea 'before'
+        // Heurística para 'after': si sigue vacío y hay más planos, asignar el que no sea 'before'
         if (!plans.after && data.length > 1) {
           const leftoverPlan = data.find((p: any) => p.id !== ids.before)
           if (leftoverPlan) {
