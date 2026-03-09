@@ -1,183 +1,20 @@
 "use client"
 
 import Link from "next/link"
-import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
     ArrowRight,
     Sparkles,
-    Zap,
-    BadgeCheck,
     FileText,
     Calculator,
-    Euro,
-    Lightbulb,
-    AlertTriangle,
-    Database,
-    CheckCircle
+    BadgeCheck,
+    Clock,
+    TrendingUp,
+    Database
 } from "lucide-react"
-import { spanishProvinces, citiesByProvince } from "@/lib/data/spain-locations"
-import { PhoneVerificationModal } from "@/components/leads/phone-verification-modal"
-
-const REFORM_TYPES = [
-    { value: "integral", label: "Reforma Integral" },
-    { value: "cocina", label: "Reforma de Cocina" },
-    { value: "baño", label: "Reforma de Baño" },
-    { value: "pintura", label: "Pintura y Alisado de Paredes" },
-    { value: "suelos", label: "Cambio de Suelos / Parquet" },
-    { value: "ventanas", label: "Cambio de Ventanas / Cerramientos" },
-    { value: "other", label: "Otro (Especificar)" },
-]
 
 export function HeroV2() {
-    const [loading, setLoading] = useState(false)
-    const [estimation, setEstimation] = useState<any>(null)
-    const [showQuoteForm, setShowQuoteForm] = useState(false)
-    const [quoteSent, setQuoteSent] = useState(false)
-    const [showVerificationModal, setShowVerificationModal] = useState(false)
-    const [errors, setErrors] = useState<Record<string, string>>({})
-
-    const [formData, setFormData] = useState({
-        reformType: "integral",
-        customReformType: "",
-        squareMeters: "",
-        rooms: "",
-        bathrooms: "",
-        country: "españa",
-        province: "",
-        city: "",
-        heatingType: "",
-        features: "",
-        availableBudget: "",
-    })
-
-    const availableCities = useMemo(() => {
-        if (!formData.province) return []
-        return citiesByProvince[formData.province] || []
-    }, [formData.province])
-
-    const findProvinceByCity = (city: string): string | null => {
-        for (const [province, cities] of Object.entries(citiesByProvince)) {
-            if (cities.includes(city)) {
-                return province
-            }
-        }
-        return null
-    }
-
-    const validateForm = () => {
-        const newErrors: Record<string, string> = {}
-
-        if (!formData.reformType) newErrors.reformType = "Campo obligatorio"
-        if (formData.reformType === "other" && !formData.customReformType) newErrors.customReformType = "Por favor especifica el tipo de reforma"
-        if (!formData.squareMeters) newErrors.squareMeters = "Campo obligatorio"
-        if (!formData.rooms) newErrors.rooms = "Campo obligatorio"
-        if (!formData.bathrooms) newErrors.bathrooms = "Campo obligatorio"
-        if (!formData.province) newErrors.province = "Campo obligatorio"
-        if (!formData.city) newErrors.city = "Campo obligatorio"
-        if (!formData.heatingType) newErrors.heatingType = "Campo obligatorio"
-
-        setErrors(newErrors)
-        return Object.keys(newErrors).length === 0
-    }
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-
-        if (!validateForm()) {
-            return
-        }
-
-        setLoading(true)
-        setEstimation(null)
-
-        try {
-            const response = await fetch("/api/ia/quick-estimate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
-            })
-
-            const data = await response.json()
-
-            if (!response.ok || data.error) {
-                throw new Error(data.error || "Error al generar estimación")
-            }
-
-            setEstimation(data)
-            setShowQuoteForm(false)
-            setQuoteSent(false)
-        } catch (error) {
-            console.error("Error generando estimación:", error)
-            alert(error instanceof Error ? error.message : "Error al generar la estimación. Por favor, intenta de nuevo.")
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const handleVerificationSuccess = (verificationData: {
-        email: string
-        phone: string
-        fullName: string
-        verificationCode?: string
-        acceptedTerms?: boolean
-        acceptedPrivacy?: boolean
-        acceptedMarketing?: boolean
-    }) => {
-        const createLead = async () => {
-            try {
-                let minBudget = 0
-                let maxBudget = 0
-
-                if (estimation?.priceRange) {
-                    const priceMatch = estimation.priceRange.match(/[\d.]+/g)
-                    if (priceMatch && priceMatch.length >= 2) {
-                        minBudget = Number.parseInt(priceMatch[0].replace(/\./g, ""), 10)
-                        maxBudget = Number.parseInt(priceMatch[1].replace(/\./g, ""), 10)
-                    }
-                }
-
-                const response = await fetch("/api/ia/create-landing-lead", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        email: verificationData.email,
-                        fullName: verificationData.fullName,
-                        phone: verificationData.phone,
-                        acceptedTerms: verificationData.acceptedTerms,
-                        acceptedPrivacy: verificationData.acceptedPrivacy,
-                        acceptedMarketing: verificationData.acceptedMarketing,
-                        estimationData: {
-                            ...formData,
-                            estimated_budget_min: minBudget,
-                            estimated_budget_max: maxBudget,
-                        },
-                    }),
-                })
-
-                const data = await response.json()
-
-                if (!response.ok) {
-                    throw new Error(data.error || "Error al crear la solicitud")
-                }
-
-                setShowVerificationModal(false)
-                setQuoteSent(true)
-                setShowQuoteForm(false)
-            } catch (error: any) {
-                console.error("Error creating landing lead:", error)
-                alert(error.message || "Error al procesar la solicitud")
-            }
-        }
-
-        createLead()
-    }
-
     return (
         <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#0a0a0a] py-20">
             {/* Background Elements */}
@@ -197,51 +34,66 @@ export function HeroV2() {
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500/10 border border-orange-500/20 backdrop-blur-md">
                             <Sparkles className="h-4 w-4 text-orange-500" />
                             <span className="text-sm font-semibold tracking-wide text-orange-400 uppercase">
-                                Acceso Completo • 100% Gratis
+                                Software para Empresas de Reformas
                             </span>
                         </div>
 
                         {/* Title */}
                         <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-white leading-tight">
-                            Presupuesta tu Reforma <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-orange-600 to-orange-800">
-                                Con Precisión Profesional
+                            Deja de perder el fin de semana haciendo <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-orange-600 to-orange-800 line-through decoration-orange-600/40">
+                                Excels
+                            </span>
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-orange-600 to-orange-800 ml-4">
+                                Presupuestos
                             </span>
                         </h1>
 
                         {/* Subtitle */}
                         <p className="max-w-xl text-lg md:text-xl text-gray-400 text-pretty">
-                            Genera presupuestos precisos en <span className="text-white font-semibold">minutos</span>, no días. Ahorra cientos de horas de trabajo con la herramienta más rápida del mercado.
+                            Genera presupuestos súper profesionales en <span className="text-white font-semibold">3 minutos</span>, directamente desde la obra con tu móvil. Calcula márgenes de beneficio, desperdicio y genera un PDF automático que cierra más ventas.
                         </p>
 
                         {/* Features List */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 pt-4">
                             <div className="flex items-center gap-2 text-gray-300">
-                                <BadgeCheck className="h-5 w-5 text-orange-500" />
-                                <span>Precios de Mercado Reales</span>
+                                <Clock className="h-5 w-5 text-orange-500" />
+                                <span>Ahorra 10 horas a la semana</span>
                             </div>
                             <div className="flex items-center gap-2 text-gray-300">
-                                <Zap className="h-5 w-5 text-orange-500" />
-                                <span>Cálculo Inmediato con IA</span>
+                                <TrendingUp className="h-5 w-5 text-orange-500" />
+                                <span>No pierdas dinero en mermas</span>
                             </div>
                             <div className="flex items-center gap-2 text-gray-300">
                                 <FileText className="h-5 w-5 text-orange-500" />
-                                <span>Informes Profesionales PDF</span>
+                                <span>PDF profesional automático</span>
                             </div>
                             <div className="flex items-center gap-2 text-gray-300">
                                 <Database className="h-5 w-5 text-orange-500" />
-                                <span>+100.000 Obras de Referencia</span>
+                                <span>BBDD de precios actualizada</span>
                             </div>
                         </div>
 
-                        {/* Mobile CTA (only if form is hidden or scroll down) */}
-                        <div className="lg:hidden pt-4">
-                            <Button size="lg" className="w-full h-14 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white rounded-full transition-all" onClick={() => {
-                                document.getElementById('estimate-form')?.scrollIntoView({ behavior: 'smooth' })
-                            }}>
-                                Calcular Presupuesto Gratis
-                                <ArrowRight className="h-5 w-5 ml-2" />
-                            </Button>
+                        {/* CTAs */}
+                        <div className="pt-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                            <Link href="/auth">
+                                <Button size="lg" className="h-14 px-8 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white rounded-full transition-all shadow-lg shadow-orange-500/20 w-full sm:w-auto hover:scale-105 active:scale-95">
+                                    Probar Gratis Ahora
+                                    <ArrowRight className="h-5 w-5 ml-2" />
+                                </Button>
+                            </Link>
+
+                            <div className="flex items-center gap-3 mt-2 sm:mt-0 px-2 sm:px-0 opacity-80">
+                                <span className="flex -space-x-2">
+                                    <span className="w-8 h-8 rounded-full border-2 border-[#1a1c1e] bg-slate-200"></span>
+                                    <span className="w-8 h-8 rounded-full border-2 border-[#1a1c1e] bg-slate-300"></span>
+                                    <span className="w-8 h-8 rounded-full border-2 border-[#1a1c1e] bg-slate-400"></span>
+                                </span>
+                                <div className="text-sm">
+                                    <span className="text-white font-bold block">+500 empresas</span>
+                                    <span className="text-gray-400 text-xs">ya han recuperado su tiempo</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -250,171 +102,90 @@ export function HeroV2() {
                         <Card className="bg-white/5 backdrop-blur-xl border-white/10 p-6 md:p-8 shadow-2xl overflow-hidden relative group">
                             <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
 
-                            {!estimation ? (
-                                <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
-                                    <div className="mb-6">
-                                        <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
-                                            <Calculator className="h-6 w-6 text-orange-500" />
-                                            Calculadora Gratuita
-                                        </h3>
-                                        <p className="text-sm text-gray-400">Completa los datos y obtén tu estimación al instante</p>
-                                    </div>
+                            <div className="relative z-10 w-full h-full min-h-[400px] bg-[#0a0c10] flex flex-col p-6 font-mono text-sm shadow-xl rounded-xl border border-white/5">
 
-                                    <div className="space-y-2">
-                                        <Label className="text-gray-200 text-xs uppercase tracking-wider font-bold">Tipo de Reforma</Label>
-                                        <Select
-                                            value={formData.reformType}
-                                            onValueChange={(value) => {
-                                                setFormData({ ...formData, reformType: value })
-                                                setErrors({ ...errors, reformType: "", customReformType: "" })
-                                            }}
-                                        >
-                                            <SelectTrigger className="bg-white/5 border-white/10 text-white h-11">
-                                                <SelectValue placeholder="Selecciona el tipo" />
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-gray-900 border-gray-800">
-                                                {REFORM_TYPES.map((type) => (
-                                                    <SelectItem key={type.value} value={type.value} className="text-white focus:bg-orange-600 focus:text-white">
-                                                        {type.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        {errors.reformType && <p className="text-red-400 text-xs">{errors.reformType}</p>}
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label className="text-gray-200 text-xs uppercase tracking-wider font-bold">Metros Cuadrados</Label>
-                                            <Select
-                                                value={formData.squareMeters}
-                                                onValueChange={(value) => {
-                                                    setFormData({ ...formData, squareMeters: value })
-                                                    setErrors({ ...errors, squareMeters: "" })
-                                                }}
-                                            >
-                                                <SelectTrigger className="bg-white/5 border-white/10 text-white h-11">
-                                                    <SelectValue placeholder="m²" />
-                                                </SelectTrigger>
-                                                <SelectContent className="bg-gray-900 border-gray-800">
-                                                    {[40, 50, 60, 70, 80, 90, 100, 120, 150, 200].map(m => (
-                                                        <SelectItem key={m} value={String(m)}>{m} m²</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                {/* Top Bar */}
+                                <div className="flex items-center justify-between mb-8 border-b border-white/10 pb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center shadow-lg shadow-orange-500/20">
+                                            <Calculator className="h-4 w-4 text-white" />
                                         </div>
-
-                                        <div className="space-y-2">
-                                            <Label className="text-gray-200 text-xs uppercase tracking-wider font-bold">Ubicación</Label>
-                                            <Select
-                                                value={formData.province}
-                                                onValueChange={(value) => {
-                                                    setFormData({ ...formData, province: value, city: "" })
-                                                    setErrors({ ...errors, province: "", city: "" })
-                                                }}
-                                            >
-                                                <SelectTrigger className="bg-white/5 border-white/10 text-white h-11">
-                                                    <SelectValue placeholder="Provincia" />
-                                                </SelectTrigger>
-                                                <SelectContent className="bg-gray-900 border-gray-800 max-h-[300px]">
-                                                    {spanishProvinces.map((province) => (
-                                                        <SelectItem key={province} value={province}>{province}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                        <div>
+                                            <div className="text-white font-semibold font-sans">Reforma Integral_v2</div>
+                                            <div className="text-xs text-orange-400">Generando partida automática...</div>
                                         </div>
                                     </div>
-
-                                    <div className="space-y-2">
-                                        <Label className="text-gray-200 text-xs uppercase tracking-wider font-bold">Detalles del Proyecto</Label>
-                                        <Textarea
-                                            placeholder="Ej: Reforma integral piso completo, incluyendo fontanería..."
-                                            value={formData.features}
-                                            onChange={(e) => setFormData({ ...formData, features: e.target.value })}
-                                            className="bg-white/5 border-white/10 text-white min-h-[80px] text-sm resize-none"
-                                        />
-                                    </div>
-
-                                    <Button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="w-full h-12 bg-gradient-to-r from-orange-500 to-orange-700 hover:from-orange-400 hover:to-orange-600 text-white font-bold text-lg shadow-lg shadow-orange-500/20"
-                                    >
-                                        {loading ? (
-                                            <>
-                                                <Calculator className="mr-2 h-5 w-5 animate-spin" />
-                                                Calculando...
-                                            </>
-                                        ) : (
-                                            <>
-                                                Calcular Presupuesto Gratis
-                                                <ArrowRight className="ml-2 h-5 w-5" />
-                                            </>
-                                        )}
-                                    </Button>
-
-                                    <p className="text-[10px] text-center text-gray-500 mt-4 leading-relaxed">
-                                        * Al hacer clic en el botón aceptas nuestras políticas y condiciones de uso.
-                                        Servicio gratuito sin compromiso.
-                                    </p>
-                                </form>
-                            ) : (
-                                <div className="space-y-6 relative z-10 animate-in fade-in zoom-in-95 duration-500 text-center">
-                                    <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-500/30">
-                                        <Euro className="h-8 w-8 text-green-400" />
-                                    </div>
-
-                                    <div>
-                                        <h3 className="text-xl font-bold text-white mb-1">Tu Estimación de Coste</h3>
-                                        <div className="text-4xl font-black text-green-400 my-4 tracking-tighter">
-                                            {estimation.priceRange}
-                                        </div>
-                                    </div>
-
-                                    <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl space-y-3">
-                                        {estimation.breakdown?.slice(0, 3).map((item: any, idx: number) => (
-                                            <div key={idx} className="flex justify-between text-xs">
-                                                <span className="text-gray-400">{item.category}</span>
-                                                <span className="text-white font-medium">{item.amount}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {!quoteSent ? (
-                                        <div className="space-y-3 pt-2">
-                                            <Button
-                                                onClick={() => setShowVerificationModal(true)}
-                                                className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold"
-                                            >
-                                                Recibir Presupuestos Reales
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                onClick={() => setEstimation(null)}
-                                                className="w-full text-gray-400 hover:text-white"
-                                            >
-                                                Volver a calcular
-                                            </Button>
-                                        </div>
-                                    ) : (
-                                        <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
-                                            <CheckCircle className="h-8 w-8 text-green-400 mx-auto mb-2" />
-                                            <p className="text-sm font-medium text-green-400">¡Solicitud Enviada con Éxito!</p>
-                                            <p className="text-[10px] text-green-300/70 mt-1">Empresas verificadas te contactarán pronto.</p>
-                                        </div>
-                                    )}
+                                    <BadgeCheck className="text-green-500 h-5 w-5" />
                                 </div>
-                            )}
+
+                                {/* Editor lines */}
+                                <div className="space-y-4 flex-1">
+                                    {/* Line 1 - Finished */}
+                                    <div className="group rounded bg-white/5 p-3 flex justify-between items-center hover:bg-white/10 transition-colors cursor-pointer border border-transparent hover:border-white/10">
+                                        <div>
+                                            <div className="text-gray-300 font-sans font-medium">1. Suelo Laminado AC5 Roble</div>
+                                            <div className="text-xs text-gray-500 mt-1 flex gap-2">
+                                                <span>65.00 m²</span>
+                                                <span>•</span>
+                                                <span className="text-red-400 bg-red-400/10 px-1 rounded flex items-center gap-1"> +10% merma</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-white font-bold font-sans">2.145,00 €</div>
+                                            <div className="text-xs text-green-400 mt-1 flex justify-end gap-1">
+                                                <span>Rentabilidad: +35%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Line 2 - Typing animation */}
+                                    <div className="rounded bg-orange-500/10 border border-orange-500/30 p-3 flex justify-between items-center relative overflow-hidden">
+                                        <div className="absolute top-0 left-0 bottom-0 w-1 bg-orange-500 animate-pulse"></div>
+                                        <div>
+                                            <div className="text-white font-sans font-medium flex items-center gap-1">
+                                                2. Pintura Plástica Lisa
+                                                <span className="inline-block w-1.5 h-4 bg-orange-400 animate-pulse ml-1"></span>
+                                            </div>
+                                            <div className="text-xs text-orange-300/60 mt-1 flex gap-2">
+                                                <span><Clock className="w-3 h-3 inline mr-1 animate-spin" /> Calculando rendimientos...</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-right blur-[2px] opacity-50">
+                                            <div className="text-white font-bold font-sans">--- €</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Line 3 - Ghost */}
+                                    <div className="rounded border border-dashed border-white/10 p-3 flex justify-between items-center opacity-30">
+                                        <div className="h-5 w-40 bg-white/20 rounded"></div>
+                                        <div className="h-5 w-20 bg-white/20 rounded"></div>
+                                    </div>
+                                </div>
+
+                                {/* Total Bottom Bar */}
+                                <div className="mt-auto pt-6 border-t border-white/10">
+                                    <div className="flex justify-between items-end">
+                                        <div>
+                                            <div className="text-gray-500 text-xs uppercase tracking-wider mb-1 font-sans font-bold">Total Presupuesto</div>
+                                            <div className="text-3xl text-white font-black font-sans">2.145,00 €</div>
+                                        </div>
+                                        <div className="bg-green-500/10 text-green-400 text-xs px-3 py-1.5 rounded-full border border-green-500/20 font-sans font-semibold flex items-center gap-1">
+                                            <TrendingUp className="w-3 h-3" />
+                                            Beneficio: 750,75 €
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 flex gap-2">
+                                        <Button className="w-full bg-white text-black hover:bg-gray-200 font-sans font-bold text-xs h-9" variant="secondary">
+                                            <FileText className="w-3 h-3 mr-2" /> Generar PDF
+                                        </Button>
+                                    </div>
+                                </div>
+
+                            </div>
                         </Card>
                     </div>
                 </div>
             </div>
-
-            <PhoneVerificationModal
-                open={showVerificationModal}
-                onOpenChange={setShowVerificationModal}
-                onSuccess={handleVerificationSuccess}
-            />
         </section>
     )
 }

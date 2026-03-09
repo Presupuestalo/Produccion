@@ -60,17 +60,55 @@ export function DebrisOptimization() {
 
                             <Card className="bg-[#1a1c1e] border-white/10 p-2 shadow-2xl overflow-hidden rounded-[2.5rem] relative">
                                 <div className="aspect-video bg-black rounded-[2rem] overflow-hidden relative">
-                                    {/* Once the user moves the file, they can replace this src */}
-                                    <video
-                                        className="w-full h-full object-cover"
-                                        autoPlay
-                                        muted
-                                        loop
-                                        playsInline
-                                        poster="/debris-poster.jpg"
-                                    >
-                                        <source src="/videos/debris-calculation.mp4" type="video/mp4" />
-                                    </video>
+                                    {/* Animated Mockup replacing the missing video */}
+                                    <div className="w-full h-full bg-[#0a0c10] relative flex flex-col p-6">
+                                        {/* Scanner effect line */}
+                                        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.6)] animate-pulse" />
+
+                                        <div className="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                                                <span className="text-white/60 text-xs font-mono">CALCULATING_VOLUME...</span>
+                                            </div>
+                                            <span className="text-blue-400 text-xs font-mono">100% SECURE</span>
+                                        </div>
+
+                                        <div className="flex-1 space-y-4">
+                                            {/* Bar 1 */}
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between text-xs font-medium">
+                                                    <span className="text-gray-300">Escombro Cerámico</span>
+                                                    <span className="text-blue-400 font-mono">4.2 m³</span>
+                                                </div>
+                                                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-blue-500 w-[75%] rounded-full opacity-80 animate-pulse" />
+                                                </div>
+                                            </div>
+
+                                            {/* Bar 2 */}
+                                            <div className="space-y-2 pt-2">
+                                                <div className="flex justify-between text-xs font-medium">
+                                                    <span className="text-gray-300">Madera y Plásticos</span>
+                                                    <span className="text-cyan-400 font-mono">1.8 m³</span>
+                                                </div>
+                                                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-cyan-500 w-[35%] rounded-full opacity-80 animate-pulse" />
+                                                </div>
+                                            </div>
+
+                                            {/* Results block */}
+                                            <div className="mt-8 grid grid-cols-2 gap-3 pt-4">
+                                                <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-center transition-all duration-500 hover:bg-white/10">
+                                                    <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Total Sacos</div>
+                                                    <div className="text-2xl font-black text-white">125<span className="text-sm text-gray-400 ml-1">ud</span></div>
+                                                </div>
+                                                <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-center transition-all duration-500 hover:bg-white/10">
+                                                    <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Contenedores</div>
+                                                    <div className="text-2xl font-black text-orange-400">2<span className="text-sm text-orange-400/50 ml-1">x 3m³</span></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </Card>
                         </div>
