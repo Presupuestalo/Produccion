@@ -10,7 +10,7 @@ import type { BudgetCategory } from "@/lib/types/budget"
 import { BudgetService } from "@/lib/services/budget-service"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
-import { formatCurrency } from "@/lib/utils/format"
+import { formatCurrency, formatNumber } from "@/lib/utils/format"
 import { Lock, ChevronDown, ChevronUp, Trash2, Sparkles } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -74,7 +74,7 @@ const OwnerLineItem = ({ item, onDelete }: { item: any; onDelete: (id: string) =
       </td>
       <td className="px-4 py-3 text-center align-top whitespace-nowrap">
         <span className="font-medium">
-          {item.quantity} {item.unit}
+          {formatNumber(item.quantity)} {item.unit}
         </span>
       </td>
       <td className="px-4 py-3 text-center align-top">
@@ -295,11 +295,11 @@ export function BudgetLineItemsEditor({
                               )}
                               {isOwner ? (
                                 <div className="text-muted-foreground text-xs mt-1">
-                                  Cantidad: {item.quantity} {item.unit}
+                                  Cantidad: {formatNumber(item.quantity)} {item.unit}
                                 </div>
                               ) : (
                                 <div className="text-muted-foreground text-xs mt-1">
-                                  {item.quantity} {item.unit} × {formatCurrency(item.unit_price)}
+                                  {formatNumber(item.quantity)} {item.unit} × {formatCurrency(item.unit_price)}
                                 </div>
                               )}
                             </div>
@@ -502,7 +502,7 @@ export function BudgetLineItemsEditor({
                         </td>
                         <td className="px-4 py-3 text-center align-top whitespace-nowrap">
                           <span className="font-medium">
-                            {item.quantity} {item.unit}
+                            {formatNumber(item.quantity)} {item.unit}
                           </span>
                         </td>
                         {!isOwner && (

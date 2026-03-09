@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Check, X, Pencil, Trash2, Lock } from "lucide-react"
 import type { BudgetLineItem } from "@/lib/types/budget"
-import { formatCurrency } from "@/lib/utils/format"
+import { formatCurrency, formatNumber } from "@/lib/utils/format"
 import { Badge } from "@/components/ui/badge"
 import {
   AlertDialog,
@@ -255,7 +255,7 @@ export function EditableLineItem({ item, isEditable, onUpdate, onDelete }: Edita
       </td>
       <td className="px-4 py-3 text-center align-top whitespace-nowrap">
         <span className="font-medium">
-          {item.quantity} {item.unit}
+          {formatNumber(item.quantity)} {item.unit}
         </span>
       </td>
       <td className="px-4 py-3 text-right align-top">

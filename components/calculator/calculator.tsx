@@ -238,6 +238,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   const { userProfile } = useUserProfile()
   const isOwner = userProfile?.user_type === "homeowner"
   const isFreePlan = userProfile?.subscription_plan?.toLowerCase() === "free"
+  const isMaster = userProfile?.role === "master" || userProfile?.role === "admin"
 
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSavedHashRef = useRef<string>("")
@@ -2832,7 +2833,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                     </div>
 
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {projectId && (!isFreePlan || userProfile?.user_type === "professional") && (
+                      {projectId && isMaster && (
                         <Button
                           variant="ghost"
                           onClick={handleManualFloorPlanSync}
@@ -3020,7 +3021,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                     </div>
 
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {projectId && (!isFreePlan || userProfile?.user_type === "professional") && (
+                      {projectId && isMaster && (
                         <Button
                           variant="ghost"
                           onClick={handleManualFloorPlanSync}
