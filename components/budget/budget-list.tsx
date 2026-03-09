@@ -254,16 +254,7 @@ export function BudgetList({
           </div>
         </div>
 
-        {budgets.length > 0 && (
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex items-center gap-3 shadow-sm">
-            <div className="bg-orange-100 p-1.5 rounded-full">
-              <AlertTriangle className="h-3.5 w-3.5 text-orange-600" />
-            </div>
-            <p className="text-[13px] text-slate-600 font-medium leading-tight">
-              Si has modificado la calculadora, genera un <span className="text-orange-700 font-bold">nuevo presupuesto</span> para actualizar resultados.
-            </p>
-          </div>
-        )}
+
 
         <div className="grid gap-3">
           {budgets.map((budget, index) => (

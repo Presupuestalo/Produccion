@@ -48,7 +48,7 @@ interface LeadRequestStatus {
   status: string
   created_at: string
   proposals_count: number
-  selected_company: string | null
+  // selected_company: string | null // No existe en lead_requests
 }
 
 export function BudgetViewer({ projectId, budgetId, onBudgetUpdated, refreshTrigger }: BudgetViewerProps) {
@@ -93,7 +93,7 @@ export function BudgetViewer({ projectId, budgetId, onBudgetUpdated, refreshTrig
 
         const { data: leadRequest, error: leadError } = await supabase
           .from("lead_requests")
-          .select("id, status, created_at, selected_company")
+          .select("id, status, created_at")
           .eq("project_id", projectId)
           .maybeSingle()
 

@@ -1201,7 +1201,7 @@ export function ProjectForm({
                 value="demolition"
                 className={`flex-shrink-0 whitespace-nowrap px-3 py-2 text-sm font-medium rounded-md transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted ${hasAnyValidationError ? "text-red-500" : ""}`}
               >
-                Ajustes
+                Ajustes de derribos
                 {hasAnyValidationError && <AlertCircle className="h-3 w-3 ml-1 inline" />}
               </TabsTrigger>
             )}
