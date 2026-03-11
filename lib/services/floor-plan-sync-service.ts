@@ -50,6 +50,7 @@ function normalizeRoomType(room: any): string {
     if (!searchString) return "Otro"
 
     if (searchString.includes("bano") || searchString.includes("aseo") || searchString.includes("ducha")) return "Baño"
+    if (searchString.includes("cocina americana") || searchString.includes("cocina abierta")) return "Cocina Americana"
     if (searchString.includes("cocina")) return "Cocina"
     if (searchString.includes("salon") || searchString.includes("estar") || searchString.includes("comedor")) return "Salón"
     if (searchString.includes("dormitorio") || searchString.includes("habitacion") || searchString.includes("cuarto")) return "Dormitorio"
@@ -174,6 +175,14 @@ export function mapEditorRoomsToCalculator(editorData: any, isBefore: boolean, s
                 normType === "Cocina"
             ) {
                 return { floor: isBeforeState ? "Cerámica" : "Cerámico", wall: "Cerámica", removeWallTiles: isBeforeState, removeFloor: isBeforeState }
+            }
+
+            if (normType === "Cocina Americana") {
+                if (isBeforeState) {
+                    return { floor: "Parquet flotante", wall: "Pintura", removeWallTiles: false, removeFloor: true }
+                } else {
+                    return { floor: "Parquet flotante", wall: "Lucir y pintar", removeWallTiles: false, removeFloor: false }
+                }
             }
 
             if (normType === "Terraza" || normType === "Balcón") {

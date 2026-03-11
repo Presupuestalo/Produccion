@@ -261,7 +261,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         walls, rooms, doors, windows, shunts,
         currentWall, activeTool, rulerState,
         selectedWallIds, selectedRoomId, selectedElement,
-        history, redoHistory, showAllQuotes, isCalibrating
+        history, redoHistory, showAllQuotes, isCalibrating,
+        bgImage, bgConfig
     })
 
     // Update ref on every render
@@ -271,7 +272,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             walls, rooms, doors, windows, shunts,
             currentWall, activeTool, rulerState,
             selectedWallIds, selectedRoomId, selectedElement,
-            history, redoHistory, showAllQuotes, isCalibrating
+            history, redoHistory, showAllQuotes, isCalibrating,
+            bgImage, bgConfig
         }
         handleSaveRef.current = handleSave
     })
@@ -668,6 +670,87 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         setOffset({ x: 0, y: 0 })
     }
 
+    const handleFitContent = () => {
+        // Find bounding box of all logical content
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+        stateRef.current.walls.forEach(w => {
+            minX = Math.min(minX, w.start.x, w.end.x);
+            minY = Math.min(minY, w.start.y, w.end.y);
+            maxX = Math.max(maxX, w.start.x, w.end.x);
+            maxY = Math.max(maxY, w.start.y, w.end.y);
+        });
+        
+        stateRef.current.rooms.forEach(r => {
+            r.polygon.forEach(p => {
+                minX = Math.min(minX, p.x);
+                minY = Math.min(minY, p.y);
+                maxX = Math.max(maxX, p.x);
+                maxY = Math.max(maxY, p.y);
+            });
+        });
+
+        const hasDrawing = maxX !== -Infinity;
+        
+        // Default target content dimensions
+        let contentWidth = 1000;
+        let contentHeight = 1000;
+        let contentCenterX = 0;
+        let contentCenterY = 0;
+
+        // Viewport bounds
+        const w = dimensions.width || window.innerWidth || 800;
+        const h = dimensions.height || window.innerHeight || 600;
+
+        if (hasDrawing) {
+            contentWidth = Math.max(10, maxX - minX);
+            contentHeight = Math.max(10, maxY - minY);
+            contentCenterX = minX + contentWidth / 2;
+            contentCenterY = minY + contentHeight / 2;
+        } else if (stateRef.current.bgImage && bgConfig) {
+             // If there's an image but no drawings, center on the image's estimated center 
+             // Without knowing image pixel size, we just center on the bgConfig origin coordinates
+             // We adjust so it looks a bit better than just bottom-right
+             contentWidth = 1000 * (bgConfig.scale || 1);
+             contentHeight = 1000 * (bgConfig.scale || 1);
+             contentCenterX = (bgConfig.x || 0) + contentWidth / 2;
+             contentCenterY = (bgConfig.y || 0) + contentHeight / 2;
+        } else {
+             // No content at all, just reset to origin
+             setZoom(1);
+             setOffset({ x: w / 2, y: h / 2 });
+             return;
+        }
+
+        const padding = 1.2; // 20% breathing room
+        
+        const scaleX = w / (contentWidth * padding);
+        const scaleY = h / (contentHeight * padding);
+        
+        // Take the smaller scale, ensuring it doesn't get ridiculously large or small
+        let newZoom = Math.min(scaleX, scaleY);
+        newZoom = Math.max(0.1, Math.min(newZoom, 5));
+        
+        const newOffsetX = (w / 2) - (contentCenterX * newZoom);
+        const newOffsetY = (h / 2) - (contentCenterY * newZoom);
+
+        setZoom(newZoom);
+        setOffset({ x: newOffsetX, y: newOffsetY });
+    }
+
+    // Auto-fit content on initial load once dimensions are established
+    React.useEffect(() => {
+        if (dimensions.width > 0 && dimensions.height > 0) {
+            // Only auto-fit once when the component initially loads with data
+            if (isInitialLoad.current && (walls.length > 0 || rooms.length > 0 || bgImage)) {
+                handleFitContent();
+                // Mark initial load as handled to avoid re-centering on every dimension change
+                isInitialLoad.current = false;
+            }
+        }
+    }, [dimensions.width, dimensions.height]);
+
+
 
 
     const detectAndNameRooms = (newWalls: Wall[], currentRooms: Room[]) => {
@@ -849,14 +932,15 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
     const deleteWall = (id: string) => {
         saveStateToHistory()
-        const newWalls = walls.filter(w => w.id !== id)
+        const currentState = stateRef.current
+        const newWalls = currentState.walls.filter(w => w.id !== id)
         setWalls(newWalls)
         setSelectedWallIds(prev => prev.filter(wid => wid !== id))
-        setRooms(detectAndNameRooms(newWalls, rooms))
+        setRooms(detectAndNameRooms(newWalls, currentState.rooms))
         setDoors(prev => prev.filter(d => d.wallId !== id))
         setWindows(prev => prev.filter(w => w.wallId !== id))
-        if (selectedElement?.type === "door" && doors.find(d => d.id === selectedElement.id)?.wallId === id) setSelectedElement(null)
-        if (selectedElement?.type === "window" && windows.find(w => w.id === selectedElement.id)?.wallId === id) setSelectedElement(null)
+        if (currentState.selectedElement?.type === "door" && currentState.doors.find(d => d.id === currentState.selectedElement?.id)?.wallId === id) setSelectedElement(null)
+        if (currentState.selectedElement?.type === "window" && currentState.windows.find(w => w.id === currentState.selectedElement?.id)?.wallId === id) setSelectedElement(null)
     }
 
     const handleDeleteElement = (type: "door" | "window" | "shunt", id: string) => {
@@ -868,7 +952,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         } else if (type === "shunt") {
             setShunts(prev => prev.filter(s => s.id !== id))
         }
-        if (selectedElement?.id === id && selectedElement.type === type) {
+        const currentState = stateRef.current
+        if (currentState.selectedElement?.id === id && currentState.selectedElement.type === type) {
             setSelectedElement(null)
         }
     }
@@ -2013,23 +2098,50 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             // Cleanup old image if it was a persistent URL
             if (bgImage) deleteOldBgImage(bgImage)
             setBgImage(result)
-            setBgConfig({
-                opacity: 0.5,
-                scale: 1,
-                x: 0,
-                y: 0,
-                rotation: 0
-            })
-            setIsSettingsOpen(false)
-            // Reset calibration to center of current view
-            const centerX = (dimensions.width / 2 - offset.x) / zoom
-            const centerY = (dimensions.height / 2 - offset.y) / zoom
-            setCalibrationPoints({
-                p1: { x: centerX - 100, y: centerY },
-                p2: { x: centerX + 100, y: centerY }
-            })
-            setIsCalibrating(true)
-            setActiveTool("select") // Reset tool to avoid accidental drawing
+
+            // Auto-scale and center logic
+            const img = new Image()
+            img.onload = () => {
+                const w = dimensions.width || window.innerWidth || 800;
+                const h = dimensions.height || window.innerHeight || 600;
+
+                // Scale image to fit 80% of viewport by logically scaling it, leaving zoom at 1
+                const targetW = w * 0.8;
+                const targetH = h * 0.8;
+                const scaleX = targetW / img.width;
+                const scaleY = targetH / img.height;
+                const bestScale = Math.min(scaleX, scaleY, 1);
+
+                setBgConfig({
+                    opacity: 0.5,
+                    scale: bestScale,
+                    x: 0,
+                    y: 0,
+                    rotation: 0
+                })
+
+                // Reset canvas view to center the image. Image originates from (0,0) and extends to (img.width*scale, img.height*scale)
+                const imgCenterX = (img.width * bestScale) / 2;
+                const imgCenterY = (img.height * bestScale) / 2;
+                const newOffsetX = (w / 2) - imgCenterX;
+                const newOffsetY = (h / 2) - imgCenterY;
+                
+                setZoom(1);
+                setOffset({ x: newOffsetX, y: newOffsetY });
+
+                // Reset calibration to center of current view
+                const centerX = imgCenterX;
+                const centerY = imgCenterY;
+                setCalibrationPoints({
+                    p1: { x: centerX - 100, y: centerY },
+                    p2: { x: centerX + 100, y: centerY }
+                })
+                
+                setIsCalibrating(true)
+                setActiveTool("select") // Reset tool to avoid accidental drawing
+                setIsSettingsOpen(false)
+            }
+            img.src = result
         }
         reader.readAsDataURL(file)
 

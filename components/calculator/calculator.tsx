@@ -46,6 +46,7 @@ import {
   mapEditorRoomsToCalculator,
   calculateWallDifferences,
 } from "@/lib/services/floor-plan-sync-service"
+import { isPointOnSegment } from "@/lib/utils/geometry"
 import { getSupabase } from "@/lib/supabase/client"
 import { canAddRoom } from "@/lib/services/subscription-limits-service"
 import { InfoIcon, Download } from "lucide-react"
@@ -61,6 +62,7 @@ import { WindowsSection } from "./windows-section"
 import { DemolitionSummary } from "./demolition-summary"
 import { ReformSummary } from "./reform-summary"
 import { ElectricalSection } from "./electrical-section"
+import { DoorsSection } from "./doors-section"
 import { RoomsSummary } from "./rooms-summary"
 import { AppointmentsHistory } from "./appointments-history"
 import { BudgetSection } from "@/components/budget/budget-section"
@@ -1317,6 +1319,36 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                     projectId,
                   }
 
+                  // MIGRACIÓN: Si no hay globalDoors definido (proyecto antiguo), sumamos desde las habitaciones
+                  if (!reformConfigWithDefaults.globalDoors && reformRoomsData && reformRoomsData.length > 0) {
+                    let calcAbatibles = 0
+                    let calcDobleAbatibles = 0
+                    let calcCorrederasEmpotradas = 0
+                    let calcCorrederasExteriores = 0
+
+                    reformRoomsData.forEach((room) => {
+                      const newDoorList = room.newDoorList || []
+                      if (newDoorList.length > 0) {
+                        newDoorList.forEach((door: { type: string }) => {
+                          if (door.type === "Abatible") calcAbatibles++
+                          else if (door.type === "Doble abatible") calcDobleAbatibles++
+                          else if (door.type === "Corredera empotrada") calcCorrederasEmpotradas++
+                          else if (door.type === "Corredera exterior" || door.type === "Corredera exterior con carril") calcCorrederasExteriores++
+                        })
+                      } else if (typeof room.newDoors === "number" && room.newDoors > 0) {
+                        calcAbatibles += room.newDoors
+                      }
+                    })
+
+                    reformConfigWithDefaults.globalDoors = {
+                      abatibles: calcAbatibles,
+                      dobleAbatibles: calcDobleAbatibles,
+                      correderasEmpotradas: calcCorrederasEmpotradas,
+                      correderasExteriores: calcCorrederasExteriores
+                    }
+                    console.log("[v0] LOAD - Migración automática de puertas locales a globalDoors:", reformConfigWithDefaults.globalDoors)
+                  }
+
                   // Sincronización de seguridad al cargar: si el edificio es Central, la reforma debe ser Central
                   if (configWithDefaults.heatingType === "Central" && reformConfigWithDefaults.reformHeatingType !== "Central") {
                     console.log("[v0] LOAD - Sincronizando reformHeatingType a Central de forma preventiva")
@@ -1355,6 +1387,35 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                         standardHeight: projectHeight,
                         projectId,
                       }
+
+                      // MIGRACION LOCAL
+                      if (!configWithDefaults.globalDoors && reformRoomsData && reformRoomsData.length > 0) {
+                        let calcAbatibles = 0
+                        let calcDobleAbatibles = 0
+                        let calcCorrederasEmpotradas = 0
+                        let calcCorrederasExteriores = 0
+
+                        reformRoomsData.forEach((room) => {
+                          const newDoorList = room.newDoorList || []
+                          if (newDoorList.length > 0) {
+                            newDoorList.forEach((door: { type: string }) => {
+                              if (door.type === "Abatible") calcAbatibles++
+                              else if (door.type === "Doble abatible") calcDobleAbatibles++
+                              else if (door.type === "Corredera empotrada") calcCorrederasEmpotradas++
+                              else if (door.type === "Corredera exterior" || door.type === "Corredera exterior con carril") calcCorrederasExteriores++
+                            })
+                          } else if (typeof room.newDoors === "number" && room.newDoors > 0) {
+                            calcAbatibles += room.newDoors
+                          }
+                        })
+                        configWithDefaults.globalDoors = {
+                          abatibles: calcAbatibles,
+                          dobleAbatibles: calcDobleAbatibles,
+                          correderasEmpotradas: calcCorrederasEmpotradas,
+                          correderasExteriores: calcCorrederasExteriores
+                        }
+                      }
+
                       setReformConfig((prev) => ({ ...prev, ...configWithDefaults }))
                     }
                   } catch (e) {
@@ -1363,6 +1424,37 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                 }
               }
               if (!config) {
+                // DEFAULT MIGRATION
+                let defaultGlobalDoors = undefined
+                if (reformRoomsData && reformRoomsData.length > 0) {
+                  let calcAbatibles = 0
+                  let calcDobleAbatibles = 0
+                  let calcCorrederasEmpotradas = 0
+                  let calcCorrederasExteriores = 0
+
+                  reformRoomsData.forEach((room) => {
+                    const newDoorList = room.newDoorList || []
+                    if (newDoorList.length > 0) {
+                      newDoorList.forEach((door: { type: string }) => {
+                        if (door.type === "Abatible") calcAbatibles++
+                        else if (door.type === "Doble abatible") calcDobleAbatibles++
+                        else if (door.type === "Corredera empotrada") calcCorrederasEmpotradas++
+                        else if (door.type === "Corredera exterior" || door.type === "Corredera exterior con carril") calcCorrederasExteriores++
+                      })
+                    } else if (typeof room.newDoors === "number" && room.newDoors > 0) {
+                      calcAbatibles += room.newDoors
+                    }
+                  })
+                  if (calcAbatibles > 0 || calcDobleAbatibles > 0 || calcCorrederasEmpotradas > 0 || calcCorrederasExteriores > 0) {
+                    defaultGlobalDoors = {
+                      abatibles: calcAbatibles,
+                      dobleAbatibles: calcDobleAbatibles,
+                      correderasEmpotradas: calcCorrederasEmpotradas,
+                      correderasExteriores: calcCorrederasExteriores
+                    }
+                  }
+                }
+
                 const defaultConfig = {
                   standardHeight: projectHeight,
                   structureType: "Hormigón" as const,
@@ -1370,6 +1462,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                   removeWoodenFloor: false,
                   projectId: projectId,
                   lowerAllCeilings: true,
+                  globalDoors: defaultGlobalDoors
                 }
                 setDemolitionConfig((prev) => ({ ...prev, ...defaultConfig }))
                 setReformConfig((prev) => ({ ...prev, ...defaultConfig }))
@@ -1606,6 +1699,16 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     // El autoguardado se activará automáticamente por el
   }, [])
 
+  const handleUpdateAllRoomsLowerCeiling = useCallback((value: boolean) => {
+    setReformRooms((prev) =>
+      prev.map((room) => ({
+        ...room,
+        lowerCeiling: value,
+        newCeilingHeight: value && !room.newCeilingHeight ? 2.50 : room.newCeilingHeight
+      }))
+    )
+  }, [])
+
   const addRoom = useCallback(async (forcedType?: RoomType) => {
     if (!projectId) return
 
@@ -1638,7 +1741,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     }
 
     proceedAddRoom(activeTab, existingRooms, handler, typeToAdd)
-  }, [activeTab, rooms, reformRooms, setRooms, setReformRooms, selectedRoomType, projectId, toast])
+  }, [activeTab, rooms, reformRooms, setRooms, setReformRooms, selectedRoomType, projectId, toast, reformConfig])
 
   const proceedAddRoom = useCallback(
     (
@@ -1686,6 +1789,8 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       const newRoom: Room = {
         id: uuidv4(),
         number: nextNumber,
+        lowerCeiling: currentTab === "reform" && reformConfig.lowerAllCeilings ? true : false,
+        newCeilingHeight: currentTab === "reform" && reformConfig.lowerAllCeilings ? 2.50 : undefined,
         type: typeToAdd as RoomType,
         customRoomType: typeToAdd === "Otro" ? "" : typeToAdd,
         width: 0,
@@ -1749,7 +1854,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       })
       setHighlightedRoomId(newRoom.id)
     },
-    []
+    [reformConfig]
   )
 
   const duplicateRoom = useCallback(
@@ -2327,7 +2432,9 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       const isTerrace = normalizedType.includes("terraza")
 
       // Detección mejorada de cerámica (si viene marcada en el plano o por tipo de estancia)
-      const hasCeramicDetected = room.removeWallTiles || isBathroomOrKitchen
+      // Evitamos forzar cerámica en cocina americana si no viene explícitamente marcada
+      const isAmericanKitchen = normalizedType.includes("cocina americana") || normalizedType.includes("cocina abierta")
+      const hasCeramicDetected = room.removeWallTiles || (isBathroomOrKitchen && !isAmericanKitchen) || isBathroomOrKitchen && room.removeWallTiles
 
       // Búsqueda de habitación preexistente para prevenir borrado de UUID y de ventanas/puertas ya cargadas o manipuladas
       const existingRoom = rooms.find((r) => r.type === room.type && r.number === room.number)
@@ -2369,6 +2476,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       const isBathroomOrKitchen =
         normalizedType.includes("bano") || normalizedType.includes("cocina") || normalizedType.includes("aseo")
       const isTerrace = normalizedType.includes("terraza")
+      const isAmericanKitchen = normalizedType.includes("cocina americana") || normalizedType.includes("cocina abierta")
 
       // Búsqueda de habitación preexistente para prevenir borrado de UUID y de ventanas ya manipuladas
       const existingRoom = reformRooms.find((r) => r.type === room.type && r.number === room.number)
@@ -2376,8 +2484,8 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       return {
         ...room,
         id: existingRoom ? existingRoom.id : uuidv4(),
-        floorMaterial: room.floorMaterial || ((isBathroomOrKitchen || isTerrace ? "Cerámico" : "Parquet flotante") as FloorMaterialType),
-        wallMaterial: room.wallMaterial || ((isTerrace ? "No se modifica" : isBathroomOrKitchen ? "Cerámica" : "Lucir y pintar") as WallMaterialType),
+        floorMaterial: room.floorMaterial || ((isBathroomOrKitchen && !isAmericanKitchen || isTerrace ? "Cerámico" : "Parquet flotante") as FloorMaterialType),
+        wallMaterial: room.wallMaterial || ((isTerrace ? "No se modifica" : isBathroomOrKitchen && !isAmericanKitchen ? "Cerámica" : "Lucir y pintar") as WallMaterialType),
         doorList: existingRoom ? existingRoom.doorList : room.doorList,
         windows: existingRoom ? existingRoom.windows : (room.windows || []),
         name: room.name || `${room.type} ${room.number}`,
@@ -2404,9 +2512,70 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
     if (importTarget === "reform" || importTarget === "both") {
       setReformRooms(processedReformRooms)
+
+      // ==== NUEVO: OBTENER Y MAPEAR PUERTAS DEL PLANO A GLOBAL DOORS ====
+      const hasOnlyOnePlanForDoors = (pendingBeforePlanData && !pendingAfterPlanData) || (!pendingBeforePlanData && pendingAfterPlanData)
+      const sourcePlanDataForDoors = pendingBeforePlanData || pendingAfterPlanData
+      const planToExtractDoorsFrom = hasOnlyOnePlanForDoors ? sourcePlanDataForDoors : (activeTab === "reform" ? pendingAfterPlanData : pendingBeforePlanData)
+      
+      if (planToExtractDoorsFrom?.doors && Array.isArray(planToExtractDoorsFrom.doors)) {
+        const newGlobalDoors = {
+          abatibles: 0,
+          dobleAbatibles: 0,
+          correderasEmpotradas: 0,
+          correderasExteriores: 0
+        }
+        
+        let hasEntranceDoor = false
+        const entranceDoorIds = new Set<string>()
+
+        if (planToExtractDoorsFrom.walls && planToExtractDoorsFrom.rooms) {
+          const wallRoomCounts = new Map<string, number>()
+          planToExtractDoorsFrom.rooms.forEach((room: any) => {
+            if (!room.polygon) return
+            const polygon = room.polygon
+            for (let i = 0; i < polygon.length; i++) {
+              const p1 = polygon[i]
+              const p2 = polygon[(i + 1) % polygon.length]
+              const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+              const wall = planToExtractDoorsFrom.walls.find((w: any) => isPointOnSegment(midP, w.start, w.end, 5.0))
+              if (wall) {
+                wallRoomCounts.set(wall.id, (wallRoomCounts.get(wall.id) || 0) + 1)
+              }
+            }
+          })
+
+          planToExtractDoorsFrom.doors.forEach((door: any) => {
+            const roomCount = wallRoomCounts.get(door.wallId) || 0
+            if (roomCount <= 1) {
+              entranceDoorIds.add(door.id)
+              hasEntranceDoor = true
+            }
+          })
+        }
+        
+        planToExtractDoorsFrom.doors.forEach((door: any) => {
+          if (entranceDoorIds.has(door.id)) return // Skip entrance doors for internal counters
+
+          const type = door.openType || "single"
+          if (type === "single" || type === "double_swing") {
+            newGlobalDoors.abatibles++
+          } else if (type === "double") {
+            newGlobalDoors.dobleAbatibles++
+          } else if (type === "sliding_pocket" || type === "sliding") {
+            newGlobalDoors.correderasEmpotradas++
+          } else if (type === "sliding_rail" || type === "exterior_sliding") {
+            newGlobalDoors.correderasExteriores++
+          }
+        })
+
+        setReformConfig(prev => ({
+          ...prev,
+          globalDoors: newGlobalDoors,
+          ...(hasEntranceDoor ? { entranceDoorType: true } : {})
+        }))
+      }
     }
-
-
 
     setShowFloorPlanConfirm(false)
     setPendingDemolitionRooms([])
@@ -2655,7 +2824,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       >
         <div className="relative w-full mb-4">
           <div className="w-full overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
-            <TabsList className={`flex h-auto bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl gap-1 lg:grid ${hasApprovedBudget ? "lg:grid-cols-6" : "lg:grid-cols-5"} lg:w-full w-max border shadow-sm`}>
+            <TabsList className={`flex h-auto bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl gap-1 lg:grid ${hasApprovedBudget ? "lg:grid-cols-7" : "lg:grid-cols-6"} lg:w-full w-max border shadow-sm`}>
               <TabsTrigger
                 value="demolition"
                 className="whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-orange-600 data-[state=active]:shadow-sm transition-all"
@@ -2673,6 +2842,12 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                 className="whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-orange-600 data-[state=active]:shadow-sm transition-all"
               >
                 Tabiquería
+              </TabsTrigger>
+              <TabsTrigger
+                value="puertas"
+                className="whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-orange-600 data-[state=active]:shadow-sm transition-all"
+              >
+                Puertas
               </TabsTrigger>
               <TabsTrigger
                 value="windows"
@@ -2752,6 +2927,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                   isReform={false}
                   projectId={projectId}
                   onConfigUpdate={(updatedConfig) => setDemolitionConfig((prev) => ({ ...prev, ...updatedConfig }))}
+                  onUpdateAllRoomsLowerCeiling={handleUpdateAllRoomsLowerCeiling}
                   isReadOnly={isReadOnly}
                 />
 
@@ -2940,6 +3116,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                   isReform={true}
                   demolitionConfig={demolitionConfig}
                   projectId={projectId}
+                  onUpdateAllRoomsLowerCeiling={handleUpdateAllRoomsLowerCeiling}
                   isReadOnly={isReadOnly}
                 />
 
@@ -3080,6 +3257,16 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                 wallLinings={wallLinings}
               />
             </div>
+          </TabsContent>
+
+          <TabsContent value="puertas" className="mt-2">
+            <DoorsSection
+              globalDoors={reformConfig.globalDoors || { abatibles: 0, dobleAbatibles: 0, correderasEmpotradas: 0, correderasExteriores: 0 }}
+              onUpdate={(doors) => handleUpdateGlobalConfig({ globalDoors: doors }, true)}
+              isReadOnly={isReadOnly}
+              entranceDoorType={reformConfig.entranceDoorType}
+              onEntranceDoorChange={(val) => handleUpdateGlobalConfig({ entranceDoorType: val }, true)}
+            />
           </TabsContent>
 
           <TabsContent value="windows" className="space-y-3">

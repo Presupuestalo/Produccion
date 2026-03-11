@@ -359,30 +359,12 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
         newSummary.bajadoTechos += area
       }
 
-      const newDoorList = room.newDoorList || []
-      if (newDoorList.length > 0) {
-        newDoorList.forEach((door: { type: string }) => {
-          if (door.type === "Abatible") {
-            newSummary.puertasAbatibles += 1
-            newSummary.premarcos += 1
-          } else if (door.type === "Doble abatible") {
-            newSummary.puertasDobleAbatibles += 1
-            newSummary.premarcos += 1
-          } else if (door.type === "Corredera empotrada") {
-            newSummary.puertasCorrederas += 1
-            newSummary.cajonPuertaCorredera += 1
-            newSummary.premarcos += 1
-          } else if (door.type === "Corredera exterior" || door.type === "Corredera exterior con carril") {
-            newSummary.puertasCorrederasExteriores += 1
-            newSummary.premarcos += 1
-          }
-        })
-      } else if (room.newDoors && room.newDoors > 0) {
-        newSummary.puertasAbatibles += room.newDoors
-        newSummary.premarcos += room.newDoors
-      }
+      // El conteo de puertas por habitación (room.newDoorList / room.newDoors) 
+      // ha sido eliminado porque ahora se gestiona globalmente desde la pestaña "Puertas"
+
 
       newSummary.windows += room.windows?.length || 0
+
 
       if (isBathroom(room.type) && room.newBathroomElements !== false) {
         newSummary.redesAguaBanos += 1
@@ -465,7 +447,24 @@ export function ReformSummary({ rooms, globalConfig, partitions = [], wallLining
       newSummary.redAlimentacionRadiador = newSummary.instalacionRadiadores
     }
 
+    // Sumar puertas configuradas globalmente desde la sección "Puertas"
+    if (globalConfig?.globalDoors) {
+      const gd = globalConfig.globalDoors
+      const abatibles = gd.abatibles || 0
+      const dobleAbatibles = gd.dobleAbatibles || 0
+      const correderasEmpotradas = gd.correderasEmpotradas || 0
+      const correderasExteriores = gd.correderasExteriores || 0
+
+      newSummary.puertasAbatibles += abatibles
+      newSummary.puertasDobleAbatibles += dobleAbatibles
+      newSummary.puertasCorrederas += correderasEmpotradas
+      newSummary.cajonPuertaCorredera += correderasEmpotradas
+      newSummary.puertasCorrederasExteriores += correderasExteriores
+      newSummary.premarcos += abatibles + dobleAbatibles + correderasEmpotradas + correderasExteriores
+    }
+
     setSummary(newSummary)
+
   }, [rooms, globalConfig, partitions, wallLinings, electricalConfig])
 
   const hasRooms = rooms && Array.isArray(rooms) && rooms.length > 0

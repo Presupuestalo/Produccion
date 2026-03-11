@@ -958,8 +958,8 @@ export function GlobalConfigSection({
                       checked={config.lowerAllCeilings || false}
                       onCheckedChange={(checked) => {
                         handleConfigUpdate({ lowerAllCeilings: checked as boolean })
-                        if (checked && onUpdateAllRoomsLowerCeiling) {
-                          onUpdateAllRoomsLowerCeiling(true)
+                        if (onUpdateAllRoomsLowerCeiling) {
+                          onUpdateAllRoomsLowerCeiling(checked as boolean)
                         }
                       }}
                       disabled={isReadOnly}
@@ -984,29 +984,6 @@ export function GlobalConfigSection({
                       checked={config.paintCeilings || false}
                       onCheckedChange={(checked) => {
                         handleConfigUpdate({ paintCeilings: checked as boolean })
-                      }}
-                      disabled={isReadOnly}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-2 border-teal-100 hover:border-teal-300 transition-colors duration-200 bg-gradient-to-br from-teal-50/30 to-transparent">
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-shrink-0 w-9 h-9 rounded-full bg-teal-100 flex items-center justify-center">
-                        <DoorOpen className="h-4 w-4 text-teal-600" />
-                      </div>
-                      <Label htmlFor="entranceDoorType" className="font-medium cursor-pointer text-sm">
-                        ¿Cambiar puerta de entrada?
-                      </Label>
-                    </div>
-                    <Switch
-                      id="entranceDoorType"
-                      checked={config.entranceDoorType !== undefined && config.entranceDoorType !== false && config.entranceDoorType !== "No"}
-                      onCheckedChange={(checked) => {
-                        handleConfigUpdate({ entranceDoorType: checked ? true : "No" })
                       }}
                       disabled={isReadOnly}
                     />

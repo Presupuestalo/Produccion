@@ -72,6 +72,7 @@ import { v4 as uuidv4 } from "uuid"
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RoomShapeEditorModal } from "./room-shape-editor-modal"
+import { cn } from "@/lib/utils"
 
 // Helper component to display tooltips (replace with actual import if it exists)
 const QuickSummaryIcon = ({
@@ -1736,23 +1737,43 @@ export function RoomCard({
                             </div>
                           ) : (
                             <div className="flex items-center gap-1.5">
-                              <div className="flex items-center gap-2 h-8 px-2 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-950 flex-1">
-                                <Checkbox
-                                  id={`lowerCeiling-integrated-${room.id}`}
-                                  checked={room.lowerCeiling === true}
-                                  onCheckedChange={(checked) => {
-                                    updateRoom(room.id, { lowerCeiling: checked === true })
-                                    if (checked) {
-                                      const defaultNewHeight = safeStandardHeight - 0.1
-                                      updateRoom(room.id, { newCeilingHeight: defaultNewHeight })
-                                      setCeilingHeightInput(formatDecimal(defaultNewHeight))
-                                    }
-                                  }}
-                                  disabled={isReadOnly}
-                                  className="h-3.5 w-3.5"
-                                />
-                                <Label htmlFor={`lowerCeiling-integrated-${room.id}`} className="text-[10px] cursor-pointer font-medium">Bajar techo</Label>
-                              </div>
+                              <TooltipProvider>
+                                <Tooltip delayDuration={300}>
+                                  <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-2 h-8 px-2 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-950 flex-1">
+                                      <Checkbox
+                                        id={`lowerCeiling-integrated-${room.id}`}
+                                        checked={room.lowerCeiling === true || globalConfig?.lowerAllCeilings === true}
+                                        onCheckedChange={(checked) => {
+                                          if (globalConfig?.lowerAllCeilings) return
+                                          updateRoom(room.id, { lowerCeiling: checked === true })
+                                          if (checked) {
+                                            const defaultNewHeight = safeStandardHeight - 0.1
+                                            updateRoom(room.id, { newCeilingHeight: defaultNewHeight })
+                                            setCeilingHeightInput(formatDecimal(defaultNewHeight))
+                                          }
+                                        }}
+                                        disabled={isReadOnly || globalConfig?.lowerAllCeilings === true}
+                                        className="h-3.5 w-3.5"
+                                      />
+                                      <Label 
+                                        htmlFor={`lowerCeiling-integrated-${room.id}`} 
+                                        className={cn(
+                                          "text-[10px] cursor-pointer font-medium",
+                                          globalConfig?.lowerAllCeilings && "text-blue-600 font-semibold"
+                                        )}
+                                      >
+                                        Bajar techo
+                                      </Label>
+                                    </div>
+                                  </TooltipTrigger>
+                                  {globalConfig?.lowerAllCeilings && (
+                                    <TooltipContent side="top">
+                                      <p className="text-[10px]">Bloqueado por "Bajar todos los techos" en ajustes generales</p>
+                                    </TooltipContent>
+                                  )}
+                                </Tooltip>
+                              </TooltipProvider>
                               {room.lowerCeiling && (
                                 <div className="relative group w-20">
                                   <Input
@@ -2311,109 +2332,6 @@ export function RoomCard({
 
               {isReform && (
                 <>
-                  {/* Instalar puertas - SOLO EN REFORMA */}
-                  {room.type !== "Terraza" && (
-                    <div className="space-y-1.5">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`newDoors-${room.id}`}
-                          checked={room.newDoors === true}
-                          onCheckedChange={(checked) => {
-                            updateRoom(room.id, { newDoors: checked === true })
-                            if (checked && (!room.newDoorList || room.newDoorList.length === 0)) {
-                              updateRoom(room.id, {
-                                newDoorList: [
-                                  {
-                                    id: uuidv4(),
-                                    type: "Abatible" as DoorType,
-                                    width: 0.725,
-                                    height: 2.03,
-                                  },
-                                ],
-                              })
-                            }
-                          }}
-                          disabled={isReadOnly}
-                          className="h-3.5 w-3.5"
-                        />
-                        <Label htmlFor={`newDoors-${room.id}`} className="text-[11px] cursor-pointer">
-                          {room.type === "Baño" ? "Instalar puerta" : "Instalar puertas"}
-                        </Label>
-                        {room.newDoors && room.type !== "Baño" && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              const currentDoors = room.newDoorList || []
-                              updateRoom(room.id, {
-                                newDoorList: [
-                                  ...currentDoors,
-                                  {
-                                    id: uuidv4(),
-                                    type: "Abatible" as DoorType,
-                                    width: 0.725,
-                                    height: 2.03,
-                                  },
-                                ],
-                              })
-                            }}
-                            className="h-5 w-5 p-0 ml-1"
-                            title="Añadir otra puerta"
-                            disabled={isReadOnly}
-                          >
-                            <PlusCircle className="h-3 w-3" />
-                          </Button>
-                        )}
-                      </div>
-
-                      {room.newDoors && room.newDoorList && room.newDoorList.length > 0 && (
-                        <div className="ml-6 space-y-2">
-                          {room.newDoorList.map((door, index) => (
-                            <div key={door.id} className="flex items-center space-x-2">
-                              <Select
-                                value={door.type}
-                                onValueChange={(value) => {
-                                  const updatedDoors = room.newDoorList?.map((d) =>
-                                    d.id === door.id ? { ...d, type: value as DoorType } : d,
-                                  )
-                                  updateRoom(room.id, { newDoorList: updatedDoors })
-                                }}
-                              >
-                                <SelectTrigger className="h-7 text-xs flex-1" disabled={isReadOnly}>
-                                  <SelectValue placeholder="Tipo de puerta" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Abatible">Abatible</SelectItem>
-                                  <SelectItem value="Doble abatible">Puerta doble abatible</SelectItem>
-                                  <SelectItem value="Corredera empotrada">Corredera empotrada</SelectItem>
-                                  <SelectItem value="Corredera exterior con carril">Corredera exterior</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              {((room.newDoorList?.length ?? 0) > 1 || room.type !== "Baño") && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    const updatedDoors = room.newDoorList?.filter((d) => d.id !== door.id)
-                                    updateRoom(room.id, { newDoorList: updatedDoors })
-                                    if (!updatedDoors || updatedDoors.length === 0) {
-                                      updateRoom(room.id, { newDoors: false })
-                                    }
-                                  }}
-                                  className="h-5 w-5 p-0"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
                   {/* Elementos de baño - SOLO EN REFORMA */}
                   {room.type === "Baño" && (
                     <div className="space-y-1.5">

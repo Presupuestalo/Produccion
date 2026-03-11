@@ -323,6 +323,12 @@ export interface GlobalConfig {
   tiledWallSurfaceArea?: number
   installRadiators?: boolean
   postalCode?: string // Añadido para persistencia dual
+  globalDoors?: {
+    abatibles: number
+    dobleAbatibles: number
+    correderasEmpotradas: number
+    correderasExteriores: number
+  }
 }
 
 // Modificar la interfaz DemolitionSummary para añadir la nueva propiedad
