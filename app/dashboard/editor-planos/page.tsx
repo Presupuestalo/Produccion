@@ -192,13 +192,17 @@ export default function EditorPlanosPage() {
                       </div>
                       <div className="absolute top-2 left-2 flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button
-                          variant="secondary" size="icon" className="h-8 w-8 bg-blue-600 hover:bg-blue-700 text-white shadow-sm border-none"
+                          variant="secondary" size="icon" 
+                          className={`h-8 w-8 shadow-sm border-none ${plan.projectId ? 'bg-gray-200 text-gray-500 cursor-not-allowed opacity-50' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
                           onClick={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
-                            setSelectedPlanForLinking(plan)
+                            if (!plan.projectId) {
+                              setSelectedPlanForLinking(plan)
+                            }
                           }}
-                          title="Vincular a proyecto"
+                          disabled={!!plan.projectId}
+                          title={plan.projectId ? "Ya vinculado a un proyecto" : "Vincular a proyecto"}
                         >
                           <LinkIcon className="h-4 w-4" />
                         </Button>
