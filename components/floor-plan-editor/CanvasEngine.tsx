@@ -2023,12 +2023,14 @@ export const CanvasEngine = ({
 
         const isPrimaryClick = e.evt.button === 0
         const isDrawingTool = activeTool === "wall" || activeTool === "door" || activeTool === "window" || activeTool === "ruler" || activeTool === "arc" || activeTool === "shunt"
+        const isTileTool = activeTool === "ceramic" || activeTool === "eraser"
 
-        // SPECIAL CASE: Sustained Click-to-Pan while drawing
+        // SPECIAL CASE: Sustained Click-to-Pan while using tools
         // ONLY for mouse, to avoid interfering with mobile/stylus chained drawing
-        if (isDrawingTool && isPrimaryClick && !isTouchInteraction) {
-            // If we are drawing a wall (currentWall exists) or using ruler/arc tool
-            if (currentWall || activeTool === "ruler" || activeTool === "arc") {
+        if ((isDrawingTool || isTileTool) && isPrimaryClick && !isTouchInteraction) {
+            // For drawing tools, only enable pan if dragging a wall/ruler/arc.
+            // For tile tools, always enable potential pan.
+            if ((isDrawingTool && (currentWall || activeTool === "ruler" || activeTool === "arc")) || isTileTool) {
                 isPotentialSustainedPan.current = true
                 didSustainedPanOccur.current = false
                 return

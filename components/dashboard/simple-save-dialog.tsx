@@ -101,8 +101,13 @@ export function SimpleSaveDialog({
             <DialogContent
                 container={container}
                 onOpenAutoFocus={(e) => {
-                    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-                        e.preventDefault();
+                    // Prevent auto-focus on mobile devices to prevent the virtual keyboard 
+                    // from popping up instantly and breaking the Fullscreen API.
+                    if (typeof window !== 'undefined') {
+                        const isMobile = window.innerWidth < 1024 || (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
+                        if (isMobile) {
+                            e.preventDefault();
+                        }
                     }
                 }}
                 className="!fixed !top-0 !left-0 !translate-x-0 !translate-y-0 !w-full lg:!w-full lg:!max-w-[480px] lg:!left-[50%] lg:!top-[50%] lg:!translate-x-[-50%] lg:!translate-y-[-50%] p-3 gap-2 rounded-none lg:rounded-lg border-x-0 border-t-0 bg-white shadow-lg"
