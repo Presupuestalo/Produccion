@@ -217,7 +217,6 @@ export function GlobalConfigSection({
           ...demolition,
           length,
           area,
-          tileThickness: demolition.tileThickness || DEFAULT_TILE_THICKNESS,
           wallHeight,
         }
       })
@@ -318,22 +317,8 @@ export function GlobalConfigSection({
       const wallHeight = config.standardHeight || DEFAULT_WALL_HEIGHT
       const area = demolition.length * wallHeight
 
-      if (demolition.hasTiles) {
-        tiledWallArea += area
-
-        const sidesFactor = demolition.tilesSides === "both" ? 2 : 1
-
-        tiledWallSurfaceArea += area * sidesFactor
-
-        const wallThicknessInMeters = demolition.thickness / 100
-        wallDebrisVolume += area * wallThicknessInMeters
-
-        const tileThickness = (demolition.tileThickness || DEFAULT_TILE_THICKNESS) / 100
-        tileDebrisVolume += area * tileThickness * sidesFactor
-      } else {
-        const wallThicknessInMeters = demolition.thickness / 100
-        wallDebrisVolume += area * wallThicknessInMeters
-      }
+      const wallThicknessInMeters = demolition.thickness / 100
+      wallDebrisVolume += area * wallThicknessInMeters
     })
 
     return {
@@ -472,9 +457,6 @@ export function GlobalConfigSection({
         length: 0,
         area: 0,
         thickness: 10,
-        hasTiles: false,
-        tilesSides: "one",
-        tileThickness: DEFAULT_TILE_THICKNESS,
         wallHeight,
       } as WallDemolition,
     ]
@@ -1046,51 +1028,6 @@ export function GlobalConfigSection({
                   </span>
                 </div>
 
-                <div className="flex items-center space-x-2 mb-3">
-                  <Switch
-                    id={`has-tiles-${demolition.id}`}
-                    checked={Boolean(demolition.hasTiles)}
-                    onCheckedChange={(checked) => {
-                      updateWallDemolition(demolition.id, { hasTiles: checked })
-                    }}
-                    disabled={isReadOnly}
-                  />
-                  <Label htmlFor={`has-tiles-${demolition.id}`} className="text-sm">
-                    Tiene azulejos
-                  </Label>
-                </div>
-
-                {demolition.hasTiles && (
-                  <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-border/50">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Lados con azulejos</Label>
-                      <Select
-                        value={demolition.tilesSides || "one"}
-                        onValueChange={(value) =>
-                          updateWallDemolition(demolition.id, {
-                            tilesSides: value as "one" | "both",
-                          })
-                        }
-                        disabled={isReadOnly}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="one">Un lado</SelectItem>
-                          <SelectItem value="both">Ambos lados</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <WallDemolitionInput
-                      value={demolition.tileThickness || DEFAULT_TILE_THICKNESS}
-                      onChange={(numValue) => updateWallDemolition(demolition.id, { tileThickness: numValue })}
-                      placeholder="1,50"
-                      label="Grosor azulejo (cm)"
-                      disabled={isReadOnly}
-                    />
-                  </div>
-                )}
               </Card>
             ))}
           </div>

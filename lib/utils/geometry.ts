@@ -151,6 +151,10 @@ export function calculateRoomStats(room: Room, walls: Wall[], shunts: { x: numbe
             // If dot < -0.99, segments are almost collinear (180 deg), no reduction
             if (dot < -0.99) return 0
 
+            // If dot > 0.99, the polygon trace is folding directly back on itself (dangling wall tip).
+            // Returning negative half-thickness forces the calculation to ADD the tip's thickness to the perimeter.
+            if (dot > 0.99) return -sB.thickness / 2
+
             // For now, use 90-degree simplification: internal face is shifted by half thickness
             // A more complex triangulation could be used for arbitrary angles, 
             // but for floor plans this covers the vast majority of cases.
@@ -239,11 +243,23 @@ export function calculateRoomStats(room: Room, walls: Wall[], shunts: { x: numbe
             // Skip invisible walls
             if (seg.isInvisible) continue
 
-            // Find the matching wall to check disabledCeramicWalls
+            // Find the matching wall and determine faceId (Forward/Backward)
             const midP = { x: (seg.p1.x + seg.p2.x) / 2, y: (seg.p1.y + seg.p2.y) / 2 }
             const wall = walls.find(w => isPointOnSegment(midP, w.start, w.end, 4.0))
-            const segmentId = wall?.id || `seg-${i}`
-            if (room.disabledCeramicWalls?.includes(segmentId)) continue
+            
+            let isTilingDisabled = false;
+            if (wall) {
+                const wDir = { x: wall.end.x - wall.start.x, y: wall.end.y - wall.start.y };
+                const sDir = { x: seg.p2.x - seg.p1.x, y: seg.p2.y - seg.p1.y };
+                const dot = wDir.x * sDir.x + wDir.y * sDir.y;
+                const side = dot >= 0 ? 'F' : 'B';
+                const faceId = `${wall.id}:${side}`;
+                isTilingDisabled = !!room.disabledCeramicWalls?.includes(faceId) || !!room.disabledCeramicWalls?.includes(wall.id);
+            } else {
+                isTilingDisabled = !!room.disabledCeramicWalls?.includes(`seg-${i}`);
+            }
+
+            if (isTilingDisabled) continue
 
             const prev = segments[(i - 1 + segments.length) % segments.length]
             const next = segments[(i + 1) % segments.length]
@@ -259,6 +275,7 @@ export function calculateRoomStats(room: Room, walls: Wall[], shunts: { x: numbe
                 if (magA < 0.1 || magB < 0.1) return 0
                 const dot = (va.x * vb.x + va.y * vb.y) / (magA * magB)
                 if (dot < -0.99) return 0
+                if (dot > 0.99) return -sB.thickness / 2
                 return sB.thickness / 2
             }
 

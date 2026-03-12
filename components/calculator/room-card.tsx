@@ -21,7 +21,6 @@ import {
   Package,
   PlusCircle,
   Shirt,
-  DoorOpen,
   GalleryVertical as RulerVertical,
   RefreshCw,
   Ruler,
@@ -1378,21 +1377,7 @@ export function RoomCard({
                     </TooltipContent>
                   </Tooltip>
 
-                  {room.hasDoors && room.doorList && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="ml-2 flex items-center">
-                            <DoorOpen className="h-3 w-3 mr-1" />
-                            {room.doorList.length}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Puertas</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
+
 
                   {room.customHeight && (
                     <Tooltip>
@@ -1805,27 +1790,22 @@ export function RoomCard({
 
               {/* Measures Section Redesign */}
               <div className="bg-slate-50/50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden mt-2 shadow-sm">
-                <div className="px-3 py-1.5 border-b border-slate-200 dark:border-slate-800 bg-slate-100/30 dark:bg-slate-900/40 flex items-center justify-between">
+                <div className="px-3 py-1.5 border-b border-slate-200 dark:border-slate-800 bg-slate-100/30 dark:bg-slate-900/40 flex items-center">
                   <div className="flex items-center gap-2">
                     <div className="p-1 bg-primary/10 rounded-md">
                       <Ruler className="h-3 w-3 text-primary" />
                     </div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Dimensiones</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-[8px] font-medium h-4 px-1 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500">
-                      MÁX. 20m
-                    </Badge>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => toggleMeasurementMode()}
-                      className="h-6 w-6 p-0 hover:bg-white dark:hover:bg-slate-800 text-slate-400 hover:text-primary transition-colors"
+                      className="h-5 w-5 p-0 hover:bg-white dark:hover:bg-slate-800 text-slate-400 hover:text-primary transition-colors ml-0.5"
                       title="Cambiar modo de medición"
                       disabled={isReadOnly}
                     >
-                      <RefreshCw className="h-3 w-3" />
+                      <RefreshCw className="h-2.5 w-2.5" />
                     </Button>
                   </div>
                 </div>
@@ -1879,11 +1859,11 @@ export function RoomCard({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setIsShapeEditorOpen(true)}
-                                className="h-4 w-4 p-0 text-primary hover:bg-primary/10 rounded-full transition-transform hover:scale-110"
+                                className="h-8 w-8 p-0 text-primary/80 hover:text-primary hover:bg-primary/10 rounded-full transition-all flex items-center justify-center -mr-2 hover:scale-110 active:scale-95 shadow-none hover:shadow-sm"
                                 title="Editor de formas"
                                 disabled={isReadOnly}
                               >
-                                <Edit className="h-2.5 w-2.5" />
+                                <Edit className="h-4 w-4" />
                               </Button>
                             )}
                           </div>

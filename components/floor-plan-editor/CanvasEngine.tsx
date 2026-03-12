@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 import React from "react"
 import { Stage, Layer, Group, Line, Rect, Text, Circle, Arc as KonvaArc, Arrow } from "react-konva"
 import { Grid } from "./Grid"
@@ -496,6 +496,7 @@ export const CanvasEngine = ({
     const [draggedWallId, setDraggedWallId] = React.useState<string | null>(null)
     const [alignmentGuides, setAlignmentGuides] = React.useState<{ x?: number, y?: number } | null>(null)
     const [image, setImage] = React.useState<HTMLImageElement | null>(null)
+    const [hoveredCeramicFaceId, setHoveredCeramicFaceId] = React.useState<string | null>(null)
 
     // Generic Input State for Inline Editing (Shunts, Doors, Windows, Measures)
     const [editInputState, setEditInputState] = React.useState<{
@@ -782,7 +783,7 @@ export const CanvasEngine = ({
             y: screenY,
             width: screenWidth,
             height: screenHeight,
-            pixelRatio: 2,
+            pixelRatio: 1,
             mimeType: "image/png"
         })
         console.log(`DEBUG: Snapshot generated, len=${dataUrl?.length}`)
@@ -2038,118 +2039,245 @@ export const CanvasEngine = ({
 
         // HERRAMIENTA CERÁMICA
         if (activeTool === "ceramic") {
-            const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
+            const pos = getRawPointerPosition(stage)
 
-            // 1. Intentar toggle de alicatado en muro
-            let bestSegWallId: string | null = null
-            let minDist = 30 / zoom
-            const roomId = getRoomIdAt(pos)
-            if (roomId) {
-                const room = rooms.find(r => r.id === roomId)
-                if (room) {
-                    room.polygon.forEach((p1, k) => {
-                        const p2 = room.polygon[(k + 1) % room.polygon.length]
-                        const { point: proj } = getClosestPointOnSegment(pos, p1, p2)
-                        const d = Math.sqrt((pos.x - proj.x) ** 2 + (pos.y - proj.y) ** 2)
-                        if (d < minDist) {
-                            // Buscar el muro real que coincide con este segmento del polígono
+            // Use the hovered face ID (set by handleStagePointerMove using direct wall-normal detection)
+            let bestFaceId: string | null = hoveredCeramicFaceId
+
+            // If no hovered face (e.g. tap without hover), compute directly from cursor
+            if (!bestFaceId) {
+                let bestWallPerp = 20 / zoom
+                for (const wall of walls) {
+                    if (wall.isInvisible) continue
+                    const wdx = wall.end.x - wall.start.x
+                    const wdy = wall.end.y - wall.start.y
+                    const wallLen = Math.sqrt(wdx * wdx + wdy * wdy)
+                    if (wallLen < 0.1) continue
+                    const ux = wdx / wallLen, uy = wdy / wallLen
+                    const cx = pos.x - wall.start.x, cy = pos.y - wall.start.y
+                    const along = cx * ux + cy * uy
+                    if (along < -wall.thickness || along > wallLen + wall.thickness) continue
+                    const perp = cx * (-uy) + cy * ux
+                    const perpAbs = Math.abs(perp)
+                    if (perpAbs >= bestWallPerp) continue
+                    // Nudge test point toward cursor's side, find owning room
+                    const nudge = wall.thickness / 2 + 8
+                    const t = Math.max(0, Math.min(1, (cx * ux + cy * uy) / wallLen))
+                    const projX = wall.start.x + t * ux * wallLen
+                    const projY = wall.start.y + t * uy * wallLen
+                    const nSign = perp >= 0 ? 1 : -1
+                    const testX = projX + (-uy) * nSign * nudge
+                    const testY = projY + ux * nSign * nudge
+                    let ownerRoom: typeof rooms[0] | null = null
+                    for (const room of rooms) {
+                        if (isPointInPolygon({ x: testX, y: testY }, room.polygon)) {
+                            ownerRoom = room; break
+                        }
+                    }
+                    if (ownerRoom) {
+                        let closestSegDist = Infinity
+                        for (let i = 0; i < ownerRoom.polygon.length; i++) {
+                            const p1 = ownerRoom.polygon[i]
+                            const p2 = ownerRoom.polygon[(i + 1) % ownerRoom.polygon.length]
                             const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
-                            const foundWall = walls.find(w => {
-                                const dx_w = w.end.x - w.start.x
-                                const dy_w = w.end.y - w.start.y
-                                const lengthSq = dx_w * dx_w + dy_w * dy_w
-                                if (lengthSq === 0) return false
-                                const t = Math.max(0, Math.min(1, ((midP.x - w.start.x) * dx_w + (midP.y - w.start.y) * dy_w) / lengthSq))
-                                const projX = w.start.x + t * dx_w
-                                const projY = w.start.y + t * dy_w
-                                return Math.sqrt((midP.x - projX) ** 2 + (midP.y - projY) ** 2) < 5.0
-                            })
-                            if (foundWall) {
-                                bestSegWallId = foundWall.id
-                                minDist = d
+                            const { point: proj2 } = getClosestPointOnSegment(midP, wall.start, wall.end)
+                            const segDist = Math.sqrt((midP.x - proj2.x) ** 2 + (midP.y - proj2.y) ** 2)
+                            if (segDist < (wall.thickness / 2) + 5 && segDist < closestSegDist) {
+                                closestSegDist = segDist
+                                const wDir = { x: wall.end.x - wall.start.x, y: wall.end.y - wall.start.y }
+                                const sDir = { x: p2.x - p1.x, y: p2.y - p1.y }
+                                const dot = wDir.x * sDir.x + wDir.y * sDir.y
+                                const side = dot >= 0 ? 'F' : 'B'
+                                bestFaceId = `${wall.id}:${side}`
+                                bestWallPerp = perpAbs
                             }
                         }
-                    })
+                    }
                 }
             }
 
-            if (bestSegWallId && roomId) {
-                const room = rooms.find(r => r.id === roomId)!
-                const currentDisabled = room.disabledCeramicWalls || []
-                let nextDisabled: string[]
-                let nextHasCeramicWalls = room.hasCeramicWalls
+            if (bestFaceId) {
+                // Find the room whose interior contains this face
+                // A room "owns" a face if:
+                //   - it has a polygon segment aligned with the wall, AND
+                //   - the wall is on the interior side of that segment (the segment faces into the room)
+                const [wallId, faceSide] = bestFaceId.split(':')
+                const wall = walls.find(w => w.id === wallId)
+                let roomId: string | null = null
 
-                if (!nextHasCeramicWalls) {
-                    // Activar paredes cerámicas para la habitación, pero deshabilitar todas excepto la clicada
-                    nextHasCeramicWalls = true
-                    // Obtenemos todos los muros que forman esta habitación
-                    const roomWallIds = walls
-                        .filter(w => !w.isInvisible && room.polygon.some((p, i) => {
-                            const pNext = room.polygon[(i + 1) % room.polygon.length]
-                            const midW = { x: (w.start.x + w.end.x) / 2, y: (w.start.y + w.end.y) / 2 }
-                            const { point: projW } = getClosestPointOnSegment(midW, p, pNext)
-                            const distW = Math.sqrt((midW.x - projW.x) ** 2 + (midW.y - projW.y) ** 2)
-                            return distW < 5.0
-                        }))
-                        .map(w => w.id)
-
-                    nextDisabled = roomWallIds.filter(id => id !== bestSegWallId)
-                } else {
-                    nextDisabled = currentDisabled.includes(bestSegWallId)
-                        ? currentDisabled.filter(id => id !== bestSegWallId)
-                        : [...currentDisabled, bestSegWallId]
+                if (wall) {
+                    for (const room of rooms) {
+                        let found = false
+                        for (let i = 0; i < room.polygon.length; i++) {
+                            const p1 = room.polygon[i]
+                            const p2 = room.polygon[(i + 1) % room.polygon.length]
+                            const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+                            const { point: proj } = getClosestPointOnSegment(midP, wall.start, wall.end)
+                            const d = Math.sqrt((midP.x - proj.x) ** 2 + (midP.y - proj.y) ** 2)
+                            if (d > (wall.thickness / 2) + 5) continue
+                            // Check which side of the wall this room segment represents
+                            const wDir = { x: wall.end.x - wall.start.x, y: wall.end.y - wall.start.y }
+                            const sDir = { x: p2.x - p1.x, y: p2.y - p1.y }
+                            const dot = wDir.x * sDir.x + wDir.y * sDir.y
+                            const segSide = dot >= 0 ? 'F' : 'B'
+                            if (segSide === faceSide) {
+                                roomId = room.id
+                                found = true
+                                break
+                            }
+                        }
+                        if (found) break
+                    }
                 }
-                onUpdateRoom(roomId, { hasCeramicWalls: nextHasCeramicWalls, disabledCeramicWalls: nextDisabled })
-                return
+
+                if (roomId) {
+                    const room = rooms.find(r => r.id === roomId)!
+                    const currentDisabled = room.disabledCeramicWalls || []
+                    let nextDisabled: string[]
+                    let nextHasCeramicWalls = room.hasCeramicWalls
+
+                    if (!nextHasCeramicWalls) {
+                        nextHasCeramicWalls = true
+                        // Collect all face IDs for this room, disable all except the clicked one
+                        const faceIds: string[] = []
+                        room.polygon.forEach((p, i) => {
+                            const pNext = room.polygon[(i + 1) % room.polygon.length]
+                            const midP = { x: (p.x + pNext.x) / 2, y: (p.y + pNext.y) / 2 }
+                            const w = walls.find(w => {
+                                if (w.isInvisible) return false
+                                const { point: proj } = getClosestPointOnSegment(midP, w.start, w.end)
+                                const dist = Math.sqrt((midP.x - proj.x) ** 2 + (midP.y - proj.y) ** 2)
+                                return dist < (w.thickness / 2) + 5.0
+                            })
+                            if (w) {
+                                const wDir = { x: w.end.x - w.start.x, y: w.end.y - w.start.y }
+                                const sDir = { x: pNext.x - p.x, y: pNext.y - p.y }
+                                const dot = wDir.x * sDir.x + wDir.y * sDir.y
+                                const side = dot >= 0 ? 'F' : 'B'
+                                faceIds.push(`${w.id}:${side}`)
+                            }
+                        })
+                        nextDisabled = faceIds.filter(id => id !== bestFaceId)
+                    } else {
+                        const parts = bestFaceId!.split(':')
+                        const wId = parts[0]
+                        if (currentDisabled.includes(bestFaceId!)) {
+                            nextDisabled = currentDisabled.filter(id => id !== bestFaceId)
+                        } else if (currentDisabled.includes(wId)) {
+                            const side = parts[1], otherSide = side === 'F' ? 'B' : 'F'
+                            nextDisabled = [...currentDisabled.filter(id => id !== wId), `${wId}:${otherSide}`]
+                        } else {
+                            nextDisabled = [...currentDisabled, bestFaceId!]
+                        }
+                    }
+                    onUpdateRoom(roomId, { hasCeramicWalls: nextHasCeramicWalls, disabledCeramicWalls: nextDisabled })
+                    return
+                }
             }
 
             // 2. Intentar toggle de suelo cerámico
-            if (roomId) {
-                const room = rooms.find(r => r.id === roomId)!
-                onUpdateRoom(roomId, { hasCeramicFloor: !room.hasCeramicFloor })
+            const clickedRoom = rooms.find(r => isPointInPolygon(pos, r.polygon))
+            if (clickedRoom) {
+                onUpdateRoom(clickedRoom.id, { hasCeramicFloor: !clickedRoom.hasCeramicFloor })
                 return
             }
         }
 
         // HERRAMIENTA GOMA (BORRADOR)
         if (activeTool === "eraser") {
-            const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
+            const pos = getRawPointerPosition(stage)
 
-            // 1. Quitar alicatado si clicamos en un muro alicatado
-            const roomId = getRoomIdAt(pos)
-            if (roomId) {
-                const room = rooms.find(r => r.id === roomId)!
-                if (room.hasCeramicWalls) {
-                    let bestSegWallId: string | null = null
-                    let minDist = 30 / zoom
-                    room.polygon.forEach((p1, k) => {
-                        const p2 = room.polygon[(k + 1) % room.polygon.length]
-                        const { point: proj } = getClosestPointOnSegment(pos, p1, p2)
-                        const d = Math.sqrt((pos.x - proj.x) ** 2 + (pos.y - proj.y) ** 2)
-                        if (d < minDist) {
+            // Use hovered face ID (set by direct wall-normal hover detection)
+            let bestFaceId: string | null = hoveredCeramicFaceId
+
+            // Fallback: compute directly if no hover
+            if (!bestFaceId) {
+                let bestWallPerp = 20 / zoom
+                for (const wall of walls) {
+                    if (wall.isInvisible) continue
+                    const wdx = wall.end.x - wall.start.x
+                    const wdy = wall.end.y - wall.start.y
+                    const wallLen = Math.sqrt(wdx * wdx + wdy * wdy)
+                    if (wallLen < 0.1) continue
+                    const ux = wdx / wallLen, uy = wdy / wallLen
+                    const cx = pos.x - wall.start.x, cy = pos.y - wall.start.y
+                    const along = cx * ux + cy * uy
+                    if (along < -wall.thickness || along > wallLen + wall.thickness) continue
+                    const perp = cx * (-uy) + cy * ux
+                    const perpAbs = Math.abs(perp)
+                    if (perpAbs >= bestWallPerp) continue
+                    const nudge = wall.thickness / 2 + 8
+                    const t = Math.max(0, Math.min(1, (cx * ux + cy * uy) / wallLen))
+                    const projX = wall.start.x + t * ux * wallLen
+                    const projY = wall.start.y + t * uy * wallLen
+                    const nSign = perp >= 0 ? 1 : -1
+                    const testX = projX + (-uy) * nSign * nudge
+                    const testY = projY + ux * nSign * nudge
+                    let ownerRoom: typeof rooms[0] | null = null
+                    for (const room of rooms) {
+                        if (isPointInPolygon({ x: testX, y: testY }, room.polygon)) {
+                            ownerRoom = room; break
+                        }
+                    }
+                    if (ownerRoom) {
+                        let closestSegDist = Infinity
+                        for (let i = 0; i < ownerRoom.polygon.length; i++) {
+                            const p1 = ownerRoom.polygon[i]
+                            const p2 = ownerRoom.polygon[(i + 1) % ownerRoom.polygon.length]
                             const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
-                            const foundWall = walls.find(w => {
-                                const dx_w = w.end.x - w.start.x
-                                const dy_w = w.end.y - w.start.y
-                                const lengthSq = dx_w * dx_w + dy_w * dy_w
-                                if (lengthSq === 0) return false
-                                const t = Math.max(0, Math.min(1, ((midP.x - w.start.x) * dx_w + (midP.y - w.start.y) * dy_w) / lengthSq))
-                                const projX = w.start.x + t * dx_w
-                                const projY = w.start.y + t * dy_w
-                                return Math.sqrt((midP.x - projX) ** 2 + (midP.y - projY) ** 2) < 5.0
-                            })
-                            // Solo si el muro TIENE alicatado (no está en disabledCeramicWalls)
-                            if (foundWall && !(room.disabledCeramicWalls || []).includes(foundWall.id)) {
-                                bestSegWallId = foundWall.id
-                                minDist = d
+                            const { point: proj2 } = getClosestPointOnSegment(midP, wall.start, wall.end)
+                            const segDist = Math.sqrt((midP.x - proj2.x) ** 2 + (midP.y - proj2.y) ** 2)
+                            if (segDist < (wall.thickness / 2) + 5 && segDist < closestSegDist) {
+                                closestSegDist = segDist
+                                const wDir = { x: wall.end.x - wall.start.x, y: wall.end.y - wall.start.y }
+                                const sDir = { x: p2.x - p1.x, y: p2.y - p1.y }
+                                const side = wDir.x * sDir.x + wDir.y * sDir.y >= 0 ? 'F' : 'B'
+                                bestFaceId = `${wall.id}:${side}`
+                                bestWallPerp = perpAbs
                             }
                         }
-                    })
-                    if (bestSegWallId) {
-                        const currentDisabled = room.disabledCeramicWalls || []
-                        onUpdateRoom(room.id, { disabledCeramicWalls: [...currentDisabled, bestSegWallId] })
-                        return
                     }
+                }
+            }
+
+            if (bestFaceId) {
+                const [wallId, faceSide] = bestFaceId.split(':')
+                const wall = walls.find(w => w.id === wallId)
+                let roomId: string | null = null
+
+                if (wall) {
+                    for (const room of rooms) {
+                        let found = false
+                        for (let i = 0; i < room.polygon.length; i++) {
+                            const p1 = room.polygon[i]
+                            const p2 = room.polygon[(i + 1) % room.polygon.length]
+                            const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+                            const { point: proj } = getClosestPointOnSegment(midP, wall.start, wall.end)
+                            const d = Math.sqrt((midP.x - proj.x) ** 2 + (midP.y - proj.y) ** 2)
+                            if (d > (wall.thickness / 2) + 5) continue
+                            const wDir = { x: wall.end.x - wall.start.x, y: wall.end.y - wall.start.y }
+                            const sDir = { x: p2.x - p1.x, y: p2.y - p1.y }
+                            const dot = wDir.x * sDir.x + wDir.y * sDir.y
+                            const segSide = dot >= 0 ? 'F' : 'B'
+                            if (segSide === faceSide) {
+                                // Only erase if this face is actually enabled (has ceramic)
+                                const disabled = room.disabledCeramicWalls || []
+                                if (room.hasCeramicWalls && !disabled.includes(bestFaceId!) && !disabled.includes(wallId)) {
+                                    roomId = room.id
+                                }
+                                found = true
+                                break
+                            }
+                        }
+                        if (found) break
+                    }
+                }
+
+                if (roomId) {
+                    const room = rooms.find(r => r.id === roomId)!
+                    const currentDisabled = room.disabledCeramicWalls || []
+                    onUpdateRoom(room.id, { disabledCeramicWalls: [...currentDisabled, bestFaceId!] })
+                    return
                 }
             }
 
@@ -2168,7 +2296,7 @@ export const CanvasEngine = ({
 
         // LÓGICA DE GOMA CERÁMICA DESDE EL MENÚ DE HABITACIÓN
         if (isCeramicEraserActive && selectedRoomId) {
-            const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
+            const pos = getRawPointerPosition(stage) // Use raw coordinates
             const room = rooms.find(r => r.id === selectedRoomId)
             if (room && room.hasCeramicWalls) {
                 let bestSegWallId: string | null = null
@@ -2187,11 +2315,20 @@ export const CanvasEngine = ({
                             const t = Math.max(0, Math.min(1, ((midP.x - w.start.x) * dx_w + (midP.y - w.start.y) * dy_w) / lengthSq))
                             const projX = w.start.x + t * dx_w
                             const projY = w.start.y + t * dy_w
-                            return Math.sqrt((midP.x - projX) ** 2 + (midP.y - projY) ** 2) < 5.0
+                            const dist = Math.sqrt((midP.x - projX) ** 2 + (midP.y - projY) ** 2)
+                            return dist < (w.thickness / 2) + 5.0
                         })
-                        if (foundWall && !(room.disabledCeramicWalls || []).includes(foundWall.id)) {
-                            bestSegWallId = foundWall.id
-                            minDist = d
+                        if (foundWall) {
+                            const wDir = { x: foundWall.end.x - foundWall.start.x, y: foundWall.end.y - foundWall.start.y };
+                            const sDir = { x: p2.x - p1.x, y: p2.y - p1.y };
+                            const dot = wDir.x * sDir.x + wDir.y * sDir.y;
+                            const side = dot >= 0 ? 'F' : 'B';
+                            const faceId = `${foundWall.id}:${side}`;
+                            
+                            if (!(room.disabledCeramicWalls || []).includes(faceId) && !(room.disabledCeramicWalls || []).includes(foundWall.id)) {
+                                bestSegWallId = faceId;
+                                minDist = d;
+                            }
                         }
                     }
                 })
@@ -2355,6 +2492,91 @@ export const CanvasEngine = ({
         // If we're in aiming mode, update the preview
         if ((activeTool === "wall" && currentWall) || (activeTool === "ruler") || (activeTool === "arc")) {
             onMouseMove(pos)
+        }
+
+
+        if (activeTool === "ceramic" || activeTool === "eraser") {
+            const pos_raw = getRawPointerPosition(stage)
+            let bestFaceId: string | null = null
+            let bestWallPerp = 20 / zoom  // threshold: max perp distance to care about a wall
+
+            for (const wall of walls) {
+                if (wall.isInvisible) continue
+                const wdx = wall.end.x - wall.start.x
+                const wdy = wall.end.y - wall.start.y
+                const wallLen = Math.sqrt(wdx * wdx + wdy * wdy)
+                if (wallLen < 0.1) continue
+                const ux = wdx / wallLen, uy = wdy / wallLen
+
+                // Cursor offset from wall start
+                const cx = pos_raw.x - wall.start.x
+                const cy = pos_raw.y - wall.start.y
+
+                // Along-axis check: cursor must be within wall span (with margin)
+                const along = cx * ux + cy * uy
+                if (along < -wall.thickness || along > wallLen + wall.thickness) continue
+
+                // Perpendicular (signed) distance from wall centerline
+                // Left normal = (-uy, ux). perp > 0 = cursor is to the left, perp < 0 = to the right
+                const perp = cx * (-uy) + cy * ux
+                const perpAbs = Math.abs(perp)
+
+                if (perpAbs >= bestWallPerp) continue  // Not the closest wall
+
+                // Nudge a test point past the centerline on the cursor's side.
+                // We'll check which room polygon contains this test point.
+                const nudge = wall.thickness / 2 + 8
+                // Closest point on wall centerline to cursor
+                const t = Math.max(0, Math.min(1, (cx * ux + cy * uy) / wallLen))
+                const projX = wall.start.x + t * ux * wallLen
+                const projY = wall.start.y + t * uy * wallLen
+
+                // Nudge toward the same side as the cursor
+                const nSign = perp >= 0 ? 1 : -1  // same sign as perp
+                const testX = projX + (-uy) * nSign * nudge
+                const testY = projY + (ux) * nSign * nudge
+
+                // Find which room contains the test point
+                let ownerRoom: typeof rooms[0] | null = null
+                for (const room of rooms) {
+                    if (isPointInPolygon({ x: testX, y: testY }, room.polygon)) {
+                        ownerRoom = room
+                        break
+                    }
+                }
+
+                if (ownerRoom) {
+                    // Find which segment of this room aligns with this wall
+                    // Use the segment direction vs wall direction to determine F/B
+                    let foundFace: string | null = null
+                    let closestSegDist = Infinity
+                    for (let i = 0; i < ownerRoom.polygon.length; i++) {
+                        const p1 = ownerRoom.polygon[i]
+                        const p2 = ownerRoom.polygon[(i + 1) % ownerRoom.polygon.length]
+                        const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+                        const { point: proj2 } = getClosestPointOnSegment(midP, wall.start, wall.end)
+                        const segDist = Math.sqrt((midP.x - proj2.x) ** 2 + (midP.y - proj2.y) ** 2)
+                        if (segDist < (wall.thickness / 2) + 5 && segDist < closestSegDist) {
+                            closestSegDist = segDist
+                            const wDir = { x: wall.end.x - wall.start.x, y: wall.end.y - wall.start.y }
+                            const sDir = { x: p2.x - p1.x, y: p2.y - p1.y }
+                            const dot = wDir.x * sDir.x + wDir.y * sDir.y
+                            const side = dot >= 0 ? 'F' : 'B'
+                            foundFace = `${wall.id}:${side}`
+                        }
+                    }
+                    if (foundFace) {
+                        bestFaceId = foundFace
+                        bestWallPerp = perpAbs
+                    }
+                }
+            }
+
+            if (bestFaceId !== hoveredCeramicFaceId) {
+                setHoveredCeramicFaceId(bestFaceId)
+            }
+        } else if (hoveredCeramicFaceId) {
+            setHoveredCeramicFaceId(null)
         }
     }
 
@@ -2573,14 +2795,7 @@ export const CanvasEngine = ({
 
     return (
         <div className="w-full h-full bg-slate-50 overflow-hidden"
-            style={{
-                touchAction: 'none',
-                cursor: (isCeramicEraserActive || activeTool === "eraser")
-                    ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21'/%3E%3Cpath d='M22 21H7'/%3E%3Cpath d='m5 11 9 9'/%3E%3C/svg%3E") 12 12, pointer`
-                    : activeTool === "ceramic"
-                        ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230ea5e9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='18' x='3' y='3' rx='2'/%3E%3Cpath d='M3 9h18'/%3E%3Cpath d='M3 15h18'/%3E%3Cpath d='M9 3v18'/%3E%3Cpath d='M15 3v18'/%3E%3C/svg%3E") 12 12, pointer`
-                        : undefined
-            }}>
+            style={{ touchAction: 'none' }}>
             <Stage
                 ref={stageRef}
                 width={width}
@@ -2610,7 +2825,18 @@ export const CanvasEngine = ({
                 }}
                 onMouseLeave={handleMouseLeave}
                 onContextMenu={(e: any) => e.evt.preventDefault()}
-                style={{ cursor: isPanningState ? 'grabbing' : (activeTool === "wall" || activeTool === "arc" || activeTool === "ruler") ? 'crosshair' : 'default', touchAction: 'none' }}
+                style={{ 
+                    cursor: isPanningState 
+                        ? 'grabbing' 
+                        : (isCeramicEraserActive || activeTool === "eraser")
+                            ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none' stroke='%23ef4444' stroke-width='2'%3E%3Cpath d='M1 1 L12 5 L5 12 Z' fill='%23ef4444'/%3E%3Cpath d='M14 18l4-4 8 8-4 4zM24 12l4 4' stroke='%23ef4444' stroke-width='2'/%3E%3C/svg%3E") 2 2, pointer`
+                            : activeTool === "ceramic"
+                                ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none' stroke='%230ea5e9' stroke-width='2'%3E%3Cpath d='M1 1 L12 5 L5 12 Z' fill='%230ea5e9'/%3E%3Crect width='14' height='14' x='14' y='14' rx='2' stroke='%230ea5e9' stroke-width='2'/%3E%3Cpath d='M14 21h14M21 14v14' stroke='%230ea5e9' stroke-width='1'/%3E%3C/svg%3E") 2 2, pointer`
+                                : (activeTool === "wall" || activeTool === "arc" || activeTool === "ruler") 
+                                    ? 'crosshair' 
+                                    : 'default', 
+                    touchAction: 'none' 
+                }}
             >
                 <Layer>
                     {/* Clean background white/gray */}
@@ -2713,52 +2939,137 @@ export const CanvasEngine = ({
                                     )}
 
                                     {/* 4. Ceramic Walls Visualization (Dashed Internal Border) */}
-                                    {room.hasCeramicWalls && (
+                                    {/* 4. Ceramic Walls Visualization (Dashed Internal Border) */}
+                                    {room.hasCeramicWalls ? (
                                         <Group listening={false}>
                                             <Group
                                                 clipFunc={(ctx) => {
                                                     ctx.beginPath();
-                                                    for (let i = 0; i < room.polygon.length; i++) {
-                                                        const p = room.polygon[i];
+                                                    room.polygon.forEach((p, i) => {
                                                         if (i === 0) ctx.moveTo(p.x, p.y);
                                                         else ctx.lineTo(p.x, p.y);
-                                                    }
+                                                    });
                                                     ctx.closePath();
                                                     ctx.clip();
                                                 }}
                                             >
-                                                {room.polygon.map((p1, i) => {
-                                                    const p2 = room.polygon[(i + 1) % room.polygon.length];
-                                                    const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-                                                    const wall = walls.find(w => isPointOnSegment(midP, w.start, w.end, 4.0));
-                                                    // Skip invisible walls - they are partition boundaries, not ceramic surfaces
-                                                    if (wall?.isInvisible) return null;
-                                                    const segmentId = wall?.id || `seg-${i}`;
-                                                    if (room.disabledCeramicWalls?.includes(segmentId)) return null;
+                                                {(() => {
+                                                    const getDist = (a: {x:number, y:number}, b: {x:number, y:number}) => 
+                                                        Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2);
 
-                                                    return (
-                                                        <React.Fragment key={`${room.id}-${segmentId}-${i}`}>
-                                                            {/* Dashed line slightly inset by drawing a thick line and clipping it */}
-                                                            <Line
-                                                                points={[p1.x, p1.y, p2.x, p2.y]}
-                                                                stroke="#1e293b" // Even darker slate
-                                                                strokeWidth={16 / zoom} // Thicker dashes
-                                                                dash={[12 / zoom, 6 / zoom]} // Larger dashed pattern
-                                                                opacity={0.8}
-                                                            />
-                                                            {/* Masking the outermost part of the dash to create the "inset" look */}
-                                                            <Line
-                                                                points={[p1.x, p1.y, p2.x, p2.y]}
-                                                                stroke="#ffffff"
-                                                                strokeWidth={4 / zoom}
-                                                                opacity={1}
-                                                            />
-                                                        </React.Fragment>
-                                                    );
-                                                })}
+                                                    // 1. Prioritized pass: find closest visible wall first
+                                                    const raw = room.polygon.map((p1, i) => {
+                                                        const p2 = room.polygon[(i + 1) % room.polygon.length];
+                                                        const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+                                                        const len = getDist(p1, p2);
+                                                        let best = null;
+                                                        let minDist = 9999;
+
+                                                        // Pass A: Visible walls (Wide search)
+                                                        for (const w of walls) {
+                                                            if (w.isInvisible) continue;
+                                                            const { point: proj } = getClosestPointOnSegment(midP, w.start, w.end);
+                                                            const d = getDist(midP, proj);
+                                                            if (d < w.thickness + 20 && d < minDist) {
+                                                                minDist = d;
+                                                                best = w;
+                                                            }
+                                                        }
+                                                        // Pass B: Invisible fallback (Tiny search)
+                                                        if (!best) {
+                                                            minDist = 9999;
+                                                            for (const w of walls) {
+                                                                if (!w.isInvisible) continue;
+                                                                const { point: proj } = getClosestPointOnSegment(midP, w.start, w.end);
+                                                                const d = getDist(midP, proj);
+                                                                if (d < 15 && d < minDist) {
+                                                                    minDist = d;
+                                                                    best = w;
+                                                                }
+                                                            }
+                                                        }
+                                                        return { p1, p2, wall: best, len };
+                                                    });
+
+                                                    // 2. Aggressive Healing Pass
+                                                    const segments = raw.map((s, i) => {
+                                                        const p = raw[(i - 1 + raw.length) % raw.length];
+                                                        const n = raw[(i + 1) % raw.length];
+                                                        let w = s.wall;
+                                                        // If it's a short tip (< 40px), prefer visible neighbors
+                                                        const pVis = p.wall && !p.wall.isInvisible;
+                                                        const nVis = n.wall && !n.wall.isInvisible;
+                                                        if (s.len < 40 && (pVis || nVis)) {
+                                                            w = pVis ? p.wall : n.wall;
+                                                        } else if (!w) {
+                                                            w = p.wall || n.wall;
+                                                        }
+                                                        const wt = w ? Math.round(w.thickness) : 10;
+                                                        const inv = !!w?.isInvisible;
+                                                        
+                                                        // Accurate face-specific disabling
+                                                        let dis = false;
+                                                        let hvr = false;
+                                                        if (w) {
+                                                            const wDir = { x: w.end.x - w.start.x, y: w.end.y - w.start.y };
+                                                            const sDir = { x: s.p2.x - s.p1.x, y: s.p2.y - s.p1.y };
+                                                            const dot = wDir.x * sDir.x + wDir.y * sDir.y;
+                                                            const side = dot >= 0 ? 'F' : 'B';
+                                                            const faceId = `${w.id}:${side}`;
+                                                            dis = (room.disabledCeramicWalls?.includes(faceId) || room.disabledCeramicWalls?.includes(w.id)) || false;
+                                                            hvr = hoveredCeramicFaceId === faceId;
+                                                        }
+                                                        
+                                                        return { p1: s.p1, p2: s.p2, wt, inv, dis, hvr };
+                                                    });
+
+                                                    // 3. Group into chains
+                                                    const chains: any[] = [];
+                                                    for (const s of segments) {
+                                                        const key = `${s.wt}-${s.inv}-${s.dis}-${s.hvr}`;
+                                                        if (chains.length === 0 || chains[chains.length-1].key !== key) {
+                                                            chains.push({ key, wt: s.wt, inv: s.inv, dis: s.dis, hvr: s.hvr, pts: [s.p1.x, s.p1.y, s.p2.x, s.p2.y] });
+                                                        } else {
+                                                            chains[chains.length-1].pts.push(s.p2.x, s.p2.y);
+                                                        }
+                                                    }
+
+                                                    // 4. Close Loop Join
+                                                    if (chains.length > 1 && chains[0].key === chains[chains.length-1].key) {
+                                                        const last = chains.pop();
+                                                        chains[0].pts = [...last.pts.slice(0, -2), ...chains[0].pts];
+                                                    }
+
+                                                    return chains.map((c, idx) => {
+                                                        const isHovered = c.hvr && (activeTool === "ceramic" || activeTool === "eraser");
+                                                        const hColor = activeTool === "ceramic" ? "#0ea5e9" : "#ef4444";
+
+                                                        if (c.inv || (c.dis && !isHovered)) return null;
+                                                        
+                                                        const isC = c.pts.length >= 6 && Math.abs(c.pts[0]-c.pts[c.pts.length-2]) < 0.2 && Math.abs(c.pts[1]-c.pts[c.pts.length-1]) < 0.2;
+                                                        const pts = isC ? c.pts.slice(0, -2) : c.pts;
+                                                        
+                                                        // Tighter look: reduced offsets so it doesn't overlap on narrow tips
+                                                        const outerW = c.wt + 8; // 4px inside room
+                                                        const innerW = c.wt + 2; // 1px inside room
+                                                        
+                                                        return (
+                                                            <Group key={`cer-${room.id}-${idx}`}>
+                                                                {isHovered && <Line points={c.pts} stroke={hColor} strokeWidth={c.wt + 12} opacity={0.4} lineJoin="miter" lineCap="butt" listening={false} />}
+                                                                {!c.dis && (
+                                                                    <>
+                                                                        <Line points={pts} closed={isC} stroke="#ffffff" strokeWidth={outerW} opacity={0.9} lineJoin="miter" lineCap="butt" miterLimit={500} listening={false} />
+                                                                        <Line points={pts} closed={isC} stroke="#0ea5e9" strokeWidth={outerW} dash={[8, 4]} lineJoin="miter" lineCap="butt" miterLimit={500} listening={false} />
+                                                                        <Line points={pts} closed={isC} stroke="#ffffff" strokeWidth={innerW} opacity={1} lineJoin="miter" lineCap="butt" miterLimit={500} listening={false} />
+                                                                    </>
+                                                                )}
+                                                            </Group>
+                                                        );
+                                                    });
+                                                })()}
                                             </Group>
                                         </Group>
-                                    )}
+                                    ) : null}
                                 </Group>
                             )
                         })}
@@ -2937,6 +3248,88 @@ export const CanvasEngine = ({
                                                 {renderWallMeasurement(wall, offsetVal)}
                                             </React.Fragment>
                                         ))
+                                    })()}
+
+                                    {/* MEDIDA DE PUNTA (GROSOR) PARA TABIQUES SUELTOS */}
+                                    {(() => {
+                                        if (wall.isInvisible) return null
+                                        const isStartDangling = !walls.some(w => w.id !== wall.id && !w.isInvisible && (Math.abs(w.start.x - wall.start.x) < 2 && Math.abs(w.start.y - wall.start.y) < 2 || Math.abs(w.end.x - wall.start.x) < 2 && Math.abs(w.end.y - wall.start.y) < 2 || isPointOnSegment(wall.start, w.start, w.end, 1.0)))
+                                        const isEndDangling = !walls.some(w => w.id !== wall.id && !w.isInvisible && (Math.abs(w.start.x - wall.end.x) < 2 && Math.abs(w.start.y - wall.end.y) < 2 || Math.abs(w.end.x - wall.end.x) < 2 && Math.abs(w.end.y - wall.end.y) < 2 || isPointOnSegment(wall.end, w.start, w.end, 1.0)))
+
+                                        const dx = wall.end.x - wall.start.x
+                                        const dy = wall.end.y - wall.start.y
+                                        const len = Math.sqrt(dx * dx + dy * dy)
+                                        if (len < 1) return null
+
+                                        const nx = -dy / len
+                                        const ny = dx / len
+                                        const dirX = dx / len
+                                        const dirY = dy / len
+
+                                        const createTipQuote = (targetPoint: Point, isStart: boolean) => {
+                                            const tipNormX = isStart ? -dirX : dirX
+                                            const tipNormY = isStart ? -dirY : dirY
+
+                                            const safeOffset = 10
+                                            const testP = { x: targetPoint.x + tipNormX * safeOffset, y: targetPoint.y + tipNormY * safeOffset }
+
+                                            let isVisible = false
+                                            if (showAllQuotes || isSelected) {
+                                                isVisible = true
+                                            } else if (selectedRoomId) {
+                                                const selectedRoom = rooms.find(r => r.id === selectedRoomId)
+                                                if (selectedRoom && selectedRoom.area >= 2) {
+                                                    isVisible = isPointInPolygon(testP, selectedRoom.polygon)
+                                                }
+                                            }
+
+                                            if (!isVisible) return null
+
+                                            const offsetVal = 25 / zoom
+                                            const textOff = 12 / zoom
+                                            const color = isSelected ? "#f59e0b" : "#94a3b8"
+
+                                            const cx = targetPoint.x + tipNormX * offsetVal
+                                            const cy = targetPoint.y + tipNormY * offsetVal
+
+                                            const halfT = wall.thickness / 2
+                                            const p1x = cx - nx * halfT
+                                            const p1y = cy - ny * halfT
+                                            const p2x = cx + nx * halfT
+                                            const p2y = cy + ny * halfT
+
+                                            const textX = cx + tipNormX * textOff
+                                            const textY = cy + tipNormY * textOff
+
+                                            let angle = Math.atan2(ny, nx) * (180 / Math.PI)
+                                            if (angle > 90 || angle < -90) angle += 180
+
+                                            return (
+                                                <Group key={`tip-${wall.id}-${isStart ? 'start' : 'end'}`}>
+                                                    <Line points={[p1x, p1y, p2x, p2y]} stroke={color} strokeWidth={1 / zoom} listening={false} />
+                                                    <Line points={[targetPoint.x - nx * halfT, targetPoint.y - ny * halfT, p1x, p1y]} stroke={color} strokeWidth={1 / zoom} dash={[2 / zoom, 2 / zoom]} listening={false} />
+                                                    <Line points={[targetPoint.x + nx * halfT, targetPoint.y + ny * halfT, p2x, p2y]} stroke={color} strokeWidth={1 / zoom} dash={[2 / zoom, 2 / zoom]} listening={false} />
+
+                                                    <Group x={textX} y={textY} rotation={angle} listening={false}>
+                                                        <Rect
+                                                            x={-20 / zoom} y={-8 / zoom} width={40 / zoom} height={16 / zoom}
+                                                            fill="rgba(255,255,255,0.7)" cornerRadius={2 / zoom}
+                                                        />
+                                                        <Text
+                                                            text={wall.thickness.toFixed(1).replace('.', ',')}
+                                                            fontSize={12 / zoom} fill={color} fontStyle="bold"
+                                                            align="center" verticalAlign="middle"
+                                                            x={-20 / zoom} y={-6 / zoom} width={40 / zoom}
+                                                        />
+                                                    </Group>
+                                                </Group>
+                                            )
+                                        }
+
+                                        const tipContent = []
+                                        if (isStartDangling) tipContent.push(createTipQuote(wall.start, true))
+                                        if (isEndDangling) tipContent.push(createTipQuote(wall.end, false))
+                                        return tipContent
                                     })()}
 
                                     {/* MEDIDAS PERPENDICULARES DINÃMICAS */}
@@ -3960,8 +4353,8 @@ export const CanvasEngine = ({
                             const rH = bounds.maxY - bounds.minY
                             const minDim = Math.min(rW, rH)
 
-                            // Scale factor: Base 200px -> Scale 1. Range [0.8, 3.0]
-                            const scale = Math.max(0.8, Math.min(3.0, minDim / 200))
+                            // Scale factor: Base 200px -> Scale 1. Range [1.0, 1.3] (Reduced variance for better readability)
+                            const scale = Math.max(1.0, Math.min(1.3, minDim / 200))
 
                             return (
                                 <Group
@@ -3979,6 +4372,9 @@ export const CanvasEngine = ({
                                             text={room.name}
                                             fontSize={18 * scale}
                                             fill="#1e293b"
+                                            stroke="#ffffff"
+                                            strokeWidth={3 * scale}
+                                            fillAfterStrokeEnabled={true}
                                             fontStyle="bold"
                                             align="center"
                                             offsetX={125 * scale}
@@ -3992,7 +4388,11 @@ export const CanvasEngine = ({
                                             y={12 * scale}
                                             text={`${room.area.toFixed(2).replace('.', ',')} m²`}
                                             fontSize={14 * scale}
-                                            fill="#64748b"
+                                            fill="#475569"
+                                            stroke="#ffffff"
+                                            strokeWidth={3 * scale}
+                                            fillAfterStrokeEnabled={true}
+                                            fontStyle="bold"
                                             align="center"
                                             offsetX={125 * scale}
                                             width={250 * scale}
@@ -4081,8 +4481,9 @@ export const CanvasEngine = ({
                         {/* GuÃ­as inteligentes de alineaciÃ³n */}
                         {/* External & Internal Alignment Guides */}
                         {(() => {
+                            const isSnappingInhibited = (activeTool === "ceramic" || isCeramicEraserActive)
                             const guides = externalGuides || internalAlignmentGuides
-                            if (!guides) return null
+                            if (!guides || isSnappingInhibited) return null
                             return (
                                 <Group listening={false}>
                                     {guides.x !== undefined && (
@@ -4114,7 +4515,8 @@ export const CanvasEngine = ({
                             const isWallTool = activeTool === "wall"
                             const isDragging = !!wallSnapshot
 
-                            if (!snappingEnabled || (!isWallTool && !isDragging)) return null
+                            const isSnappingInhibited = (activeTool === "ceramic" || isCeramicEraserActive)
+                            if (isSnappingInhibited || !snappingEnabled || (!isWallTool && !isDragging)) return null
 
                             // 1. Prioridad: VÃ©rtice
                             const vertex = findNearestVertex(p, 15 / zoom)
@@ -4810,7 +5212,7 @@ export const CanvasEngine = ({
                                                 icon={<Trash2 className="h-3 w-3" />}
                                                 onClick={() => onDeleteRoom(selectedRoomId)}
                                                 variant="danger"
-                                                title="Eliminar HabitaciÃ³n"
+                                                title="Eliminar Habitación"
                                             />
                                             <div className="w-px h-4 bg-slate-100 mx-0.5" />
                                         </>
@@ -4857,6 +5259,7 @@ export const CanvasEngine = ({
                                         }}
                                         onMouseDown={(e) => e.stopPropagation()}
                                         className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"
+                                        title="Cerrar menú"
                                     >
                                         <X className="h-2.5 w-2.5" />
                                     </button>

@@ -40,8 +40,14 @@ export default function EditPlanClient({
             if (response.ok) {
                 toast({ title: "Guardado correctamente", description: "Los cambios se han guardado con éxito.", variant: "default" })
             } else {
-                console.error("Error saving plan")
-                toast({ title: "Error", description: "No se pudo guardar el plano.", variant: "destructive" })
+                const errorText = await response.text()
+                console.error("Error saving plan:", response.status, errorText)
+                try {
+                    const errorJson = JSON.parse(errorText)
+                    toast({ title: "Error", description: `No se pudo guardar: ${errorJson.details || errorJson.error || "Error desconocido"}`, variant: "destructive" })
+                } catch (e) {
+                    toast({ title: "Error", description: "No se pudo guardar el plano.", variant: "destructive" })
+                }
             }
         } catch (error) {
             console.error("Exception saving plan", error)

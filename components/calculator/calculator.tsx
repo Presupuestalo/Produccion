@@ -246,7 +246,6 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   const lastSavedHashRef = useRef<string>("")
   const isInitialLoadRef = useRef<boolean>(true)
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "unsaved">("saved")
-  const [usingFallbackPlan, setUsingFallbackPlan] = useState(false)
   const hasCompletedInitialLoadRef = useRef<boolean>(false)
   const isSavingRef = useRef<boolean>(false)
   const pendingSaveRef = useRef<boolean>(false)
@@ -332,10 +331,16 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   // States for importing floor plan when heights mismatch
   const [pendingBeforePlanData, setPendingBeforePlanData] = useState<any>(null)
   const [pendingAfterPlanData, setPendingAfterPlanData] = useState<any>(null)
+  const [hasBeforePlan, setHasBeforePlan] = useState<boolean>(false)
+  const [hasAfterPlan, setHasAfterPlan] = useState<boolean>(false)
   const [importHeightConflict, setImportHeightConflict] = useState<{ planHeight: number, projectHeight: number } | null>(null)
   const [selectedImportHeight, setSelectedImportHeight] = useState<"plan" | "project">("project")
-
-  // Determine if the calculator should be read-only based on approved budget
+  const [pendingDemolitionRooms, setPendingDemolitionRooms] = useState<any[]>([])
+  const [pendingReformRooms, setPendingReformRooms] = useState<any[]>([])
+  const [pendingDemolishedM2, setPendingDemolishedM2] = useState<number>(0)
+  const [pendingNewConstructedM2, setPendingNewConstructedM2] = useState<number>(0)
+  const [showFloorPlanConfirm, setShowFloorPlanConfirm] = useState(false)
+  const [usingFallbackPlan, setUsingFallbackPlan] = useState<boolean>(false)
   const isReadOnly = hasApprovedBudget
 
 
@@ -386,6 +391,77 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
   useEffect(() => {
     checkApprovedBudget()
   }, [checkApprovedBudget])
+
+  // Check for existence of floor plans
+  useEffect(() => {
+    async function checkPlans() {
+      if (!projectId) return
+      try {
+        const supabase = await getSupabase()
+        if (!supabase) return
+
+        const { data, error } = await supabase
+          .from("project_floor_plans")
+          .select("variant, plan_type, name")
+          .eq("project_id", projectId)
+
+        if (error) {
+          console.error("[Calculator] Error checking plans:", error)
+          return
+        }
+
+        let before = false
+        let after = false
+
+        if (data && data.length > 0) {
+          data.forEach((plan: any) => {
+            const planName = (plan.name || "").toLowerCase()
+            const planType = (plan.plan_type || "").toLowerCase()
+            const variant = (plan.variant || "").toLowerCase()
+
+            // Same heuristic as FloorPlanPreviews
+            const isBefore =
+              variant === "current" ||
+              (planType === "before" && variant !== "proposal") ||
+              ((planName.includes("antes") ||
+                planName.includes("actual") ||
+                planName.includes("original") ||
+                planName.includes("existente") ||
+                planName.includes("estado actual")) &&
+                !planName.includes("reforma") &&
+                !planName.includes("propuesta") &&
+                variant !== "proposal")
+
+            const isAfter =
+              variant === "proposal" ||
+              (planType === "after" && variant !== "current") ||
+              planName.includes("despues") ||
+              planName.includes("después") ||
+              planName.includes("reforma") ||
+              planName.includes("propuesta") ||
+              planName.includes("nuevo") ||
+              planName.includes("opcion") ||
+              planName.includes("opción") ||
+              planName.includes("proyecto") ||
+              planName.includes("americana") ||
+              planName.includes("modificado")
+
+            if (isBefore) before = true
+            if (isAfter) after = true
+          })
+
+          // Fallback: if there is at least one and no "before"/"after" identified, count first as "before"
+          if (!before && !after && data.length > 0) before = true
+        }
+
+        setHasBeforePlan(before)
+        setHasAfterPlan(after)
+      } catch (err) {
+        console.error("[Calculator] Exception checking plans:", err)
+      }
+    }
+    checkPlans()
+  }, [projectId])
 
   useEffect(() => {
     if (activeTab !== "presupuesto") {
@@ -502,10 +578,6 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     totalDebris: 0,
     containersNeeded: 0,
   })
-
-  const [showFloorPlanConfirm, setShowFloorPlanConfirm] = useState(false)
-  const [pendingDemolitionRooms, setPendingDemolitionRooms] = useState<Room[]>([])
-  const [pendingReformRooms, setPendingReformRooms] = useState<Room[]>([])
   const [pendingDoorsCount, setPendingDoorsCount] = useState(0)
   const [pendingWindowsCount, setPendingWindowsCount] = useState(0)
   const [externalShuntsCount, setExternalShuntsCount] = useState<number>(0)
@@ -983,7 +1055,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       demolitionConfig: {
         h: demolitionConfig.standardHeight,
         s: demolitionConfig.structureType,
-        wd: demolitionConfig.wallDemolitions?.map(d => ({ id: d.id, l: d.length, t: d.thickness, ht: d.hasTiles, ts: d.tilesSides })),
+        wd: demolitionConfig.wallDemolitions?.map(d => ({ id: d.id, l: d.length, t: d.thickness })),
         cb: demolitionConfig.changeBoiler,
         rwh: demolitionConfig.removeWaterHeater,
         rac: demolitionConfig.removeAllCeramic
@@ -2283,35 +2355,39 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       setPendingBeforePlanData(beforePlan?.data || null)
       setPendingAfterPlanData(afterPlan?.data || null)
 
-      // Definir qué datos usamos para cada fase basados en qué planos existen
+      let target = hasOnlyOnePlan ? "both" : (activeTab === "reform" ? "reform" : activeTab === "demolition" ? "demolition" : "both")
+
+      // Si hay ambos planos y estamos en demolición o reforma, preguntar si quiere importar todo
+      if (!hasOnlyOnePlan && (activeTab === "demolition" || activeTab === "reform")) {
+        const wantsBoth = window.confirm("Se han detectado planos de 'Antes' y 'Después'. ¿Deseas importar los datos de demolición y reforma a la vez?")
+        if (wantsBoth) {
+          target = "both"
+        }
+      }
+
+      setImportTarget(target as 'demolition' | 'reform' | 'both')
+
       let demolitionRooms: any[] = []
       let reformRoomsResult: any[] = []
 
       if (hasOnlyOnePlan) {
-        // SCENARIO: Solo existe un plano. Se usa para ambas fases.
         setUsingFallbackPlan(true)
-
-        if (activeTab === "demolition" || activeTab === "summary" || activeTab === "presupuesto" || activeTab === "reform") {
+        if (target === "both" || target === "demolition" || target === "reform") {
           demolitionRooms = sourcePlanToUse?.data ? mapEditorRoomsToCalculator(sourcePlanToUse.data, true, projectHeight) : []
           reformRoomsResult = sourcePlanToUse?.data ? mapEditorRoomsToCalculator(sourcePlanToUse.data, false, projectHeight) : []
         }
-
         toast({
           title: "ℹ️ Importando plano único",
           description: `Solo tienes un plano en este proyecto. Se importarán sus medidas tanto para demoliciones como para reformas.`,
           variant: "default",
         })
       } else {
-        // SCENARIO NORMAL: Existen ambos planos.
         setUsingFallbackPlan(false)
+        demolitionRooms = beforePlan?.data && (target === "demolition" || target === "both")
+          ? mapEditorRoomsToCalculator(beforePlan.data, true, projectHeight) : []
 
-        demolitionRooms = beforePlan?.data && (activeTab === "demolition" || activeTab === "summary" || activeTab === "presupuesto")
-          ? mapEditorRoomsToCalculator(beforePlan.data, true, projectHeight)
-          : []
-
-        reformRoomsResult = afterPlan?.data && (activeTab === "reform" || activeTab === "summary" || activeTab === "presupuesto")
-          ? mapEditorRoomsToCalculator(afterPlan.data, false, projectHeight)
-          : []
+        reformRoomsResult = afterPlan?.data && (target === "reform" || target === "both")
+          ? mapEditorRoomsToCalculator(afterPlan.data, false, projectHeight) : []
       }
 
       // Calculate counts for doors and windows in the relevant plan
@@ -2337,20 +2413,27 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         setNewConstructedWallAreaM2(wallDiffData.newConstructedM2)
 
         if (wallDiffData.demolishedM2 > 0 || wallDiffData.newConstructedM2 > 0) {
+          // Store these in state to be processed during confirmation
+          setPendingDemolishedM2(wallDiffData.demolishedM2)
+          setPendingNewConstructedM2(wallDiffData.newConstructedM2)
+
           toast({
             title: "Tabiquería modificada",
             description: `Se han detectado cambios de distribución espacial: ${wallDiffData.demolishedM2}m² a demoler y ${wallDiffData.newConstructedM2}m² de nueva construcción.`,
             variant: "default",
           })
+        } else {
+          setPendingDemolishedM2(0)
+          setPendingNewConstructedM2(0)
         }
       } else {
         // Si solo hay un plano, no hay cambios de tabiquería calculables
         setDemolishedWallAreaM2(0)
         setNewConstructedWallAreaM2(0)
+        setPendingDemolishedM2(0)
+        setPendingNewConstructedM2(0)
       }
 
-      // Si usas un único plano para ambas fases, forzamos target a "both" para que se rellenen las dos pestañas de la app
-      setImportTarget(hasOnlyOnePlan ? "both" : (activeTab === "reform" ? "reform" : activeTab === "demolition" ? "demolition" : "both"))
 
       if (demolitionRooms.length === 0 && reformRoomsResult.length === 0) {
         toast({
@@ -2361,16 +2444,10 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         return
       }
 
-      // Si ya hay datos, pedimos confirmación
-      const currentRooms = activeTab === "reform" ? reformRooms : rooms
-      if (currentRooms.length > 0) {
-        setPendingDemolitionRooms(demolitionRooms)
-        setPendingReformRooms(reformRoomsResult)
-        setShowFloorPlanConfirm(true)
-      } else {
-        // Si no hay datos, procedemos directamente
-        confirmRoomsImport(demolitionRooms, reformRoomsResult)
-      }
+      // Mostrar diálogo de confirmación siempre
+      setPendingDemolitionRooms(demolitionRooms)
+      setPendingReformRooms(reformRoomsResult)
+      setShowFloorPlanConfirm(true)
     } catch (error: any) {
       console.error("Error al sincronizar planos:", error)
       toast({
@@ -2385,16 +2462,11 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
   const handleRoomsDetectedFromFloorPlan = useCallback(
     (demolitionRooms: Room[], reformRoomsRooms: Room[]) => {
-      // Mantenemos la función original por retrocompatibilidad momentánea, pero ya no se usará
-      if (rooms.length > 0 || reformRooms.length > 0) {
-        setPendingDemolitionRooms(demolitionRooms)
-        setPendingReformRooms(reformRoomsRooms)
-        setShowFloorPlanConfirm(true)
-      } else {
-        confirmRoomsImport(demolitionRooms, reformRoomsRooms)
-      }
+      setPendingDemolitionRooms(demolitionRooms)
+      setPendingReformRooms(reformRoomsRooms)
+      setShowFloorPlanConfirm(true)
     },
-    [rooms.length, reformRooms.length],
+    [],
   )
 
   const confirmRoomsImport = (dRooms?: Room[], rRooms?: Room[]) => {
@@ -2407,13 +2479,13 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
       const sourcePlanData = pendingBeforePlanData || pendingAfterPlanData
 
       if (hasOnlyOnePlan) {
-        if (activeTab === "demolition" || activeTab === "summary" || activeTab === "presupuesto" || activeTab === "reform") {
+        if (importTarget === "both" || importTarget === "demolition" || importTarget === "reform") {
           demolitionToProcess = sourcePlanData ? mapEditorRoomsToCalculator(sourcePlanData, true, h) : []
           reformToProcess = sourcePlanData ? mapEditorRoomsToCalculator(sourcePlanData, false, h) : []
         }
       } else {
-        demolitionToProcess = pendingBeforePlanData && (activeTab === "demolition" || activeTab === "summary" || activeTab === "presupuesto") ? mapEditorRoomsToCalculator(pendingBeforePlanData, true, h) : []
-        reformToProcess = pendingAfterPlanData && (activeTab === "reform" || activeTab === "summary" || activeTab === "presupuesto") ? mapEditorRoomsToCalculator(pendingAfterPlanData, false, h) : []
+        demolitionToProcess = pendingBeforePlanData && (importTarget === "demolition" || importTarget === "both") ? mapEditorRoomsToCalculator(pendingBeforePlanData, true, h) : []
+        reformToProcess = pendingAfterPlanData && (importTarget === "reform" || importTarget === "both") ? mapEditorRoomsToCalculator(pendingAfterPlanData, false, h) : []
       }
 
       setDemolitionConfig(prev => ({ ...prev, standardHeight: h }))
@@ -2505,13 +2577,36 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
         skirting: !isBathroomOrKitchen && !isTerrace,
       } as Room
     })
-
     if (importTarget === "demolition" || importTarget === "both") {
-      setRooms(processedDemolitionRooms)
+      setRooms((prev) => {
+        // Find existing rooms to update, otherwise append new ones
+        const updatedRooms = [...prev]
+        processedDemolitionRooms.forEach((newRoom) => {
+          const index = updatedRooms.findIndex((r) => r.type === newRoom.type && r.number === newRoom.number)
+          if (index >= 0) {
+            updatedRooms[index] = newRoom
+          } else {
+            updatedRooms.push(newRoom)
+          }
+        })
+        return updatedRooms
+      })
     }
 
     if (importTarget === "reform" || importTarget === "both") {
-      setReformRooms(processedReformRooms)
+      setReformRooms((prev) => {
+        // Find existing rooms to update, otherwise append new ones
+        const updatedRooms = [...prev]
+        processedReformRooms.forEach((newRoom) => {
+          const index = updatedRooms.findIndex((r) => r.type === newRoom.type && r.number === newRoom.number)
+          if (index >= 0) {
+            updatedRooms[index] = newRoom
+          } else {
+            updatedRooms.push(newRoom)
+          }
+        })
+        return updatedRooms
+      })
 
       // ==== NUEVO: OBTENER Y MAPEAR PUERTAS DEL PLANO A GLOBAL DOORS ====
       const hasOnlyOnePlanForDoors = (pendingBeforePlanData && !pendingAfterPlanData) || (!pendingBeforePlanData && pendingAfterPlanData)
@@ -2581,10 +2676,83 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
     setPendingDemolitionRooms([])
     setPendingReformRooms([])
 
+    // ==== MIGRAR ZONAS MODIFICADAS DE TABIQUES A SECCIONES (DEMOLICIÓN/TABIQUERÍA) ====
+    const heightToUse = importHeightConflict && selectedImportHeight === "plan"
+      ? importHeightConflict.planHeight 
+      : (typeof demolitionConfig.standardHeight === 'number' ? demolitionConfig.standardHeight : parseFloat(String(demolitionConfig.standardHeight)) || 2.8)
+
+    let addedDemolitions = false
+    let addedPartitions = false
+
+    if (importTarget === "demolition" || importTarget === "both") {
+      if (pendingDemolishedM2 > 0) {
+        const length = pendingDemolishedM2 / heightToUse
+        setDemolitionConfig((prev: any) => {
+          // Mantener solo demoliciones que no vengan de plano de importaciones anteriores si quisieramos, 
+          // pero el user pidió "resetear", así que eliminamos previas de plano.
+          const manualDemolitions = (prev.wallDemolitions || []).filter((d: any) => d.description !== "Demolición detectada de plano" && d.description !== "Demolición según plano")
+          
+          return {
+            ...prev,
+            wallDemolitions: [...manualDemolitions, {
+              id: crypto.randomUUID(),
+              length: parseFloat(length.toFixed(2)),
+              thickness: 10,
+              wallHeight: heightToUse,
+              area: parseFloat((length * heightToUse).toFixed(2)),
+              description: "Demolición detectada de plano"
+            }]
+          }
+        })
+        addedDemolitions = true
+      } else {
+        // Reset detected demolitions if none are detected
+        setDemolitionConfig((prev: any) => ({
+          ...prev,
+          wallDemolitions: (prev.wallDemolitions || []).filter((d: any) => d.description !== "Demolición detectada de plano" && d.description !== "Demolición según plano")
+        }))
+      }
+    }
+
+    if (importTarget === "reform" || importTarget === "both") {
+      if (pendingNewConstructedM2 > 0) {
+        const length = pendingNewConstructedM2 / heightToUse
+        setPartitions((prev: any[]) => {
+          const manualPartitions = prev.filter((p: any) => p.location !== "Plano: Muro nuevo" && p.location !== "Plano: Muros nuevos")
+          
+          return [...manualPartitions, {
+            id: crypto.randomUUID(),
+            type: "placa_yeso",
+            linearMeters: parseFloat(length.toFixed(2)),
+            height: heightToUse,
+            location: "Plano: Muro nuevo"
+          }]
+        })
+        addedPartitions = true
+      } else {
+        // Reset detected partitions if none are detected
+        setPartitions((prev: any[]) => prev.filter((p: any) => p.location !== "Plano: Muro nuevo" && p.location !== "Plano: Muros nuevos"))
+      }
+    }
+
+    // Reset pending values
+    setPendingDemolishedM2(0)
+    setPendingNewConstructedM2(0)
+
+    let additionalMsg = ""
+    if (addedDemolitions && addedPartitions) additionalMsg = " Se han añadido derribos y tabiques nuevos."
+    else if (addedDemolitions) additionalMsg = " Se han añadido los derribos detectados."
+    else if (addedPartitions) additionalMsg = " Se han añadido los tabiques nuevos."
+
     toast({
       title: "Sincronización Maestra completada",
-      description: `Se han importado ${processedDemolitionRooms.length} habitaciones a demolición y ${processedReformRooms.length} a reforma con sus medidas y materiales.`,
+      description: `Se han importado ${processedDemolitionRooms.length} habitaciones a demolición y ${processedReformRooms.length} a reforma con sus medidas y materiales.${additionalMsg}`,
     })
+
+    // Force save to database after states have been updated
+    setTimeout(() => {
+      handleSave(true)
+    }, 500)
   }
 
   useImperativeHandle(ref, () => ({
@@ -3009,7 +3177,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                     </div>
 
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {projectId && isMaster && (
+                      {projectId && isMaster && hasBeforePlan && (
                         <Button
                           variant="ghost"
                           onClick={handleManualFloorPlanSync}
@@ -3022,34 +3190,38 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                         </Button>
                       )}
 
-                      <Button
-                        variant="ghost"
-                        onClick={copyRoomsToReform}
-                        className="lg:hidden h-9 px-3 border border-blue-100 text-blue-600 font-medium flex-1"
-                        disabled={!allRoomsHaveMeasurements(visibleRooms) || isReadOnly}
-                      >
-                        <Copy className="h-4 w-4 mr-2" />
-                        Copiar Habs.
-                      </Button>
+                      {visibleRooms.length > 0 && !hasAfterPlan && (
+                        <Button
+                          variant="ghost"
+                          onClick={copyRoomsToReform}
+                          className="lg:hidden h-9 px-3 border border-blue-100 text-blue-600 font-medium flex-1"
+                          disabled={!allRoomsHaveMeasurements(visibleRooms) || isReadOnly}
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Copiar Habs.
+                        </Button>
+                      )}
                     </div>
                   </div>
 
                   {/* Botón para copiar habitaciones a reforma - Solo desktop */}
-                  <div className="hidden lg:block lg:min-w-[200px]">
-                    <Button
-                      variant="default"
-                      size="default"
-                      onClick={copyRoomsToReform}
-                      className="w-full gap-1 bg-blue-600 hover:bg-blue-700 font-medium"
-                      disabled={!allRoomsHaveMeasurements(visibleRooms) || isReadOnly}
-                    >
-                      <Copy className="h-4 w-4" />
-                      Copiar a Reforma
-                      {!allRoomsHaveMeasurements(visibleRooms) && (
-                        <span className="ml-1 text-xs opacity-70">(Completa medidas)</span>
-                      )}
-                    </Button>
-                  </div>
+                  {visibleRooms.length > 0 && !hasAfterPlan && (
+                    <div className="hidden lg:block lg:min-w-[200px]">
+                      <Button
+                        variant="default"
+                        size="default"
+                        onClick={copyRoomsToReform}
+                        className="w-full gap-1 bg-blue-600 hover:bg-blue-700 font-medium"
+                        disabled={!allRoomsHaveMeasurements(visibleRooms) || isReadOnly}
+                      >
+                        <Copy className="h-4 w-4" />
+                        Copiar a Reforma
+                        {!allRoomsHaveMeasurements(visibleRooms) && (
+                          <span className="ml-1 text-xs opacity-70">(Completa medidas)</span>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <RoomsList
@@ -3198,7 +3370,7 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
                     </div>
 
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {projectId && isMaster && (
+                      {projectId && isMaster && hasAfterPlan && (
                         <Button
                           variant="ghost"
                           onClick={handleManualFloorPlanSync}
@@ -3500,20 +3672,20 @@ const Calculator = forwardRef<CalculatorHandle, CalculatorProps>(function Calcul
 
                 <div className="bg-slate-50 p-4 rounded-md text-xs space-y-2 border mt-3">
                   <p className="font-semibold text-slate-700 pb-1 border-b mb-1">
-                    {importTarget === "reform" ? "Datos del plano de Reforma:" : "Datos del plano de Demolición:"}
+                    {importTarget === "both" ? "Datos de los planos a importar:" : importTarget === "reform" ? "Datos del plano de Reforma:" : "Datos del plano de Demolición:"}
                   </p>
 
                   <div className="space-y-1">
                     {importTarget === "demolition" || importTarget === "both" ? (
                       <p className="flex justify-between">
-                        <span>Habitaciones:</span>
+                        <span>Habitaciones (Demolición):</span>
                         <span className="font-bold">{pendingDemolitionRooms.length}</span>
                       </p>
                     ) : null}
 
                     {importTarget === "reform" || importTarget === "both" ? (
                       <p className="flex justify-between">
-                        <span>Habitaciones:</span>
+                        <span>Habitaciones (Reforma):</span>
                         <span className="font-bold">{pendingReformRooms.length}</span>
                       </p>
                     ) : null}

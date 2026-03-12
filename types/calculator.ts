@@ -275,9 +275,6 @@ export interface WallDemolition {
   length: number
   area?: number
   thickness: number
-  hasTiles?: boolean
-  tilesSides?: "one" | "both"
-  tileThickness?: number
   wallHeight?: number
   material?: string
 }

@@ -240,6 +240,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
     const hasUnsavedChanges = useRef(false)
     const isInitialLoad = useRef(true)
+    const hasAutoFitted = useRef(false)
     const handleSaveRef = useRef<() => Promise<void>>(async () => { })
     const [companyInfo, setCompanyInfo] = useState<{
         name?: string
@@ -742,10 +743,10 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     React.useEffect(() => {
         if (dimensions.width > 0 && dimensions.height > 0) {
             // Only auto-fit once when the component initially loads with data
-            if (isInitialLoad.current && (walls.length > 0 || rooms.length > 0 || bgImage)) {
+            if (!hasAutoFitted.current && (walls.length > 0 || rooms.length > 0 || bgImage)) {
                 handleFitContent();
                 // Mark initial load as handled to avoid re-centering on every dimension change
-                isInitialLoad.current = false;
+                hasAutoFitted.current = true;
             }
         }
     }, [dimensions.width, dimensions.height]);
