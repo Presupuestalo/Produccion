@@ -147,7 +147,7 @@ export default function EditorPlanosPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : recentPlans.length > 0 ? (
-            <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
               {recentPlans.map((plan) => (
                 <Link key={plan.id} href={`/dashboard/editor-planos/editar/${plan.id}`}>
                   <Card className="overflow-hidden hover:shadow-lg transition-all cursor-pointer h-full flex flex-col group">
@@ -204,17 +204,20 @@ export default function EditorPlanosPage() {
                         </Button>
                       </div>
                     </div>
-                    <div className="p-4 flex-1 flex flex-col justify-between">
+                    <div className="p-2 sm:p-4 flex-1 flex flex-col justify-between">
                       <div>
-                        <h3 className="font-semibold text-gray-900 mb-1 truncate text-lg" title={plan.name}>{plan.name}</h3>
-                        <p className="text-sm text-gray-500 flex items-center gap-1">
+                        <h3 className="font-semibold text-gray-900 mb-0.5 truncate text-xs sm:text-lg" title={plan.name}>{plan.name}</h3>
+                        <p className="text-[10px] sm:text-sm text-gray-500 hidden sm:flex items-center gap-1">
                           📅 {new Date(plan.created_at).toLocaleDateString("es-ES", { day: 'numeric', month: 'long', year: 'numeric' })}
                         </p>
+                        <p className="text-[10px] text-gray-500 flex sm:hidden items-center gap-1">
+                          {new Date(plan.created_at).toLocaleDateString("es-ES", { day: 'numeric', month: 'short' })}
+                        </p>
                         {/* Project & Variant Badges */}
-                        <div className="flex flex-wrap gap-1 mt-2">
+                        <div className="flex flex-wrap gap-1 mt-1 sm:mt-2">
                           {plan.projectName ? (
                             <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5">
-                              <FolderOpen className="h-2.5 w-2.5" />
+                              <FolderOpen className="h-2.5 w-2.5 hidden sm:inline" />
                               {plan.projectName}
                             </span>
                           ) : null}
@@ -228,8 +231,8 @@ export default function EditorPlanosPage() {
                           ) : null}
                         </div>
                       </div>
-                      <div className="mt-4 pt-3 border-t flex justify-end">
-                        <span className="text-xs font-medium text-blue-600 group-hover:underline">Abrir editor →</span>
+                      <div className="mt-2 sm:mt-4 pt-2 sm:pt-3 border-t flex justify-end">
+                        <span className="text-[10px] sm:text-xs font-medium text-blue-600 group-hover:underline">Abrir →</span>
                       </div>
                     </div>
                   </Card>

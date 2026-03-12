@@ -474,7 +474,13 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     useImperativeHandle(ref, () => ({
         clearPlan: executeClearPlan,
         fullscreenContainer,
-        isFullscreen
+        isFullscreen,
+        closeMenus: () => {
+            setActiveMenu(null)
+            setSelectedWallIds([])
+            setSelectedRoomId(null)
+            setSelectedElement(null)
+        }
     }))
 
     // Limpiar estados al cambiar de herramienta o cancelar
@@ -744,9 +750,14 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         if (dimensions.width > 0 && dimensions.height > 0) {
             // Only auto-fit once when the component initially loads with data
             if (!hasAutoFitted.current && (walls.length > 0 || rooms.length > 0 || bgImage)) {
-                handleFitContent();
-                // Mark initial load as handled to avoid re-centering on every dimension change
-                hasAutoFitted.current = true;
+                // On mobile, dimensions may not be fully settled. Delay the fit slightly.
+                const isMobile = window.innerWidth < 768;
+                const delay = isMobile ? 300 : 0;
+                const timer = setTimeout(() => {
+                    handleFitContent();
+                    hasAutoFitted.current = true;
+                }, delay);
+                return () => clearTimeout(timer);
             }
         }
     }, [dimensions.width, dimensions.height]);

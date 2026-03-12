@@ -34,6 +34,8 @@ export default function NuevoPlanoPage() {
     }
     
     setPendingPlanData({ ...data, image })
+    // Close contextual menus so they don't show above the save dialog
+    editorRef.current?.closeMenus?.()
     setShowSaveDialog(true)
   }
 
