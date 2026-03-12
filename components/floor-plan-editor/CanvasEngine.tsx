@@ -33,6 +33,105 @@ function calculatePolygonCentroid(points: Point[]): Point {
     return { x: sx / points.length, y: sy / points.length }
 }
 
+const isClockwise = (poly: Point[]) => {
+    let sum = 0;
+    for (let i = 0; i < poly.length; i++) {
+        const p1 = poly[i];
+        const p2 = poly[(i + 1) % poly.length];
+        sum += (p2.x - p1.x) * (p2.y + p1.y);
+    }
+    return sum < 0;
+};
+
+const ensureClockwise = (poly: Point[]) => {
+    if (isClockwise(poly)) return poly;
+    return [...poly].reverse();
+};
+
+function insetPolygon(poly: Point[], d: number): Point[] {
+    const n = poly.length;
+    if (n < 3) return poly;
+    const out: Point[] = [];
+    for (let i = 0; i < n; i++) {
+        const p = poly[i];
+        const prev = poly[(i - 1 + n) % n];
+        const next = poly[(i + 1) % n];
+
+        const d1x = p.x - prev.x, d1y = p.y - prev.y;
+        const l1 = Math.sqrt(d1x * d1x + d1y * d1y);
+        const n1x = -d1y / l1, n1y = d1x / l1;
+
+        const d2x = next.x - p.x, d2y = next.y - p.y;
+        const l2 = Math.sqrt(d2x * d2x + d2y * d2y);
+        const n2x = -d2y / l2, n2y = d2x / l2;
+
+        const nx = n1x + n2x, ny = n1y + n2y;
+        const nl = Math.sqrt(nx * nx + ny * ny);
+        const miterX = nx / nl, miterY = ny / nl;
+        
+        const miterDot = (miterX * n1x + miterY * n1y);
+        const miterLen = Math.abs(miterDot) < 0.1 ? d : d / miterDot;
+        out.push({ x: p.x + miterX * miterLen, y: p.y + miterY * miterLen });
+    }
+    return out;
+}
+
+/**
+ * Ensures that click detection and rendering use the EXACT same wall-matching logic,
+ * including the aggressive "healing" pass for short segments.
+ */
+function getFaceIdWithParity(i: number, poly: Point[], walls: Wall[]): string | null {
+    const getDist = (a: Point, b: Point) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+    
+    const findWallForSegment = (pA: Point, pB: Point) => {
+        const midP = { x: (pA.x + pB.x) / 2, y: (pA.y + pB.y) / 2 };
+        let best: Wall | null = null;
+        let minDist = 9999;
+        // Pass A: Visible walls
+        for (const w of walls) {
+            if (w.isInvisible) continue;
+            const { point: proj } = getClosestPointOnSegment(midP, w.start, w.end);
+            const d = getDist(midP, proj);
+            if (d < w.thickness + 20 && d < minDist) { minDist = d; best = w; }
+        }
+        // Pass B: Invisible fallback
+        if (!best) {
+            for (const w of walls) {
+                if (!w.isInvisible) continue;
+                const { point: proj } = getClosestPointOnSegment(midP, w.start, w.end);
+                const d = getDist(midP, proj);
+                if (d < 15 && d < minDist) { minDist = d; best = w; }
+            }
+        }
+        return { wall: best, len: getDist(pA, pB) };
+    };
+
+    // Calculate current, previous and next segment wall search (Parity with rendering raw search)
+    const s = findWallForSegment(poly[i], poly[(i + 1) % poly.length]);
+    const p = findWallForSegment(poly[(i - 1 + poly.length) % poly.length], poly[i]);
+    const n = findWallForSegment(poly[(i + 1) % poly.length], poly[(i + 2) % poly.length]);
+
+    let w = s.wall;
+    const pVis = p.wall && !p.wall.isInvisible;
+    const nVis = n.wall && !n.wall.isInvisible;
+
+    // Healing logic (Identical to line 3291 rendering)
+    if (s.len < 40 && (pVis || nVis)) {
+        w = pVis ? p.wall : n.wall;
+    } else if (!w) {
+        w = p.wall || n.wall;
+    }
+
+    if (!w) return null;
+
+    const p1 = poly[i];
+    const p2 = poly[(i + 1) % poly.length];
+    const wDir = { x: w.end.x - w.start.x, y: w.end.y - w.start.y };
+    const sDir = { x: p2.x - p1.x, y: p2.y - p1.y };
+    const side = (wDir.x * sDir.x + wDir.y * sDir.y) >= 0 ? 'F' : 'B';
+    return `${w.id}:${side}`;
+}
+
 interface MenuButtonProps {
     icon: React.ReactNode
     label?: string
@@ -137,6 +236,8 @@ interface CanvasEngineProps {
     onDblTap?: (point: Point) => void
     showAreas?: boolean
     alignmentGuides?: { x?: number, y?: number } | null
+    isCeramicEraserActive?: boolean
+    setIsCeramicEraserActive?: (active: boolean) => void
 }
 
 export interface CanvasEngineRef {
@@ -501,9 +602,10 @@ export const CanvasEngine = ({
     showGrid = true,
     onDblClick,
     onDblTap,
-    alignmentGuides: externalGuides
+    alignmentGuides: externalGuides,
+    isCeramicEraserActive = false,
+    setIsCeramicEraserActive = () => { }
 }: CanvasEngineProps) => {
-    const [isCeramicEraserActive, setIsCeramicEraserActive] = React.useState(false)
     const [roomMenuClickPos, setRoomMenuClickPos] = React.useState<Point | null>(null)
     const [wallMenuClickPos, setWallMenuClickPos] = React.useState<Point | null>(null)
 
@@ -2507,7 +2609,7 @@ export const CanvasEngine = ({
         const isDrawingTool = (activeTool === "wall" && currentWall) || activeTool === "ruler" || activeTool === "arc"
         if (isDrawingTool && e.evt.pointerType === "mouse") {
             const edgePadding = 40
-            const panSpeed = 8 / zoom // Scale pan speed with zoom? No, fixed screen speed is usually better but let's see
+            const panSpeed = 8 / zoom 
             const rect = stage.container().getBoundingClientRect()
             const mouseX = e.evt.clientX - rect.left
             const mouseY = e.evt.clientY - rect.top
@@ -2549,97 +2651,33 @@ export const CanvasEngine = ({
         }
 
 
-        if (activeTool === "ceramic" || activeTool === "eraser") {
-            const pos_raw = getRawPointerPosition(stage)
+        if (activeTool === "ceramic" || activeTool === "eraser" || isCeramicEraserActive) {
+            const ceramicPos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
             let bestFaceId: string | null = null
-            let bestWallPerp = 20 / zoom  // threshold: max perp distance to care about a wall
+
+            // Threshold: half of avg wall thickness + 15 screen-pixel buffer
+            const avgThickness = walls.length > 0 ? walls.reduce((acc, w) => acc + w.thickness, 0) / walls.length : 20;
+            const thresholdWorld = avgThickness / 2 + 15 / zoom;
+
+            // Search directly on wall CENTERLINES (not polygon edges).
+            // This avoids the ambiguity of interior walls being shared by two rooms.
+            // We use the cross-product to determine which FACE (F or B) the cursor is on.
+            let bestDist = thresholdWorld;
 
             for (const wall of walls) {
-                if (wall.isInvisible) continue
-                const wdx = wall.end.x - wall.start.x
-                const wdy = wall.end.y - wall.start.y
-                const wallLen = Math.sqrt(wdx * wdx + wdy * wdy)
-                if (wallLen < 0.1) continue
-                const ux = wdx / wallLen, uy = wdy / wallLen
-
-                // Cursor offset from wall start
-                const cx = pos_raw.x - wall.start.x
-                const cy = pos_raw.y - wall.start.y
-
-                // Along-axis check: cursor must be within wall span (with margin)
-                const along = cx * ux + cy * uy
-                if (along < -wall.thickness || along > wallLen + wall.thickness) continue
-
-                // Perpendicular (signed) distance from wall centerline
-                // Left normal = (-uy, ux). perp > 0 = cursor is to the left, perp < 0 = to the right
-                const perp = cx * (-uy) + cy * ux
-                const perpAbs = Math.abs(perp)
-
-                if (perpAbs >= bestWallPerp) continue  // Not the closest wall
-
-                // Nudge a test point past the centerline on the cursor's side.
-                // We'll check which room polygon contains this test point.
-                const nudge = wall.thickness / 2 + 8
-                // Closest point on wall centerline to cursor
-                const t = Math.max(0, Math.min(1, (cx * ux + cy * uy) / wallLen))
-                const projX = wall.start.x + t * ux * wallLen
-                const projY = wall.start.y + t * uy * wallLen
-
-                // Nudge toward the same side as the cursor
-                const nSign = perp >= 0 ? 1 : -1  // same sign as perp
-                const testX = projX + (-uy) * nSign * nudge
-                const testY = projY + (ux) * nSign * nudge
-
-                // Find which room contains the test point
-                let ownerRoom: typeof rooms[0] | null = null
-                
-                // If in ceramic eraser mode, restrict hover detection to the currently selected room
-                if (isCeramicEraserActive && selectedRoomId) {
-                    const r = rooms.find(r => r.id === selectedRoomId)
-                    if (r && isPointInPolygon({ x: testX, y: testY }, r.polygon)) {
-                        ownerRoom = r
-                    }
-                } else {
-                    for (const room of rooms) {
-                        if (isPointInPolygon({ x: testX, y: testY }, room.polygon)) {
-                            ownerRoom = room
-                            break
-                        }
-                    }
-                }
-
-                if (ownerRoom) {
-                    // Find which segment of this room aligns with this wall
-                    let foundFace: string | null = null
-                    let closestSegDist = Infinity
-                    for (let i = 0; i < ownerRoom.polygon.length; i++) {
-                        const p1 = ownerRoom.polygon[i]
-                        const p2 = ownerRoom.polygon[(i + 1) % ownerRoom.polygon.length]
-                        const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
-                        const { point: proj2 } = getClosestPointOnSegment(midP, wall.start, wall.end)
-                        const segDist = Math.sqrt((midP.x - proj2.x) ** 2 + (midP.y - proj2.y) ** 2)
-                        
-                        if (segDist < (wall.thickness / 2) + 5) {
-                            const wDir = { x: wall.end.x - wall.start.x, y: wall.end.y - wall.start.y }
-                            const sDir = { x: p2.x - p1.x, y: p2.y - p1.y }
-                            const dot = wDir.x * sDir.x + wDir.y * sDir.y
-                            const side = dot >= 0 ? 'F' : 'B'
-                            
-                            // Loose tabique disambiguation: Ensure the segment side matches the cursor side
-                            // F = room on Right of wall (-1). B = room on Left of wall (+1).
-                            const expectedSign = side === 'F' ? -1 : 1
-                            if (nSign !== expectedSign) continue
-
-                            if (segDist < closestSegDist) {
-                                closestSegDist = segDist
-                                foundFace = `${wall.id}:${side}`
-                            }
-                        }
-                    }
-                    if (foundFace) {
-                        bestFaceId = foundFace
-                        bestWallPerp = perpAbs
-                    }
+                if (wall.isInvisible) continue;
+                const { point: proj } = getClosestPointOnSegment(ceramicPos, wall.start, wall.end);
+                const d = Math.sqrt((ceramicPos.x - proj.x) ** 2 + (ceramicPos.y - proj.y) ** 2);
+                if (d < bestDist) {
+                    bestDist = d;
+                    // Cross product: (wallDir) × (cursorOffset)
+                    // > 0 → cursor is to the LEFT of wall direction → 'F' face (matches room whose polygon segment goes same direction as wall)
+                    // < 0 → cursor is to the RIGHT → 'B' face
+                    const wdx = wall.end.x - wall.start.x;
+                    const wdy = wall.end.y - wall.start.y;
+                    const cross = wdx * (ceramicPos.y - wall.start.y) - wdy * (ceramicPos.x - wall.start.x);
+                    const side = cross > 0 ? 'F' : 'B';
+                    bestFaceId = `${wall.id}:${side}`;
                 }
             }
 
@@ -2990,16 +3028,38 @@ export const CanvasEngine = ({
                                         }
                                         stroke={selectedRoomId === room.id ? "#0ea5e9" : "transparent"}
                                         strokeWidth={selectedRoomId === room.id ? 4 : 2}
+                                        hitStrokeWidth={60} // Added: easier to hit wall faces with eraser
                                         closed={true}
                                         onClick={(e) => { 
                                             e.cancelBubble = true; 
                                             const stage = e.target.getStage();
                                             const pointer = stage?.getPointerPosition();
                                             if (pointer) {
-                                                setRoomMenuClickPos({
+                                                const worldPos = {
                                                     x: (pointer.x - offset.x) / zoom,
                                                     y: (pointer.y - offset.y) / zoom
-                                                });
+                                                };
+                                                setRoomMenuClickPos(worldPos);
+
+                                                if (activeTool === "ceramic" || activeTool === "eraser" || isCeramicEraserActive) {
+                                                    // Use the already-computed hover target — the red highlight IS the target
+                                                    const faceId = hoveredCeramicFaceId;
+                                                    if (faceId) {
+                                                        const current = room.disabledCeramicWalls || [];
+                                                        const isCurrentlyDisabled = current.includes(faceId);
+                                                        const isEraser = activeTool === "eraser" || isCeramicEraserActive;
+                                                        let next;
+                                                        if (isEraser) {
+                                                            if (!isCurrentlyDisabled) next = [...current, faceId];
+                                                            else next = current;
+                                                        } else {
+                                                            if (isCurrentlyDisabled) next = current.filter(id => id !== faceId);
+                                                            else next = [...current, faceId];
+                                                        }
+                                                        onUpdateRoom(room.id, { disabledCeramicWalls: next });
+                                                        return;
+                                                    }
+                                                }
                                             }
                                             onSelectRoom(room.id);
                                         }}
@@ -3008,10 +3068,31 @@ export const CanvasEngine = ({
                                             const stage = e.target.getStage();
                                             const pointer = stage?.getPointerPosition();
                                             if (pointer) {
-                                                setRoomMenuClickPos({
+                                                const worldPos = {
                                                     x: (pointer.x - offset.x) / zoom,
                                                     y: (pointer.y - offset.y) / zoom
-                                                });
+                                                };
+                                                setRoomMenuClickPos(worldPos);
+
+                                                if (activeTool === "ceramic" || activeTool === "eraser" || isCeramicEraserActive) {
+                                                    // Use the already-computed hover target — the red highlight IS the target
+                                                    const faceId = hoveredCeramicFaceId;
+                                                    if (faceId) {
+                                                        const current = room.disabledCeramicWalls || [];
+                                                        const isCurrentlyDisabled = current.includes(faceId);
+                                                        const isEraser = activeTool === "eraser" || isCeramicEraserActive;
+                                                        let next;
+                                                        if (isEraser) {
+                                                            if (!isCurrentlyDisabled) next = [...current, faceId];
+                                                            else next = current;
+                                                        } else {
+                                                            if (isCurrentlyDisabled) next = current.filter(id => id !== faceId);
+                                                            else next = [...current, faceId];
+                                                        }
+                                                        onUpdateRoom(room.id, { disabledCeramicWalls: next });
+                                                        return;
+                                                    }
+                                                }
                                             }
                                             onSelectRoom(room.id);
                                         }}
@@ -3031,184 +3112,6 @@ export const CanvasEngine = ({
                                         />
                                     )}
 
-                                    {/* 4. Ceramic Walls Visualization (Dashed Internal Border) */}
-                                    {/* 4. Ceramic Walls Visualization (Dashed Internal Border) */}
-                                    {room.hasCeramicWalls ? (
-                                        <Group listening={false}>
-                                            <Group
-                                                clipFunc={(ctx) => {
-                                                    ctx.beginPath();
-                                                    room.polygon.forEach((p, i) => {
-                                                        if (i === 0) ctx.moveTo(p.x, p.y);
-                                                        else ctx.lineTo(p.x, p.y);
-                                                    });
-                                                    ctx.closePath();
-                                                    ctx.clip();
-                                                }}
-                                            >
-                                                {(() => {
-                                                    const getDist = (a: {x:number, y:number}, b: {x:number, y:number}) => 
-                                                        Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2);
-
-                                                    // 1. Prioritized pass: find closest visible wall first
-                                                    const raw = room.polygon.map((p1, i) => {
-                                                        const p2 = room.polygon[(i + 1) % room.polygon.length];
-                                                        const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-                                                        const len = getDist(p1, p2);
-                                                        let best = null;
-                                                        let minDist = 9999;
-
-                                                        // Pass A: Visible walls (Wide search)
-                                                        for (const w of walls) {
-                                                            if (w.isInvisible) continue;
-                                                            const { point: proj } = getClosestPointOnSegment(midP, w.start, w.end);
-                                                            const d = getDist(midP, proj);
-                                                            if (d < w.thickness + 20 && d < minDist) {
-                                                                minDist = d;
-                                                                best = w;
-                                                            }
-                                                        }
-                                                        // Pass B: Invisible fallback (Tiny search)
-                                                        if (!best) {
-                                                            minDist = 9999;
-                                                            for (const w of walls) {
-                                                                if (!w.isInvisible) continue;
-                                                                const { point: proj } = getClosestPointOnSegment(midP, w.start, w.end);
-                                                                const d = getDist(midP, proj);
-                                                                if (d < 15 && d < minDist) {
-                                                                    minDist = d;
-                                                                    best = w;
-                                                                }
-                                                            }
-                                                        }
-                                                        return { p1, p2, wall: best, len };
-                                                    });
-
-                                                    // 2. Aggressive Healing Pass
-                                                    const segments = raw.map((s, i) => {
-                                                        const p = raw[(i - 1 + raw.length) % raw.length];
-                                                        const n = raw[(i + 1) % raw.length];
-                                                        let w = s.wall;
-                                                        // If it's a short tip (< 40px), prefer visible neighbors
-                                                        const pVis = p.wall && !p.wall.isInvisible;
-                                                        const nVis = n.wall && !n.wall.isInvisible;
-                                                        if (s.len < 40 && (pVis || nVis)) {
-                                                            w = pVis ? p.wall : n.wall;
-                                                        } else if (!w) {
-                                                            w = p.wall || n.wall;
-                                                        }
-                                                        const wt = w ? Math.round(w.thickness) : 10;
-                                                        const inv = !!w?.isInvisible;
-                                                        
-                                                        // Accurate face-specific disabling
-                                                        let dis = false;
-                                                        let hvr = false;
-                                                        if (w) {
-                                                            const wDir = { x: w.end.x - w.start.x, y: w.end.y - w.start.y };
-                                                            const sDir = { x: s.p2.x - s.p1.x, y: s.p2.y - s.p1.y };
-                                                            const dot = wDir.x * sDir.x + wDir.y * sDir.y;
-                                                            const side = dot >= 0 ? 'F' : 'B';
-                                                            const faceId = `${w.id}:${side}`;
-                                                            dis = (room.disabledCeramicWalls?.includes(faceId) || room.disabledCeramicWalls?.includes(w.id)) || false;
-                                                            hvr = hoveredCeramicFaceId === faceId;
-                                                        }
-                                                        
-                                                        return { p1: s.p1, p2: s.p2, wt, inv, dis, hvr, wall: w };
-                                                    });
-
-                                                    // 3. Group into chains
-                                                    const chains: any[] = [];
-                                                    for (const s of segments) {
-                                                        const key = `${s.wt}-${s.inv}-${s.dis}-${s.hvr}`;
-                                                        if (chains.length === 0 || chains[chains.length-1].key !== key) {
-                                                            chains.push({ key, wt: s.wt, inv: s.inv, dis: s.dis, hvr: s.hvr, pts: [s.p1.x, s.p1.y, s.p2.x, s.p2.y] });
-                                                        } else {
-                                                            chains[chains.length-1].pts.push(s.p2.x, s.p2.y);
-                                                        }
-                                                    }
-
-                                                    // 4. Close Loop Join
-                                                    if (chains.length > 1 && chains[0].key === chains[chains.length-1].key) {
-                                                        const last = chains.pop();
-                                                        chains[0].pts = [...last.pts.slice(0, -2), ...chains[0].pts];
-                                                    }
-
-                                                    // Function to calculate the offset polyline
-                                                    const getOffsetPolyline = (pts: number[], dist: number) => {
-                                                        const out: number[] = [];
-                                                        for(let i=0; i<pts.length/2; i++) {
-                                                            const px = pts[i*2], py = pts[i*2+1];
-                                                            
-                                                            let nx1=0, ny1=0, nx2=0, ny2=0;
-                                                            let len1=0, len2=0;
-                                                            
-                                                            if (i > 0) {
-                                                                const ppx = pts[(i-1)*2], ppy = pts[(i-1)*2+1];
-                                                                len1 = Math.sqrt((px-ppx)**2 + (py-ppy)**2);
-                                                                if (len1>0) { nx1 = -(py-ppy)/len1; ny1 = (px-ppx)/len1; }
-                                                            }
-                                                            if (i < pts.length/2 - 1) {
-                                                                const npx = pts[(i+1)*2], npy = pts[(i+1)*2+1];
-                                                                len2 = Math.sqrt((npx-px)**2 + (npy-py)**2);
-                                                                if (len2>0) { nx2 = -(npy-py)/len2; ny2 = (npx-px)/len2; }
-                                                            }
-
-                                                            if (len1>0 && len2>0) {
-                                                                const dot = nx1*nx2 + ny1*ny2;
-                                                                if (dot < -0.99) {
-                                                                    // 180 degree turn (loose tabique tip) - insert two points to create the square cap
-                                                                    out.push(px + nx1*dist, py + ny1*dist);
-                                                                    out.push(px + nx2*dist, py + ny2*dist);
-                                                                } else {
-                                                                    let mnx = nx1 + nx2;
-                                                                    let mny = ny1 + ny2;
-                                                                    let mlen = Math.sqrt(mnx*mnx + mny*mny);
-                                                                    if (mlen < 0.001) { mnx=nx1; mny=ny1; mlen=1; }
-                                                                    mnx /= mlen; mny /= mlen;
-                                                                    let miterFactor = 1 / Math.max(0.1, (nx1*mnx + ny1*mny));
-                                                                    if (miterFactor > 5) miterFactor = 5;
-                                                                    out.push(px + mnx*dist*miterFactor, py + mny*dist*miterFactor);
-                                                                }
-                                                            } else if (len1>0) {
-                                                                out.push(px + nx1*dist, py + ny1*dist);
-                                                            } else if (len2>0) {
-                                                                out.push(px + nx2*dist, py + ny2*dist);
-                                                            } else {
-                                                                out.push(px, py);
-                                                            }
-                                                        }
-                                                        return out;
-                                                    };
-
-                                                    return chains.map((c, idx) => {
-                                                        const isHovered = c.hvr && (activeTool === "ceramic" || activeTool === "eraser");
-                                                        const hColor = activeTool === "ceramic" ? "#0ea5e9" : "#ef4444";
-
-                                                        if (c.inv || (c.dis && !isHovered)) return null;
-                                                        
-                                                        const isC = c.pts.length >= 6 && Math.abs(c.pts[0]-c.pts[c.pts.length-2]) < 0.2 && Math.abs(c.pts[1]-c.pts[c.pts.length-1]) < 0.2;
-                                                        const pts = isC ? c.pts.slice(0, -2) : c.pts;
-                                                        
-                                                        // Calculate the offset polyline so it sits perfectly on the wall surface
-                                                        const offsetDist = (c.wt / 2) + 1.5;
-                                                        const offsetPts = getOffsetPolyline(pts, offsetDist);
-                                                        
-                                                        const strokeW = 4;
-                                                        
-                                                        return (
-                                                            <Group key={`cer-${room.id}-${idx}`}>
-                                                                {isHovered && <Line points={offsetPts} closed={isC} stroke={hColor} strokeWidth={12} opacity={0.4} lineJoin="miter" lineCap="square" listening={false} />}
-                                                                {!c.dis && (
-                                                                    <Line points={offsetPts} closed={isC} stroke="#0ea5e9" strokeWidth={5} dash={[10, 8]} lineJoin="miter" lineCap="square" listening={false} />
-                                                                )}
-                                                            </Group>
-                                                        );
-                                                    });
-
-                                                })()}
-                                            </Group>
-                                        </Group>
-                                    ) : null}
                                 </Group>
                             )
                         })}
@@ -3233,37 +3136,6 @@ export const CanvasEngine = ({
 
                         {/* PERIMETER WALL CHAINS: Render WITH room clip so overlapping corners are clean */}
                         <Group clipFunc={(ctx) => {
-                            const insetPolygon = (poly: Point[], amount: number): Point[] => {
-                                const n = poly.length
-                                if (n < 3) return poly
-                                const inset: Point[] = []
-                                for (let i = 0; i < n; i++) {
-                                    const prev = poly[(i - 1 + n) % n]
-                                    const curr = poly[i]
-                                    const next = poly[(i + 1) % n]
-
-                                    const e1x = curr.x - prev.x, e1y = curr.y - prev.y
-                                    const e2x = next.x - curr.x, e2y = next.y - curr.y
-
-                                    const l1 = Math.sqrt(e1x * e1x + e1y * e1y)
-                                    const l2 = Math.sqrt(e2x * e2x + e2y * e2y)
-                                    if (l1 < 0.001 || l2 < 0.001) { inset.push(curr); continue }
-
-                                    const n1x = -e1y / l1, n1y = e1x / l1
-                                    const n2x = -e2y / l2, n2y = e2x / l2
-
-                                    let bx = n1x + n2x, by = n1y + n2y
-                                    const bl = Math.sqrt(bx * bx + by * by)
-                                    if (bl < 0.001) { inset.push({ x: curr.x + n1x * amount, y: curr.y + n1y * amount }); continue }
-                                    bx /= bl; by /= bl
-
-                                    const sin_half = (n1x * bx + n1y * by)
-                                    const scale = Math.abs(sin_half) < 0.1 ? amount : amount / sin_half
-                                    inset.push({ x: curr.x + bx * scale, y: curr.y + by * scale })
-                                }
-                                return inset
-                            }
-
                             ctx.beginPath();
                             const clipWidth = 100000 / zoom;
                             const clipHeight = 100000 / zoom;
@@ -3271,7 +3143,8 @@ export const CanvasEngine = ({
 
                             rooms.forEach(room => {
                                 if (room.polygon && room.polygon.length > 2) {
-                                    const inset = insetPolygon(room.polygon, 5)
+                                    const cwPoly = ensureClockwise(room.polygon);
+                                    const inset = insetPolygon(cwPoly, -5)
                                     ctx.moveTo(inset[0].x, inset[0].y);
                                     for (let i = 1; i < inset.length; i++) {
                                         ctx.lineTo(inset[i].x, inset[i].y);
@@ -3296,6 +3169,193 @@ export const CanvasEngine = ({
                                 />
                             ))}
                         </Group>
+                        {/* Ceramic Walls Visualization (TOP LAYER) */}
+                        {rooms.map((room) => (
+                            <Group key={`cer-walls-top-${room.id}`}>
+                                {room.hasCeramicWalls ? (
+                                    <Group listening={false}>
+                                        <Group
+                                            clipFunc={(ctx) => {
+                                                ctx.beginPath();
+                                                 const cwPoly = ensureClockwise(room.polygon);
+                                                 const outsetPoly = insetPolygon(cwPoly, -2); // Negative = Outward for CW
+                                                outsetPoly.forEach((p, i) => {
+                                                    if (i === 0) ctx.moveTo(p.x, p.y);
+                                                    else ctx.lineTo(p.x, p.y);
+                                                });
+                                                ctx.closePath();
+                                                ctx.clip();
+                                            }}
+                                        >
+                                            {(() => {
+                                                const getDist = (a: {x:number, y:number}, b: {x:number, y:number}) => 
+                                                    Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2);
+
+                                                // 1. Prioritized pass: find closest visible wall first
+                                                const poly = ensureClockwise(room.polygon); // Added: Enforce consistency
+                                                const raw = poly.map((p1: Point, i: number) => {
+                                                    const p2 = poly[(i + 1) % poly.length];
+                                                    const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+                                                    const len = getDist(p1, p2);
+                                                    let best = null;
+                                                    let minDist = 9999;
+
+                                                    // Pass A: Visible walls (Wide search)
+                                                    for (const w of walls) {
+                                                        if (w.isInvisible) continue;
+                                                        const { point: proj } = getClosestPointOnSegment(midP, w.start, w.end);
+                                                        const d = getDist(midP, proj);
+                                                        if (d < w.thickness + 20 && d < minDist) {
+                                                            minDist = d;
+                                                            best = w;
+                                                        }
+                                                    }
+                                                    // Pass B: Invisible fallback (Tiny search)
+                                                    if (!best) {
+                                                        minDist = 9999;
+                                                        for (const w of walls) {
+                                                            if (!w.isInvisible) continue;
+                                                            const { point: proj } = getClosestPointOnSegment(midP, w.start, w.end);
+                                                            const d = getDist(midP, proj);
+                                                            if (d < 15 && d < minDist) {
+                                                                minDist = d;
+                                                                best = w;
+                                                            }
+                                                        }
+                                                    }
+                                                    return { p1, p2, wall: best, len };
+                                                });
+
+                                                // 2. Aggressive Healing Pass
+                                                const segments = raw.map((s: any, i: number) => {
+                                                    const p = raw[(i - 1 + raw.length) % raw.length];
+                                                    const n = raw[(i + 1) % raw.length];
+                                                    let w = s.wall;
+                                                    // If it's a short tip (< 40px), prefer visible neighbors
+                                                    const pVis = p.wall && !p.wall.isInvisible;
+                                                    const nVis = n.wall && !n.wall.isInvisible;
+                                                    if (s.len < 40 && (pVis || nVis)) {
+                                                        w = pVis ? p.wall : n.wall;
+                                                    } else if (!w) {
+                                                        w = p.wall || n.wall;
+                                                    }
+                                                    const wt = w ? Math.round(w.thickness) : 10;
+                                                    const inv = !!w?.isInvisible;
+                                                    
+                                                    // Accurate face-specific disabling
+                                                    let dis = false;
+                                                    let hvr = false;
+                                                    if (w) {
+                                                        const wDir = { x: w.end.x - w.start.x, y: w.end.y - w.start.y };
+                                                        const sDir = { x: s.p2.x - s.p1.x, y: s.p2.y - s.p1.y };
+                                                        const dot = wDir.x * sDir.x + wDir.y * sDir.y;
+                                                        const side = dot >= 0 ? 'F' : 'B';
+                                                        const faceId = `${w.id}:${side}`;
+                                                        dis = (room.disabledCeramicWalls?.includes(faceId) || room.disabledCeramicWalls?.includes(w.id)) || false;
+                                                        hvr = hoveredCeramicFaceId === faceId;
+                                                    }
+                                                    
+                                                    return { p1: s.p1, p2: s.p2, wt, inv, dis, hvr, wall: w };
+                                                });
+
+                                                // 3. Group into chains
+                                                const chains: any[] = [];
+                                                for (const s of segments) {
+                                                    const key = `${s.wt}-${s.inv}-${s.dis}-${s.hvr}`;
+                                                    if (chains.length === 0 || chains[chains.length-1].key !== key) {
+                                                        chains.push({ key, wt: s.wt, inv: s.inv, dis: s.dis, hvr: s.hvr, pts: [s.p1.x, s.p1.y, s.p2.x, s.p2.y] });
+                                                    } else {
+                                                        chains[chains.length-1].pts.push(s.p2.x, s.p2.y);
+                                                    }
+                                                }
+
+                                                // 4. Close Loop Join
+                                                if (chains.length > 1 && chains[0].key === chains[chains.length-1].key) {
+                                                    const last = chains.pop();
+                                                    chains[0].pts = [...last.pts.slice(0, -2), ...chains[0].pts];
+                                                }
+
+                                                const getOffsetPolyline = (pts: number[], dist: number, closed: boolean) => {
+                                                    const out: number[] = [];
+                                                    const n = pts.length / 2;
+                                                    for(let i=0; i<n; i++) {
+                                                        const px = pts[i*2], py = pts[i*2+1];
+                                                        
+                                                        let nx1=0, ny1=0, nx2=0, ny2=0;
+                                                        let len1=0, len2=0;
+                                                        
+                                                        if (i > 0 || closed) {
+                                                            const pIdx = (i - 1 + n) % n;
+                                                            const ppx = pts[pIdx*2], ppy = pts[pIdx*2+1];
+                                                            len1 = Math.sqrt((px-ppx)**2 + (py-ppy)**2);
+                                                            if (len1>0) { nx1 = -(py-ppy)/len1; ny1 = (px-ppx)/len1; }
+                                                        }
+                                                        if (i < n - 1 || closed) {
+                                                            const nIdx = (i + 1) % n;
+                                                            const npx = pts[nIdx*2], npy = pts[nIdx*2+1];
+                                                            len2 = Math.sqrt((npx-px)**2 + (npy-py)**2);
+                                                            if (len2>0) { nx2 = -(npy-py)/len2; ny2 = (npx-px)/len2; }
+                                                        }
+
+                                                        if (len1>0 && len2>0) {
+                                                            const dot = nx1*nx2 + ny1*ny2;
+                                                            if (dot < -0.99) {
+                                                                // 180 degree turn (loose tabique tip) - insert two points to create the square cap
+                                                                out.push(px + nx1*dist, py + ny1*dist);
+                                                                out.push(px + nx2*dist, py + ny2*dist);
+                                                            } else {
+                                                                let mnx = nx1 + nx2;
+                                                                let mny = ny1 + ny2;
+                                                                let mlen = Math.sqrt(mnx*mnx + mny*mny);
+                                                                if (mlen < 0.001) { mnx=nx1; mny=ny1; mlen=1; }
+                                                                mnx /= mlen; mny /= mlen;
+                                                                let miterFactor = 1 / Math.max(0.1, (nx1*mnx + ny1*mny));
+                                                                if (miterFactor > 5) miterFactor = 5;
+                                                                out.push(px + mnx*dist*miterFactor, py + mny*dist*miterFactor);
+                                                            }
+                                                        } else if (len1>0) {
+                                                            out.push(px + nx1*dist, py + ny1*dist);
+                                                        } else if (len2>0) {
+                                                            out.push(px + nx2*dist, py + ny2*dist);
+                                                        } else {
+                                                            out.push(px, py);
+                                                        }
+                                                    }
+                                                    return out;
+                                                };
+
+                                                return chains.map((c, idx) => {
+                                                    const isHovered = c.hvr && (activeTool === "ceramic" || activeTool === "eraser" || isCeramicEraserActive);
+                                                    const hColor = (activeTool === "eraser" || isCeramicEraserActive) ? "#ef4444" : "#0ea5e9";
+
+                                                    if (c.inv || (c.dis && !isHovered)) return null;
+                                                    
+                                                    const isC = c.pts.length >= 6 && Math.abs(c.pts[0]-c.pts[c.pts.length-2]) < 0.2 && Math.abs(c.pts[1]-c.pts[c.pts.length-1]) < 0.2;
+                                                    const pts = isC ? c.pts.slice(0, -2) : c.pts;
+                                                    
+                                                    // Calculate the offset polyline so it sits perfectly on the wall surface
+                                                    // For CW polygons, positive distance offsets INWARDS
+                                                    const offsetDist = (c.wt / 2) + 1.5;
+                                                    const offsetPts = getOffsetPolyline(pts, offsetDist, isC);
+                                                    
+                                                    const strokeW = 4;
+                                                    
+                                                    return (
+                                                        <Group key={`cer-${room.id}-${idx}`}>
+                                                            {isHovered && <Line points={offsetPts} closed={isC} stroke={hColor} strokeWidth={12} opacity={0.4} lineJoin="miter" lineCap="square" listening={false} />}
+                                                            {!c.dis && (
+                                                                <Line points={offsetPts} closed={isC} stroke="#0ea5e9" strokeWidth={5} dash={[10, 8]} lineJoin="miter" lineCap="square" listening={false} />
+                                                            )}
+                                                        </Group>
+                                                    );
+                                                });
+
+                                            })()}
+                                        </Group>
+                                    </Group>
+                                ) : null}
+                            </Group>
+                        ))}
                         {walls.map((wall: Wall) => {
                             const isHovered = hoveredWallId === wall.id
                             const isSelected = selectedWallIds.includes(wall.id)
@@ -4664,21 +4724,23 @@ export const CanvasEngine = ({
                                         />
                                     )}
                                     {showAreas && (
-                                        <Text
-                                            name="room-label-text"
-                                            y={12 * scale}
-                                            text={`${room.area.toFixed(2).replace('.', ',')} m²`}
-                                            fontSize={14 * scale}
-                                            fill="#475569"
-                                            stroke="#ffffff"
-                                            strokeWidth={3 * scale}
-                                            fillAfterStrokeEnabled={true}
-                                            fontStyle="bold"
-                                            align="center"
-                                            offsetX={125 * scale}
-                                            width={250 * scale}
-                                            wrap="none"
-                                        />
+                                        <>
+                                            <Text
+                                                name="room-label-text"
+                                                y={12 * scale}
+                                                text={`${room.area.toFixed(2).replace('.', ',')} m²`}
+                                                fontSize={14 * scale}
+                                                fill="#475569"
+                                                stroke="#ffffff"
+                                                strokeWidth={3 * scale}
+                                                fillAfterStrokeEnabled={true}
+                                                fontStyle="bold"
+                                                align="center"
+                                                offsetX={125 * scale}
+                                                width={250 * scale}
+                                                wrap="none"
+                                            />
+                                        </>
                                     )}
                                 </Group>
                             )

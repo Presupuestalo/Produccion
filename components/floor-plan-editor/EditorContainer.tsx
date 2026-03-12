@@ -218,12 +218,22 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [isExportingPDF, setIsExportingPDF] = useState(false)
     const [exportRoomNames, setExportRoomNames] = useState(true)
     const [exportAreas, setExportAreas] = useState(true)
+    const [isCeramicEraserActive, setIsCeramicEraserActive] = useState(false) // New state for ceramic eraser
 
     // Configuración del Plano
     const [planName, setPlanName] = useState(props.planName || props.initialData?.name || "Plano Sin Título")
     const [ceilingHeight, setCeilingHeight] = useState(props.initialData?.ceilingHeight || 250)
     const [defaultWallThickness, setDefaultWallThickness] = useState(props.initialData?.defaultWallThickness || 10)
     const [showGrid, setShowGrid] = useState(true)
+
+    useEffect(() => {
+        // Prevent accidental deactivation if just switching back to select tool while room is still selected
+        if (activeTool !== 'select') {
+            setIsCeramicEraserActive(false)
+        } else if (!selectedRoomId && !selectedWallIds.length && !selectedElement) {
+            setIsCeramicEraserActive(false)
+        }
+    }, [activeTool, selectedRoomId, selectedWallIds, selectedElement])
 
     useEffect(() => {
         if (props.planName) setPlanName(props.planName)
@@ -3226,6 +3236,8 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     hideFloatingUI={isSettingsOpen || showSummary || (isMobile && !isFullscreen && typeof window !== 'undefined' && window.innerWidth > window.innerHeight)}
                     onDblClick={handleDblClick}
                     alignmentGuides={alignmentGuides}
+                    isCeramicEraserActive={isCeramicEraserActive}
+                    setIsCeramicEraserActive={setIsCeramicEraserActive}
                 />
 
 
