@@ -2347,7 +2347,9 @@ export const CanvasEngine = ({
             if (activeTool === "select") {
                 if (targetName.startsWith("wall-")) {
                     const wallId = targetName.split("wall-")[1].split("-")[0]
-                    onSelectWall(wallId, e.evt.ctrlKey)
+                    if (activeTool !== "ceramic" && activeTool !== "eraser") {
+                        onSelectWall(wallId, e.evt.ctrlKey)
+                    }
                 } else if (targetName.startsWith("door-")) {
                     const doorId = targetName.split("door-")[1].split("-")[0]
                     onSelectElement({ type: "door", id: doorId })
