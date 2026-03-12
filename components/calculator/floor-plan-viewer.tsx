@@ -393,7 +393,7 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
                       type="button"
                       variant="outline"
                       size="icon"
-                      onClick={() => router.push(`/ dashboard / editor - planos / editar / ${planIds.before} `)}
+                      onClick={() => router.push(`/dashboard/editor-planos/editar/${planIds.before}`)}
                       title="Editar plano en el editor"
                       className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                     >
@@ -464,7 +464,7 @@ export function FloorPlanViewer({ projectId, projectTitle }: FloorPlanViewerProp
                       type="button"
                       variant="outline"
                       size="icon"
-                      onClick={() => router.push(`/ dashboard / editor - planos / editar / ${planIds.after} `)}
+                      onClick={() => router.push(`/dashboard/editor-planos/editar/${planIds.after}`)}
                       title="Editar plano en el editor"
                       className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                     >
