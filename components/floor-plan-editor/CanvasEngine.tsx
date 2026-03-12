@@ -657,7 +657,7 @@ export const CanvasEngine = ({
             thicknessGroups[w.thickness].push(w)
         })
 
-        const allChains: { points: number[], closed: boolean, thickness: number }[] = []
+        const allChains: { points: number[], closed: boolean, thickness: number, isTabique: boolean }[] = []
 
         Object.entries(thicknessGroups).forEach(([thicknessStr, groupWalls]) => {
             const thickness = parseFloat(thicknessStr)
@@ -2382,45 +2382,13 @@ export const CanvasEngine = ({
 
         // LÓGICA DE GOMA CERÁMICA DESDE EL MENÚ DE HABITACIÓN
         if (isCeramicEraserActive && selectedRoomId) {
-            const pos = getRawPointerPosition(stage) // Use raw coordinates
-            const room = rooms.find(r => r.id === selectedRoomId)
-            if (room && room.hasCeramicWalls) {
-                let bestSegWallId: string | null = null
-                let minDist = 30 / zoom
-                room.polygon.forEach((p1, k) => {
-                    const p2 = room.polygon[(k + 1) % room.polygon.length]
-                    const { point: proj } = getClosestPointOnSegment(pos, p1, p2)
-                    const d = Math.sqrt((pos.x - proj.x) ** 2 + (pos.y - proj.y) ** 2)
-                    if (d < minDist) {
-                        const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
-                        const foundWall = walls.find(w => {
-                            const dx_w = w.end.x - w.start.x
-                            const dy_w = w.end.y - w.start.y
-                            const lengthSq = dx_w * dx_w + dy_w * dy_w
-                            if (lengthSq === 0) return false
-                            const t = Math.max(0, Math.min(1, ((midP.x - w.start.x) * dx_w + (midP.y - w.start.y) * dy_w) / lengthSq))
-                            const projX = w.start.x + t * dx_w
-                            const projY = w.start.y + t * dy_w
-                            const dist = Math.sqrt((midP.x - projX) ** 2 + (midP.y - projY) ** 2)
-                            return dist < (w.thickness / 2) + 5.0
-                        })
-                        if (foundWall) {
-                            const wDir = { x: foundWall.end.x - foundWall.start.x, y: foundWall.end.y - foundWall.start.y };
-                            const sDir = { x: p2.x - p1.x, y: p2.y - p1.y };
-                            const dot = wDir.x * sDir.x + wDir.y * sDir.y;
-                            const side = dot >= 0 ? 'F' : 'B';
-                            const faceId = `${foundWall.id}:${side}`;
-                            
-                            if (!(room.disabledCeramicWalls || []).includes(faceId) && !(room.disabledCeramicWalls || []).includes(foundWall.id)) {
-                                bestSegWallId = faceId;
-                                minDist = d;
-                            }
-                        }
-                    }
-                })
-                if (bestSegWallId) {
+            if (hoveredCeramicFaceId) {
+                const room = rooms.find(r => r.id === selectedRoomId)
+                if (room && room.hasCeramicWalls) {
                     const currentDisabled = room.disabledCeramicWalls || []
-                    onUpdateRoom(room.id, { disabledCeramicWalls: [...currentDisabled, bestSegWallId] })
+                    if (!currentDisabled.includes(hoveredCeramicFaceId)) {
+                        onUpdateRoom(room.id, { disabledCeramicWalls: [...currentDisabled, hoveredCeramicFaceId] })
+                    }
                     return
                 }
             }
@@ -2624,16 +2592,24 @@ export const CanvasEngine = ({
 
                 // Find which room contains the test point
                 let ownerRoom: typeof rooms[0] | null = null
-                for (const room of rooms) {
-                    if (isPointInPolygon({ x: testX, y: testY }, room.polygon)) {
-                        ownerRoom = room
-                        break
+                
+                // If in ceramic eraser mode, restrict hover detection to the currently selected room
+                if (isCeramicEraserActive && selectedRoomId) {
+                    const r = rooms.find(r => r.id === selectedRoomId)
+                    if (r && isPointInPolygon({ x: testX, y: testY }, r.polygon)) {
+                        ownerRoom = r
+                    }
+                } else {
+                    for (const room of rooms) {
+                        if (isPointInPolygon({ x: testX, y: testY }, room.polygon)) {
+                            ownerRoom = room
+                            break
+                        }
                     }
                 }
 
                 if (ownerRoom) {
                     // Find which segment of this room aligns with this wall
-                    // Use the segment direction vs wall direction to determine F/B
                     let foundFace: string | null = null
                     let closestSegDist = Infinity
                     for (let i = 0; i < ownerRoom.polygon.length; i++) {
@@ -2642,13 +2618,22 @@ export const CanvasEngine = ({
                         const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
                         const { point: proj2 } = getClosestPointOnSegment(midP, wall.start, wall.end)
                         const segDist = Math.sqrt((midP.x - proj2.x) ** 2 + (midP.y - proj2.y) ** 2)
-                        if (segDist < (wall.thickness / 2) + 5 && segDist < closestSegDist) {
-                            closestSegDist = segDist
+                        
+                        if (segDist < (wall.thickness / 2) + 5) {
                             const wDir = { x: wall.end.x - wall.start.x, y: wall.end.y - wall.start.y }
                             const sDir = { x: p2.x - p1.x, y: p2.y - p1.y }
                             const dot = wDir.x * sDir.x + wDir.y * sDir.y
                             const side = dot >= 0 ? 'F' : 'B'
-                            foundFace = `${wall.id}:${side}`
+                            
+                            // Loose tabique disambiguation: Ensure the segment side matches the cursor side
+                            // F = room on Right of wall (-1). B = room on Left of wall (+1).
+                            const expectedSign = side === 'F' ? -1 : 1
+                            if (nSign !== expectedSign) continue
+
+                            if (segDist < closestSegDist) {
+                                closestSegDist = segDist
+                                foundFace = `${wall.id}:${side}`
+                            }
                         }
                     }
                     if (foundFace) {
@@ -3131,50 +3116,90 @@ export const CanvasEngine = ({
                                                         return { p1: s.p1, p2: s.p2, wt, inv, dis, hvr, wall: w };
                                                     });
 
-                                                    return segments.map((s, i) => {
-                                                        const isHovered = s.hvr && (activeTool === "ceramic" || activeTool === "eraser");
+                                                    // 3. Group into chains
+                                                    const chains: any[] = [];
+                                                    for (const s of segments) {
+                                                        const key = `${s.wt}-${s.inv}-${s.dis}-${s.hvr}`;
+                                                        if (chains.length === 0 || chains[chains.length-1].key !== key) {
+                                                            chains.push({ key, wt: s.wt, inv: s.inv, dis: s.dis, hvr: s.hvr, pts: [s.p1.x, s.p1.y, s.p2.x, s.p2.y] });
+                                                        } else {
+                                                            chains[chains.length-1].pts.push(s.p2.x, s.p2.y);
+                                                        }
+                                                    }
+
+                                                    // 4. Close Loop Join
+                                                    if (chains.length > 1 && chains[0].key === chains[chains.length-1].key) {
+                                                        const last = chains.pop();
+                                                        chains[0].pts = [...last.pts.slice(0, -2), ...chains[0].pts];
+                                                    }
+
+                                                    // Function to calculate the offset polyline
+                                                    const getOffsetPolyline = (pts: number[], dist: number) => {
+                                                        const out: number[] = [];
+                                                        for(let i=0; i<pts.length/2; i++) {
+                                                            const px = pts[i*2], py = pts[i*2+1];
+                                                            
+                                                            let nx1=0, ny1=0, nx2=0, ny2=0;
+                                                            let len1=0, len2=0;
+                                                            
+                                                            if (i > 0) {
+                                                                const ppx = pts[(i-1)*2], ppy = pts[(i-1)*2+1];
+                                                                len1 = Math.sqrt((px-ppx)**2 + (py-ppy)**2);
+                                                                if (len1>0) { nx1 = -(py-ppy)/len1; ny1 = (px-ppx)/len1; }
+                                                            }
+                                                            if (i < pts.length/2 - 1) {
+                                                                const npx = pts[(i+1)*2], npy = pts[(i+1)*2+1];
+                                                                len2 = Math.sqrt((npx-px)**2 + (npy-py)**2);
+                                                                if (len2>0) { nx2 = -(npy-py)/len2; ny2 = (npx-px)/len2; }
+                                                            }
+
+                                                            if (len1>0 && len2>0) {
+                                                                const dot = nx1*nx2 + ny1*ny2;
+                                                                if (dot < -0.99) {
+                                                                    // 180 degree turn (loose tabique tip) - insert two points to create the square cap
+                                                                    out.push(px + nx1*dist, py + ny1*dist);
+                                                                    out.push(px + nx2*dist, py + ny2*dist);
+                                                                } else {
+                                                                    let mnx = nx1 + nx2;
+                                                                    let mny = ny1 + ny2;
+                                                                    let mlen = Math.sqrt(mnx*mnx + mny*mny);
+                                                                    if (mlen < 0.001) { mnx=nx1; mny=ny1; mlen=1; }
+                                                                    mnx /= mlen; mny /= mlen;
+                                                                    let miterFactor = 1 / Math.max(0.1, (nx1*mnx + ny1*mny));
+                                                                    if (miterFactor > 5) miterFactor = 5;
+                                                                    out.push(px + mnx*dist*miterFactor, py + mny*dist*miterFactor);
+                                                                }
+                                                            } else if (len1>0) {
+                                                                out.push(px + nx1*dist, py + ny1*dist);
+                                                            } else if (len2>0) {
+                                                                out.push(px + nx2*dist, py + ny2*dist);
+                                                            } else {
+                                                                out.push(px, py);
+                                                            }
+                                                        }
+                                                        return out;
+                                                    };
+
+                                                    return chains.map((c, idx) => {
+                                                        const isHovered = c.hvr && (activeTool === "ceramic" || activeTool === "eraser");
                                                         const hColor = activeTool === "ceramic" ? "#0ea5e9" : "#ef4444";
 
-                                                        if (s.inv || (s.dis && !isHovered)) return null;
-
-                                                        // 1. Calculate the offset for the stroke so it sits on the wall surface
-                                                        const p1 = s.p1, p2 = s.p2;
-                                                        const dx = p2.x - p1.x, dy = p2.y - p1.y;
-                                                        const lenSq = dx * dx + dy * dy;
-                                                        if (lenSq < 0.001) return null;
-                                                        const len = Math.sqrt(lenSq);
-                                                        const ux = dx / len, uy = dy / len;
+                                                        if (c.inv || (c.dis && !isHovered)) return null;
                                                         
-                                                        // Offset vector (to the right, towards room interior)
-                                                        const offsetDist = s.wt / 2;
-                                                        const nx = -uy * offsetDist;
-                                                        const ny = ux * offsetDist;
+                                                        const isC = c.pts.length >= 6 && Math.abs(c.pts[0]-c.pts[c.pts.length-2]) < 0.2 && Math.abs(c.pts[1]-c.pts[c.pts.length-1]) < 0.2;
+                                                        const pts = isC ? c.pts.slice(0, -2) : c.pts;
                                                         
-                                                        const offP1 = { x: p1.x + nx, y: p1.y + ny };
-                                                        const offP2 = { x: p2.x + nx, y: p2.y + ny };
+                                                        // Calculate the offset polyline so it sits perfectly on the wall surface
+                                                        const offsetDist = (c.wt / 2) + 1.5;
+                                                        const offsetPts = getOffsetPolyline(pts, offsetDist);
                                                         
                                                         const strokeW = 4;
                                                         
-                                                        // Check if this segment is part of a dangling wall, implying it's a tip
-                                                        const nextS = raw[(i + 1) % raw.length];
-                                                        const isTip = s.wall && s.wall.id === nextS.wall?.id && Math.abs((p2.x - nextS.p1.x)**2 + (p2.y - nextS.p1.y)**2) < 2;
-                                                        
                                                         return (
-                                                            <Group key={`cer-${room.id}-${i}`}>
-                                                                {isHovered && <Line points={[offP1.x, offP1.y, offP2.x, offP2.y]} stroke={hColor} strokeWidth={12} opacity={0.4} lineCap="square" listening={false} />}
-                                                                {!s.dis && (
-                                                                    <>
-                                                                        <Line points={[offP1.x, offP1.y, offP2.x, offP2.y]} stroke="#ffffff" strokeWidth={strokeW+2} opacity={0.9} lineCap="square" listening={false} />
-                                                                        <Line points={[offP1.x, offP1.y, offP2.x, offP2.y]} stroke="#0ea5e9" strokeWidth={strokeW} dash={[8, 4]} lineCap="square" listening={false} />
-                                                                        
-                                                                        {/* Draw end cap if this is the tip of a loose tabique */}
-                                                                        {isTip && (
-                                                                            <>
-                                                                                <Line points={[offP2.x, offP2.y, offP2.x - nx*2, offP2.y - ny*2]} stroke="#ffffff" strokeWidth={strokeW+2} opacity={0.9} lineCap="square" listening={false}/>
-                                                                                <Line points={[offP2.x, offP2.y, offP2.x - nx*2, offP2.y - ny*2]} stroke="#0ea5e9" strokeWidth={strokeW} dash={[8, 4]} lineCap="square" listening={false}/>
-                                                                            </>
-                                                                        )}
-                                                                    </>
+                                                            <Group key={`cer-${room.id}-${idx}`}>
+                                                                {isHovered && <Line points={offsetPts} closed={isC} stroke={hColor} strokeWidth={12} opacity={0.4} lineJoin="miter" lineCap="square" listening={false} />}
+                                                                {!c.dis && (
+                                                                    <Line points={offsetPts} closed={isC} stroke="#0ea5e9" strokeWidth={5} dash={[10, 8]} lineJoin="miter" lineCap="square" listening={false} />
                                                                 )}
                                                             </Group>
                                                         );
