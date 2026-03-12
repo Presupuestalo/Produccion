@@ -2230,10 +2230,11 @@ export const CanvasEngine = ({
             const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
             let touchedFaceId: string | null = null
 
-            // Detectar cara tocada (misma lógica que onPointerMove)
+            // Detectar cara tocada (misma lógica que onPointerMove con umbral táctil mayor)
             const avgThickness = walls.length > 0 ? walls.reduce((acc, w) => acc + w.thickness, 0) / walls.length : 20;
-            const thresholdWorld = avgThickness / 2 + 15 / zoom;
+            const thresholdWorld = avgThickness / 2 + 40 / zoom; // Mayor umbral para móviles
             let bestDist = thresholdWorld;
+            const activeRoom = (isCeramicEraserActive && selectedRoomId) ? rooms.find(r => r.id === selectedRoomId) : null;
 
             for (const wall of walls) {
                 if (wall.isInvisible) continue;
@@ -2241,11 +2242,35 @@ export const CanvasEngine = ({
                 const d = Math.sqrt((pos.x - proj.x) ** 2 + (pos.y - proj.y) ** 2);
                 if (d < bestDist) {
                     bestDist = d;
-                    const wdx = wall.end.x - wall.start.x;
-                    const wdy = wall.end.y - wall.start.y;
-                    const cross = wdx * (pos.y - wall.start.y) - wdy * (pos.x - wall.start.x);
-                    const side = cross > 0 ? 'F' : 'B';
-                    touchedFaceId = `${wall.id}:${side}`;
+                    
+                    let faceSide: 'F' | 'B' | null = null;
+                    // Si estamos en el modo de habitación, forzamos a seleccionar la cara que pertenece a esta habitación
+                    if (activeRoom) {
+                        for (let i = 0; i < activeRoom.polygon.length; i++) {
+                            const p1 = activeRoom.polygon[i];
+                            const p2 = activeRoom.polygon[(i + 1) % activeRoom.polygon.length];
+                            const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+                            const { point: midProj } = getClosestPointOnSegment(midP, wall.start, wall.end);
+                            const midD = Math.sqrt((midP.x - midProj.x) ** 2 + (midP.y - midProj.y) ** 2);
+                            if (midD <= (wall.thickness / 2) + 5) {
+                                const wdx = wall.end.x - wall.start.x;
+                                const wdy = wall.end.y - wall.start.y;
+                                const dot = wdx * (p2.x - p1.x) + wdy * (p2.y - p1.y);
+                                faceSide = dot >= 0 ? 'F' : 'B';
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Fallback al cross-product si no es de la habitación o es el borrador global
+                    if (!faceSide) {
+                        const wdx = wall.end.x - wall.start.x;
+                        const wdy = wall.end.y - wall.start.y;
+                        const cross = wdx * (pos.y - wall.start.y) - wdy * (pos.x - wall.start.x);
+                        faceSide = cross > 0 ? 'F' : 'B';
+                    }
+                    
+                    touchedFaceId = `${wall.id}:${faceSide}`;
                 }
             }
 
@@ -2697,10 +2722,8 @@ export const CanvasEngine = ({
             // Threshold: half of avg wall thickness + 15 screen-pixel buffer
             const avgThickness = walls.length > 0 ? walls.reduce((acc, w) => acc + w.thickness, 0) / walls.length : 20;
             const thresholdWorld = avgThickness / 2 + 15 / zoom;
+            const activeRoom = (isCeramicEraserActive && selectedRoomId) ? rooms.find(r => r.id === selectedRoomId) : null;
 
-            // Search directly on wall CENTERLINES (not polygon edges).
-            // This avoids the ambiguity of interior walls being shared by two rooms.
-            // We use the cross-product to determine which FACE (F or B) the cursor is on.
             let bestDist = thresholdWorld;
 
             for (const wall of walls) {
@@ -2709,14 +2732,33 @@ export const CanvasEngine = ({
                 const d = Math.sqrt((ceramicPos.x - proj.x) ** 2 + (ceramicPos.y - proj.y) ** 2);
                 if (d < bestDist) {
                     bestDist = d;
-                    // Cross product: (wallDir) × (cursorOffset)
-                    // > 0 → cursor is to the LEFT of wall direction → 'F' face (matches room whose polygon segment goes same direction as wall)
-                    // < 0 → cursor is to the RIGHT → 'B' face
-                    const wdx = wall.end.x - wall.start.x;
-                    const wdy = wall.end.y - wall.start.y;
-                    const cross = wdx * (ceramicPos.y - wall.start.y) - wdy * (ceramicPos.x - wall.start.x);
-                    const side = cross > 0 ? 'F' : 'B';
-                    bestFaceId = `${wall.id}:${side}`;
+                    
+                    let faceSide: 'F' | 'B' | null = null;
+                     if (activeRoom) {
+                        for (let i = 0; i < activeRoom.polygon.length; i++) {
+                            const p1 = activeRoom.polygon[i];
+                            const p2 = activeRoom.polygon[(i + 1) % activeRoom.polygon.length];
+                            const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+                            const { point: midProj } = getClosestPointOnSegment(midP, wall.start, wall.end);
+                            const midD = Math.sqrt((midP.x - midProj.x) ** 2 + (midP.y - midProj.y) ** 2);
+                            if (midD <= (wall.thickness / 2) + 5) {
+                                const wdx = wall.end.x - wall.start.x;
+                                const wdy = wall.end.y - wall.start.y;
+                                const dot = wdx * (p2.x - p1.x) + wdy * (p2.y - p1.y);
+                                faceSide = dot >= 0 ? 'F' : 'B';
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (!faceSide) {
+                        const wdx = wall.end.x - wall.start.x;
+                        const wdy = wall.end.y - wall.start.y;
+                        const cross = wdx * (ceramicPos.y - wall.start.y) - wdy * (ceramicPos.x - wall.start.x);
+                        faceSide = cross > 0 ? 'F' : 'B';
+                    }
+                    
+                    bestFaceId = `${wall.id}:${faceSide}`;
                 }
             }
 
