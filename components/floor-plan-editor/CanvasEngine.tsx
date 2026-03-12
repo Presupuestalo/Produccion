@@ -55,6 +55,20 @@ const MenuButton: React.FC<MenuButtonProps> = ({ icon, onClick, variant = "defau
     </button>
 )
 
+const SeparatorIcon = ({ className }: { className?: string }) => (
+    <svg 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="4" 
+        strokeLinecap="round" 
+        strokeDasharray="2 4" 
+        className={className}
+    >
+        <line x1="12" y1="0" x2="12" y2="24" stroke="#0ea5e9" />
+    </svg>
+)
+
 interface CanvasEngineProps {
     width: number
     height: number
@@ -490,6 +504,9 @@ export const CanvasEngine = ({
     alignmentGuides: externalGuides
 }: CanvasEngineProps) => {
     const [isCeramicEraserActive, setIsCeramicEraserActive] = React.useState(false)
+    const [roomMenuClickPos, setRoomMenuClickPos] = React.useState<Point | null>(null)
+    const [wallMenuClickPos, setWallMenuClickPos] = React.useState<Point | null>(null)
+
     const stageRef = React.useRef<any>(null)
     const gridRef = React.useRef<any>(null)
     const [dragShuntState, setDragShuntState] = React.useState<{ id: string, x: number, y: number } | null>(null)
@@ -603,103 +620,143 @@ export const CanvasEngine = ({
         }
     }
 
-    const facadeChains = React.useMemo(() => {
+    const groupedWallChains = React.useMemo(() => {
         const currentWS = wallSnapshot || walls
-        const facadeWalls = currentWS.filter(w => w.thickness === 20 && !w.isInvisible)
-        if (facadeWalls.length === 0) return []
+        const visibleWalls = currentWS.filter(w => !w.isInvisible)
+        if (visibleWalls.length === 0) return []
 
-        const chains: { points: number[], closed: boolean }[] = []
-        const visited = new Set<string>()
+        // 1. Pre-calculate the average offset for every node (vertex) in the floor plan
+        // This ensures that if a room wall ('outward') meets a loose wall ('center'),
+        // they both agree on a shared visual coordinate at the junction.
+        const nodeOffsets = new Map<string, Point>();
+        const nodeWallCounts = new Map<string, number>();
 
-        facadeWalls.forEach(startWall => {
-            if (visited.has(startWall.id)) return
+        const getNodeKey = (p: Point) => `${Math.round(p.x)},${Math.round(p.y)}`;
 
-            let wallChain: Wall[] = [startWall]
-            visited.add(startWall.id)
+        visibleWalls.forEach(w => {
+            const off = getWallOffset(w);
+            const keys = [getNodeKey(w.start), getNodeKey(w.end)];
+            keys.forEach(key => {
+                const cur = nodeOffsets.get(key) || { x: 0, y: 0 };
+                nodeOffsets.set(key, { x: cur.x + off.x, y: cur.y + off.y });
+                nodeWallCounts.set(key, (nodeWallCounts.get(key) || 0) + 1);
+            });
+        });
 
-            const isSamePointLocal = (p1: Point, p2: Point) => Math.abs(p1.x - p2.x) < 2 && Math.abs(p1.y - p2.y) < 2
+        const getSharedOffset = (p: Point) => {
+            const key = getNodeKey(p);
+            const sum = nodeOffsets.get(key) || { x: 0, y: 0 };
+            const count = nodeWallCounts.get(key) || 1;
+            return { x: sum.x / count, y: sum.y / count };
+        };
 
-            // Grow forward
-            let growing = true
-            while (growing) {
-                growing = false
-                const lastWall = wallChain[wallChain.length - 1]
-                const lastP = lastWall.end
-                const nextWall = facadeWalls.find(w => !visited.has(w.id) && (isSamePointLocal(w.start, lastP) || isSamePointLocal(w.end, lastP)))
-                if (nextWall) {
-                    visited.add(nextWall.id)
-                    if (isSamePointLocal(nextWall.end, lastP)) {
-                        wallChain.push({ ...nextWall, start: nextWall.end, end: nextWall.start })
-                    } else {
-                        wallChain.push(nextWall)
+        // 2. Group by thickness for clean miter joins
+        const thicknessGroups: Record<number, Wall[]> = {}
+        visibleWalls.forEach(w => {
+            if (!thicknessGroups[w.thickness]) thicknessGroups[w.thickness] = []
+            thicknessGroups[w.thickness].push(w)
+        })
+
+        const allChains: { points: number[], closed: boolean, thickness: number }[] = []
+
+        Object.entries(thicknessGroups).forEach(([thicknessStr, groupWalls]) => {
+            const thickness = parseFloat(thicknessStr)
+            const visited = new Set<string>()
+
+            groupWalls.forEach(startWall => {
+                if (visited.has(startWall.id)) return
+
+                let wallChain: Wall[] = [startWall]
+                visited.add(startWall.id)
+
+                const isSamePointLocal = (p1: Point, p2: Point) => Math.abs(p1.x - p2.x) < 2 && Math.abs(p1.y - p2.y) < 2
+
+                // Grow forward
+                let growing = true
+                while (growing) {
+                    growing = false
+                    const lastWall = wallChain[wallChain.length - 1]
+                    const lastP = lastWall.end
+                    const nextWall = groupWalls.find(w => !visited.has(w.id) && (isSamePointLocal(w.start, lastP) || isSamePointLocal(w.end, lastP)))
+                    if (nextWall) {
+                        visited.add(nextWall.id)
+                        if (isSamePointLocal(nextWall.end, lastP)) {
+                            // Reverse segment if it was drawn end-to-start
+                            wallChain.push({ ...nextWall, start: nextWall.end, end: nextWall.start })
+                        } else {
+                            wallChain.push(nextWall)
+                        }
+                        growing = true
                     }
-                    growing = true
                 }
-            }
 
-            // Grow backward
-            growing = true
-            while (growing) {
-                growing = false
-                const firstWall = wallChain[0]
-                const firstP = firstWall.start
-                const prevWall = facadeWalls.find(w => !visited.has(w.id) && (isSamePointLocal(w.start, firstP) || isSamePointLocal(w.end, firstP)))
-                if (prevWall) {
-                    visited.add(prevWall.id)
-                    if (isSamePointLocal(prevWall.start, firstP)) {
-                        wallChain.unshift({ ...prevWall, start: prevWall.end, end: prevWall.start })
-                    } else {
-                        wallChain.unshift(prevWall)
+                // Grow backward
+                growing = true
+                while (growing) {
+                    growing = false
+                    const firstWall = wallChain[0]
+                    const firstP = firstWall.start
+                    const prevWall = groupWalls.find(w => !visited.has(w.id) && (isSamePointLocal(w.start, firstP) || isSamePointLocal(w.end, firstP)))
+                    if (prevWall) {
+                        visited.add(prevWall.id)
+                        if (isSamePointLocal(prevWall.start, firstP)) {
+                            wallChain.unshift({ ...prevWall, start: prevWall.end, end: prevWall.start })
+                        } else {
+                            wallChain.unshift(prevWall)
+                        }
+                        growing = true
                     }
-                    growing = true
                 }
-            }
 
-            const isLoop = isSamePointLocal(wallChain[0].start, wallChain[wallChain.length - 1].end) && wallChain.length > 1
+                const isLoop = isSamePointLocal(wallChain[0].start, wallChain[wallChain.length - 1].end) && wallChain.length > 1
 
-            // Compute offset segments for each wall
-            const segments = wallChain.map(w => {
-                const off = getWallOffset(w)
-                return {
-                    p1: { x: w.start.x + off.x, y: w.start.y + off.y },
-                    p2: { x: w.end.x + off.x, y: w.end.y + off.y }
+                // Compute offset segments for each wall using the shared node offsets
+                const segments = wallChain.map(w => {
+                    const offS = getSharedOffset(w.start);
+                    const offE = getSharedOffset(w.end);
+                    return {
+                        p1: { x: w.start.x + offS.x, y: w.start.y + offS.y },
+                        p2: { x: w.end.x + offE.x, y: w.end.y + offE.y }
+                    }
+                })
+
+                const chainPoints: number[] = []
+                if (isLoop) {
+                    for (let i = 0; i < segments.length; i++) {
+                        const curr = segments[i]
+                        const next = segments[(i + 1) % segments.length]
+                        // We use line intersection to find the exact miter point between offset segments
+                        const inter = calculateLineIntersection(curr.p1, curr.p2, next.p1, next.p2)
+                        const joint = inter || curr.p2
+                        chainPoints.push(joint.x, joint.y)
+                    }
+                } else {
+                    chainPoints.push(segments[0].p1.x, segments[0].p1.y)
+                    for (let i = 0; i < segments.length - 1; i++) {
+                        const curr = segments[i]
+                        const next = segments[i + 1]
+                        const inter = calculateLineIntersection(curr.p1, curr.p2, next.p1, next.p2)
+                        const joint = inter || curr.p2
+                        chainPoints.push(joint.x, joint.y)
+                    }
+                    const last = segments[segments.length - 1]
+                    chainPoints.push(last.p2.x, last.p2.y)
                 }
-            })
 
-            const chainPoints: number[] = []
-            if (isLoop) {
-                // For loops, every point is a joint
-                for (let i = 0; i < segments.length; i++) {
-                    const curr = segments[i]
-                    const next = segments[(i + 1) % segments.length]
-                    const inter = calculateLineIntersection(curr.p1, curr.p2, next.p1, next.p2)
-                    const joint = inter || curr.p2
-                    chainPoints.push(joint.x, joint.y)
-                }
-            } else {
-                // For open chains
-                // Start point of first wall
-                chainPoints.push(segments[0].p1.x, segments[0].p1.y)
-                // Intermediate joints
-                for (let i = 0; i < segments.length - 1; i++) {
-                    const curr = segments[i]
-                    const next = segments[i + 1]
-                    const inter = calculateLineIntersection(curr.p1, curr.p2, next.p1, next.p2)
-                    const joint = inter || curr.p2
-                    chainPoints.push(joint.x, joint.y)
-                }
-                // End point of last wall
-                const last = segments[segments.length - 1]
-                chainPoints.push(last.p2.x, last.p2.y)
-            }
+                // Safety: If chain only has one point, it's not a line.
+                // If it has two identical points, it's also not a line.
+                if (chainPoints.length < 4) return;
 
-            chains.push({
-                points: chainPoints,
-                closed: isLoop
+                allChains.push({
+                    points: chainPoints,
+                    closed: isLoop,
+                    thickness: thickness,
+                    isTabique: !isLoop  // Open chains are interior partition walls
+                })
             })
         })
 
-        return chains
+        return allChains
     }, [walls, wallSnapshot, rooms])
 
     const getSnapshot = React.useCallback((options?: { hideBackground?: boolean; hideGrid?: boolean }) => {
@@ -1142,8 +1199,34 @@ export const CanvasEngine = ({
         }
     }, [isDraggingMenuState])
 
+    // Global Key Listener for Escape
+    React.useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                setIsCeramicEraserActive(false)
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [])
+
     const selectedWall = selectedWallIds.length === 1 ? walls.find(w => w.id === selectedWallIds[0]) : null
     const selectedRoom = rooms.find(r => r.id === selectedRoomId)
+
+    // Reset ceramic eraser and room menu pos when tool changes or selection is cleared
+    React.useEffect(() => {
+        // Reset when switching tools or when selection is completely cleared
+        if (activeTool !== "select") {
+            setIsCeramicEraserActive(false)
+            setRoomMenuClickPos(null)
+            setWallMenuClickPos(null)
+        } else if (!selectedRoomId && !selectedWall && !selectedElement) {
+            // Check if eraser was active. If nothing is selected, eraser can't be active (no menu)
+            setRoomMenuClickPos(null)
+            setWallMenuClickPos(null)
+            setIsCeramicEraserActive(false)
+        }
+    }, [activeTool, selectedRoomId, selectedWall, selectedElement])
 
     const ROOM_TYPES = [
         "Salón", "Cocina", "Cocina Abierta", "Cocina Americana",
@@ -1838,6 +1921,7 @@ export const CanvasEngine = ({
                             ? (Math.atan2(dy, dx) * 180 / Math.PI) + 180
                             : Math.atan2(dy, dx) * 180 / Math.PI)}
                     onPointerDown={(e) => {
+                        if (activeTool !== "select" || isCeramicEraserActive) return
                         e.cancelBubble = true
                         lastClickedWallForEdit.current = wall.id
                         if (!selectedWallIds.includes(wall.id)) {
@@ -2003,7 +2087,7 @@ export const CanvasEngine = ({
             targetName === "measurement-label" ||
             targetName.startsWith("room-")
 
-        if (isRightClick || isMiddleClick || (isBackground && !isDrawingToolEarly && activeTool !== "ceramic" && activeTool !== "eraser") || spacePressed.current || (activeTool === "select" && (!isProtected || isRoom))) {
+        if (isRightClick || isMiddleClick || (isBackground && !isDrawingToolEarly && activeTool !== "ceramic" && activeTool !== "eraser") || spacePressed.current || ((activeTool === "select" || isCeramicEraserActive) && (!isProtected || isRoom))) {
             // Only deselect if we are NOT interacting with a room (unless it's a right/middle click which might imply context menu or pan anywhere)
             if (!isRoom || isRightClick || isMiddleClick || spacePressed.current) {
                 if (!isRoom) { // Don't deselect everything if we clicked a room (let room onClick handle selection)
@@ -2344,7 +2428,7 @@ export const CanvasEngine = ({
 
         // Si pinchamos en algo (o cerca por el offset) y es tÃ¡ctil, disparamos su lÃ³gica
         if (isTouchInteraction && !isBackground) {
-            if (activeTool === "select") {
+            if (activeTool === "select" && !isCeramicEraserActive) {
                 if (targetName.startsWith("wall-")) {
                     const wallId = targetName.split("wall-")[1].split("-")[0]
                     onSelectWall(wallId, e.evt.ctrlKey)
@@ -2922,8 +3006,30 @@ export const CanvasEngine = ({
                                         stroke={selectedRoomId === room.id ? "#0ea5e9" : "transparent"}
                                         strokeWidth={selectedRoomId === room.id ? 4 : 2}
                                         closed={true}
-                                        onClick={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
-                                        onTap={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
+                                        onClick={(e) => { 
+                                            e.cancelBubble = true; 
+                                            const stage = e.target.getStage();
+                                            const pointer = stage?.getPointerPosition();
+                                            if (pointer) {
+                                                setRoomMenuClickPos({
+                                                    x: (pointer.x - offset.x) / zoom,
+                                                    y: (pointer.y - offset.y) / zoom
+                                                });
+                                            }
+                                            onSelectRoom(room.id);
+                                        }}
+                                        onTap={(e) => { 
+                                            e.cancelBubble = true; 
+                                            const stage = e.target.getStage();
+                                            const pointer = stage?.getPointerPosition();
+                                            if (pointer) {
+                                                setRoomMenuClickPos({
+                                                    x: (pointer.x - offset.x) / zoom,
+                                                    y: (pointer.y - offset.y) / zoom
+                                                });
+                                            }
+                                            onSelectRoom(room.id);
+                                        }}
                                     />
 
                                     {/* 3. Ceramic Floor Visualization (ON TOP) */}
@@ -3076,21 +3182,89 @@ export const CanvasEngine = ({
                             )
                         })}
 
-                        {/* Renderizar muros guardados - AHORA ANTES de puertas/ventanas para que estas se puedan seleccionar mejor */}
-                        {/* HIGH-QUALITY FACADE OVERLAY (Clean miter joins) */}
-                        {facadeChains.map((chain, idx) => (
-                            <Line
-                                key={`facade-chain-${idx}`}
-                                points={chain.points}
-                                closed={chain.closed}
-                                stroke="#334155"
-                                strokeWidth={20}
-                                lineJoin="miter"
-                                miterLimit={2}
-                                lineCap="butt"
-                                listening={false}
-                            />
-                        ))}
+                        {/* INTERIOR TABIQUE CHAINS: Render WITHOUT room clipping to avoid triangular artifacts */}
+                        {/* These walls are inside rooms, so the evenodd clip would cut them, creating triangles */}
+                        <Group listening={false}>
+                            {groupedWallChains.filter(c => c.isTabique).map((chain, idx) => (
+                                <Line
+                                    key={`tabique-chain-${idx}`}
+                                    points={chain.points}
+                                    closed={false}
+                                    stroke="#334155"
+                                    strokeWidth={chain.thickness}
+                                    lineJoin="miter"
+                                    miterLimit={5}
+                                    lineCap="square"
+                                    listening={false}
+                                />
+                            ))}
+                        </Group>
+
+                        {/* PERIMETER WALL CHAINS: Render WITH room clip so overlapping corners are clean */}
+                        <Group clipFunc={(ctx) => {
+                            const insetPolygon = (poly: Point[], amount: number): Point[] => {
+                                const n = poly.length
+                                if (n < 3) return poly
+                                const inset: Point[] = []
+                                for (let i = 0; i < n; i++) {
+                                    const prev = poly[(i - 1 + n) % n]
+                                    const curr = poly[i]
+                                    const next = poly[(i + 1) % n]
+
+                                    const e1x = curr.x - prev.x, e1y = curr.y - prev.y
+                                    const e2x = next.x - curr.x, e2y = next.y - curr.y
+
+                                    const l1 = Math.sqrt(e1x * e1x + e1y * e1y)
+                                    const l2 = Math.sqrt(e2x * e2x + e2y * e2y)
+                                    if (l1 < 0.001 || l2 < 0.001) { inset.push(curr); continue }
+
+                                    const n1x = -e1y / l1, n1y = e1x / l1
+                                    const n2x = -e2y / l2, n2y = e2x / l2
+
+                                    let bx = n1x + n2x, by = n1y + n2y
+                                    const bl = Math.sqrt(bx * bx + by * by)
+                                    if (bl < 0.001) { inset.push({ x: curr.x + n1x * amount, y: curr.y + n1y * amount }); continue }
+                                    bx /= bl; by /= bl
+
+                                    const sin_half = (n1x * bx + n1y * by)
+                                    const scale = Math.abs(sin_half) < 0.1 ? amount : amount / sin_half
+                                    inset.push({ x: curr.x + bx * scale, y: curr.y + by * scale })
+                                }
+                                return inset
+                            }
+
+                            ctx.beginPath();
+                            const clipWidth = 100000 / zoom;
+                            const clipHeight = 100000 / zoom;
+                            ctx.rect(-offset.x / zoom - clipWidth / 2, -offset.y / zoom - clipHeight / 2, clipWidth, clipHeight);
+
+                            rooms.forEach(room => {
+                                if (room.polygon && room.polygon.length > 2) {
+                                    const inset = insetPolygon(room.polygon, 5)
+                                    ctx.moveTo(inset[0].x, inset[0].y);
+                                    for (let i = 1; i < inset.length; i++) {
+                                        ctx.lineTo(inset[i].x, inset[i].y);
+                                    }
+                                    ctx.closePath();
+                                }
+                            });
+                            
+                            ctx.clip("evenodd");
+                        }}>
+                            {groupedWallChains.filter(c => !c.isTabique).map((chain, idx) => (
+                                <Line
+                                    key={`wall-chain-${idx}`}
+                                    points={chain.points}
+                                    closed={chain.closed}
+                                    stroke="#334155"
+                                    strokeWidth={chain.thickness}
+                                    lineJoin="miter"
+                                    miterLimit={5}
+                                    lineCap="butt"
+                                    listening={false}
+                                />
+                            ))}
+                        </Group>
                         {walls.map((wall: Wall) => {
                             const isHovered = hoveredWallId === wall.id
                             const isSelected = selectedWallIds.includes(wall.id)
@@ -3102,7 +3276,7 @@ export const CanvasEngine = ({
                                 const now = Date.now()
                                 if (now - lastTapRef.current < 300) {
                                     // Double tap -> Split
-                                    if (activeTool === "select" && onSplitWall) {
+                                    if (activeTool === "select" && !isCeramicEraserActive && onSplitWall) {
                                         const stage = e.target.getStage()
                                         if (stage) {
                                             const pos = getRelativePointerPosition(stage)
@@ -3111,7 +3285,15 @@ export const CanvasEngine = ({
                                     }
                                 } else {
                                     // Single tap -> Select
-                                    if (activeTool === "select") {
+                                    if (activeTool === "select" && !isCeramicEraserActive) {
+                                        const stage = e.target.getStage();
+                                        const pointer = stage?.getPointerPosition();
+                                        if (pointer) {
+                                            setWallMenuClickPos({
+                                                x: (pointer.x - offset.x) / zoom,
+                                                y: (pointer.y - offset.y) / zoom
+                                            });
+                                        }
                                         onSelectWall(wall.id, false)
                                     }
                                 }
@@ -3131,22 +3313,30 @@ export const CanvasEngine = ({
                                     <Line
                                         name={`wall-${wall.id}`}
                                         points={renderPoints}
-                                        stroke={wall.isInvisible ? "#0ea5e9" : (wall.thickness === 20 ? "transparent" : (isHovered && !isSelected ? "#ef4444" : "#334155"))}
+                                        stroke={wall.isInvisible ? "#0ea5e9" : ((isHovered && !isSelected) ? "#ef4444" : "transparent")}
                                         strokeWidth={wall.isInvisible ? (isSelected ? 4 : 2) : wall.thickness}
                                         dash={wall.isInvisible ? [5, 5] : undefined}
                                         hitStrokeWidth={30} // Increased from 20 for better mobile touch
-                                        lineCap={wall.thickness === 20 ? "butt" : "round"}
-                                        lineJoin={wall.thickness === 20 ? "miter" : "round"}
-                                        draggable={activeTool === "select"}
+                                        lineCap="butt"
+                                        lineJoin="miter"
+                                        draggable={activeTool === "select" && !isCeramicEraserActive}
                                         onClick={(e) => {
                                             e.cancelBubble = true
-                                            if (activeTool === "select") {
+                                            if (activeTool === "select" && !isCeramicEraserActive) {
+                                                const stage = e.target.getStage();
+                                                const pointer = stage?.getPointerPosition();
+                                                if (pointer) {
+                                                    setWallMenuClickPos({
+                                                        x: (pointer.x - offset.x) / zoom,
+                                                        y: (pointer.y - offset.y) / zoom
+                                                    });
+                                                }
                                                 onSelectWall(wall.id, e.evt.ctrlKey)
                                             }
                                         }}
                                         onTap={handleWallTap}
                                         onDblClick={(e) => {
-                                            if (activeTool === "select" && onSplitWall) {
+                                            if (activeTool === "select" && !isCeramicEraserActive && onSplitWall) {
                                                 const stage = e.target.getStage()
                                                 if (stage) {
                                                     const pos = getRelativePointerPosition(stage)
@@ -3407,10 +3597,24 @@ export const CanvasEngine = ({
                                     name={`door-${door.id}`}
                                     x={pos.x} y={pos.y}
                                     rotation={wallAngle}
-                                    draggable={activeTool === "select"}
-                                    onClick={(e) => { e.cancelBubble = true; onSelectElement({ type: "door", id: door.id }) }}
-                                    onTap={(e) => { e.cancelBubble = true; onSelectElement({ type: "door", id: door.id }) }}
+                                    draggable={activeTool === "select" && !isCeramicEraserActive}
+                                    onClick={(e) => { 
+                                        if (activeTool === "select" && !isCeramicEraserActive) {
+                                            e.cancelBubble = true; 
+                                            onSelectElement({ type: "door", id: door.id }) 
+                                        }
+                                    }}
+                                    onTap={(e) => { 
+                                        if (activeTool === "select" && !isCeramicEraserActive) {
+                                            e.cancelBubble = true; 
+                                            onSelectElement({ type: "door", id: door.id }) 
+                                        }
+                                    }}
                                     onDragStart={(e) => {
+                                        if (activeTool !== "select" || isCeramicEraserActive) {
+                                            e.target.stopDrag();
+                                            return;
+                                        }
                                         onSelectElement({ type: "door", id: door.id })
                                         const stage = e.target.getStage()
                                         const sp = stage?.getPointerPosition()
@@ -3772,10 +3976,24 @@ export const CanvasEngine = ({
                                     name={`window-${window.id}`}
                                     x={pos.x} y={pos.y}
                                     rotation={wallAngle}
-                                    draggable={activeTool === "select"}
-                                    onClick={(e) => { e.cancelBubble = true; onSelectElement({ type: "window", id: window.id }) }}
-                                    onTap={(e) => { e.cancelBubble = true; onSelectElement({ type: "window", id: window.id }) }}
+                                    draggable={activeTool === "select" && !isCeramicEraserActive}
+                                    onClick={(e) => { 
+                                        if (activeTool === "select" && !isCeramicEraserActive) {
+                                            e.cancelBubble = true; 
+                                            onSelectElement({ type: "window", id: window.id }) 
+                                        }
+                                    }}
+                                    onTap={(e) => { 
+                                        if (activeTool === "select" && !isCeramicEraserActive) {
+                                            e.cancelBubble = true; 
+                                            onSelectElement({ type: "window", id: window.id }) 
+                                        }
+                                    }}
                                     onDragStart={(e) => {
+                                        if (activeTool !== "select" || isCeramicEraserActive) {
+                                            e.target.stopDrag();
+                                            return;
+                                        }
                                         onSelectElement({ type: "window", id: window.id })
                                         const stage = e.target.getStage()
                                         const sp = stage?.getPointerPosition()
@@ -4311,7 +4529,11 @@ export const CanvasEngine = ({
                                 zoom={zoom}
                                 shunts={shunts}
                                 setDragShuntState={setDragShuntState}
-                                onSelect={() => onSelectElement({ type: "shunt", id: shunt.id })}
+                                onSelect={() => {
+                                    if (activeTool === "select" && !isCeramicEraserActive) {
+                                        onSelectElement({ type: "shunt", id: shunt.id })
+                                    }
+                                }}
                                 onDragEnd={(id, x, y) => {
                                     onDragElement("shunt", id, { x, y })
                                     onDragEnd()
@@ -4363,9 +4585,35 @@ export const CanvasEngine = ({
                                     key={`label-${room.id}`}
                                     name="room-label"
                                     x={labelPos.x} y={labelPos.y}
-                                    onClick={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
-                                    onTap={(e) => { e.cancelBubble = true; onSelectRoom(room.id) }}
-                                    listening={false}
+                                    onClick={(e) => { 
+                                        if (activeTool === "select" && !isCeramicEraserActive) {
+                                            e.cancelBubble = true; 
+                                            const stage = e.target.getStage();
+                                            const pointer = stage?.getPointerPosition();
+                                            if (pointer) {
+                                                setRoomMenuClickPos({
+                                                    x: (pointer.x - offset.x) / zoom,
+                                                    y: (pointer.y - offset.y) / zoom
+                                                });
+                                            }
+                                            onSelectRoom(room.id);
+                                        }
+                                    }}
+                                    onTap={(e) => { 
+                                        if (activeTool === "select" && !isCeramicEraserActive) {
+                                            e.cancelBubble = true; 
+                                            const stage = e.target.getStage();
+                                            const pointer = stage?.getPointerPosition();
+                                            if (pointer) {
+                                                setRoomMenuClickPos({
+                                                    x: (pointer.x - offset.x) / zoom,
+                                                    y: (pointer.y - offset.y) / zoom
+                                                });
+                                            }
+                                            onSelectRoom(room.id);
+                                        }
+                                    }}
+                                    listening={true}
                                 >
                                     {showRoomNames && (
                                         <Text
@@ -4988,16 +5236,24 @@ export const CanvasEngine = ({
                         style={{
                             position: 'absolute',
                             left: Math.max(100, Math.min(window.innerWidth - 100, (selectedRoom
-                                ? (calculatePolygonCentroid(selectedRoom.polygon).x * zoom + offset.x)
+                                ? (roomMenuClickPos 
+                                    ? (roomMenuClickPos.x * zoom + offset.x)
+                                    : (calculatePolygonCentroid(selectedRoom.polygon).x * zoom + offset.x))
                                 : (selectedElement && currentEPos)
                                     ? currentEPos.x
-                                    : uiPos?.x || 0
+                                    : (wallMenuClickPos 
+                                        ? (wallMenuClickPos.x * zoom + offset.x)
+                                        : (uiPos?.x || 0))
                             ) + menuDragOffset.x)),
                             top: Math.max(80, Math.min(window.innerHeight - 80, (selectedRoom
-                                ? (calculatePolygonCentroid(selectedRoom.polygon).y * zoom + offset.y - 40)
+                                ? (roomMenuClickPos
+                                    ? (roomMenuClickPos.y * zoom + offset.y - 40)
+                                    : (calculatePolygonCentroid(selectedRoom.polygon).y * zoom + offset.y - 40))
                                 : (selectedElement && currentEPos)
                                     ? currentEPos.y - 80
-                                    : (uiPos ? uiPos.y - 100 : 0)
+                                    : (wallMenuClickPos 
+                                        ? (wallMenuClickPos.y * zoom + offset.y - 100)
+                                        : (uiPos ? uiPos.y - 100 : 0))
                             ) + menuDragOffset.y)),
                             transform: 'translateX(-50%) translateY(-100%)', // Anchor bottom-center
                             backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -5005,7 +5261,7 @@ export const CanvasEngine = ({
                             padding: '2px 4px',
                             borderRadius: '12px',
                             boxShadow: '0 10px 30px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)',
-                            zIndex: 1000,
+                            zIndex: 40,
                             pointerEvents: 'auto',
                             cursor: isDraggingMenuState ? 'grabbing' : 'grab',
                             animation: 'fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -5031,7 +5287,7 @@ export const CanvasEngine = ({
                                                 title="Dividir tabique"
                                             />
                                             <MenuButton
-                                                icon={<SquareDashed className={`h-3 w-3 ${selectedWall.isInvisible ? 'text-sky-500 fill-sky-50' : ''}`} />}
+                                                icon={<SeparatorIcon className={`h-6 w-3 ${selectedWall.isInvisible ? 'opacity-100' : 'opacity-60'}`} />}
                                                 onClick={() => onUpdateWallInvisible(selectedWall.id, !selectedWall.isInvisible)}
                                                 title="Separador de estancias"
                                             />
