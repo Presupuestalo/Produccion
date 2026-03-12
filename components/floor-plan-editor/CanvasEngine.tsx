@@ -2003,7 +2003,7 @@ export const CanvasEngine = ({
             targetName === "measurement-label" ||
             targetName.startsWith("room-")
 
-        if (isRightClick || isMiddleClick || (isBackground && !isDrawingToolEarly) || spacePressed.current || (activeTool === "select" && (!isProtected || isRoom))) {
+        if (isRightClick || isMiddleClick || (isBackground && !isDrawingToolEarly && activeTool !== "ceramic" && activeTool !== "eraser") || spacePressed.current || (activeTool === "select" && (!isProtected || isRoom))) {
             // Only deselect if we are NOT interacting with a room (unless it's a right/middle click which might imply context menu or pan anywhere)
             if (!isRoom || isRightClick || isMiddleClick || spacePressed.current) {
                 if (!isRoom) { // Don't deselect everything if we clicked a room (let room onClick handle selection)
@@ -2347,9 +2347,7 @@ export const CanvasEngine = ({
             if (activeTool === "select") {
                 if (targetName.startsWith("wall-")) {
                     const wallId = targetName.split("wall-")[1].split("-")[0]
-                    if (activeTool !== "ceramic" && activeTool !== "eraser") {
-                        onSelectWall(wallId, e.evt.ctrlKey)
-                    }
+                    onSelectWall(wallId, e.evt.ctrlKey)
                 } else if (targetName.startsWith("door-")) {
                     const doorId = targetName.split("door-")[1].split("-")[0]
                     onSelectElement({ type: "door", id: doorId })
@@ -2388,7 +2386,7 @@ export const CanvasEngine = ({
             onSelectElement(null)
         }
 
-        if (activeTool !== "wall" && activeTool !== "door" && activeTool !== "window" && activeTool !== "ruler" && activeTool !== "arc" && activeTool !== "shunt") return
+        if (activeTool !== "wall" && activeTool !== "door" && activeTool !== "window" && activeTool !== "ruler" && activeTool !== "arc" && activeTool !== "shunt" && activeTool !== "ceramic" && activeTool !== "eraser") return
 
         const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
 
