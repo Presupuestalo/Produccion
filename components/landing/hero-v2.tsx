@@ -39,18 +39,18 @@ export function HeroV2() {
                         </div>
 
                         {/* Title */}
-                        <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-white leading-tight">
-                            Deja de perder el fin de semana haciendo <br />
+                        <h1 className="text-4xl md:text-5xl lg:text-7xl font-black tracking-tighter text-white leading-tight">
+                            Deja de perder el fin de semana haciendo <br className="hidden sm:block" />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-orange-600 to-orange-800 line-through decoration-orange-600/40">
                                 Excels
                             </span>
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-orange-600 to-orange-800 ml-4">
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-orange-600 to-orange-800 ml-2 sm:ml-4">
                                 Presupuestos
                             </span>
                         </h1>
 
                         {/* Subtitle */}
-                        <p className="max-w-xl text-lg md:text-xl text-gray-400 text-pretty">
+                        <p className="max-w-xl text-base sm:text-lg md:text-xl text-gray-400 text-pretty">
                             Genera presupuestos súper profesionales en <span className="text-white font-semibold">3 minutos</span>, directamente desde la obra con tu móvil. Calcula márgenes de beneficio, desperdicio y genera un PDF automático que cierra más ventas.
                         </p>
 
@@ -76,10 +76,12 @@ export function HeroV2() {
 
                         {/* CTAs */}
                         <div className="pt-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                            <Link href="/auth">
-                                <Button size="lg" className="h-14 px-8 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white rounded-full transition-all shadow-lg shadow-orange-500/20 w-full sm:w-auto hover:scale-105 active:scale-95">
-                                    Probar Gratis Ahora
-                                    <ArrowRight className="h-5 w-5 ml-2" />
+                            <Link href="/auth" passHref legacyBehavior>
+                                <Button asChild size="lg" className="h-14 px-8 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white rounded-full transition-all shadow-lg shadow-orange-500/20 w-full sm:w-auto hover:scale-105 active:scale-95">
+                                    <a className="flex items-center justify-center">
+                                        Probar Gratis Ahora
+                                        <ArrowRight className="h-5 w-5 ml-2" />
+                                    </a>
                                 </Button>
                             </Link>
 
@@ -121,44 +123,44 @@ export function HeroV2() {
                                 {/* Editor lines */}
                                 <div className="space-y-4 flex-1">
                                     {/* Line 1 - Finished */}
-                                    <div className="group rounded bg-white/5 p-3 flex justify-between items-center hover:bg-white/10 transition-colors cursor-pointer border border-transparent hover:border-white/10">
+                                    <div className="group rounded bg-white/5 p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 hover:bg-white/10 transition-colors cursor-pointer border border-transparent hover:border-white/10">
                                         <div>
-                                            <div className="text-gray-300 font-sans font-medium">1. Suelo Laminado AC5 Roble</div>
-                                            <div className="text-xs text-gray-500 mt-1 flex gap-2">
+                                            <div className="text-gray-300 font-sans font-medium text-xs sm:text-sm">1. Suelo Laminado AC5 Roble</div>
+                                            <div className="text-[10px] sm:text-xs text-gray-500 mt-1 flex flex-wrap gap-1 sm:gap-2 items-center">
                                                 <span>65.00 m²</span>
-                                                <span>•</span>
+                                                <span className="hidden sm:inline">•</span>
                                                 <span className="text-red-400 bg-red-400/10 px-1 rounded flex items-center gap-1"> +10% merma</span>
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <div className="text-white font-bold font-sans">2.145,00 €</div>
-                                            <div className="text-xs text-green-400 mt-1 flex justify-end gap-1">
+                                        <div className="text-left sm:text-right w-full sm:w-auto flex justify-between sm:block items-center">
+                                            <div className="text-white font-bold font-sans text-sm sm:text-base">2.145,00 €</div>
+                                            <div className="text-[10px] sm:text-xs text-green-400 sm:mt-1 flex justify-end gap-1">
                                                 <span>Rentabilidad: +35%</span>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Line 2 - Typing animation */}
-                                    <div className="rounded bg-orange-500/10 border border-orange-500/30 p-3 flex justify-between items-center relative overflow-hidden">
+                                    <div className="rounded bg-orange-500/10 border border-orange-500/30 p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 relative overflow-hidden">
                                         <div className="absolute top-0 left-0 bottom-0 w-1 bg-orange-500 animate-pulse"></div>
-                                        <div>
-                                            <div className="text-white font-sans font-medium flex items-center gap-1">
+                                        <div className="pl-2 sm:pl-0">
+                                            <div className="text-white font-sans font-medium text-xs sm:text-sm flex items-center gap-1 flex-wrap">
                                                 2. Pintura Plástica Lisa
-                                                <span className="inline-block w-1.5 h-4 bg-orange-400 animate-pulse ml-1"></span>
+                                                <span className="inline-block w-1.5 h-3 sm:h-4 bg-orange-400 animate-pulse ml-1"></span>
                                             </div>
-                                            <div className="text-xs text-orange-300/60 mt-1 flex gap-2">
+                                            <div className="text-[10px] sm:text-xs text-orange-300/60 mt-1 flex gap-2">
                                                 <span><Clock className="w-3 h-3 inline mr-1 animate-spin" /> Calculando rendimientos...</span>
                                             </div>
                                         </div>
-                                        <div className="text-right blur-[2px] opacity-50">
-                                            <div className="text-white font-bold font-sans">--- €</div>
+                                        <div className="text-left sm:text-right blur-[2px] opacity-50 pl-2 sm:pl-0">
+                                            <div className="text-white font-bold font-sans text-sm sm:text-base">--- €</div>
                                         </div>
                                     </div>
 
                                     {/* Line 3 - Ghost */}
                                     <div className="rounded border border-dashed border-white/10 p-3 flex justify-between items-center opacity-30">
-                                        <div className="h-5 w-40 bg-white/20 rounded"></div>
-                                        <div className="h-5 w-20 bg-white/20 rounded"></div>
+                                        <div className="h-4 sm:h-5 w-24 sm:w-40 bg-white/20 rounded"></div>
+                                        <div className="h-4 sm:h-5 w-12 sm:w-20 bg-white/20 rounded"></div>
                                     </div>
                                 </div>
 
