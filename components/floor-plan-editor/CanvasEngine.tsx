@@ -3128,52 +3128,58 @@ export const CanvasEngine = ({
                                                             hvr = hoveredCeramicFaceId === faceId;
                                                         }
                                                         
-                                                        return { p1: s.p1, p2: s.p2, wt, inv, dis, hvr };
+                                                        return { p1: s.p1, p2: s.p2, wt, inv, dis, hvr, wall: w };
                                                     });
 
-                                                    // 3. Group into chains
-                                                    const chains: any[] = [];
-                                                    for (const s of segments) {
-                                                        const key = `${s.wt}-${s.inv}-${s.dis}-${s.hvr}`;
-                                                        if (chains.length === 0 || chains[chains.length-1].key !== key) {
-                                                            chains.push({ key, wt: s.wt, inv: s.inv, dis: s.dis, hvr: s.hvr, pts: [s.p1.x, s.p1.y, s.p2.x, s.p2.y] });
-                                                        } else {
-                                                            chains[chains.length-1].pts.push(s.p2.x, s.p2.y);
-                                                        }
-                                                    }
-
-                                                    // 4. Close Loop Join
-                                                    if (chains.length > 1 && chains[0].key === chains[chains.length-1].key) {
-                                                        const last = chains.pop();
-                                                        chains[0].pts = [...last.pts.slice(0, -2), ...chains[0].pts];
-                                                    }
-
-                                                    return chains.map((c, idx) => {
-                                                        const isHovered = c.hvr && (activeTool === "ceramic" || activeTool === "eraser");
+                                                    return segments.map((s, i) => {
+                                                        const isHovered = s.hvr && (activeTool === "ceramic" || activeTool === "eraser");
                                                         const hColor = activeTool === "ceramic" ? "#0ea5e9" : "#ef4444";
 
-                                                        if (c.inv || (c.dis && !isHovered)) return null;
+                                                        if (s.inv || (s.dis && !isHovered)) return null;
+
+                                                        // 1. Calculate the offset for the stroke so it sits on the wall surface
+                                                        const p1 = s.p1, p2 = s.p2;
+                                                        const dx = p2.x - p1.x, dy = p2.y - p1.y;
+                                                        const lenSq = dx * dx + dy * dy;
+                                                        if (lenSq < 0.001) return null;
+                                                        const len = Math.sqrt(lenSq);
+                                                        const ux = dx / len, uy = dy / len;
                                                         
-                                                        const isC = c.pts.length >= 6 && Math.abs(c.pts[0]-c.pts[c.pts.length-2]) < 0.2 && Math.abs(c.pts[1]-c.pts[c.pts.length-1]) < 0.2;
-                                                        const pts = isC ? c.pts.slice(0, -2) : c.pts;
+                                                        // Offset vector (to the right, towards room interior)
+                                                        const offsetDist = s.wt / 2;
+                                                        const nx = -uy * offsetDist;
+                                                        const ny = ux * offsetDist;
                                                         
-                                                        // Tighter look: reduced offsets so it doesn't overlap on narrow tips
-                                                        const outerW = c.wt + 8; // 4px inside room
-                                                        const innerW = c.wt + 2; // 1px inside room
+                                                        const offP1 = { x: p1.x + nx, y: p1.y + ny };
+                                                        const offP2 = { x: p2.x + nx, y: p2.y + ny };
+                                                        
+                                                        const strokeW = 4;
+                                                        
+                                                        // Check if this segment is part of a dangling wall, implying it's a tip
+                                                        const nextS = raw[(i + 1) % raw.length];
+                                                        const isTip = s.wall && s.wall.id === nextS.wall?.id && Math.abs((p2.x - nextS.p1.x)**2 + (p2.y - nextS.p1.y)**2) < 2;
                                                         
                                                         return (
-                                                            <Group key={`cer-${room.id}-${idx}`}>
-                                                                {isHovered && <Line points={c.pts} stroke={hColor} strokeWidth={c.wt + 12} opacity={0.4} lineJoin="miter" lineCap="butt" listening={false} />}
-                                                                {!c.dis && (
+                                                            <Group key={`cer-${room.id}-${i}`}>
+                                                                {isHovered && <Line points={[offP1.x, offP1.y, offP2.x, offP2.y]} stroke={hColor} strokeWidth={12} opacity={0.4} lineCap="square" listening={false} />}
+                                                                {!s.dis && (
                                                                     <>
-                                                                        <Line points={pts} closed={isC} stroke="#ffffff" strokeWidth={outerW} opacity={0.9} lineJoin="miter" lineCap="butt" miterLimit={500} listening={false} />
-                                                                        <Line points={pts} closed={isC} stroke="#0ea5e9" strokeWidth={outerW} dash={[8, 4]} lineJoin="miter" lineCap="butt" miterLimit={500} listening={false} />
-                                                                        <Line points={pts} closed={isC} stroke="#ffffff" strokeWidth={innerW} opacity={1} lineJoin="miter" lineCap="butt" miterLimit={500} listening={false} />
+                                                                        <Line points={[offP1.x, offP1.y, offP2.x, offP2.y]} stroke="#ffffff" strokeWidth={strokeW+2} opacity={0.9} lineCap="square" listening={false} />
+                                                                        <Line points={[offP1.x, offP1.y, offP2.x, offP2.y]} stroke="#0ea5e9" strokeWidth={strokeW} dash={[8, 4]} lineCap="square" listening={false} />
+                                                                        
+                                                                        {/* Draw end cap if this is the tip of a loose tabique */}
+                                                                        {isTip && (
+                                                                            <>
+                                                                                <Line points={[offP2.x, offP2.y, offP2.x - nx*2, offP2.y - ny*2]} stroke="#ffffff" strokeWidth={strokeW+2} opacity={0.9} lineCap="square" listening={false}/>
+                                                                                <Line points={[offP2.x, offP2.y, offP2.x - nx*2, offP2.y - ny*2]} stroke="#0ea5e9" strokeWidth={strokeW} dash={[8, 4]} lineCap="square" listening={false}/>
+                                                                            </>
+                                                                        )}
                                                                     </>
                                                                 )}
                                                             </Group>
                                                         );
                                                     });
+
                                                 })()}
                                             </Group>
                                         </Group>
