@@ -76,7 +76,7 @@ export function HeroV2() {
 
                         {/* CTAs */}
                         <div className="pt-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                            <Link href="/auth" passHref legacyBehavior>
+                            <Link href="/auth/login" passHref legacyBehavior>
                                 <Button asChild size="lg" className="h-14 px-8 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white rounded-full transition-all shadow-lg shadow-orange-500/20 w-full sm:w-auto hover:scale-105 active:scale-95">
                                     <a className="flex items-center justify-center">
                                         Probar Gratis Ahora
