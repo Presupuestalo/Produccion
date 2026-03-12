@@ -2224,6 +2224,45 @@ export const CanvasEngine = ({
         }
 
         if (e.evt.button !== 0 && (e.evt as any).pointerType === 'mouse') return
+        
+        // --- LÓGICA MÓVIL (TOUCH): TAP TO SELECT, TAP AGAIN TO ERASE ---
+        if (isTouchInteraction && (activeTool === "ceramic" || activeTool === "eraser" || isCeramicEraserActive)) {
+            const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
+            let touchedFaceId: string | null = null
+
+            // Detectar cara tocada (misma lógica que onPointerMove)
+            const avgThickness = walls.length > 0 ? walls.reduce((acc, w) => acc + w.thickness, 0) / walls.length : 20;
+            const thresholdWorld = avgThickness / 2 + 15 / zoom;
+            let bestDist = thresholdWorld;
+
+            for (const wall of walls) {
+                if (wall.isInvisible) continue;
+                const { point: proj } = getClosestPointOnSegment(pos, wall.start, wall.end);
+                const d = Math.sqrt((pos.x - proj.x) ** 2 + (pos.y - proj.y) ** 2);
+                if (d < bestDist) {
+                    bestDist = d;
+                    const wdx = wall.end.x - wall.start.x;
+                    const wdy = wall.end.y - wall.start.y;
+                    const cross = wdx * (pos.y - wall.start.y) - wdy * (pos.x - wall.start.x);
+                    const side = cross > 0 ? 'F' : 'B';
+                    touchedFaceId = `${wall.id}:${side}`;
+                }
+            }
+
+            // Si tocamos una cara nueva -> Seleccionar (Resaltar rojo) y EVITAR borrar aún
+            if (touchedFaceId && touchedFaceId !== hoveredCeramicFaceId) {
+                setHoveredCeramicFaceId(touchedFaceId)
+                return // Detenemos ejecución, obligando al usuario a hacer un segundo tap
+            }
+            // Si tocamos fuera de cualquier pared -> Quitar selección
+            if (!touchedFaceId) {
+                setHoveredCeramicFaceId(null)
+                return
+            }
+            
+            // Si llegamos aquí: touchedFaceId === hoveredCeramicFaceId
+            // Es el segundo tap en la misma cara -> Continuar y ejecutar el borrado normal abajo
+        }
 
         // HERRAMIENTA CERÁMICA
         if (activeTool === "ceramic") {
@@ -2820,7 +2859,6 @@ export const CanvasEngine = ({
     }
     const handleWheel = (e: any) => {
         e.evt.preventDefault()
-        const scaleBy = 1.1
         const stage = e.target.getStage()
         const oldScale = zoom
         const pointer = stage.getPointerPosition()
@@ -2830,7 +2868,17 @@ export const CanvasEngine = ({
             y: (pointer.y - offset.y) / oldScale,
         }
 
-        const newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy
+        let newScale: number
+        if (e.evt.ctrlKey) {
+            // Trackpad pinch-zoom on Mac: deltaY is proportional to the gesture.
+            // Use a gentle exponential factor to avoid the exaggerated zoom.
+            const factor = Math.exp(-e.evt.deltaY * 0.004)
+            newScale = oldScale * factor
+        } else {
+            // Regular mouse wheel: use a small fixed step per notch.
+            const scaleBy = 1.06
+            newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy
+        }
 
         if (newScale < 0.1 || newScale > 20) return
 
