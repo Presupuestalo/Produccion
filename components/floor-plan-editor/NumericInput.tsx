@@ -10,9 +10,10 @@ interface NumericInputProps {
     placeholder?: string
     step?: number
     isMobile: boolean
+    style?: React.CSSProperties
 }
 
-export const NumericInput: React.FC<NumericInputProps> = ({ label, value, setter, onEnter, placeholder, step = 1, isMobile }) => {
+export const NumericInput: React.FC<NumericInputProps> = ({ label, value, setter, onEnter, placeholder, step = 1, isMobile, style }) => {
     const [showKeypad, setShowKeypad] = useState(false)
     const [isReadyToClose, setIsReadyToClose] = useState(false)
     const [position, setPosition] = useState({ x: 0, y: 0 })
@@ -72,6 +73,7 @@ export const NumericInput: React.FC<NumericInputProps> = ({ label, value, setter
                     }}
                     onTouchEnd={(e) => e.stopPropagation()}
                     className="min-w-[80px] h-9 px-2 bg-white border-2 border-sky-400 rounded-lg text-center text-base font-black text-slate-800 hover:bg-sky-50 active:scale-95 transition-all shadow-md flex items-center justify-center gap-1"
+                    style={style}
                 >
                     {value || placeholder || "0"}
                 </button>
@@ -137,8 +139,9 @@ export const NumericInput: React.FC<NumericInputProps> = ({ label, value, setter
                 if (e.key === 'Enter') onEnter(value)
             }}
             onFocus={(e) => e.currentTarget.select()}
-            className="w-20 p-1 border-2 border-slate-200 rounded-lg text-center text-sm font-bold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
+            className="w-16 p-0.5 border-2 border-slate-200 rounded-lg text-center text-[11px] font-bold text-slate-800 focus:border-sky-500 focus:outline-none transition-colors"
             placeholder={placeholder}
+            style={style}
         />
     )
 }

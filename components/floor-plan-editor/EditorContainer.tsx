@@ -56,8 +56,8 @@ import { LinkToProjectDialog } from "./link-to-project-dialog"
 import { SimpleSaveDialog } from "@/components/dashboard/simple-save-dialog"
 
 interface Point { x: number; y: number }
-interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward'; disabledCeramicFaces?: ('F' | 'B')[] }
-interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point; hasCeramicFloor?: boolean; hasCeramicWalls?: boolean; disabledCeramicWalls?: string[]; walls: string[] }
+interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward'; disabledCeramicFaces?: ('F' | 'B')[]; ceramicHeights?: Partial<Record<'F' | 'B', number>> }
+interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point; hasCeramicFloor?: boolean; hasCeramicWalls?: boolean; disabledCeramicWalls?: string[]; ceramicWallHeights?: Record<string, number>; walls: string[] }
 interface Door { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" | "sliding_pocket" | "sliding_rail" | "double_swing" | "exterior_sliding" }
 interface Window { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "balcony" | "fixed"; isFixed?: boolean }
 interface Shunt { id: string; x: number; y: number; width: number; height: number; rotation: number; hasCeramic?: boolean }
@@ -878,40 +878,38 @@ export const EditorContainer = forwardRef((props: any, ref) => {
 
         saveStateToHistory()
 
-        // Find walls that form this room
-        const TOL = 5.0
-        const isSame = (p1: Point, p2: Point) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < TOL
-
-        const roomWalls: Wall[] = []
-        walls.forEach(wall => {
-            const startInRoom = room.polygon.some(p => isSame(p, wall.start))
-            const endInRoom = room.polygon.some(p => isSame(p, wall.end))
-            if (startInRoom && endInRoom) {
-                roomWalls.push(wall)
-            }
-        })
-
-        if (roomWalls.length === 0) return
-
-        // Calculate offset (room width + gap)
+        const now = Date.now()
+        const wallIdMap = new Map<string, string>()
+        
+        // Calculate offset (room width + 50cm gap to the right)
         const xs = room.polygon.map(p => p.x)
         const minX = Math.min(...xs)
         const maxX = Math.max(...xs)
-        const offsetX = maxX - minX + 50 // room width + 50cm gap
-
-        // Clone walls with offset
-        const now = Date.now()
-        const wallIdMap = new Map<string, string>()
-        const newWalls: Wall[] = roomWalls.map((wall, idx) => {
-            const newId = `wall-clone-${now}-${idx}`
-            wallIdMap.set(wall.id, newId)
-            return {
-                ...wall,
-                id: newId,
-                start: { x: wall.start.x + offsetX, y: wall.start.y },
-                end: { x: wall.end.x + offsetX, y: wall.end.y }
+        const offsetX = (maxX - minX) + 50
+        
+        // Clone and trim walls to exactly match the room's polygon segments
+        const newWalls: Wall[] = []
+        for (let i = 0; i < room.polygon.length; i++) {
+            const p1 = room.polygon[i]
+            const p2 = room.polygon[(i + 1) % room.polygon.length]
+            const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+            
+            const originalWall = walls.find(w => isPointOnSegment(midP, w.start, w.end, 3.0))
+            if (originalWall) {
+                const newId = `wall-clone-${now}-${i}`
+                // Only map the ID if it's the primary/only segment for this wall to copy doors/windows
+                if (!wallIdMap.has(originalWall.id)) {
+                    wallIdMap.set(originalWall.id, newId)
+                }
+                
+                newWalls.push({
+                    ...originalWall,
+                    id: newId,
+                    start: { x: p1.x + offsetX, y: p1.y },
+                    end: { x: p2.x + offsetX, y: p2.y }
+                })
             }
-        })
+        }
 
         // Clone doors
         const newDoors: Door[] = doors
@@ -942,6 +940,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
         setRooms(updatedRooms)
 
         // Find and select the newly created room (should be the last detected one in the same area)
+        const TOL = 5.0;
         const newRoom = updatedRooms.find(r => {
             const roomMinX = Math.min(...r.polygon.map(p => p.x))
             return Math.abs(roomMinX - (minX + offsetX)) < TOL
@@ -1125,6 +1124,11 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const handleUpdateWallThickness = (id: string, thickness: number) => {
         saveStateToHistory()
         setWalls(prev => prev.map(w => w.id === id ? { ...w, thickness } : w))
+    }
+
+    const handleUpdateWall = (id: string, updates: Partial<Wall>) => {
+        saveStateToHistory()
+        setWalls(prev => prev.map(w => w.id === id ? { ...w, ...updates } : w))
     }
 
     // Helper: ray-casting para saber si un punto está dentro de un polígono
@@ -3135,6 +3139,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     onReady={(api) => { canvasEngineRef.current = api }}
                     width={dimensions.width}
                     height={dimensions.height}
+                    planHeight={ceilingHeight}
                     showGrid={showGrid}
                     zoom={zoom}
                     offset={offset}
@@ -3172,6 +3177,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     onUpdateWallLength={handleUpdateWallLength}
                     onDeleteWall={deleteWall}
                     onSplitWall={handleSplitWall}
+                    onUpdateWall={handleUpdateWall}
                     onUpdateWallThickness={handleUpdateWallThickness}
                     onUpdateWallInvisible={handleUpdateWallInvisible}
                     onUpdateRoom={handleUpdateRoom}

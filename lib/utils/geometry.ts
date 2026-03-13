@@ -10,6 +10,9 @@ export interface Wall {
     thickness: number
     isInvisible?: boolean
     offsetMode?: 'center' | 'outward' | 'inward'
+    disabledCeramicFaces?: string[]
+    ceramicActiveFaces?: string[] // Whitelist: if set, ONLY these faces are ON
+    ceramicHeights?: Record<string, number>
 }
 
 export interface Room {
@@ -21,6 +24,7 @@ export interface Room {
     visualCenter?: Point
     hasCeramicFloor?: boolean
     hasCeramicWalls?: boolean
+    isGlobalCeramic?: boolean
     disabledCeramicWalls?: string[]
     ceramicWallHeights?: Record<string, number>
     walls: string[] // Added to track associated walls
@@ -259,7 +263,17 @@ export function calculateRoomStats(room: Room, walls: Wall[], shunts: { x: numbe
                 // side is the face facing the interior of the room
                 side = dot >= 0 ? 'F' : 'B';
                 const faceId = `${wall.id}:${side}`;
-                isTilingDisabled = !!room.disabledCeramicWalls?.includes(faceId) || !!room.disabledCeramicWalls?.includes(wall.id);
+                // If wall has explicit whitelist, use it directly
+                if (wall.ceramicActiveFaces !== undefined) {
+                    isTilingDisabled = !wall.ceramicActiveFaces.includes(side);
+                } else {
+                    const isManualMode = room.isGlobalCeramic === false;
+                    const wallHasConfig = wall.disabledCeramicFaces !== undefined || wall.ceramicHeights?.[side] !== undefined || room.ceramicWallHeights?.[faceId] !== undefined;
+                    isTilingDisabled = !!room.disabledCeramicWalls?.includes(faceId) || 
+                                       !!room.disabledCeramicWalls?.includes(wall.id) ||
+                                       !!wall.disabledCeramicFaces?.includes(side) ||
+                                       (isManualMode && !wallHasConfig);
+                }
             } else {
                 isTilingDisabled = !!room.disabledCeramicWalls?.includes(`seg-${i}`);
             }
@@ -290,11 +304,16 @@ export function calculateRoomStats(room: Room, walls: Wall[], shunts: { x: numbe
                 ceramicWallLength += effectiveLength;
                 
                 // Area calculation
-                let h = ceilingHeight;
-                if (wall && side && room.ceramicWallHeights) {
+                let h = 0;
+                if (wall && side && (room.ceramicWallHeights || wall.ceramicHeights)) {
                     const faceId = `${wall.id}:${side}`;
-                    const hVal = room.ceramicWallHeights[faceId] ?? room.ceramicWallHeights[wall.id];
+                    const hVal = wall.ceramicHeights?.[side] ?? room.ceramicWallHeights?.[faceId] ?? room.ceramicWallHeights?.[wall.id];
                     if (hVal !== undefined) h = hVal;
+                }
+                
+                // If room is Global and we still have no height, use ceilingHeight
+                if (h === 0 && room.isGlobalCeramic) {
+                    h = ceilingHeight;
                 }
                 ceramicWallArea += effectiveLength * h;
             }

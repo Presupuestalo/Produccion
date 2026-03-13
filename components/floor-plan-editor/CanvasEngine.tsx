@@ -9,7 +9,7 @@ import { UnifiedWallEditor } from "./UnifiedWallEditor"
 
 
 interface Point { x: number; y: number }
-interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward' }
+interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward'; disabledCeramicFaces?: ('F' | 'B')[]; ceramicHeights?: Partial<Record<'F' | 'B', number>> }
 
 interface Room {
     id: string
@@ -21,6 +21,7 @@ interface Room {
     hasCeramicFloor?: boolean
     hasCeramicWalls?: boolean
     disabledCeramicWalls?: string[]
+    ceramicWallHeights?: Record<string, number>
 }
 
 interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding_rail" | "sliding_pocket" | "sliding" | "double_swing" | "exterior_sliding" }
@@ -194,6 +195,7 @@ interface CanvasEngineProps {
     onUpdateWallLength: (id: string, length: number, side: "left" | "right", faceNormal?: Point) => void
     onDeleteWall: (id: string) => void
     onSplitWall?: (id: string, point?: Point) => void,
+    onUpdateWall: (id: string, updates: Partial<Wall>) => void
     onUpdateWallThickness: (id: string, thickness: number) => void
     onUpdateWallInvisible: (id: string, isInvisible: boolean) => void
     onUpdateRoom: (id: string, updates: Partial<Room>) => void
@@ -238,6 +240,7 @@ interface CanvasEngineProps {
     alignmentGuides?: { x?: number, y?: number } | null
     isCeramicEraserActive?: boolean
     setIsCeramicEraserActive?: (active: boolean) => void
+    planHeight?: number
 }
 
 export interface CanvasEngineRef {
@@ -582,10 +585,13 @@ const DualInputWrapper = ({ valObj, screenPos, onCommit, onClose, isMobile }: an
     )
 }
 
+const CERAMIC_BLUE = "#0ea5e9"
+const CERAMIC_ORANGE = "#f59e0b"
+
 export const CanvasEngine = ({
     width, height, zoom, offset,
     walls, rooms, doors, windows, shunts = [],
-    currentWall, activeTool, hoveredWallId, onPan, onZoom, onMouseDown, onMouseMove, onMouseUp, onHoverWall, onSelectWall, onDragWall, onDragEnd, onUpdateWallLength, onDeleteWall, onSplitWall, onUpdateWallThickness, onUpdateWallInvisible, onUpdateRoom, onDeleteRoom, onCloneRoom, selectedWallIds, selectedRoomId, onSelectRoom, onDragVertex, wallSnapshot, onStartDragWall, onDragElement, selectedElement, onSelectElement, onUpdateElement, onCloneElement, onDeleteElement, onUpdateShunt, bgImage, bgConfig, onUpdateBgConfig, isCalibrating, calibrationPoints, calibrationTargetValue, onUpdateCalibrationPoint, onUpdateCalibrationValue,
+    currentWall, activeTool, hoveredWallId, onPan, onZoom, onMouseDown, onMouseMove, onMouseUp, onHoverWall, onSelectWall, onDragWall, onDragEnd, onUpdateWallLength, onDeleteWall, onSplitWall, onUpdateWall, onUpdateWallThickness, onUpdateWallInvisible, onUpdateRoom, onDeleteRoom, onCloneRoom, selectedWallIds, selectedRoomId, onSelectRoom, onDragVertex, wallSnapshot, onStartDragWall, onDragElement, selectedElement, onSelectElement, onUpdateElement, onCloneElement, onDeleteElement, onUpdateShunt, bgImage, bgConfig, onUpdateBgConfig, isCalibrating, calibrationPoints, calibrationTargetValue, onUpdateCalibrationPoint, onUpdateCalibrationValue,
     phantomArc,
     snappingEnabled = true,
     rulerPoints,
@@ -604,7 +610,8 @@ export const CanvasEngine = ({
     onDblTap,
     alignmentGuides: externalGuides,
     isCeramicEraserActive = false,
-    setIsCeramicEraserActive = () => { }
+    setIsCeramicEraserActive = () => { },
+    planHeight = 250
 }: CanvasEngineProps) => {
     const [roomMenuClickPos, setRoomMenuClickPos] = React.useState<Point | null>(null)
     const [wallMenuClickPos, setWallMenuClickPos] = React.useState<Point | null>(null)
@@ -616,6 +623,7 @@ export const CanvasEngine = ({
     const [alignmentGuides, setAlignmentGuides] = React.useState<{ x?: number, y?: number } | null>(null)
     const [image, setImage] = React.useState<HTMLImageElement | null>(null)
     const [hoveredCeramicFaceId, setHoveredCeramicFaceId] = React.useState<string | null>(null)
+    const [clickedFaceId, setClickedFaceId] = React.useState<'F' | 'B' | null>(null)
 
     // Generic Input State for Inline Editing (Shunts, Doors, Windows, Measures)
     const [editInputState, setEditInputState] = React.useState<{
@@ -1043,7 +1051,7 @@ export const CanvasEngine = ({
         img.onload = () => setWallHatchingImage(img)
     }, [])
     const [internalAlignmentGuides, setInternalAlignmentGuides] = React.useState<{ x?: number, y?: number } | null>(null)
-    const [editMode, setEditMode] = React.useState<"menu" | "length" | "thickness" | "room" | "room-custom" | null>(null)
+    const [editMode, setEditMode] = React.useState<"menu" | "length" | "thickness" | "room" | "room-custom" | "ceramic" | null>(null)
     const [editLength, setEditLength] = React.useState<string>("")
     const [editHeight, setEditHeight] = React.useState<string>("")
     const [editThickness, setEditThickness] = React.useState<string>("")
@@ -1744,6 +1752,16 @@ export const CanvasEngine = ({
         setEditLength(targetLen.toFixed(1))
     }, [editFace, selectedWall, editMode])
 
+    // Reset ceramic subpanel when the selected wall changes so the user always starts in normal menu
+    const prevSelectedWallIdRef = React.useRef<string | null>(null)
+    React.useEffect(() => {
+        const newId = selectedWall?.id ?? null
+        if (newId !== prevSelectedWallIdRef.current) {
+            prevSelectedWallIdRef.current = newId
+            if (editMode === "ceramic") setEditMode("menu")
+        }
+    }, [selectedWall?.id])
+
     const renderWallMeasurement = (wall: Wall, offsetVal: number, forceColor?: string, forceInteractive?: boolean, overrideLength?: number) => {
         if (wall.id.startsWith("wall-arc-")) return null
 
@@ -1809,8 +1827,9 @@ export const CanvasEngine = ({
 
         const isInteractive = forceInteractive ?? isAnyInChainSelected
 
+        const isBlueSide = offsetVal > 0
         const defaultColor = isInteractive
-            ? (isActuallyInterior ? "#0ea5e9" : "#f59e0b")
+            ? (isBlueSide ? CERAMIC_BLUE : CERAMIC_ORANGE)
             : (isActuallyInterior ? "#334155" : "#94a3b8")
         const color = forceColor || defaultColor
 
@@ -3244,12 +3263,23 @@ export const CanvasEngine = ({
                             ctx.beginPath();
                             const clipWidth = 100000 / zoom;
                             const clipHeight = 100000 / zoom;
-                            ctx.rect(-offset.x / zoom - clipWidth / 2, -offset.y / zoom - clipHeight / 2, clipWidth, clipHeight);
+                            // Draw a massive outer rectangle in COUNTER-CLOCKWISE direction to act as the base solid area
+                            const cx = -offset.x / zoom;
+                            const cy = -offset.y / zoom;
+                            // Draw CCW: Top-Left -> Bottom-Left -> Bottom-Right -> Top-Right -> Top-Left
+                            ctx.moveTo(cx - clipWidth / 2, cy - clipHeight / 2);
+                            ctx.lineTo(cx - clipWidth / 2, cy + clipHeight / 2);
+                            ctx.lineTo(cx + clipWidth / 2, cy + clipHeight / 2);
+                            ctx.lineTo(cx + clipWidth / 2, cy - clipHeight / 2);
+                            ctx.lineTo(cx - clipWidth / 2, cy - clipHeight / 2);
 
                             rooms.forEach(room => {
                                 if (room.polygon && room.polygon.length > 2) {
                                     const cwPoly = ensureClockwise(room.polygon);
-                                    const inset = insetPolygon(cwPoly, -5)
+                                    // Use a positive value (5) to INSET the mask. This means the hole starts
+                                    // at the inner edge of the walls (which have thickness 10, i.e. 5 units inward),
+                                    // leaving the actual wall safe from being clipped out.
+                                    const inset = insetPolygon(cwPoly, 5)
                                     ctx.moveTo(inset[0].x, inset[0].y);
                                     for (let i = 1; i < inset.length; i++) {
                                         ctx.lineTo(inset[i].x, inset[i].y);
@@ -3282,9 +3312,12 @@ export const CanvasEngine = ({
                                         <Group
                                             clipFunc={(ctx) => {
                                                 ctx.beginPath();
-                                                 const cwPoly = ensureClockwise(room.polygon);
-                                                 const outsetPoly = insetPolygon(cwPoly, -2); // Negative = Outward for CW
-                                                outsetPoly.forEach((p, i) => {
+                                                const cwPoly = ensureClockwise(room.polygon);
+                                                // Small inset (3px) to cleanly clip corner miter spikes
+                                                // without visually thinning the ceramic line
+                                                const clipPoly = insetPolygon(cwPoly, 3);
+                                                const target = clipPoly.length >= 3 ? clipPoly : cwPoly;
+                                                target.forEach((p, i) => {
                                                     if (i === 0) ctx.moveTo(p.x, p.y);
                                                     else ctx.lineTo(p.x, p.y);
                                                 });
@@ -3347,28 +3380,48 @@ export const CanvasEngine = ({
                                                     const wt = w ? Math.round(w.thickness) : 10;
                                                     const inv = !!w?.isInvisible;
                                                     
-                                                    // Accurate face-specific disabling
+                                                    // Accurate face-specific disabling and heights
                                                     let dis = false;
                                                     let hvr = false;
+                                                    let h = 0;
                                                     if (w) {
                                                         const wDir = { x: w.end.x - w.start.x, y: w.end.y - w.start.y };
                                                         const sDir = { x: s.p2.x - s.p1.x, y: s.p2.y - s.p1.y };
                                                         const dot = wDir.x * sDir.x + wDir.y * sDir.y;
                                                         const side = dot >= 0 ? 'F' : 'B';
                                                         const faceId = `${w.id}:${side}`;
-                                                        dis = (room.disabledCeramicWalls?.includes(faceId) || room.disabledCeramicWalls?.includes(w.id)) || false;
+                                                        
+                                                        const isManualMode = room.isGlobalCeramic === false;
+                                                        const wallHasConfig = w.disabledCeramicFaces !== undefined || w.ceramicHeights?.[side] !== undefined || room.ceramicWallHeights?.[faceId] !== undefined;
+
+                                                        // If wall has explicit whitelist use it, otherwise fall back to legacy logic
+                                                        if (w.ceramicActiveFaces !== undefined) {
+                                                            dis = !w.ceramicActiveFaces.includes(side);
+                                                        } else {
+                                                            // If there's no whitelist, but the room has ceramic, this wall defaults to OFF (disabled)
+                                                            // to prevent the "bloom" effect where activating one wall activates all.
+                                                            dis = true; 
+                                                        }
+
+                                                        const color = "#0ea5e9";
+                                                        h = w.ceramicHeights?.[side] || room.ceramicWallHeights?.[faceId] || room.ceramicWallHeights?.[w.id] || 0;
+                                                        if (h === 0) {
+                                                            h = planHeight;
+                                                        }
                                                         hvr = hoveredCeramicFaceId === faceId;
+                                                        
+                                                        return { p1: s.p1, p2: s.p2, wt, inv, dis, hvr, h, color: "#0ea5e9", wall: w };
                                                     }
                                                     
-                                                    return { p1: s.p1, p2: s.p2, wt, inv, dis, hvr, wall: w };
+                                                    return { p1: s.p1, p2: s.p2, wt, inv, dis, hvr, h, color: "#0ea5e9", wall: w };
                                                 });
 
-                                                // 3. Group into chains
+                                                // 3. Group into chains (including height and color in key)
                                                 const chains: any[] = [];
                                                 for (const s of segments) {
-                                                    const key = `${s.wt}-${s.inv}-${s.dis}-${s.hvr}`;
+                                                    const key = `${s.wt}-${s.inv}-${s.dis}-${s.hvr}-${s.h}-${s.color}`;
                                                     if (chains.length === 0 || chains[chains.length-1].key !== key) {
-                                                        chains.push({ key, wt: s.wt, inv: s.inv, dis: s.dis, hvr: s.hvr, pts: [s.p1.x, s.p1.y, s.p2.x, s.p2.y] });
+                                                        chains.push({ key, wt: s.wt, inv: s.inv, dis: s.dis, hvr: s.hvr, h: s.h, color: s.color, pts: [s.p1.x, s.p1.y, s.p2.x, s.p2.y] });
                                                     } else {
                                                         chains[chains.length-1].pts.push(s.p2.x, s.p2.y);
                                                     }
@@ -3428,7 +3481,7 @@ export const CanvasEngine = ({
 
                                                 return chains.map((c, idx) => {
                                                     const isHovered = c.hvr && (activeTool === "ceramic" || activeTool === "eraser" || isCeramicEraserActive);
-                                                    const hColor = (activeTool === "eraser" || isCeramicEraserActive) ? "#ef4444" : "#0ea5e9";
+                                                    const hColor = (activeTool === "eraser" || isCeramicEraserActive) ? "#ef4444" : c.color;
 
                                                     if (c.inv || (c.dis && !isHovered)) return null;
                                                     
@@ -3436,8 +3489,8 @@ export const CanvasEngine = ({
                                                     const pts = isC ? c.pts.slice(0, -2) : c.pts;
                                                     
                                                     // Calculate the offset polyline so it sits perfectly on the wall surface
-                                                    // For CW polygons, positive distance offsets INWARDS
-                                                    const offsetDist = (c.wt / 2) + 1.5;
+                                                    // Positive distance offsets INWARDS for CW
+                                                    const offsetDist = (c.wt / 2) + 2.0;
                                                     const offsetPts = getOffsetPolyline(pts, offsetDist, isC);
                                                     
                                                     const strokeW = 4;
@@ -3446,7 +3499,48 @@ export const CanvasEngine = ({
                                                         <Group key={`cer-${room.id}-${idx}`}>
                                                             {isHovered && <Line points={offsetPts} closed={isC} stroke={hColor} strokeWidth={12} opacity={0.4} lineJoin="miter" lineCap="square" listening={false} />}
                                                             {!c.dis && (
-                                                                <Line points={offsetPts} closed={isC} stroke="#0ea5e9" strokeWidth={5} dash={[10, 8]} lineJoin="miter" lineCap="square" listening={false} />
+                                                                <>
+                                                                    <Line points={offsetPts} closed={isC} stroke={c.color} strokeWidth={5} dash={[10, 8]} lineJoin="miter" lineCap="square" listening={false} />
+                                                                    {c.h > 0 && c.h !== planHeight && (() => {
+                                                                        const labels: any[] = [];
+                                                                        for (let i = 0; i < offsetPts.length / 2 - 1; i++) {
+                                                                            const x1 = offsetPts[i * 2], y1 = offsetPts[i * 2 + 1];
+                                                                            const x2 = offsetPts[(i + 1) * 2], y2 = offsetPts[(i + 1) * 2 + 1];
+                                                                            const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+                                                                            if (len < 10) continue; // Skip very short segments
+
+                                                                            const mx = (x1 + x2) / 2;
+                                                                            const my = (y1 + y2) / 2;
+                                                                            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+
+                                                                            labels.push(
+                                                                                <Group key={`height-${i}`} x={mx} y={my} rotation={angle}>
+                                                                                    <Rect
+                                                                                        x={-20 / zoom}
+                                                                                        y={-10 / zoom}
+                                                                                        width={40 / zoom}
+                                                                                        height={20 / zoom}
+                                                                                        fill="#a855f7"
+                                                                                        cornerRadius={4 / zoom}
+                                                                                        shadowBlur={4 / zoom}
+                                                                                        shadowOpacity={0.2}
+                                                                                    />
+                                                                                    <Text
+                                                                                        text={`${c.h}`}
+                                                                                        fill="white"
+                                                                                        fontSize={11 / zoom}
+                                                                                        fontStyle="bold"
+                                                                                        width={40 / zoom}
+                                                                                        align="center"
+                                                                                        y={-5 / zoom}
+                                                                                        x={-20 / zoom}
+                                                                                    />
+                                                                                </Group>
+                                                                            );
+                                                                        }
+                                                                        return labels;
+                                                                    })()}
+                                                                </>
                                                             )}
                                                         </Group>
                                                     );
@@ -3482,10 +3576,21 @@ export const CanvasEngine = ({
                                         const stage = e.target.getStage();
                                         const pointer = stage?.getPointerPosition();
                                         if (pointer) {
-                                            setWallMenuClickPos({
+                                            const clickP = {
                                                 x: (pointer.x - offset.x) / zoom,
                                                 y: (pointer.y - offset.y) / zoom
-                                            });
+                                            };
+                                            setWallMenuClickPos(clickP);
+
+                                            // Calculate which face (F/B) was clicked
+                                            const dx = wall.end.x - wall.start.x;
+                                            const dy = wall.end.y - wall.start.y;
+                                            const nx = -dy; // Normal vector
+                                            const ny = dx;
+                                            const vpx = clickP.x - wall.start.x;
+                                            const vpy = clickP.y - wall.start.y;
+                                            const dot = vpx * nx + vpy * ny;
+                                            setClickedFaceId(dot >= 0 ? 'F' : 'B');
                                         }
                                         onSelectWall(wall.id, false)
                                     }
@@ -3672,7 +3777,7 @@ export const CanvasEngine = ({
 
                                             const offsetVal = 25 / zoom
                                             const textOff = 12 / zoom
-                                            const color = isSelected ? "#f59e0b" : "#94a3b8"
+                                            const color = isSelected ? "#0ea5e9" : "#94a3b8"
 
                                             const cx = targetPoint.x + tipNormX * offsetVal
                                             const cy = targetPoint.y + tipNormY * offsetVal
@@ -3692,8 +3797,8 @@ export const CanvasEngine = ({
                                             return (
                                                 <Group key={`tip-${wall.id}-${isStart ? 'start' : 'end'}`}>
                                                     <Line points={[p1x, p1y, p2x, p2y]} stroke={color} strokeWidth={1 / zoom} listening={false} />
-                                                    <Line points={[targetPoint.x - nx * halfT, targetPoint.y - ny * halfT, p1x, p1y]} stroke={color} strokeWidth={1 / zoom} dash={[2 / zoom, 2 / zoom]} listening={false} />
-                                                    <Line points={[targetPoint.x + nx * halfT, targetPoint.y + ny * halfT, p2x, p2y]} stroke={color} strokeWidth={1 / zoom} dash={[2 / zoom, 2 / zoom]} listening={false} />
+                                                    <Line points={[targetPoint.x - nx * halfT, targetPoint.y - ny * halfT, p1x, p1y]} stroke={CERAMIC_BLUE} strokeWidth={1 / zoom} dash={[2 / zoom, 2 / zoom]} listening={false} />
+                                                    <Line points={[targetPoint.x + nx * halfT, targetPoint.y + ny * halfT, p2x, p2y]} stroke={CERAMIC_BLUE} strokeWidth={1 / zoom} dash={[2 / zoom, 2 / zoom]} listening={false} />
 
                                                     <Group x={textX} y={textY} rotation={angle} listening={false}>
                                                         <Rect
@@ -5482,6 +5587,11 @@ export const CanvasEngine = ({
                                                 title="Dividir tabique"
                                             />
                                             <MenuButton
+                                                icon={<Grid3X3 className="h-3 w-3 text-sky-600" />}
+                                                onClick={() => setEditMode("ceramic")}
+                                                title="Gestionar Cerámica"
+                                            />
+                                            <MenuButton
                                                 icon={<SeparatorIcon className={`h-6 w-3 ${selectedWall.isInvisible ? 'opacity-100' : 'opacity-60'}`} />}
                                                 onClick={() => onUpdateWallInvisible(selectedWall.id, !selectedWall.isInvisible)}
                                                 title="Separador de estancias"
@@ -5637,6 +5747,7 @@ export const CanvasEngine = ({
                                                     const newState = !selectedRoom?.hasCeramicWalls;
                                                     onUpdateRoom(selectedRoomId, {
                                                         hasCeramicWalls: newState,
+                                                        isGlobalCeramic: newState,
                                                         disabledCeramicWalls: [] // Reset when toggling
                                                     });
                                                     if (!newState) setIsCeramicEraserActive(false);
@@ -5717,6 +5828,114 @@ export const CanvasEngine = ({
                                         <X className="h-2.5 w-2.5" />
                                     </button>
                                 </>
+                            ) : editMode === "ceramic" && selectedWall ? (
+                                <div className="flex flex-col w-[200px] sm:w-[260px] overflow-hidden">
+                                    <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100/50">
+                                        <div className="flex items-center gap-2">
+                                            <div className="p-1 bg-slate-50 rounded-lg">
+                                                <Grid3X3 className="h-3 w-3 text-slate-400" />
+                                            </div>
+                                            <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Cerámica</span>
+                                        </div>
+                                        <button 
+                                            onClick={() => setEditMode("menu")} 
+                                            className="p-1 hover:bg-slate-50 rounded-full text-slate-400 hover:text-slate-600 transition-all active:scale-95"
+                                            title="Cerrar Panel"
+                                        >
+                                            <X className="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="flex flex-col sm:flex-row gap-1 p-1 bg-slate-50/20">
+                                        {[
+                                            { id: 'B' as const, label: 'Naranja' },
+                                            { id: 'F' as const, label: 'Azul' }
+                                        ].map((side) => {
+                                            // Detect if this side is part of any room
+                                            const w = selectedWall;
+                                            const dx = w.end.x - w.start.x;
+                                            const dy = w.end.y - w.start.y;
+                                            const len = Math.sqrt(dx*dx + dy*dy);
+                                            const nx = -dy / len;
+                                            const ny = dx / len;
+                                            const sign = side.id === 'F' ? 1 : -1;
+                                            const testDist = (w.thickness / 2) + 12;
+                                            const testP = { x: (w.start.x + w.end.x)/2 + nx * testDist * sign, y: (w.start.y + w.end.y)/2 + ny * testDist * sign };
+                                            const sideRoom = rooms.find(r => isPointInPolygon(testP, r.polygon));
+                                            const isExterior = !sideRoom;
+                                            const sideColor = side.id === 'F' ? CERAMIC_BLUE : CERAMIC_ORANGE;
+
+                                            // Use the explicit whitelist if available
+                                            const isOn = selectedWall.ceramicActiveFaces !== undefined
+                                                ? selectedWall.ceramicActiveFaces.includes(side.id)
+                                                : !selectedWall.disabledCeramicFaces?.includes(side.id) && (sideRoom?.hasCeramicWalls ?? false);
+
+                                            const heightVal = selectedWall.ceramicHeights?.[side.id];
+                                            const heightDisplay = heightVal !== undefined ? `${heightVal} cm` : `${planHeight} cm`;
+                                            
+                                            return (
+                                                <div 
+                                                    key={side.id}
+                                                    onClick={() => {
+                                                        if (isExterior) return;
+                                                        
+                                                        // Toggle this face in the ceramicActiveFaces whitelist
+                                                        const currentActive = selectedWall.ceramicActiveFaces ?? [];
+                                                        const nextActive = isOn
+                                                            ? currentActive.filter(f => f !== side.id) // Turn OFF
+                                                            : [...currentActive, side.id]; // Turn ON
+                                                        
+                                                        onUpdateWall(selectedWall.id, { ceramicActiveFaces: nextActive });
+
+                                                        // Auto-enable room ceramic flag if activating
+                                                        if (!isOn && sideRoom) {
+                                                            onUpdateRoom(sideRoom.id, { hasCeramicWalls: true });
+                                                        }
+                                                    }}
+                                                    className={`relative flex-1 flex flex-col items-center gap-1 p-1.5 rounded-lg border-2 transition-all duration-300 ${isExterior ? 'cursor-not-allowed opacity-40 grayscale' : 'cursor-pointer'} ${isOn && !isExterior
+                                                        ? `bg-white shadow-sm ring-1 ring-black/[0.02]` 
+                                                        : 'border-slate-100 bg-slate-50/50 opacity-60'}`}
+                                                    style={{ borderStyle: 'solid', borderColor: (isOn && !isExterior) ? sideColor : 'transparent' }}
+                                                >
+                                                    <div className="flex flex-col items-center">
+                                                        <span className="text-[10px] font-black uppercase tracking-tight" style={{ color: (isOn && !isExterior) ? sideColor : '#94a3b8' }}>
+                                                            {side.label}
+                                                        </span>
+                                                        {isExterior && <span className="text-[7px] text-slate-400 font-bold uppercase">Exterior</span>}
+                                                    </div>
+                                                    
+                                                    <div className={`w-12 py-0.5 rounded-full text-[9px] font-black transition-all shadow-sm text-center ${isOn && !isExterior
+                                                            ? 'bg-white border border-slate-100' 
+                                                            : 'bg-slate-200 text-slate-500'}`}
+                                                        style={{ color: (isOn && !isExterior) ? sideColor : undefined }}
+                                                    >
+                                                        {(isOn && !isExterior) ? 'ON' : 'OFF'}
+                                                    </div>
+
+                                                    {/* Height input — always accessible, but shows placeholder when default */}
+                                                    {!isExterior && (
+                                                        <div className="w-full mt-1 flex flex-col items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                                                            <span className="text-[7px] font-bold text-slate-400 uppercase tracking-wider">Alt. (cm)</span>
+                                                            <NumericInput
+                                                                isMobile={isMobile}
+                                                                value={selectedWall.ceramicHeights?.[side.id]?.toString() || ""}
+                                                                placeholder={planHeight.toString().replace('.', ',')}
+                                                                style={{ color: isOn ? sideColor : undefined, textAlign: 'center' as any }}
+                                                                onEnter={() => {}}
+                                                                setter={(val) => {
+                                                                    if (isExterior) return;
+                                                                    const next = { ...selectedWall.ceramicHeights };
+                                                                    if (val === "") delete next[side.id]; else next[side.id] = parseFloat(val.replace(',', '.'));
+                                                                    onUpdateWall(selectedWall.id, { ceramicHeights: next });
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             ) : editMode === "room" || editMode === "room-custom" ? (
                                 <div className="flex flex-col gap-2 p-2 min-w-[180px]">
                                     <div className="flex items-center justify-between mb-1">
