@@ -9,7 +9,7 @@ import { UnifiedWallEditor } from "./UnifiedWallEditor"
 
 
 interface Point { x: number; y: number }
-interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward'; disabledCeramicFaces?: ('F' | 'B')[]; ceramicHeights?: Partial<Record<'F' | 'B', number>> }
+interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward'; disabledCeramicFaces?: ('F' | 'B')[]; ceramicHeights?: Partial<Record<'F' | 'B', number>>; ceramicActiveFaces?: ('F' | 'B')[]; }
 
 interface Room {
     id: string
