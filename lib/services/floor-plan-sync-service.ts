@@ -14,6 +14,7 @@ interface EditorRoom {
     hasCeramicFloor?: boolean
     hasCeramicWalls?: boolean
     disabledCeramicWalls?: string[]
+    ceramicWallHeights?: Record<string, number>
 }
 
 interface EditorData {
@@ -362,6 +363,7 @@ export function mapEditorRoomsToCalculator(editorData: any, isBefore: boolean, s
         let ceramicWallPerimeter: number | undefined = undefined
         let nonCeramicWallPerimeter: number | undefined = undefined
         let nonCeramicWallMaterial: string | undefined = undefined
+        let stats: any = null
         const roomPolygon = editorRoom.polygon || editorRoom.points
         if (roomPolygon && roomPolygon.length > 0 && editorData.walls) {
             try {
@@ -373,9 +375,10 @@ export function mapEditorRoomsToCalculator(editorData: any, isBefore: boolean, s
                     color: "",
                     walls: editorRoom.walls || [],
                     hasCeramicWalls: editorRoom.hasCeramicWalls,
-                    disabledCeramicWalls: editorRoom.disabledCeramicWalls
+                    disabledCeramicWalls: editorRoom.disabledCeramicWalls,
+                    ceramicWallHeights: editorRoom.ceramicWallHeights
                 }
-                const stats = calculateRoomStats(geoRoom, editorData.walls || [], editorData.shunts || [])
+                stats = calculateRoomStats(geoRoom, editorData.walls || [], editorData.shunts || [], (editorRoom.ceilingHeight || standardHeight) * 100)
                 if (stats && stats.totalPerimeter && !isNaN(stats.totalPerimeter)) {
                     calculatedPerimeter = stats.totalPerimeter
                 }
@@ -391,7 +394,9 @@ export function mapEditorRoomsToCalculator(editorData: any, isBefore: boolean, s
                     nonCeramicWallPerimeter = Math.max(0, (stats.totalPerimeter || calculatedPerimeter) - stats.ceramicWallLength)
                     // Material por defecto según tipo de estancia y fase
                     nonCeramicWallMaterial = isBefore ? "Pintura" : "Lucir y pintar"
-                    console.log(`[SYNC] Cerámica parcial en ${normalizedType}: cerámico=${ceramicWallPerimeter.toFixed(2)}m, no-cerámico=${nonCeramicWallPerimeter.toFixed(2)}m, material resto=${nonCeramicWallMaterial}`)
+                    if (ceramicWallPerimeter !== undefined && nonCeramicWallPerimeter !== undefined) {
+                      console.log(`[SYNC] Cerámica parcial en ${normalizedType}: cerámico=${ceramicWallPerimeter.toFixed(2)}m, no-cerámico=${nonCeramicWallPerimeter.toFixed(2)}m, material resto=${nonCeramicWallMaterial}`)
+                    }
                 }
             } catch (e) {
                 console.error("Error calculating precise perimeter for room", editorRoom.name, e)
@@ -464,9 +469,9 @@ export function mapEditorRoomsToCalculator(editorData: any, isBefore: boolean, s
             nonCeramicWallArea: nonCeramicWallPerimeter !== undefined ? parseFloat((nonCeramicWallPerimeter * standardHeight).toFixed(2)) : undefined,
             nonCeramicWallMaterial: nonCeramicWallMaterial as any,
             // tiledWallSurfaceArea: m² exactos de cerámica (para bloqueAvanzado del UI y budget-generator)
-            tiledWallSurfaceArea: ceramicWallPerimeter !== undefined
-                ? parseFloat((ceramicWallPerimeter * standardHeight).toFixed(2))
-                : undefined,
+            tiledWallSurfaceArea: stats?.ceramicWallArea !== undefined
+                ? parseFloat(stats.ceramicWallArea.toFixed(2))
+                : (ceramicWallPerimeter !== undefined ? parseFloat((ceramicWallPerimeter * standardHeight).toFixed(2)) : undefined),
         }
     })
 }

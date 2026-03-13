@@ -56,7 +56,7 @@ import { LinkToProjectDialog } from "./link-to-project-dialog"
 import { SimpleSaveDialog } from "@/components/dashboard/simple-save-dialog"
 
 interface Point { x: number; y: number }
-interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward' }
+interface Wall { id: string; start: Point; end: Point; thickness: number; isInvisible?: boolean; offsetMode?: 'center' | 'outward' | 'inward'; disabledCeramicFaces?: ('F' | 'B')[] }
 interface Room { id: string; name: string; polygon: Point[]; area: number; color: string; visualCenter?: Point; hasCeramicFloor?: boolean; hasCeramicWalls?: boolean; disabledCeramicWalls?: string[]; walls: string[] }
 interface Door { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding" | "sliding_pocket" | "sliding_rail" | "double_swing" | "exterior_sliding" }
 interface Window { id: string; wallId: string; t: number; width: number; height: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "balcony" | "fixed"; isFixed?: boolean }

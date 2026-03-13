@@ -54,6 +54,7 @@ export function WallProperties({
         }
     }
 
+
     return (
         <Card className="p-4 space-y-4 w-full md:w-72 bg-white shadow-lg border-slate-200">
             <div className="flex justify-between items-center mb-2">
@@ -91,7 +92,7 @@ export function WallProperties({
                 <div className="flex items-center justify-between py-1">
                     <Label className="text-xs text-slate-500 flex items-center gap-2">
                         <EyeOff className="h-3 w-3" />
-                        Invisible
+                        Muro Invisible
                     </Label>
                     <Switch
                         checked={isInvisible}
@@ -100,7 +101,8 @@ export function WallProperties({
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+
+            <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100">
                 <Button variant="outline" size="sm" onClick={() => onSplit(wallId)} title="Dividir Muro">
                     <Divide className="h-3.5 w-3.5 mr-2" />
                     Dividir

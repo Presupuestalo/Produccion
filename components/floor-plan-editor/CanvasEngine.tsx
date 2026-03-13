@@ -3411,9 +3411,6 @@ export const CanvasEngine = ({
                                                             } else {
                                                                 let mnx = nx1 + nx2;
                                                                 let mny = ny1 + ny2;
-                                                                let mlen = Math.sqrt(mnx*mnx + mny*mny);
-                                                                if (mlen < 0.001) { mnx=nx1; mny=ny1; mlen=1; }
-                                                                mnx /= mlen; mny /= mlen;
                                                                 let miterFactor = 1 / Math.max(0.1, (nx1*mnx + ny1*mny));
                                                                 if (miterFactor > 5) miterFactor = 5;
                                                                 out.push(px + mnx*dist*miterFactor, py + mny*dist*miterFactor);

@@ -127,7 +127,7 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts, ceiling
 
     // 2. Per Room Stats
     const roomStats = filteredRooms.map(room => {
-        const stats = calculateRoomStats(room, walls, shunts)
+        const stats = calculateRoomStats(room, walls, shunts, ceilingHeight)
         return {
             ...room,
             ...stats
@@ -135,7 +135,7 @@ export function FloorPlanSummary({ rooms, walls, doors, windows, shunts, ceiling
     })
 
     const totalCeramicFloorArea = roomStats.reduce((acc, r) => acc + (r.hasCeramicFloor ? r.area : 0), 0)
-    const totalCeramicWallArea = roomStats.reduce((acc, r) => acc + (r.ceramicWallLength || 0), 0) * ((ceilingHeight || 250) / 100)
+    const totalCeramicWallArea = roomStats.reduce((acc, r) => acc + (r.ceramicWallArea || 0), 0)
 
     return (
         <div className="space-y-6">

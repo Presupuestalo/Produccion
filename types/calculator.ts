@@ -267,6 +267,7 @@ export interface Room {
   notes?: string
   floorType?: string
   demolishWall?: boolean
+  ceramicWallHeights?: Record<string, number>
 }
 
 // Añadir la interfaz para los derribos de tabiques

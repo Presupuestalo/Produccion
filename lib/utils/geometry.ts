@@ -22,6 +22,7 @@ export interface Room {
     hasCeramicFloor?: boolean
     hasCeramicWalls?: boolean
     disabledCeramicWalls?: string[]
+    ceramicWallHeights?: Record<string, number>
     walls: string[] // Added to track associated walls
 }
 
@@ -104,7 +105,7 @@ export function isPointInPolygon(p: Point, polygon: Point[]) {
     return inside
 }
 
-export function calculateRoomStats(room: Room, walls: Wall[], shunts: { x: number, y: number, width: number, height: number, hasCeramic?: boolean }[]) {
+export function calculateRoomStats(room: Room, walls: Wall[], shunts: { x: number, y: number, width: number, height: number, hasCeramic?: boolean }[], ceilingHeight: number = 250) {
     // 1. Identify wall properties for each segment of the polygon
     const segments = room.polygon.map((p1, i) => {
         const p2 = room.polygon[(i + 1) % room.polygon.length]
@@ -236,6 +237,7 @@ export function calculateRoomStats(room: Room, walls: Wall[], shunts: { x: numbe
 
     // 4. Ceramic Wall Length (same corner-reduction logic as wallPerimeter, but respects disabled walls)
     let ceramicWallLength = 0
+    let ceramicWallArea = 0
     if (room.hasCeramicWalls) {
         for (let i = 0; i < segments.length; i++) {
             const seg = segments[i]
@@ -248,40 +250,54 @@ export function calculateRoomStats(room: Room, walls: Wall[], shunts: { x: numbe
             const wall = walls.find(w => isPointOnSegment(midP, w.start, w.end, 4.0))
             
             let isTilingDisabled = false;
+            let side: 'F' | 'B' | null = null;
+
             if (wall) {
                 const wDir = { x: wall.end.x - wall.start.x, y: wall.end.y - wall.start.y };
                 const sDir = { x: seg.p2.x - seg.p1.x, y: seg.p2.y - seg.p1.y };
                 const dot = wDir.x * sDir.x + wDir.y * sDir.y;
-                const side = dot >= 0 ? 'F' : 'B';
+                // side is the face facing the interior of the room
+                side = dot >= 0 ? 'F' : 'B';
                 const faceId = `${wall.id}:${side}`;
                 isTilingDisabled = !!room.disabledCeramicWalls?.includes(faceId) || !!room.disabledCeramicWalls?.includes(wall.id);
             } else {
                 isTilingDisabled = !!room.disabledCeramicWalls?.includes(`seg-${i}`);
             }
 
-            if (isTilingDisabled) continue
+            if (!isTilingDisabled) {
+                const prev = segments[(i - 1 + segments.length) % segments.length]
+                const next = segments[(i + 1) % segments.length]
 
-            const prev = segments[(i - 1 + segments.length) % segments.length]
-            const next = segments[(i + 1) % segments.length]
+                const getReduction = (sA: any, sB: any, commonP: Point) => {
+                    if (sB.isInvisible) return 0
+                    const pA = (isSamePoint(sA.p1, commonP)) ? sA.p2 : sA.p1
+                    const pB = (isSamePoint(sB.p1, commonP)) ? sB.p2 : sB.p1
+                    const va = { x: pA.x - commonP.x, y: pA.y - commonP.y }
+                    const vb = { x: pB.x - commonP.x, y: pB.y - commonP.y }
+                    const magA = Math.sqrt(va.x ** 2 + va.y ** 2)
+                    const magB = Math.sqrt(vb.x ** 2 + vb.y ** 2)
+                    if (magA < 0.1 || magB < 0.1) return 0
+                    const dot = (va.x * vb.x + va.y * vb.y) / (magA * magB)
+                    if (dot < -0.99) return 0
+                    if (dot > 0.99) return -sB.thickness / 2
+                    return sB.thickness / 2
+                }
 
-            const getReduction = (sA: any, sB: any, commonP: Point) => {
-                if (sB.isInvisible) return 0
-                const pA = (isSamePoint(sA.p1, commonP)) ? sA.p2 : sA.p1
-                const pB = (isSamePoint(sB.p1, commonP)) ? sB.p2 : sB.p1
-                const va = { x: pA.x - commonP.x, y: pA.y - commonP.y }
-                const vb = { x: pB.x - commonP.x, y: pB.y - commonP.y }
-                const magA = Math.sqrt(va.x ** 2 + va.y ** 2)
-                const magB = Math.sqrt(vb.x ** 2 + vb.y ** 2)
-                if (magA < 0.1 || magB < 0.1) return 0
-                const dot = (va.x * vb.x + va.y * vb.y) / (magA * magB)
-                if (dot < -0.99) return 0
-                if (dot > 0.99) return -sB.thickness / 2
-                return sB.thickness / 2
+                const red1 = getReduction(seg, prev, seg.p1)
+                const red2 = getReduction(seg, next, seg.p2)
+                
+                const effectiveLength = Math.max(0, seg.len - red1 - red2);
+                ceramicWallLength += effectiveLength;
+                
+                // Area calculation
+                let h = ceilingHeight;
+                if (wall && side && room.ceramicWallHeights) {
+                    const faceId = `${wall.id}:${side}`;
+                    const hVal = room.ceramicWallHeights[faceId] ?? room.ceramicWallHeights[wall.id];
+                    if (hVal !== undefined) h = hVal;
+                }
+                ceramicWallArea += effectiveLength * h;
             }
-
-            const red1 = getReduction(seg, prev, seg.p1)
-            const red2 = getReduction(seg, next, seg.p2)
-            ceramicWallLength += Math.max(0, seg.len - red1 - red2)
         }
     }
 
@@ -289,7 +305,9 @@ export function calculateRoomStats(room: Room, walls: Wall[], shunts: { x: numbe
     // - Subtract wall length hidden by ANY column (tiled or not)
     // - Add exposed face length of TILED columns
     let ceramicColumnExposedLength = 0
+    let ceramicColumnExposedArea = 0
     let ceramicWallHiddenLength = 0
+    let ceramicWallHiddenArea = 0
 
     roomShunts.forEach(s => {
         const faces = [
@@ -327,10 +345,12 @@ export function calculateRoomStats(room: Room, walls: Wall[], shunts: { x: numbe
             if (isSupportedByWall) {
                 // This face hides the wall -> Subtract from wall area
                 ceramicWallHiddenLength += face.len
+                ceramicWallHiddenArea += face.len * ceilingHeight
             } else if (!isSupportedByShunt) {
                 // Exposed face -> Add to column area IF the column is ceramic
                 if ((s as any).hasCeramic) {
                     ceramicColumnExposedLength += face.len
+                    ceramicColumnExposedArea += face.len * ceilingHeight
                 }
             }
         })
@@ -343,6 +363,7 @@ export function calculateRoomStats(room: Room, walls: Wall[], shunts: { x: numbe
         area: room.area,
         // Formula: Initial Wall Length - Hidden by Columns + Exposed Column Surfaces
         ceramicWallLength: Math.max(0, ceramicWallLength - ceramicWallHiddenLength + ceramicColumnExposedLength) / 100,
+        ceramicWallArea: Math.max(0, ceramicWallArea - ceramicWallHiddenArea + ceramicColumnExposedArea) / 10000,
         hasCeramicFloor: !!room.hasCeramicFloor
     }
 }
