@@ -3395,14 +3395,11 @@ export const CanvasEngine = ({
                                                         const isManualMode = room.isGlobalCeramic === false;
                                                         const wallHasConfig = w.disabledCeramicFaces !== undefined || w.ceramicHeights?.[side] !== undefined || room.ceramicWallHeights?.[faceId] !== undefined;
 
-                                                        // If wall has explicit whitelist use it, otherwise fall back to legacy logic
-                                                        if (w.ceramicActiveFaces !== undefined) {
-                                                            dis = !w.ceramicActiveFaces.includes(side);
-                                                        } else {
-                                                            // If there's no whitelist, but the room has ceramic, this wall defaults to OFF (disabled)
-                                                            // to prevent the "bloom" effect where activating one wall activates all.
-                                                            dis = true; 
-                                                        }
+                                                        const isOn = w.ceramicActiveFaces !== undefined
+                                                            ? w.ceramicActiveFaces.includes(side)
+                                                            : (!w.disabledCeramicFaces?.includes(side)) && (!isManualMode || wallHasConfig) && (room?.hasCeramicWalls ?? false);
+                                                            
+                                                        dis = !isOn;
 
                                                         const color = "#0ea5e9";
                                                         h = w.ceramicHeights?.[side] || room.ceramicWallHeights?.[faceId] || room.ceramicWallHeights?.[w.id] || 0;
@@ -3512,7 +3509,10 @@ export const CanvasEngine = ({
 
                                                                             const mx = (x1 + x2) / 2;
                                                                             const my = (y1 + y2) / 2;
-                                                                            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+                                                                            let angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+                                                                            if (angle > 90 || angle < -90) {
+                                                                                angle += 180;
+                                                                            }
 
                                                                             labels.push(
                                                                                 <Group key={`height-${i}`} x={mx} y={my} rotation={angle}>
@@ -5751,6 +5751,20 @@ export const CanvasEngine = ({
                                                         isGlobalCeramic: newState,
                                                         disabledCeramicWalls: [] // Reset when toggling
                                                     });
+                                                    
+                                                    // If turning ON globally, we must reset individual wall configs 
+                                                    // so that ALL walls inherit the global ON state.
+                                                    if (newState && selectedRoom) {
+                                                        rooms.find(r => r.id === selectedRoomId)?.polygon.forEach((p1, i, poly) => {
+                                                            const p2 = poly[(i + 1) % poly.length];
+                                                            const wallInfo = getFaceIdWithParity(i, poly, walls);
+                                                            if (wallInfo) {
+                                                                const [wId] = wallInfo.split(':');
+                                                                onUpdateWall(wId, { ceramicActiveFaces: undefined, disabledCeramicFaces: undefined });
+                                                            }
+                                                        });
+                                                    }
+
                                                     if (!newState) setIsCeramicEraserActive(false);
                                                 }}
                                                 title="Paredes cerámicas"
@@ -5866,10 +5880,13 @@ export const CanvasEngine = ({
                                             const isExterior = !sideRoom;
                                             const sideColor = side.id === 'F' ? CERAMIC_BLUE : CERAMIC_ORANGE;
 
-                                            // Use the explicit whitelist if available
+                                            // Use the exact same logic as the renderer (line ~3400)
+                                            const isManualMode = sideRoom?.isGlobalCeramic === false;
+                                            const wallHasConfig = selectedWall.ceramicActiveFaces !== undefined || selectedWall.disabledCeramicFaces !== undefined || selectedWall.ceramicHeights?.[side.id] !== undefined || sideRoom?.ceramicWallHeights?.[`${selectedWall.id}:${side.id}`] !== undefined;
+
                                             const isOn = selectedWall.ceramicActiveFaces !== undefined
-                                                ? selectedWall.ceramicActiveFaces.includes(side.id)
-                                                : !selectedWall.disabledCeramicFaces?.includes(side.id) && (sideRoom?.hasCeramicWalls ?? false);
+                                                ? selectedWall.ceramicActiveFaces.includes(side.id) // Strict whitelist if available
+                                                : (!selectedWall.disabledCeramicFaces?.includes(side.id)) && (!isManualMode || wallHasConfig) && (sideRoom?.hasCeramicWalls ?? false);
 
                                             const heightVal = selectedWall.ceramicHeights?.[side.id];
                                             const heightDisplay = heightVal !== undefined ? `${heightVal} cm` : `${planHeight} cm`;
