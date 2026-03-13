@@ -22,6 +22,7 @@ interface Room {
     hasCeramicWalls?: boolean
     disabledCeramicWalls?: string[]
     ceramicWallHeights?: Record<string, number>
+    isGlobalCeramic?: boolean
 }
 
 interface Door { id: string; wallId: string; t: number; width: number; flipX?: boolean; flipY?: boolean; openType?: "single" | "double" | "sliding_rail" | "sliding_pocket" | "sliding" | "double_swing" | "exterior_sliding" }
