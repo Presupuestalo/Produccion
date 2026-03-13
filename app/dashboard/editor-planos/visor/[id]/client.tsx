@@ -96,6 +96,7 @@ export default function StandaloneViewerClient({
                     onDragEnd={noop}
                     onUpdateWallLength={noop}
                     onDeleteWall={noop}
+                    onUpdateWall={noop}
                     onUpdateWallThickness={noop}
                     onUpdateWallInvisible={noop}
                     onUpdateRoom={noop}
