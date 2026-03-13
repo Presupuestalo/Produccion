@@ -10,9 +10,9 @@ export interface Wall {
     thickness: number
     isInvisible?: boolean
     offsetMode?: 'center' | 'outward' | 'inward'
-    disabledCeramicFaces?: string[]
-    ceramicActiveFaces?: string[] // Whitelist: if set, ONLY these faces are ON
-    ceramicHeights?: Record<string, number>
+    disabledCeramicFaces?: ('F' | 'B')[]
+    ceramicActiveFaces?: ('F' | 'B')[] // Whitelist: if set, ONLY these faces are ON
+    ceramicHeights?: Partial<Record<'F' | 'B', number>>
 }
 
 export interface Room {
