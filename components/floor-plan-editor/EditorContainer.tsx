@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Pointer, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Minimize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, LayoutGrid, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, RefreshCw, FileText, ClipboardList, Spline, Menu, Square, ChevronDown, ChevronRight, ChevronLeft, DoorOpen, GalleryVerticalEnd, AppWindow, Columns, X, ArrowRightLeft, RectangleVertical, Check, Settings, GripHorizontal, Link2, Copy, AlertCircle, Grid3X3, Eraser } from "lucide-react"
+import { Pointer, Pencil, ZoomIn, ZoomOut, Maximize, Maximize2, Minimize2, Sparkles, Save, Undo2, Redo2, DoorClosed, Layout, LayoutGrid, Trash2, ImagePlus, Sliders, Move, Magnet, Ruler, Building2, ArrowLeft, RotateCcw, RotateCw, RefreshCw, FileText, ClipboardList, Spline, Menu, Square, ChevronDown, ChevronRight, ChevronLeft, DoorOpen, GalleryVerticalEnd, AppWindow, Columns, X, ArrowRightLeft, RectangleVertical, Check, Settings, GripHorizontal, Link2, Copy, AlertCircle, Grid3X3 } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import {
     DropdownMenu,
@@ -150,7 +150,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [shunts, setShunts] = useState<Shunt[]>(props.initialData?.shunts || [])
     // Si el plano ya tiene datos (está guardado), arranca con 'select' para no dibujar líneas accidentales
     const hasExistingData = (props.initialData?.walls?.length > 0) || (props.initialData?.rooms?.length > 0)
-    const [activeTool, _setActiveTool] = useState<"select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt" | "ceramic" | "eraser">(hasExistingData ? "select" : "wall")
+    const [activeTool, _setActiveTool] = useState<"select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt" | "ceramic">(hasExistingData ? "select" : "wall")
     // ... (rest of state)
     const [gridRotation, setGridRotation] = useState<number>(props.initialData?.gridRotation || 0)
     // Toolbar visibility
@@ -166,7 +166,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [phantomArc, setPhantomArc] = useState<{ start: Point, end: Point, depth: number } | undefined>(undefined)
 
     // Wrapper to ensure clean state transitions
-    const setActiveTool = (tool: "select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt" | "ceramic" | "eraser") => {
+    const setActiveTool = (tool: "select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt" | "ceramic") => {
         _setActiveTool(tool)
         setCurrentWall(null)
         setRulerState({ active: false, start: null, end: null })
@@ -218,7 +218,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [isExportingPDF, setIsExportingPDF] = useState(false)
     const [exportRoomNames, setExportRoomNames] = useState(true)
     const [exportAreas, setExportAreas] = useState(true)
-    const [isCeramicEraserActive, setIsCeramicEraserActive] = useState(false) // New state for ceramic eraser
+
 
     // Configuración del Plano
     const [planName, setPlanName] = useState(props.planName || props.initialData?.name || "Plano Sin Título")
@@ -226,14 +226,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
     const [defaultWallThickness, setDefaultWallThickness] = useState(props.initialData?.defaultWallThickness || 10)
     const [showGrid, setShowGrid] = useState(true)
 
-    useEffect(() => {
-        // Prevent accidental deactivation if just switching back to select tool while room is still selected
-        if (activeTool !== 'select') {
-            setIsCeramicEraserActive(false)
-        } else if (!selectedRoomId && !selectedWallIds.length && !selectedElement) {
-            setIsCeramicEraserActive(false)
-        }
-    }, [activeTool, selectedRoomId, selectedWallIds, selectedElement])
+
 
     useEffect(() => {
         if (props.planName) setPlanName(props.planName)
@@ -419,7 +412,6 @@ export const EditorContainer = forwardRef((props: any, ref) => {
             if (key === 'a') setActiveTool("arc")
             if (key === 'c') setActiveTool("shunt")
             if (key === 'h') setActiveTool("ceramic")
-            if (key === 'e') setActiveTool("eraser")
             if (key === 'r') setActiveTool("ruler")
             if (key === 'q') setShowAllQuotes(prev => !prev)
             if (key === 'f') { setActiveTool("wall"); applyFacadeHighlight() }
@@ -3242,8 +3234,7 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     hideFloatingUI={isSettingsOpen || showSummary || (isMobile && !isFullscreen && typeof window !== 'undefined' && window.innerWidth > window.innerHeight)}
                     onDblClick={handleDblClick}
                     alignmentGuides={alignmentGuides}
-                    isCeramicEraserActive={isCeramicEraserActive}
-                    setIsCeramicEraserActive={setIsCeramicEraserActive}
+
                 />
 
 

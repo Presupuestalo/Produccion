@@ -3,7 +3,7 @@ import React from "react"
 import { Stage, Layer, Group, Line, Rect, Text, Circle, Arc as KonvaArc, Arrow } from "react-konva"
 import { Grid } from "./Grid"
 import { getClosestPointOnSegment, generateArcPoints, getLineIntersection, isPointOnSegment, isPointInPolygon } from "@/lib/utils/geometry"
-import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical, SquareDashed, Spline, Check, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ArrowLeftRight, Grid3X3, Eraser } from "lucide-react"
+import { Scissors, Plus, Pencil, Trash2, X, RotateCcw, Copy, FlipHorizontal, FlipVertical, SquareDashed, Spline, Check, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ArrowLeftRight, Grid3X3 } from "lucide-react"
 import { NumericInput } from "./NumericInput"
 import { UnifiedWallEditor } from "./UnifiedWallEditor"
 
@@ -181,7 +181,7 @@ interface CanvasEngineProps {
     windows: Window[]
     shunts?: Shunt[]
     currentWall: { start: Point; end: Point } | null
-    activeTool: "select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt" | "ceramic" | "eraser"
+    activeTool: "select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt" | "ceramic"
     hoveredWallId: string | null
     onPan: (x: number, y: number) => void
     onZoom: (newZoom: number) => void
@@ -239,8 +239,7 @@ interface CanvasEngineProps {
     onDblTap?: (point: Point) => void
     showAreas?: boolean
     alignmentGuides?: { x?: number, y?: number } | null
-    isCeramicEraserActive?: boolean
-    setIsCeramicEraserActive?: (active: boolean) => void
+
     planHeight?: number
 }
 
@@ -610,8 +609,6 @@ export const CanvasEngine = ({
     onDblClick,
     onDblTap,
     alignmentGuides: externalGuides,
-    isCeramicEraserActive = false,
-    setIsCeramicEraserActive = () => { },
     planHeight = 250
 }: CanvasEngineProps) => {
     const [roomMenuClickPos, setRoomMenuClickPos] = React.useState<Point | null>(null)
@@ -1121,6 +1118,17 @@ export const CanvasEngine = ({
         return () => window.removeEventListener('keydown', handleKeyDown)
     }, [onRotateGrid, gridRotation])
 
+    // Global Key Listener for Escape
+    React.useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onEscape?.()
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [onEscape])
+
     // Spacebar Panning 
     React.useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -1314,7 +1322,7 @@ export const CanvasEngine = ({
     React.useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
-                setIsCeramicEraserActive(false)
+                onEscape()
             }
         }
         window.addEventListener('keydown', handleKeyDown)
@@ -1328,14 +1336,12 @@ export const CanvasEngine = ({
     React.useEffect(() => {
         // Reset when switching tools or when selection is completely cleared
         if (activeTool !== "select") {
-            setIsCeramicEraserActive(false)
             setRoomMenuClickPos(null)
             setWallMenuClickPos(null)
         } else if (!selectedRoomId && !selectedWall && !selectedElement) {
             // Check if eraser was active. If nothing is selected, eraser can't be active (no menu)
             setRoomMenuClickPos(null)
             setWallMenuClickPos(null)
-            setIsCeramicEraserActive(false)
         }
     }, [activeTool, selectedRoomId, selectedWall, selectedElement])
 
@@ -1572,13 +1578,8 @@ export const CanvasEngine = ({
             // NEW: Break chain if face status (Interior vs Exterior) changes.
             // This prevents "Exterior" chains from swallowing shared walls that are actually interior.
             // BUT: If we are measuring EXTERIOR, we want to proceed even if the next segment is technically 
-            // part of a room (interior) as long as it's collinear and we are on the outside face.
-
-            // Logic: 
-            // 1. If we are Interior, we MUST stay Interior.
-            // 2. If we are Exterior, we can cross into "Interior" segments IF they form a straight line
-            //    and the face we are measuring is still effectively outside (which is hard to know locally).
-            //    However, usually "Exterior" measurement implies the whole facade line.
+            // part of a room (interior) as long as it's collinear and the face we are measuring is still effectively outside (which is hard to know locally).
+            // However, usually "Exterior" measurement implies the whole facade line.
 
             const midP_cont = { x: (cont.start.x + cont.end.x) / 2, y: (cont.start.y + cont.end.y) / 2 }
             const testP_cont = { x: midP_cont.x + faceNormal.x * 12, y: midP_cont.y + faceNormal.y * 12 }
@@ -1759,7 +1760,7 @@ export const CanvasEngine = ({
         const newId = selectedWall?.id ?? null
         if (newId !== prevSelectedWallIdRef.current) {
             prevSelectedWallIdRef.current = newId
-            if (editMode === "ceramic") setEditMode("menu")
+            // if (editMode === "ceramic") setEditMode("menu") // Removed ceramic edit mode
         }
     }, [selectedWall?.id])
 
@@ -1830,7 +1831,7 @@ export const CanvasEngine = ({
 
         const isBlueSide = offsetVal > 0
         const defaultColor = isInteractive
-            ? (isBlueSide ? CERAMIC_BLUE : CERAMIC_ORANGE)
+            ? (isBlueSide ? "#0ea5e9" : "#f97316") // Replaced CERAMIC_BLUE/ORANGE
             : (isActuallyInterior ? "#334155" : "#94a3b8")
         const color = forceColor || defaultColor
 
@@ -2043,7 +2044,7 @@ export const CanvasEngine = ({
                             ? (Math.atan2(dy, dx) * 180 / Math.PI) + 180
                             : Math.atan2(dy, dx) * 180 / Math.PI)}
                     onPointerDown={(e) => {
-                        if (activeTool !== "select" || isCeramicEraserActive) return
+                        if (activeTool !== "select") return
                         e.cancelBubble = true
                         lastClickedWallForEdit.current = wall.id
                         if (!selectedWallIds.includes(wall.id)) {
@@ -2209,7 +2210,7 @@ export const CanvasEngine = ({
             targetName === "measurement-label" ||
             targetName.startsWith("room-")
 
-        if (isRightClick || isMiddleClick || (isBackground && !isDrawingToolEarly && activeTool !== "ceramic" && activeTool !== "eraser") || spacePressed.current || ((activeTool === "select" || isCeramicEraserActive) && (!isProtected || isRoom))) {
+        if (isRightClick || isMiddleClick || (isBackground && !isDrawingToolEarly) || spacePressed.current || (activeTool === "select" && (!isProtected || isRoom))) {
             // Only deselect if we are NOT interacting with a room (unless it's a right/middle click which might imply context menu or pan anywhere)
             if (!isRoom || isRightClick || isMiddleClick || spacePressed.current) {
                 if (!isRoom) { // Don't deselect everything if we clicked a room (let room onClick handle selection)
@@ -2229,7 +2230,7 @@ export const CanvasEngine = ({
 
         const isPrimaryClick = e.evt.button === 0
         const isDrawingTool = activeTool === "wall" || activeTool === "door" || activeTool === "window" || activeTool === "ruler" || activeTool === "arc" || activeTool === "shunt"
-        const isTileTool = activeTool === "ceramic" || activeTool === "eraser"
+        const isTileTool = false;
 
         // SPECIAL CASE: Sustained Click-to-Pan while using tools
         // ONLY for mouse, to avoid interfering with mobile/stylus chained drawing
@@ -2245,350 +2246,11 @@ export const CanvasEngine = ({
 
         if (e.evt.button !== 0 && (e.evt as any).pointerType === 'mouse') return
         
-        // --- LÓGICA MÓVIL (TOUCH): TAP TO SELECT, TAP AGAIN TO ERASE ---
-        if (isTouchInteraction && (activeTool === "ceramic" || activeTool === "eraser" || isCeramicEraserActive)) {
-            // CRÍTICO: Usar adjustedY para compensar el offset del dedo en táctil. 
-            // Esto arregla que no se puedan tocar las paredes de arriba e izquierda.
-            const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
-            let touchedFaceId: string | null = null
 
-            // Detectar cara tocada (misma lógica que onPointerMove con umbral táctil MUCHO mayor)
-            const avgThickness = walls.length > 0 ? walls.reduce((acc, w) => acc + w.thickness, 0) / walls.length : 20;
-            const thresholdWorld = avgThickness / 2 + 60 / zoom; // Umbral extra grande para "dedos gordos" (60px)
-            let bestDist = thresholdWorld;
-            const activeRoom = (isCeramicEraserActive && selectedRoomId) ? rooms.find(r => r.id === selectedRoomId) : null;
-
-            for (const wall of walls) {
-                if (wall.isInvisible) continue;
-                const { point: proj } = getClosestPointOnSegment(pos, wall.start, wall.end);
-                const d = Math.sqrt((pos.x - proj.x) ** 2 + (pos.y - proj.y) ** 2);
-                if (d < bestDist) {
-                    bestDist = d;
-                    
-                    // 1. Determinar matemáticamente qué lado se tocó (basado en la línea central)
-                    const wdx = wall.end.x - wall.start.x;
-                    const wdy = wall.end.y - wall.start.y;
-                    const cross = wdx * (pos.y - wall.start.y) - wdy * (pos.x - wall.start.x);
-                    const touchedSide = cross > 0 ? 'F' : 'B';
-
-                    let faceSide: 'F' | 'B' | null = touchedSide;
-
-                    // 2. Si estamos en el modo de habitación, verificamos si el lado tocado PERTENECE a esta habitación
-                    if (activeRoom) {
-                        let belongsToRoom = false;
-                        for (let i = 0; i < activeRoom.polygon.length; i++) {
-                            const p1 = activeRoom.polygon[i];
-                            const p2 = activeRoom.polygon[(i + 1) % activeRoom.polygon.length];
-                            const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-                            const { point: midProj } = getClosestPointOnSegment(midP, wall.start, wall.end);
-                            const midD = Math.sqrt((midP.x - midProj.x) ** 2 + (midP.y - midProj.y) ** 2);
-                            
-                            if (midD <= (wall.thickness / 2) + 5) {
-                                const dot = wdx * (p2.x - p1.x) + wdy * (p2.y - p1.y);
-                                const roomFaceSide = dot >= 0 ? 'F' : 'B';
-                                // La habitación es dueña de este lado del muro
-                                if (roomFaceSide === touchedSide) {
-                                    belongsToRoom = true;
-                                    break;
-                                }
-                            }
-                        }
-                        
-                        // Si el lado que tocaste NO es el que da a tu habitación, no seleccionamos nada
-                        // (No puedes borrar la cerámica del vecino desde tu menú)
-                        if (!belongsToRoom) {
-                            faceSide = null;
-                        }
-                    }
-                    
-                    if (faceSide) {
-                        touchedFaceId = `${wall.id}:${faceSide}`;
-                    }
-                }
-            }
-
-            // Si tocamos una cara nueva -> Seleccionar (Resaltar rojo) y EVITAR borrar aún
-            if (touchedFaceId && touchedFaceId !== hoveredCeramicFaceId) {
-                setHoveredCeramicFaceId(touchedFaceId)
-                return // Detenemos ejecución, obligando al usuario a hacer un segundo tap
-            }
-            // Si tocamos fuera de cualquier pared -> Quitar selección
-            if (!touchedFaceId) {
-                setHoveredCeramicFaceId(null)
-                return
-            }
-            
-            // Si llegamos aquí: touchedFaceId === hoveredCeramicFaceId
-            // Es el segundo tap en la misma cara -> Continuar y ejecutar el borrado normal abajo
-        }
-
-        // HERRAMIENTA CERÁMICA
-        if (activeTool === "ceramic") {
-            const pos = isTouchInteraction 
-                ? getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
-                : getRelativePointerPosition(stage)
-
-            // Use the hovered face ID (set by handleStagePointerMove using direct wall-normal detection)
-            let bestFaceId: string | null = hoveredCeramicFaceId
-
-            // If no hovered face (e.g. tap without hover), compute directly from cursor
-            if (!bestFaceId) {
-                const avgThickness = walls.length > 0 ? walls.reduce((acc, w) => acc + w.thickness, 0) / walls.length : 20;
-                const thresholdWorld = avgThickness / 2 + (isTouchInteraction ? 40 : 15) / zoom;
-                let bestDist = thresholdWorld;
-                const activeRoom = (isCeramicEraserActive && selectedRoomId) ? rooms.find(r => r.id === selectedRoomId) : null;
-                for (const wall of walls) {
-                    if (wall.isInvisible) continue;
-                    const { point: proj } = getClosestPointOnSegment(pos, wall.start, wall.end);
-                    const d = Math.sqrt((pos.x - proj.x) ** 2 + (pos.y - proj.y) ** 2);
-                    if (d < bestDist) {
-                        bestDist = d;
-                        
-                        let faceSide: 'F' | 'B' | null = null;
-                        if (activeRoom) {
-                            for (let i = 0; i < activeRoom.polygon.length; i++) {
-                                const p1 = activeRoom.polygon[i];
-                                const p2 = activeRoom.polygon[(i + 1) % activeRoom.polygon.length];
-                                const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-                                const { point: midProj } = getClosestPointOnSegment(midP, wall.start, wall.end);
-                                const midD = Math.sqrt((midP.x - midProj.x) ** 2 + (midP.y - midProj.y) ** 2);
-                                if (midD <= (wall.thickness / 2) + 5) {
-                                    const wdx = wall.end.x - wall.start.x;
-                                    const wdy = wall.end.y - wall.start.y;
-                                    const dot = wdx * (p2.x - p1.x) + wdy * (p2.y - p1.y);
-                                    faceSide = dot >= 0 ? 'F' : 'B';
-                                    break;
-                                }
-                            }
-                        }
-                        
-                        if (!faceSide) {
-                            const wdx = wall.end.x - wall.start.x;
-                            const wdy = wall.end.y - wall.start.y;
-                            const cross = wdx * (pos.y - wall.start.y) - wdy * (pos.x - wall.start.x);
-                            faceSide = cross > 0 ? 'F' : 'B';
-                        }
-                        
-                        bestFaceId = `${wall.id}:${faceSide}`;
-                    }
-                }
-            }
-
-            if (bestFaceId) {
-                // Find the room whose interior contains this face
-                // A room "owns" a face if:
-                //   - it has a polygon segment aligned with the wall, AND
-                //   - the wall is on the interior side of that segment (the segment faces into the room)
-                const [wallId, faceSide] = bestFaceId.split(':')
-                const wall = walls.find(w => w.id === wallId)
-                let roomId: string | null = null
-
-                if (wall) {
-                    for (const room of rooms) {
-                        let found = false
-                        for (let i = 0; i < room.polygon.length; i++) {
-                            const p1 = room.polygon[i]
-                            const p2 = room.polygon[(i + 1) % room.polygon.length]
-                            const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
-                            const { point: proj } = getClosestPointOnSegment(midP, wall.start, wall.end)
-                            const d = Math.sqrt((midP.x - proj.x) ** 2 + (midP.y - proj.y) ** 2)
-                            if (d > (wall.thickness / 2) + 5) continue
-                            // Check which side of the wall this room segment represents
-                            const wDir = { x: wall.end.x - wall.start.x, y: wall.end.y - wall.start.y }
-                            const sDir = { x: p2.x - p1.x, y: p2.y - p1.y }
-                            const dot = wDir.x * sDir.x + wDir.y * sDir.y
-                            const segSide = dot >= 0 ? 'F' : 'B'
-                            if (segSide === faceSide) {
-                                roomId = room.id
-                                found = true
-                                break
-                            }
-                        }
-                        if (found) break
-                    }
-                }
-
-                if (roomId) {
-                    const room = rooms.find(r => r.id === roomId)!
-                    const currentDisabled = room.disabledCeramicWalls || []
-                    let nextDisabled: string[]
-                    let nextHasCeramicWalls = room.hasCeramicWalls
-
-                    if (!nextHasCeramicWalls) {
-                        nextHasCeramicWalls = true
-                        // Collect all face IDs for this room, disable all except the clicked one
-                        const faceIds: string[] = []
-                        room.polygon.forEach((p, i) => {
-                            const pNext = room.polygon[(i + 1) % room.polygon.length]
-                            const midP = { x: (p.x + pNext.x) / 2, y: (p.y + pNext.y) / 2 }
-                            const w = walls.find(w => {
-                                if (w.isInvisible) return false
-                                const { point: proj } = getClosestPointOnSegment(midP, w.start, w.end)
-                                const dist = Math.sqrt((midP.x - proj.x) ** 2 + (midP.y - proj.y) ** 2)
-                                return dist < (w.thickness / 2) + 5.0
-                            })
-                            if (w) {
-                                const wDir = { x: w.end.x - w.start.x, y: w.end.y - w.start.y }
-                                const sDir = { x: pNext.x - p.x, y: pNext.y - p.y }
-                                const dot = wDir.x * sDir.x + wDir.y * sDir.y
-                                const side = dot >= 0 ? 'F' : 'B'
-                                faceIds.push(`${w.id}:${side}`)
-                            }
-                        })
-                        nextDisabled = faceIds.filter(id => id !== bestFaceId)
-                    } else {
-                        const parts = bestFaceId!.split(':')
-                        const wId = parts[0]
-                        if (currentDisabled.includes(bestFaceId!)) {
-                            nextDisabled = currentDisabled.filter(id => id !== bestFaceId)
-                        } else if (currentDisabled.includes(wId)) {
-                            const side = parts[1], otherSide = side === 'F' ? 'B' : 'F'
-                            nextDisabled = [...currentDisabled.filter(id => id !== wId), `${wId}:${otherSide}`]
-                        } else {
-                            nextDisabled = [...currentDisabled, bestFaceId!]
-                        }
-                    }
-                    onUpdateRoom(roomId, { hasCeramicWalls: nextHasCeramicWalls, disabledCeramicWalls: nextDisabled })
-                    return
-                }
-            }
-
-            // 2. Intentar toggle de suelo cerámico
-            const clickedRoom = rooms.find(r => isPointInPolygon(pos, r.polygon))
-            if (clickedRoom) {
-                onUpdateRoom(clickedRoom.id, { hasCeramicFloor: !clickedRoom.hasCeramicFloor })
-                return
-            }
-        }
-
-        // HERRAMIENTA GOMA (BORRADOR)
-        if (activeTool === "eraser") {
-            const pos = getRawPointerPosition(stage)
-
-            // Use hovered face ID (set by direct wall-normal hover detection)
-            let bestFaceId: string | null = hoveredCeramicFaceId
-
-            // Fallback: compute directly if no hover
-            if (!bestFaceId) {
-                let bestWallPerp = 20 / zoom
-                for (const wall of walls) {
-                    if (wall.isInvisible) continue
-                    const wdx = wall.end.x - wall.start.x
-                    const wdy = wall.end.y - wall.start.y
-                    const wallLen = Math.sqrt(wdx * wdx + wdy * wdy)
-                    if (wallLen < 0.1) continue
-                    const ux = wdx / wallLen, uy = wdy / wallLen
-                    const cx = pos.x - wall.start.x, cy = pos.y - wall.start.y
-                    const along = cx * ux + cy * uy
-                    if (along < -wall.thickness || along > wallLen + wall.thickness) continue
-                    const perp = cx * (-uy) + cy * ux
-                    const perpAbs = Math.abs(perp)
-                    if (perpAbs >= bestWallPerp) continue
-                    const nudge = wall.thickness / 2 + 8
-                    const t = Math.max(0, Math.min(1, (cx * ux + cy * uy) / wallLen))
-                    const projX = wall.start.x + t * ux * wallLen
-                    const projY = wall.start.y + t * uy * wallLen
-                    const nSign = perp >= 0 ? 1 : -1
-                    const testX = projX + (-uy) * nSign * nudge
-                    const testY = projY + ux * nSign * nudge
-                    let ownerRoom: typeof rooms[0] | null = null
-                    for (const room of rooms) {
-                        if (isPointInPolygon({ x: testX, y: testY }, room.polygon)) {
-                            ownerRoom = room; break
-                        }
-                    }
-                    if (ownerRoom) {
-                        let closestSegDist = Infinity
-                        for (let i = 0; i < ownerRoom.polygon.length; i++) {
-                            const p1 = ownerRoom.polygon[i]
-                            const p2 = ownerRoom.polygon[(i + 1) % ownerRoom.polygon.length]
-                            const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
-                            const { point: proj2 } = getClosestPointOnSegment(midP, wall.start, wall.end)
-                            const segDist = Math.sqrt((midP.x - proj2.x) ** 2 + (midP.y - proj2.y) ** 2)
-                            if (segDist < (wall.thickness / 2) + 5 && segDist < closestSegDist) {
-                                closestSegDist = segDist
-                                const wDir = { x: wall.end.x - wall.start.x, y: wall.end.y - wall.start.y }
-                                const sDir = { x: p2.x - p1.x, y: p2.y - p1.y }
-                                const side = wDir.x * sDir.x + wDir.y * sDir.y >= 0 ? 'F' : 'B'
-                                bestFaceId = `${wall.id}:${side}`
-                                bestWallPerp = perpAbs
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (bestFaceId) {
-                const [wallId, faceSide] = bestFaceId.split(':')
-                const wall = walls.find(w => w.id === wallId)
-                let roomId: string | null = null
-
-                if (wall) {
-                    for (const room of rooms) {
-                        let found = false
-                        for (let i = 0; i < room.polygon.length; i++) {
-                            const p1 = room.polygon[i]
-                            const p2 = room.polygon[(i + 1) % room.polygon.length]
-                            const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
-                            const { point: proj } = getClosestPointOnSegment(midP, wall.start, wall.end)
-                            const d = Math.sqrt((midP.x - proj.x) ** 2 + (midP.y - proj.y) ** 2)
-                            if (d > (wall.thickness / 2) + 5) continue
-                            const wDir = { x: wall.end.x - wall.start.x, y: wall.end.y - wall.start.y }
-                            const sDir = { x: p2.x - p1.x, y: p2.y - p1.y }
-                            const dot = wDir.x * sDir.x + wDir.y * sDir.y
-                            const segSide = dot >= 0 ? 'F' : 'B'
-                            if (segSide === faceSide) {
-                                // Only erase if this face is actually enabled (has ceramic)
-                                const disabled = room.disabledCeramicWalls || []
-                                if (room.hasCeramicWalls && !disabled.includes(bestFaceId!) && !disabled.includes(wallId)) {
-                                    roomId = room.id
-                                }
-                                found = true
-                                break
-                            }
-                        }
-                        if (found) break
-                    }
-                }
-
-                if (roomId) {
-                    const room = rooms.find(r => r.id === roomId)!
-                    const currentDisabled = room.disabledCeramicWalls || []
-                    onUpdateRoom(room.id, { disabledCeramicWalls: [...currentDisabled, bestFaceId!] })
-                    return
-                }
-            }
-
-            // 2. Comportamiento normal: borrar el elemento
-            if (targetName.startsWith("wall-")) {
-                const wallId = targetName.split("wall-")[1].split("-")[0]
-                onDeleteWall(wallId)
-                return
-            } else if (targetName.startsWith("door-") || targetName.startsWith("window-") || targetName.startsWith("shunt-")) {
-                const type = targetName.split("-")[0] as "door" | "window" | "shunt"
-                const id = targetName.split("-")[1]
-                onDeleteElement(type, id)
-                return
-            }
-        }
-
-        // LÓGICA DE GOMA CERÁMICA DESDE EL MENÚ DE HABITACIÓN
-        if (isCeramicEraserActive && selectedRoomId) {
-            if (hoveredCeramicFaceId) {
-                const room = rooms.find(r => r.id === selectedRoomId)
-                if (room && room.hasCeramicWalls) {
-                    const currentDisabled = room.disabledCeramicWalls || []
-                    if (!currentDisabled.includes(hoveredCeramicFaceId)) {
-                        onUpdateRoom(room.id, { disabledCeramicWalls: [...currentDisabled, hoveredCeramicFaceId] })
-                    }
-                    return
-                }
-            }
-        }
 
         // Si pinchamos en algo (o cerca por el offset) y es tÃ¡ctil, disparamos su lÃ³gica
         if (isTouchInteraction && !isBackground) {
-            if (activeTool === "select" && !isCeramicEraserActive) {
+            if (activeTool === "select") {
                 if (targetName.startsWith("wall-")) {
                     const wallId = targetName.split("wall-")[1].split("-")[0]
                     onSelectWall(wallId, e.evt.ctrlKey)
@@ -2630,7 +2292,7 @@ export const CanvasEngine = ({
             onSelectElement(null)
         }
 
-        if (activeTool !== "wall" && activeTool !== "door" && activeTool !== "window" && activeTool !== "ruler" && activeTool !== "arc" && activeTool !== "shunt" && activeTool !== "ceramic" && activeTool !== "eraser") return
+        if (activeTool !== "wall" && activeTool !== "door" && activeTool !== "window" && activeTool !== "ruler" && activeTool !== "arc" && activeTool !== "shunt") return
 
         const pos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
 
@@ -2738,70 +2400,6 @@ export const CanvasEngine = ({
         // If we're in aiming mode, update the preview
         if ((activeTool === "wall" && currentWall) || (activeTool === "ruler") || (activeTool === "arc")) {
             onMouseMove(pos)
-        }
-
-
-        if (activeTool === "ceramic" || activeTool === "eraser" || isCeramicEraserActive) {
-            const ceramicPos = getRelativePointerPosition(stage, { x: stagePos.x, y: adjustedY })
-            let bestFaceId: string | null = null
-
-            // Threshold: half of avg wall thickness + 15 screen-pixel buffer
-            const avgThickness = walls.length > 0 ? walls.reduce((acc, w) => acc + w.thickness, 0) / walls.length : 20;
-            const thresholdWorld = avgThickness / 2 + 15 / zoom;
-            const activeRoom = (isCeramicEraserActive && selectedRoomId) ? rooms.find(r => r.id === selectedRoomId) : null;
-
-            let bestDist = thresholdWorld;
-
-            for (const wall of walls) {
-                if (wall.isInvisible) continue;
-                const { point: proj } = getClosestPointOnSegment(ceramicPos, wall.start, wall.end);
-                const d = Math.sqrt((ceramicPos.x - proj.x) ** 2 + (ceramicPos.y - proj.y) ** 2);
-                if (d < bestDist) {
-                    bestDist = d;
-                    
-                    // 1. Determinar matemáticamente qué lado se tocó
-                    const wdx = wall.end.x - wall.start.x;
-                    const wdy = wall.end.y - wall.start.y;
-                    const cross = wdx * (ceramicPos.y - wall.start.y) - wdy * (ceramicPos.x - wall.start.x);
-                    const hoveredSide = cross > 0 ? 'F' : 'B';
-
-                    let faceSide: 'F' | 'B' | null = hoveredSide;
-
-                     if (activeRoom) {
-                        let belongsToRoom = false;
-                        for (let i = 0; i < activeRoom.polygon.length; i++) {
-                            const p1 = activeRoom.polygon[i];
-                            const p2 = activeRoom.polygon[(i + 1) % activeRoom.polygon.length];
-                            const midP = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-                            const { point: midProj } = getClosestPointOnSegment(midP, wall.start, wall.end);
-                            const midD = Math.sqrt((midP.x - midProj.x) ** 2 + (midP.y - midProj.y) ** 2);
-                            
-                            if (midD <= (wall.thickness / 2) + 5) {
-                                const dot = wdx * (p2.x - p1.x) + wdy * (p2.y - p1.y);
-                                const roomFaceSide = dot >= 0 ? 'F' : 'B';
-                                if (roomFaceSide === hoveredSide) {
-                                    belongsToRoom = true;
-                                    break;
-                                }
-                            }
-                        }
-                        
-                        if (!belongsToRoom) {
-                            faceSide = null;
-                        }
-                    }
-                    
-                    if (faceSide) {
-                        bestFaceId = `${wall.id}:${faceSide}`;
-                    }
-                }
-            }
-
-            if (bestFaceId !== hoveredCeramicFaceId) {
-                setHoveredCeramicFaceId(bestFaceId)
-            }
-        } else if (hoveredCeramicFaceId) {
-            setHoveredCeramicFaceId(null)
         }
     }
 
@@ -3009,8 +2607,8 @@ export const CanvasEngine = ({
                 const dy = newCenter.y - lastCenter.current.y
 
                 const newPos = {
-                    x: newCenter.x - pointTo.x * newScale + dx,
-                    y: newCenter.y - pointTo.y * newScale + dy,
+                    x: newCenter.x - pointTo.x * newScale,
+                    y: newCenter.y - pointTo.y * newScale,
                 }
 
                 onZoom(newScale)
@@ -3062,13 +2660,9 @@ export const CanvasEngine = ({
                 style={{ 
                     cursor: isPanningState 
                         ? 'grabbing' 
-                        : (isCeramicEraserActive || activeTool === "eraser")
-                            ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none' stroke='%23ef4444' stroke-width='2'%3E%3Cpath d='M1 1 L12 5 L5 12 Z' fill='%23ef4444'/%3E%3Cpath d='M14 18l4-4 8 8-4 4zM24 12l4 4' stroke='%23ef4444' stroke-width='2'/%3E%3C/svg%3E") 2 2, pointer`
-                            : activeTool === "ceramic"
-                                ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none' stroke='%230ea5e9' stroke-width='2'%3E%3Cpath d='M1 1 L12 5 L5 12 Z' fill='%230ea5e9'/%3E%3Crect width='14' height='14' x='14' y='14' rx='2' stroke='%230ea5e9' stroke-width='2'/%3E%3Cpath d='M14 21h14M21 14v14' stroke='%230ea5e9' stroke-width='1'/%3E%3C/svg%3E") 2 2, pointer`
-                                : (activeTool === "wall" || activeTool === "arc" || activeTool === "ruler") 
-                                    ? 'crosshair' 
-                                    : 'default', 
+                        : (activeTool === "wall" || activeTool === "arc" || activeTool === "ruler") 
+                            ? 'crosshair' 
+                            : 'default', 
                     touchAction: 'none' 
                 }}
             >
@@ -3165,26 +2759,6 @@ export const CanvasEngine = ({
                                                     y: (pointer.y - offset.y) / zoom
                                                 };
                                                 setRoomMenuClickPos(worldPos);
-
-                                                if (activeTool === "ceramic" || activeTool === "eraser" || isCeramicEraserActive) {
-                                                    // Use the already-computed hover target — the red highlight IS the target
-                                                    const faceId = hoveredCeramicFaceId;
-                                                    if (faceId) {
-                                                        const current = room.disabledCeramicWalls || [];
-                                                        const isCurrentlyDisabled = current.includes(faceId);
-                                                        const isEraser = activeTool === "eraser" || isCeramicEraserActive;
-                                                        let next;
-                                                        if (isEraser) {
-                                                            if (!isCurrentlyDisabled) next = [...current, faceId];
-                                                            else next = current;
-                                                        } else {
-                                                            if (isCurrentlyDisabled) next = current.filter(id => id !== faceId);
-                                                            else next = [...current, faceId];
-                                                        }
-                                                        onUpdateRoom(room.id, { disabledCeramicWalls: next });
-                                                        return;
-                                                    }
-                                                }
                                             }
                                             onSelectRoom(room.id);
                                         }}
@@ -3198,36 +2772,16 @@ export const CanvasEngine = ({
                                                     y: (pointer.y - offset.y) / zoom
                                                 };
                                                 setRoomMenuClickPos(worldPos);
-
-                                                if (activeTool === "ceramic" || activeTool === "eraser" || isCeramicEraserActive) {
-                                                    // Use the already-computed hover target — the red highlight IS the target
-                                                    const faceId = hoveredCeramicFaceId;
-                                                    if (faceId) {
-                                                        const current = room.disabledCeramicWalls || [];
-                                                        const isCurrentlyDisabled = current.includes(faceId);
-                                                        const isEraser = activeTool === "eraser" || isCeramicEraserActive;
-                                                        let next;
-                                                        if (isEraser) {
-                                                            if (!isCurrentlyDisabled) next = [...current, faceId];
-                                                            else next = current;
-                                                        } else {
-                                                            if (isCurrentlyDisabled) next = current.filter(id => id !== faceId);
-                                                            else next = [...current, faceId];
-                                                        }
-                                                        onUpdateRoom(room.id, { disabledCeramicWalls: next });
-                                                        return;
-                                                    }
-                                                }
                                             }
                                             onSelectRoom(room.id);
                                         }}
                                     />
 
                                     {/* 3. Ceramic Floor Visualization (ON TOP) */}
-                                    {room.hasCeramicFloor && ceramicGridImage && (
+                                    {room.hasCeramicFloor && (
                                         <Line
                                             points={points}
-                                            fillPatternImage={ceramicGridImage}
+                                            fillPatternImage={undefined}
                                             fillPatternRepeat="repeat"
                                             fillPatternScaleX={1}
                                             fillPatternScaleY={1}
@@ -3392,21 +2946,12 @@ export const CanvasEngine = ({
                                                         const side = dot >= 0 ? 'F' : 'B';
                                                         const faceId = `${w.id}:${side}`;
                                                         
-                                                        const isManualMode = room.isGlobalCeramic === false;
-                                                        const wallHasConfig = w.disabledCeramicFaces !== undefined || w.ceramicHeights?.[side] !== undefined || room.ceramicWallHeights?.[faceId] !== undefined;
-
-                                                        const isOn = w.ceramicActiveFaces !== undefined
-                                                            ? w.ceramicActiveFaces.includes(side)
-                                                            : (!w.disabledCeramicFaces?.includes(side)) && (!isManualMode || wallHasConfig) && (room?.hasCeramicWalls ?? false);
+                                                        const isOn = room?.hasCeramicWalls ?? false;
                                                             
                                                         dis = !isOn;
 
                                                         const color = "#0ea5e9";
-                                                        h = w.ceramicHeights?.[side] || room.ceramicWallHeights?.[faceId] || room.ceramicWallHeights?.[w.id] || 0;
-                                                        if (h === 0) {
-                                                            h = planHeight;
-                                                        }
-                                                        hvr = hoveredCeramicFaceId === faceId;
+                                                        h = planHeight; // No individual wall heights
                                                         
                                                         return { p1: s.p1, p2: s.p2, wt, inv, dis, hvr, h, color: "#0ea5e9", wall: w };
                                                     }
@@ -3478,8 +3023,8 @@ export const CanvasEngine = ({
                                                 };
 
                                                 return chains.map((c, idx) => {
-                                                    const isHovered = c.hvr && (activeTool === "ceramic" || activeTool === "eraser" || isCeramicEraserActive);
-                                                    const hColor = (activeTool === "eraser" || isCeramicEraserActive) ? "#ef4444" : c.color;
+                                                    const isHovered = false;
+                                                    const hColor = c.color;
 
                                                     if (c.inv || (c.dis && !isHovered)) return null;
                                                     
@@ -3564,7 +3109,7 @@ export const CanvasEngine = ({
                                 const now = Date.now()
                                 if (now - lastTapRef.current < 300) {
                                     // Double tap -> Split
-                                    if (activeTool === "select" && !isCeramicEraserActive && onSplitWall) {
+                                    if (activeTool === "select" && onSplitWall) {
                                         const stage = e.target.getStage()
                                         if (stage) {
                                             const pos = getRelativePointerPosition(stage)
@@ -3573,7 +3118,7 @@ export const CanvasEngine = ({
                                     }
                                 } else {
                                     // Single tap -> Select
-                                    if (activeTool === "select" && !isCeramicEraserActive) {
+                                    if (activeTool === "select") {
                                         const stage = e.target.getStage();
                                         const pointer = stage?.getPointerPosition();
                                         if (pointer) {
@@ -3618,10 +3163,10 @@ export const CanvasEngine = ({
                                         hitStrokeWidth={30} // Increased from 20 for better mobile touch
                                         lineCap="butt"
                                         lineJoin="miter"
-                                        draggable={activeTool === "select" && !isCeramicEraserActive}
+                                        draggable={activeTool === "select"}
                                         onClick={(e) => {
                                             e.cancelBubble = true
-                                            if (activeTool === "select" && !isCeramicEraserActive) {
+                                            if (activeTool === "select") {
                                                 const stage = e.target.getStage();
                                                 const pointer = stage?.getPointerPosition();
                                                 if (pointer) {
@@ -3635,7 +3180,7 @@ export const CanvasEngine = ({
                                         }}
                                         onTap={handleWallTap}
                                         onDblClick={(e) => {
-                                            if (activeTool === "select" && !isCeramicEraserActive && onSplitWall) {
+                                            if (activeTool === "select" && onSplitWall) {
                                                 const stage = e.target.getStage()
                                                 if (stage) {
                                                     const pos = getRelativePointerPosition(stage)
@@ -3798,8 +3343,8 @@ export const CanvasEngine = ({
                                             return (
                                                 <Group key={`tip-${wall.id}-${isStart ? 'start' : 'end'}`}>
                                                     <Line points={[p1x, p1y, p2x, p2y]} stroke={color} strokeWidth={1 / zoom} listening={false} />
-                                                    <Line points={[targetPoint.x - nx * halfT, targetPoint.y - ny * halfT, p1x, p1y]} stroke={CERAMIC_BLUE} strokeWidth={1 / zoom} dash={[2 / zoom, 2 / zoom]} listening={false} />
-                                                    <Line points={[targetPoint.x + nx * halfT, targetPoint.y + ny * halfT, p2x, p2y]} stroke={CERAMIC_BLUE} strokeWidth={1 / zoom} dash={[2 / zoom, 2 / zoom]} listening={false} />
+                                                    <Line points={[targetPoint.x - nx * halfT, targetPoint.y - ny * halfT, p1x, p1y]} stroke="#0ea5e9" strokeWidth={1 / zoom} dash={[2 / zoom, 2 / zoom]} listening={false} />
+                                                    <Line points={[targetPoint.x + nx * halfT, targetPoint.y + ny * halfT, p2x, p2y]} stroke="#0ea5e9" strokeWidth={1 / zoom} dash={[2 / zoom, 2 / zoom]} listening={false} />
 
                                                     <Group x={textX} y={textY} rotation={angle} listening={false}>
                                                         <Rect
@@ -3896,21 +3441,21 @@ export const CanvasEngine = ({
                                     name={`door-${door.id}`}
                                     x={pos.x} y={pos.y}
                                     rotation={wallAngle}
-                                    draggable={activeTool === "select" && !isCeramicEraserActive}
+                                    draggable={activeTool === "select"}
                                     onClick={(e) => { 
-                                        if (activeTool === "select" && !isCeramicEraserActive) {
+                                        if (activeTool === "select") {
                                             e.cancelBubble = true; 
                                             onSelectElement({ type: "door", id: door.id }) 
                                         }
                                     }}
                                     onTap={(e) => { 
-                                        if (activeTool === "select" && !isCeramicEraserActive) {
+                                        if (activeTool === "select") {
                                             e.cancelBubble = true; 
                                             onSelectElement({ type: "door", id: door.id }) 
                                         }
                                     }}
                                     onDragStart={(e) => {
-                                        if (activeTool !== "select" || isCeramicEraserActive) {
+                                        if (activeTool !== "select") {
                                             e.target.stopDrag();
                                             return;
                                         }
@@ -4275,21 +3820,21 @@ export const CanvasEngine = ({
                                     name={`window-${window.id}`}
                                     x={pos.x} y={pos.y}
                                     rotation={wallAngle}
-                                    draggable={activeTool === "select" && !isCeramicEraserActive}
+                                    draggable={activeTool === "select"}
                                     onClick={(e) => { 
-                                        if (activeTool === "select" && !isCeramicEraserActive) {
+                                        if (activeTool === "select") {
                                             e.cancelBubble = true; 
                                             onSelectElement({ type: "window", id: window.id }) 
                                         }
                                     }}
                                     onTap={(e) => { 
-                                        if (activeTool === "select" && !isCeramicEraserActive) {
+                                        if (activeTool === "select") {
                                             e.cancelBubble = true; 
                                             onSelectElement({ type: "window", id: window.id }) 
                                         }
                                     }}
                                     onDragStart={(e) => {
-                                        if (activeTool !== "select" || isCeramicEraserActive) {
+                                        if (activeTool !== "select") {
                                             e.target.stopDrag();
                                             return;
                                         }
@@ -4470,23 +4015,6 @@ export const CanvasEngine = ({
                                                 listening={false}
                                             />
                                             {/* Right Arc - Mirrored */}
-                                            <KonvaArc
-                                                x={window.width / 2}
-                                                y={window.flipY ? (wall.thickness + 4) / 2 : -(wall.thickness + 4) / 2}
-                                                innerRadius={0}
-                                                outerRadius={window.width / 2}
-                                                angle={45}
-                                                rotation={window.flipY ? 0 + 135 : -45 - 135} // Adjusted for correct sweep direction? No, let's think.
-                                            // Left one starts at 0 (if flipY) and updates +45.
-                                            // Right one needs to start at 180 and go to 135?
-                                            // Actually let's keep it simple.
-                                            // Right side opens to the right.
-                                            // Center is at window.width/2.
-                                            // Arc starts from Left (180deg) relative to center?
-                                            // Wait, standard double window opens from center outwards.
-                                            // Left leaf opens Left. Right leaf opens Right.
-                                            // Left Pivot is at -width/2. Right Pivot is at width/2.
-                                            />
                                             <KonvaArc
                                                 x={window.width / 2}
                                                 y={window.flipY ? (wall.thickness + 4) / 2 : -(wall.thickness + 4) / 2}
@@ -4829,7 +4357,7 @@ export const CanvasEngine = ({
                                 shunts={shunts}
                                 setDragShuntState={setDragShuntState}
                                 onSelect={() => {
-                                    if (activeTool === "select" && !isCeramicEraserActive) {
+                                    if (activeTool === "select") {
                                         onSelectElement({ type: "shunt", id: shunt.id })
                                     }
                                 }}
@@ -4838,7 +4366,7 @@ export const CanvasEngine = ({
                                     onDragEnd()
                                 }}
                                 showAllQuotes={showAllQuotes}
-                                ceramicGridImage={ceramicGridImage}
+                                ceramicGridImage={null} // Removed ceramicGridImage
                                 isEditing={editInputState?.id === `shunt-dimensions-${shunt.id}`}
                                 onEditDimensions={(e) => {
                                     const absPos = e.target.getAbsolutePosition()
@@ -4885,7 +4413,7 @@ export const CanvasEngine = ({
                                     name="room-label"
                                     x={labelPos.x} y={labelPos.y}
                                     onClick={(e) => { 
-                                        if (activeTool === "select" && !isCeramicEraserActive) {
+                                        if (activeTool === "select") {
                                             e.cancelBubble = true; 
                                             const stage = e.target.getStage();
                                             const pointer = stage?.getPointerPosition();
@@ -4899,7 +4427,7 @@ export const CanvasEngine = ({
                                         }
                                     }}
                                     onTap={(e) => { 
-                                        if (activeTool === "select" && !isCeramicEraserActive) {
+                                        if (activeTool === "select") {
                                             e.cancelBubble = true; 
                                             const stage = e.target.getStage();
                                             const pointer = stage?.getPointerPosition();
@@ -5032,9 +4560,8 @@ export const CanvasEngine = ({
                         {/* GuÃ­as inteligentes de alineaciÃ³n */}
                         {/* External & Internal Alignment Guides */}
                         {(() => {
-                            const isSnappingInhibited = (activeTool === "ceramic" || isCeramicEraserActive)
                             const guides = externalGuides || internalAlignmentGuides
-                            if (!guides || isSnappingInhibited) return null
+                            if (!guides) return null
                             return (
                                 <Group listening={false}>
                                     {guides.x !== undefined && (
@@ -5066,8 +4593,7 @@ export const CanvasEngine = ({
                             const isWallTool = activeTool === "wall"
                             const isDragging = !!wallSnapshot
 
-                            const isSnappingInhibited = (activeTool === "ceramic" || isCeramicEraserActive)
-                            if (isSnappingInhibited || !snappingEnabled || (!isWallTool && !isDragging)) return null
+                            if (!snappingEnabled || (!isWallTool && !isDragging)) return null
 
                             // 1. Prioridad: VÃ©rtice
                             const vertex = findNearestVertex(p, 15 / zoom)
@@ -5588,11 +5114,6 @@ export const CanvasEngine = ({
                                                 title="Dividir tabique"
                                             />
                                             <MenuButton
-                                                icon={<Grid3X3 className="h-3 w-3 text-sky-600" />}
-                                                onClick={() => setEditMode("ceramic")}
-                                                title="Gestionar Cerámica"
-                                            />
-                                            <MenuButton
                                                 icon={<SeparatorIcon className={`h-6 w-3 ${selectedWall.isInvisible ? 'opacity-100' : 'opacity-60'}`} />}
                                                 onClick={() => onUpdateWallInvisible(selectedWall.id, !selectedWall.isInvisible)}
                                                 title="Separador de estancias"
@@ -5745,37 +5266,13 @@ export const CanvasEngine = ({
                                             <MenuButton
                                                 icon={<SquareDashed className={`h-3.5 w-3.5 ${selectedRoom?.hasCeramicWalls ? "text-sky-600" : "text-slate-400"}`} />}
                                                 onClick={() => {
-                                                    const newState = !selectedRoom?.hasCeramicWalls;
                                                     onUpdateRoom(selectedRoomId, {
-                                                        hasCeramicWalls: newState,
-                                                        isGlobalCeramic: newState,
-                                                        disabledCeramicWalls: [] // Reset when toggling
+                                                        hasCeramicWalls: !selectedRoom?.hasCeramicWalls,
                                                     });
-                                                    
-                                                    // If turning ON globally, we must reset individual wall configs 
-                                                    // so that ALL walls inherit the global ON state.
-                                                    if (newState && selectedRoom) {
-                                                        rooms.find(r => r.id === selectedRoomId)?.polygon.forEach((p1, i, poly) => {
-                                                            const p2 = poly[(i + 1) % poly.length];
-                                                            const wallInfo = getFaceIdWithParity(i, poly, walls);
-                                                            if (wallInfo) {
-                                                                const [wId] = wallInfo.split(':');
-                                                                onUpdateWall(wId, { ceramicActiveFaces: undefined, disabledCeramicFaces: undefined });
-                                                            }
-                                                        });
-                                                    }
-
-                                                    if (!newState) setIsCeramicEraserActive(false);
                                                 }}
                                                 title="Paredes cerámicas"
                                             />
-                                            {selectedRoom?.hasCeramicWalls && (
-                                                <MenuButton
-                                                    icon={<Eraser className={`h-3.5 w-3.5 ${isCeramicEraserActive ? "text-sky-600" : "text-slate-400"}`} />}
-                                                    onClick={() => setIsCeramicEraserActive(!isCeramicEraserActive)}
-                                                    title="Goma de borrar cerámica"
-                                                />
-                                            )}
+
                                             <div className="w-px h-4 bg-slate-100 mx-0.5" />
                                             {isAdvancedEnabled && (
                                                 <>

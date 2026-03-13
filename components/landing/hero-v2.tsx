@@ -76,14 +76,12 @@ export function HeroV2() {
 
                         {/* CTAs */}
                         <div className="pt-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                            <Link href="/auth/login" passHref legacyBehavior>
-                                <Button asChild size="lg" className="h-14 px-8 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white rounded-full transition-all shadow-lg shadow-orange-500/20 w-full sm:w-auto hover:scale-105 active:scale-95">
-                                    <a className="flex items-center justify-center">
-                                        Probar Gratis Ahora
-                                        <ArrowRight className="h-5 w-5 ml-2" />
-                                    </a>
-                                </Button>
-                            </Link>
+                            <Button asChild size="lg" className="h-14 px-8 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white rounded-full transition-all shadow-lg shadow-orange-500/20 w-full sm:w-auto hover:scale-105 active:scale-95">
+                                <Link href="/auth/login" className="flex items-center justify-center">
+                                    Probar Gratis Ahora
+                                    <ArrowRight className="h-5 w-5 ml-2" />
+                                </Link>
+                            </Button>
 
                             <div className="flex items-center gap-3 mt-2 sm:mt-0 px-2 sm:px-0 opacity-80">
                                 <span className="flex -space-x-2">
