@@ -3234,7 +3234,13 @@ export const EditorContainer = forwardRef((props: any, ref) => {
                     hideFloatingUI={isSettingsOpen || showSummary || (isMobile && !isFullscreen && typeof window !== 'undefined' && window.innerWidth > window.innerHeight)}
                     onDblClick={handleDblClick}
                     alignmentGuides={alignmentGuides}
-
+                    onEscape={() => {
+                        setCurrentWall(null)
+                        setSelectedWallIds([])
+                        setSelectedRoomId(null)
+                        setSelectedElement(null)
+                        setRulerState({ start: null, end: null, active: false })
+                    }}
                 />
 
 

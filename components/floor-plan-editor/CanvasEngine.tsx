@@ -170,77 +170,8 @@ const SeparatorIcon = ({ className }: { className?: string }) => (
     </svg>
 )
 
-interface CanvasEngineProps {
-    width: number
-    height: number
-    zoom: number
-    offset: { x: number; y: number }
-    walls: Wall[]
-    rooms: Room[]
-    doors: Door[]
-    windows: Window[]
-    shunts?: Shunt[]
-    currentWall: { start: Point; end: Point } | null
-    activeTool: "select" | "wall" | "door" | "window" | "ruler" | "arc" | "shunt" | "ceramic"
-    hoveredWallId: string | null
-    onPan: (x: number, y: number) => void
-    onZoom: (newZoom: number) => void
-    onMouseDown: (point: Point) => void
-    onMouseMove: (point: Point) => void
-    onMouseUp: (point: Point) => void
-    onHoverWall: (id: string | null) => void
-    onSelectWall: (id: string | null, isMultiSelect?: boolean) => void
-    onDragWall: (id: string, delta: { x: number; y: number }) => void
-    onDragVertex: (originalPoint: Point, delta: Point, activeIds?: string[]) => void
-    onDragEnd: () => void
-    onUpdateWallLength: (id: string, length: number, side: "left" | "right", faceNormal?: Point) => void
-    onDeleteWall: (id: string) => void
-    onSplitWall?: (id: string, point?: Point) => void,
-    onUpdateWall: (id: string, updates: Partial<Wall>) => void
-    onUpdateWallThickness: (id: string, thickness: number) => void
-    onUpdateWallInvisible: (id: string, isInvisible: boolean) => void
-    onUpdateRoom: (id: string, updates: Partial<Room>) => void
-    onDeleteRoom: (id: string) => void
-    onCloneRoom: (id: string) => void
-    selectedWallIds: string[]
-    selectedRoomId: string | null
-    onSelectRoom: (id: string | null) => void
-    onStartDragWall: () => void
-    onDragElement: (type: "door" | "window" | "shunt", id: string, pointer: Point) => void
-    selectedElement: { type: "door" | "window" | "shunt", id: string } | null
-    onSelectElement: (element: { type: "door" | "window" | "shunt", id: string } | null) => void
-    onUpdateElement: (type: "door" | "window" | "shunt", id: string, updates: any) => void
-    onCloneElement: (type: "door" | "window" | "shunt", id: string) => void
-    onDeleteElement: (type: "door" | "window" | "shunt", id: string) => void
-    onUpdateShunt?: (id: string, updates: Partial<Shunt>) => void
-    wallSnapshot: Wall[] | null
-    bgImage?: string | null
-    bgConfig?: { opacity: number, scale: number, x: number, y: number, rotation?: number }
-    onUpdateBgConfig?: (updates: any) => void
-    isCalibrating?: boolean
-    calibrationPoints?: { p1: Point, p2: Point }
-    calibrationTargetValue?: number
-    onUpdateCalibrationValue?: (val: number) => void
-    onUpdateCalibrationPoint?: (id: "p1" | "p2", point: Point) => void
-    phantomArc?: { start: Point, end: Point, depth: number }
-    touchOffset?: number
-    showGrid?: boolean
-    forceTouchOffset?: boolean
-    snappingEnabled?: boolean
-    rulerPoints?: { start: Point, end: Point } | null
-    onReady?: (api: CanvasEngineRef) => void
-    gridRotation?: number
-    onRotateGrid?: (angle: number) => void
-    isAdvancedEnabled?: boolean
-    hideFloatingUI?: boolean
-    showAllQuotes?: boolean
-    showRoomNames?: boolean
-    onDblClick?: (point: Point) => void
-    onDblTap?: (point: Point) => void
-    showAreas?: boolean
-    alignmentGuides?: { x?: number, y?: number } | null
-
     planHeight?: number
+    onEscape?: () => void
 }
 
 export interface CanvasEngineRef {
@@ -609,7 +540,8 @@ export const CanvasEngine = ({
     onDblClick,
     onDblTap,
     alignmentGuides: externalGuides,
-    planHeight = 250
+    planHeight = 250,
+    onEscape
 }: CanvasEngineProps) => {
     const [roomMenuClickPos, setRoomMenuClickPos] = React.useState<Point | null>(null)
     const [wallMenuClickPos, setWallMenuClickPos] = React.useState<Point | null>(null)
@@ -1318,16 +1250,7 @@ export const CanvasEngine = ({
         }
     }, [isDraggingMenuState])
 
-    // Global Key Listener for Escape
-    React.useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                onEscape()
-            }
-        }
-        window.addEventListener('keydown', handleKeyDown)
-        return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [])
+
 
     const selectedWall = selectedWallIds.length === 1 ? walls.find(w => w.id === selectedWallIds[0]) : null
     const selectedRoom = rooms.find(r => r.id === selectedRoomId)
